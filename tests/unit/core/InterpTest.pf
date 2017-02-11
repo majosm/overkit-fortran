@@ -1,0 +1,242 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+@Test
+subroutine ovkInterpTest_interp_default(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_interp) :: InterpData
+
+  InterpData = ovk_interp_(2)
+
+  @AssertTrue(ovk_cart_(2) == InterpData%cart)
+  @AssertEqual(0, InterpData%ncoefs)
+  @AssertTrue(ovk_cart_(2) == InterpData%valid_mask%cart)
+  @AssertTrue(ovk_field_int_(2) == InterpData%donor_grid_ids)
+  @AssertFalse(allocated(InterpData%donor_cells))
+  @AssertFalse(allocated(InterpData%donor_cell_coords))
+  @AssertTrue(ovk_field_int_(2) == InterpData%schemes)
+  @AssertFalse(allocated(InterpData%coefs))
+
+  InterpData = ovk_interp_(3)
+
+  @AssertTrue(ovk_cart_(3) == InterpData%cart)
+  @AssertEqual(0, InterpData%ncoefs)
+  @AssertTrue(ovk_cart_(3) == InterpData%valid_mask%cart)
+  @AssertTrue(ovk_field_int_(3) == InterpData%donor_grid_ids)
+  @AssertFalse(allocated(InterpData%donor_cells))
+  @AssertFalse(allocated(InterpData%donor_cell_coords))
+  @AssertTrue(ovk_field_int_(3) == InterpData%schemes)
+  @AssertFalse(allocated(InterpData%coefs))
+
+end subroutine ovkInterpTest_interp_default
+
+@Test
+subroutine ovkInterpTest_make_interp_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_interp) :: InterpData
+
+  Cart = ovk_cart_(2, [3,3], [.true.,.false.])
+
+  call ovkMakeInterpData(InterpData, Cart, InterpScheme=OVK_INTERP_LINEAR)
+
+  @AssertTrue(Cart == InterpData%cart)
+  @AssertEqual(2, InterpData%ncoefs)
+  @AssertTrue(Cart == InterpData%valid_mask%cart)
+  @AssertTrue(Cart == InterpData%donor_grid_ids%cart)
+  @AssertTrue(allocated(InterpData%donor_cells))
+  @AssertEqual(2, size(InterpData%donor_cells))
+  @AssertTrue(Cart == InterpData%donor_cells(1)%cart)
+  @AssertTrue(Cart == InterpData%donor_cells(2)%cart)
+  @AssertTrue(allocated(InterpData%donor_cell_coords))
+  @AssertEqual(2, size(InterpData%donor_cell_coords))
+  @AssertTrue(Cart == InterpData%donor_cell_coords(1)%cart)
+  @AssertTrue(Cart == InterpData%donor_cell_coords(2)%cart)
+  @AssertTrue(Cart == InterpData%schemes%cart)
+  @AssertTrue(allocated(InterpData%coefs))
+  @AssertEqual([2,2], shape(InterpData%coefs))
+  @AssertTrue(Cart == InterpData%coefs(1,1)%cart)
+  @AssertTrue(Cart == InterpData%coefs(2,1)%cart)
+  @AssertTrue(Cart == InterpData%coefs(1,2)%cart)
+  @AssertTrue(Cart == InterpData%coefs(2,2)%cart)
+
+end subroutine ovkInterpTest_make_interp_2d
+
+@Test
+subroutine ovkInterpTest_make_interp_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_interp) :: InterpData
+
+  Cart = ovk_cart_(3, [3,3,3], [.true.,.false.,.false.])
+
+  call ovkMakeInterpData(InterpData, Cart, InterpScheme=OVK_INTERP_LINEAR)
+
+  @AssertTrue(Cart == InterpData%cart)
+  @AssertEqual(2, InterpData%ncoefs)
+  @AssertTrue(Cart == InterpData%valid_mask%cart)
+  @AssertTrue(Cart == InterpData%donor_grid_ids%cart)
+  @AssertTrue(allocated(InterpData%donor_cells))
+  @AssertEqual(3, size(InterpData%donor_cells))
+  @AssertTrue(Cart == InterpData%donor_cells(1)%cart)
+  @AssertTrue(Cart == InterpData%donor_cells(2)%cart)
+  @AssertTrue(Cart == InterpData%donor_cells(3)%cart)
+  @AssertTrue(allocated(InterpData%donor_cell_coords))
+  @AssertEqual(3, size(InterpData%donor_cell_coords))
+  @AssertTrue(Cart == InterpData%donor_cell_coords(1)%cart)
+  @AssertTrue(Cart == InterpData%donor_cell_coords(2)%cart)
+  @AssertTrue(Cart == InterpData%donor_cell_coords(3)%cart)
+  @AssertTrue(Cart == InterpData%schemes%cart)
+  @AssertTrue(allocated(InterpData%coefs))
+  @AssertEqual([2,3], shape(InterpData%coefs))
+  @AssertTrue(Cart == InterpData%coefs(1,1)%cart)
+  @AssertTrue(Cart == InterpData%coefs(2,1)%cart)
+  @AssertTrue(Cart == InterpData%coefs(1,2)%cart)
+  @AssertTrue(Cart == InterpData%coefs(2,2)%cart)
+  @AssertTrue(Cart == InterpData%coefs(1,3)%cart)
+  @AssertTrue(Cart == InterpData%coefs(2,3)%cart)
+
+end subroutine ovkInterpTest_make_interp_3d
+
+@Test
+subroutine ovkInterpTest_interp_linear_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_donors) :: Donors
+  type(ovk_interp) :: InterpData
+
+  call ovkMakeDonors(Donors, ovk_cart_(2, [3,3]))
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(1,1,1) = .true.
+  Donors%grid_ids%values(1,1,1) = 2
+  Donors%cells(1)%values(1,1,1) = 2
+  Donors%cells(2)%values(1,1,1) = 3
+  Donors%cell_coords(1)%values(1,1,1) = 0.25_rk
+  Donors%cell_coords(2)%values(1,1,1) = 0.25_rk
+
+  call ovkGenerateInterpData(Donors, InterpData)
+
+  @AssertTrue(logical(InterpData%valid_mask%values(1,1,1)))
+  @AssertFalse(logical(any(InterpData%valid_mask%values(2:,1,1))))
+  @AssertFalse(logical(any(InterpData%valid_mask%values(:,2:,1))))
+  @AssertEqual(2, InterpData%donor_grid_ids%values(1,1,1))
+  @AssertEqual(2, InterpData%donor_cells(1)%values(1,1,1))
+  @AssertEqual(3, InterpData%donor_cells(2)%values(1,1,1))
+  @AssertEqual(0.25_rk, InterpData%donor_cell_coords(1)%values(1,1,1))
+  @AssertEqual(0.25_rk, InterpData%donor_cell_coords(2)%values(1,1,1))
+  @AssertEqual(OVK_INTERP_LINEAR, InterpData%schemes%values(1,1,1))
+  @AssertEqual(0.75_rk, InterpData%coefs(1,1)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.75_rk, InterpData%coefs(1,2)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.25_rk, InterpData%coefs(2,1)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.25_rk, InterpData%coefs(2,2)%values(1,1,1), 1.e-10_rk)
+
+end subroutine ovkInterpTest_interp_linear_2d
+
+@Test
+subroutine ovkInterpTest_interp_linear_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_donors) :: Donors
+  type(ovk_interp) :: InterpData
+
+  call ovkMakeDonors(Donors, ovk_cart_(3, [3,3,3]))
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(1,1,1) = .true.
+  Donors%grid_ids%values(1,1,1) = 2
+  Donors%cells(1)%values(1,1,1) = 2
+  Donors%cells(2)%values(1,1,1) = 3
+  Donors%cells(3)%values(1,1,1) = 4
+  Donors%cell_coords(1)%values(1,1,1) = 0.25_rk
+  Donors%cell_coords(2)%values(1,1,1) = 0.25_rk
+  Donors%cell_coords(3)%values(1,1,1) = 0.25_rk
+
+  call ovkGenerateInterpData(Donors, InterpData)
+
+  @AssertTrue(logical(InterpData%valid_mask%values(1,1,1)))
+  @AssertFalse(logical(any(InterpData%valid_mask%values(2:,1,1))))
+  @AssertFalse(logical(any(InterpData%valid_mask%values(:,2:,1))))
+  @AssertFalse(logical(any(InterpData%valid_mask%values(:,:,2:))))
+  @AssertEqual(2, InterpData%donor_grid_ids%values(1,1,1))
+  @AssertEqual(2, InterpData%donor_cells(1)%values(1,1,1))
+  @AssertEqual(3, InterpData%donor_cells(2)%values(1,1,1))
+  @AssertEqual(4, InterpData%donor_cells(3)%values(1,1,1))
+  @AssertEqual(0.25_rk, InterpData%donor_cell_coords(1)%values(1,1,1))
+  @AssertEqual(0.25_rk, InterpData%donor_cell_coords(2)%values(1,1,1))
+  @AssertEqual(0.25_rk, InterpData%donor_cell_coords(3)%values(1,1,1))
+  @AssertEqual(OVK_INTERP_LINEAR, InterpData%schemes%values(1,1,1))
+  @AssertEqual(0.75_rk, InterpData%coefs(1,1)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.75_rk, InterpData%coefs(1,2)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.75_rk, InterpData%coefs(1,3)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.25_rk, InterpData%coefs(2,1)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.25_rk, InterpData%coefs(2,2)%values(1,1,1), 1.e-10_rk)
+  @AssertEqual(0.25_rk, InterpData%coefs(2,3)%values(1,1,1), 1.e-10_rk)
+
+end subroutine ovkInterpTest_interp_linear_3d
+
+@Test
+subroutine ovkInterpTest_destroy(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_donors) :: Donors
+  type(ovk_interp) :: InterpData
+
+  call ovkMakeDonors(Donors, ovk_cart_(2, [3,3]))
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(1,1,1) = .true.
+  Donors%grid_ids%values(1,1,1) = 2
+  Donors%cells(1)%values(1,1,1) = 2
+  Donors%cells(2)%values(1,1,1) = 3
+  Donors%cell_coords(1)%values(1,1,1) = 0.25_rk
+  Donors%cell_coords(2)%values(1,1,1) = 0.25_rk
+
+  call ovkGenerateInterpData(Donors, InterpData)
+
+  call ovkDestroyInterpData(InterpData)
+
+  @AssertFalse(allocated(InterpData%valid_mask%values))
+  @AssertFalse(allocated(InterpData%donor_grid_ids%values))
+  @AssertFalse(allocated(InterpData%donor_cells))
+  @AssertFalse(allocated(InterpData%donor_cell_coords))
+  @AssertFalse(allocated(InterpData%schemes%values))
+  @AssertFalse(allocated(InterpData%coefs))
+
+end subroutine ovkInterpTest_destroy

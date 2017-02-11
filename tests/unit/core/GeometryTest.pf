@@ -1,0 +1,1357 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+@Test
+subroutine ovkGeometryTest_overlaps_rectangle(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  ! Vertex 1
+  @AssertTrue(ovkOverlapsRectangle(Vertices, [2._rk, 4._rk]))
+
+  ! Vertex 2
+  @AssertTrue(ovkOverlapsRectangle(Vertices, [3._rk, 4._rk]))
+
+  ! Vertex 3
+  @AssertTrue(ovkOverlapsRectangle(Vertices, [2._rk, 5._rk]))
+
+  ! Vertex 4
+  @AssertTrue(ovkOverlapsRectangle(Vertices, [3._rk, 5._rk]))
+
+  ! Center
+  @AssertTrue(ovkOverlapsRectangle(Vertices, [2.5_rk, 4.5_rk]))
+
+  ! Outside
+  @AssertFalse(ovkOverlapsRectangle(Vertices, [0._rk, 0._rk]))
+
+end subroutine ovkGeometryTest_overlaps_rectangle
+
+@Test
+subroutine ovkGeometryTest_overlaps_quad(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 1._rk, 4._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  ! Vertex 1
+  @AssertTrue(ovkOverlapsQuad(Vertices, [2._rk, 4._rk]))
+
+  ! Vertex 2
+  @AssertTrue(ovkOverlapsQuad(Vertices, [3._rk, 4._rk]))
+
+  ! Vertex 3
+  @AssertTrue(ovkOverlapsQuad(Vertices, [1._rk, 5._rk]))
+
+  ! Vertex 4
+  @AssertTrue(ovkOverlapsQuad(Vertices, [4._rk, 5._rk]))
+
+  ! Center
+  @AssertTrue(ovkOverlapsQuad(Vertices, [2.5_rk, 4.5_rk]))
+
+  ! Outside
+  @AssertFalse(ovkOverlapsQuad(Vertices, [0._rk, 0._rk]))
+
+end subroutine ovkGeometryTest_overlaps_quad
+
+@Test
+subroutine ovkGeometryTest_overlaps_cuboid(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 4._rk, 4._rk, 5._rk, 5._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  ! Vertex 1
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [2._rk, 4._rk, 6._rk]))
+
+  ! Vertex 2
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [3._rk, 4._rk, 6._rk]))
+
+  ! Vertex 3
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [2._rk, 5._rk, 6._rk]))
+
+  ! Vertex 4
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [3._rk, 5._rk, 6._rk]))
+
+  ! Vertex 5
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [2._rk, 4._rk, 7._rk]))
+
+  ! Vertex 6
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [3._rk, 4._rk, 7._rk]))
+
+  ! Vertex 7
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [2._rk, 5._rk, 7._rk]))
+
+  ! Vertex 8
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [3._rk, 5._rk, 7._rk]))
+
+  ! Center
+  @AssertTrue(ovkOverlapsCuboid(Vertices, [2.5_rk, 4.5_rk, 6.5_rk]))
+
+  ! Outside
+  @AssertFalse(ovkOverlapsCuboid(Vertices, [0._rk, 0._rk, 0._rk]))
+
+end subroutine ovkGeometryTest_overlaps_cuboid
+
+@Test
+subroutine ovkGeometryTest_overlaps_hexahedron(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 1._rk, 3._rk, 1._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 3._rk, 3._rk, 6._rk, 6._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  ! Vertex 1
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [2._rk, 4._rk, 6._rk]))
+
+  ! Vertex 2
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [3._rk, 4._rk, 6._rk]))
+
+  ! Vertex 3
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [2._rk, 5._rk, 6._rk]))
+
+  ! Vertex 4
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [3._rk, 5._rk, 6._rk]))
+
+  ! Vertex 5
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [1._rk, 3._rk, 7._rk]))
+
+  ! Vertex 6
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [3._rk, 3._rk, 7._rk]))
+
+  ! Vertex 7
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [1._rk, 6._rk, 7._rk]))
+
+  ! Vertex 8
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [3._rk, 6._rk, 7._rk]))
+
+  ! Center
+  @AssertTrue(ovkOverlapsHexahedron(Vertices, [2.5_rk, 4.5_rk, 6.5_rk]))
+
+  ! Outside
+  @AssertFalse(ovkOverlapsHexahedron(Vertices, [0._rk, 0._rk, 0._rk]))
+
+end subroutine ovkGeometryTest_overlaps_hexahedron
+
+@Test
+subroutine ovkGeometryTest_rectangle_size(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  @AssertEqual(1._rk, ovkRectangleSize(Vertices), 1.e-10_rk)
+
+end subroutine ovkGeometryTest_rectangle_size
+
+@Test
+subroutine ovkGeometryTest_quad_size(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 4._rk, 5._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  @AssertEqual(1._rk, ovkQuadSize(Vertices), 1.e-10_rk)
+
+end subroutine ovkGeometryTest_quad_size
+
+@Test
+subroutine ovkGeometryTest_cuboid_size(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 4._rk, 4._rk, 5._rk, 5._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  @AssertEqual(1._rk, ovkCuboidSize(Vertices), 1.e-10_rk)
+
+end subroutine ovkGeometryTest_cuboid_size
+
+@Test
+subroutine ovkGeometryTest_hexahedron_size(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 4._rk, 5._rk, 4._rk, 5._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 6._rk, 6._rk, 7._rk, 7._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  @AssertEqual(1._rk, ovkHexahedronSize(Vertices), 1.e-10_rk)
+
+end subroutine ovkGeometryTest_hexahedron_size
+
+@Test
+subroutine ovkGeometryTest_rectangle_iso_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+  real(rk), dimension(2) :: Coords
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  ! Vertex 1
+  Coords = ovkRectangleIsoLinear(Vertices, [0._rk, 0._rk])
+  @AssertEqual([2._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 2
+  Coords = ovkRectangleIsoLinear(Vertices, [1._rk, 0._rk])
+  @AssertEqual([3._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 3
+  Coords = ovkRectangleIsoLinear(Vertices, [0._rk, 1._rk])
+  @AssertEqual([2._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 4
+  Coords = ovkRectangleIsoLinear(Vertices, [1._rk, 1._rk])
+  @AssertEqual([3._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkRectangleIsoLinear(Vertices, [0.5_rk, 0.5_rk])
+  @AssertEqual([2.5_rk, 4.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_rectangle_iso_linear
+
+@Test
+subroutine ovkGeometryTest_rectangle_iso_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, l
+  real(rk), dimension(2,16) :: Vertices
+  real(rk), dimension(2) :: Coords
+
+  do j = 1, 4
+    do i = 1, 4
+      l = 1 + (i-1) + 4*(j-1)
+      Vertices(:,l) = [2._rk, 4._rk] + real([i-1,j-1], kind=rk)
+    end do
+  end do
+
+  ! Outer cell corner 1
+  Coords = ovkRectangleIsoCubic(Vertices, [-1._rk, -1._rk])
+  @AssertEqual([2._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  Coords = ovkRectangleIsoCubic(Vertices, [2._rk, -1._rk])
+  @AssertEqual([5._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  Coords = ovkRectangleIsoCubic(Vertices, [-1._rk, 2._rk])
+  @AssertEqual([2._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  Coords = ovkRectangleIsoCubic(Vertices, [2._rk, 2._rk])
+  @AssertEqual([5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  Coords = ovkRectangleIsoCubic(Vertices, [0._rk, 0._rk])
+  @AssertEqual([3._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  Coords = ovkRectangleIsoCubic(Vertices, [1._rk, 0._rk])
+  @AssertEqual([4._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  Coords = ovkRectangleIsoCubic(Vertices, [0._rk, 1._rk])
+  @AssertEqual([3._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  Coords = ovkRectangleIsoCubic(Vertices, [1._rk, 1._rk])
+  @AssertEqual([4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkRectangleIsoCubic(Vertices, [0.5_rk, 0.5_rk])
+  @AssertEqual([3.5_rk, 5.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_rectangle_iso_cubic
+
+@Test
+subroutine ovkGeometryTest_quad_iso_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+  real(rk), dimension(2) :: Coords
+
+  Vertices(1,:) = [2._rk, 3._rk, 3._rk, 4._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  ! Vertex 1
+  Coords = ovkQuadIsoLinear(Vertices, [0._rk, 0._rk])
+  @AssertEqual([2._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 2
+  Coords = ovkQuadIsoLinear(Vertices, [1._rk, 0._rk])
+  @AssertEqual([3._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 3
+  Coords = ovkQuadIsoLinear(Vertices, [0._rk, 1._rk])
+  @AssertEqual([3._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 4
+  Coords = ovkQuadIsoLinear(Vertices, [1._rk, 1._rk])
+  @AssertEqual([4._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkQuadIsoLinear(Vertices, [0.5_rk, 0.5_rk])
+  @AssertEqual([3._rk, 4.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_quad_iso_linear
+
+@Test
+subroutine ovkGeometryTest_quad_iso_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, l
+  real(rk), dimension(2,16) :: Vertices
+  real(rk), dimension(2) :: Coords
+
+  do j = 1, 4
+    do i = 1, 4
+      l = 1 + (i-1) + 4*(j-1)
+      Vertices(:,l) = [2._rk, 4._rk] + real([i+j-2,j-1], kind=rk)
+    end do
+  end do
+
+  ! Outer cell corner 1
+  Coords = ovkQuadIsoCubic(Vertices, [-1._rk, -1._rk])
+  @AssertEqual([2._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  Coords = ovkQuadIsoCubic(Vertices, [2._rk, -1._rk])
+  @AssertEqual([5._rk, 4._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  Coords = ovkQuadIsoCubic(Vertices, [-1._rk, 2._rk])
+  @AssertEqual([5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  Coords = ovkQuadIsoCubic(Vertices, [2._rk, 2._rk])
+  @AssertEqual([8._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  Coords = ovkQuadIsoCubic(Vertices, [0._rk, 0._rk])
+  @AssertEqual([4._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  Coords = ovkQuadIsoCubic(Vertices, [1._rk, 0._rk])
+  @AssertEqual([5._rk, 5._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  Coords = ovkQuadIsoCubic(Vertices, [0._rk, 1._rk])
+  @AssertEqual([5._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  Coords = ovkQuadIsoCubic(Vertices, [1._rk, 1._rk])
+  @AssertEqual([6._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkQuadIsoCubic(Vertices, [0.5_rk, 0.5_rk])
+  @AssertEqual([5._rk, 5.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_quad_iso_cubic
+
+@Test
+subroutine ovkGeometryTest_cuboid_iso_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+  real(rk), dimension(3) :: Coords
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 4._rk, 4._rk, 5._rk, 5._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  ! Vertex 1
+  Coords = ovkCuboidIsoLinear(Vertices, [0._rk, 0._rk, 0._rk])
+  @AssertEqual([2._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 2
+  Coords = ovkCuboidIsoLinear(Vertices, [1._rk, 0._rk, 0._rk])
+  @AssertEqual([3._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 3
+  Coords = ovkCuboidIsoLinear(Vertices, [0._rk, 1._rk, 0._rk])
+  @AssertEqual([2._rk, 5._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 4
+  Coords = ovkCuboidIsoLinear(Vertices, [1._rk, 1._rk, 0._rk])
+  @AssertEqual([3._rk, 5._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 5
+  Coords = ovkCuboidIsoLinear(Vertices, [0._rk, 0._rk, 1._rk])
+  @AssertEqual([2._rk, 4._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 6
+  Coords = ovkCuboidIsoLinear(Vertices, [1._rk, 0._rk, 1._rk])
+  @AssertEqual([3._rk, 4._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 7
+  Coords = ovkCuboidIsoLinear(Vertices, [0._rk, 1._rk, 1._rk])
+  @AssertEqual([2._rk, 5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 8
+  Coords = ovkCuboidIsoLinear(Vertices, [1._rk, 1._rk, 1._rk])
+  @AssertEqual([3._rk, 5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkCuboidIsoLinear(Vertices, [0.5_rk, 0.5_rk, 0.5_rk])
+  @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_cuboid_iso_linear
+
+@Test
+subroutine ovkGeometryTest_cuboid_iso_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, k, l
+  real(rk), dimension(3,64) :: Vertices
+  real(rk), dimension(3) :: Coords
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        l = 1 + (i-1) + 4*(j-1) + 16*(k-1)
+        Vertices(:,l) = [2._rk, 4._rk, 6._rk] + real([i-1,j-1,k-1], kind=rk)
+      end do
+    end do
+  end do
+
+  ! Outer cell corner 1
+  Coords = ovkCuboidIsoCubic(Vertices, [-1._rk, -1._rk, -1._rk])
+  @AssertEqual([2._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  Coords = ovkCuboidIsoCubic(Vertices, [2._rk, -1._rk, -1._rk])
+  @AssertEqual([5._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  Coords = ovkCuboidIsoCubic(Vertices, [-1._rk, 2._rk, -1._rk])
+  @AssertEqual([2._rk, 7._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  Coords = ovkCuboidIsoCubic(Vertices, [2._rk, 2._rk, -1._rk])
+  @AssertEqual([5._rk, 7._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 5
+  Coords = ovkCuboidIsoCubic(Vertices, [-1._rk, -1._rk, 2._rk])
+  @AssertEqual([2._rk, 4._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 6
+  Coords = ovkCuboidIsoCubic(Vertices, [2._rk, -1._rk, 2._rk])
+  @AssertEqual([5._rk, 4._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 7
+  Coords = ovkCuboidIsoCubic(Vertices, [-1._rk, 2._rk, 2._rk])
+  @AssertEqual([2._rk, 7._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 8
+  Coords = ovkCuboidIsoCubic(Vertices, [2._rk, 2._rk, 2._rk])
+  @AssertEqual([5._rk, 7._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  Coords = ovkCuboidIsoCubic(Vertices, [0._rk, 0._rk, 0._rk])
+  @AssertEqual([3._rk, 5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  Coords = ovkCuboidIsoCubic(Vertices, [1._rk, 0._rk, 0._rk])
+  @AssertEqual([4._rk, 5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  Coords = ovkCuboidIsoCubic(Vertices, [0._rk, 1._rk, 0._rk])
+  @AssertEqual([3._rk, 6._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  Coords = ovkCuboidIsoCubic(Vertices, [1._rk, 1._rk, 0._rk])
+  @AssertEqual([4._rk, 6._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 5
+  Coords = ovkCuboidIsoCubic(Vertices, [0._rk, 0._rk, 1._rk])
+  @AssertEqual([3._rk, 5._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 6
+  Coords = ovkCuboidIsoCubic(Vertices, [1._rk, 0._rk, 1._rk])
+  @AssertEqual([4._rk, 5._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 7
+  Coords = ovkCuboidIsoCubic(Vertices, [0._rk, 1._rk, 1._rk])
+  @AssertEqual([3._rk, 6._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 8
+  Coords = ovkCuboidIsoCubic(Vertices, [1._rk, 1._rk, 1._rk])
+  @AssertEqual([4._rk, 6._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkCuboidIsoCubic(Vertices, [0.5_rk, 0.5_rk, 0.5_rk])
+  @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_cuboid_iso_cubic
+
+@Test
+subroutine ovkGeometryTest_hexahedron_iso_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+  real(rk), dimension(3) :: Coords
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 3._rk, 4._rk, 3._rk, 4._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 5._rk, 5._rk, 6._rk, 6._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  ! Vertex 1
+  Coords = ovkHexahedronIsoLinear(Vertices, [0._rk, 0._rk, 0._rk])
+  @AssertEqual([2._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 2
+  Coords = ovkHexahedronIsoLinear(Vertices, [1._rk, 0._rk, 0._rk])
+  @AssertEqual([3._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 3
+  Coords = ovkHexahedronIsoLinear(Vertices, [0._rk, 1._rk, 0._rk])
+  @AssertEqual([2._rk, 5._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 4
+  Coords = ovkHexahedronIsoLinear(Vertices, [1._rk, 1._rk, 0._rk])
+  @AssertEqual([3._rk, 5._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 5
+  Coords = ovkHexahedronIsoLinear(Vertices, [0._rk, 0._rk, 1._rk])
+  @AssertEqual([3._rk, 5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 6
+  Coords = ovkHexahedronIsoLinear(Vertices, [1._rk, 0._rk, 1._rk])
+  @AssertEqual([4._rk, 5._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 7
+  Coords = ovkHexahedronIsoLinear(Vertices, [0._rk, 1._rk, 1._rk])
+  @AssertEqual([3._rk, 6._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Vertex 8
+  Coords = ovkHexahedronIsoLinear(Vertices, [1._rk, 1._rk, 1._rk])
+  @AssertEqual([4._rk, 6._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkHexahedronIsoLinear(Vertices, [0.5_rk, 0.5_rk, 0.5_rk])
+  @AssertEqual([3._rk, 5._rk, 6.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_hexahedron_iso_linear
+
+@Test
+subroutine ovkGeometryTest_hexahedron_iso_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, k, l
+  real(rk), dimension(3,64) :: Vertices
+  real(rk), dimension(3) :: Coords
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        l = 1 + (i-1) + 4*(j-1) + 16*(k-1)
+        Vertices(:,l) = [2._rk, 4._rk, 6._rk] + real([i+k-2,j+k-2,k-1], kind=rk)
+      end do
+    end do
+  end do
+
+  ! Outer cell corner 1
+  Coords = ovkHexahedronIsoCubic(Vertices, [-1._rk, -1._rk, -1._rk])
+  @AssertEqual([2._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  Coords = ovkHexahedronIsoCubic(Vertices, [2._rk, -1._rk, -1._rk])
+  @AssertEqual([5._rk, 4._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  Coords = ovkHexahedronIsoCubic(Vertices, [-1._rk, 2._rk, -1._rk])
+  @AssertEqual([2._rk, 7._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  Coords = ovkHexahedronIsoCubic(Vertices, [2._rk, 2._rk, -1._rk])
+  @AssertEqual([5._rk, 7._rk, 6._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 5
+  Coords = ovkHexahedronIsoCubic(Vertices, [-1._rk, -1._rk, 2._rk])
+  @AssertEqual([5._rk, 7._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 6
+  Coords = ovkHexahedronIsoCubic(Vertices, [2._rk, -1._rk, 2._rk])
+  @AssertEqual([8._rk, 7._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 7
+  Coords = ovkHexahedronIsoCubic(Vertices, [-1._rk, 2._rk, 2._rk])
+  @AssertEqual([5._rk, 10._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Outer cell corner 8
+  Coords = ovkHexahedronIsoCubic(Vertices, [2._rk, 2._rk, 2._rk])
+  @AssertEqual([8._rk, 10._rk, 9._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  Coords = ovkHexahedronIsoCubic(Vertices, [0._rk, 0._rk, 0._rk])
+  @AssertEqual([4._rk, 6._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  Coords = ovkHexahedronIsoCubic(Vertices, [1._rk, 0._rk, 0._rk])
+  @AssertEqual([5._rk, 6._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  Coords = ovkHexahedronIsoCubic(Vertices, [0._rk, 1._rk, 0._rk])
+  @AssertEqual([4._rk, 7._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  Coords = ovkHexahedronIsoCubic(Vertices, [1._rk, 1._rk, 0._rk])
+  @AssertEqual([5._rk, 7._rk, 7._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 5
+  Coords = ovkHexahedronIsoCubic(Vertices, [0._rk, 0._rk, 1._rk])
+  @AssertEqual([5._rk, 7._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 6
+  Coords = ovkHexahedronIsoCubic(Vertices, [1._rk, 0._rk, 1._rk])
+  @AssertEqual([6._rk, 7._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 7
+  Coords = ovkHexahedronIsoCubic(Vertices, [0._rk, 1._rk, 1._rk])
+  @AssertEqual([5._rk, 8._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Central cell vertex 8
+  Coords = ovkHexahedronIsoCubic(Vertices, [1._rk, 1._rk, 1._rk])
+  @AssertEqual([6._rk, 8._rk, 8._rk], Coords, 1.e-10_rk)
+
+  ! Center
+  Coords = ovkHexahedronIsoCubic(Vertices, [0.5_rk, 0.5_rk, 0.5_rk])
+  @AssertEqual([5._rk, 7._rk, 7.5_rk], Coords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_hexahedron_iso_cubic
+
+@Test
+subroutine ovkGeometryTest_rectangle_iso_inverse_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+  real(rk), dimension(2) :: LocalCoords
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  ! Vertex 1
+  LocalCoords = ovkRectangleIsoInverseLinear(Vertices, [2._rk, 4._rk])
+  @AssertEqual([0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 2
+  LocalCoords = ovkRectangleIsoInverseLinear(Vertices, [3._rk, 4._rk])
+  @AssertEqual([1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 3
+  LocalCoords = ovkRectangleIsoInverseLinear(Vertices, [2._rk, 5._rk])
+  @AssertEqual([0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 4
+  LocalCoords = ovkRectangleIsoInverseLinear(Vertices, [3._rk, 5._rk])
+  @AssertEqual([1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkRectangleIsoInverseLinear(Vertices, [2.5_rk, 4.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_rectangle_iso_inverse_linear
+
+@Test
+subroutine ovkGeometryTest_rectangle_iso_inverse_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, l
+  real(rk), dimension(2,16) :: Vertices
+  real(rk), dimension(2) :: LocalCoords
+
+  do j = 1, 4
+    do i = 1, 4
+      l = 1 + (i-1) + 4*(j-1)
+      Vertices(:,l) = [2._rk, 4._rk] + real([i-1,j-1], kind=rk)
+    end do
+  end do
+
+  ! Outer cell corner 1
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [2._rk, 4._rk])
+  @AssertEqual([-1._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [5._rk, 4._rk])
+  @AssertEqual([2._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [2._rk, 7._rk])
+  @AssertEqual([-1._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [5._rk, 7._rk])
+  @AssertEqual([2._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [3._rk, 5._rk])
+  @AssertEqual([0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [4._rk, 5._rk])
+  @AssertEqual([1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [3._rk, 6._rk])
+  @AssertEqual([0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [4._rk, 6._rk])
+  @AssertEqual([1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkRectangleIsoInverseCubic(Vertices, [3.5_rk, 5.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_rectangle_iso_inverse_cubic
+
+@Test
+subroutine ovkGeometryTest_quad_iso_inverse_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2,4) :: Vertices
+  real(rk), dimension(2) :: LocalCoords
+
+  Vertices(1,:) = [2._rk, 3._rk, 3._rk, 4._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk]
+
+  ! Vertex 1
+  LocalCoords = ovkQuadIsoInverseLinear(Vertices, [2._rk, 4._rk])
+  @AssertEqual([0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 2
+  LocalCoords = ovkQuadIsoInverseLinear(Vertices, [3._rk, 4._rk])
+  @AssertEqual([1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 3
+  LocalCoords = ovkQuadIsoInverseLinear(Vertices, [3._rk, 5._rk])
+  @AssertEqual([0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 4
+  LocalCoords = ovkQuadIsoInverseLinear(Vertices, [4._rk, 5._rk])
+  @AssertEqual([1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkQuadIsoInverseLinear(Vertices, [3._rk, 4.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_quad_iso_inverse_linear
+
+@Test
+subroutine ovkGeometryTest_quad_iso_inverse_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, l
+  real(rk), dimension(2,16) :: Vertices
+  real(rk), dimension(2) :: LocalCoords
+
+  do j = 1, 4
+    do i = 1, 4
+      l = 1 + (i-1) + 4*(j-1)
+      Vertices(:,l) = [2._rk, 4._rk] + real([i+j-2,j-1], kind=rk)
+    end do
+  end do
+
+  ! Outer cell corner 1
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [2._rk, 4._rk])
+  @AssertEqual([-1._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [5._rk, 4._rk])
+  @AssertEqual([2._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [5._rk, 7._rk])
+  @AssertEqual([-1._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [8._rk, 7._rk])
+  @AssertEqual([2._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [4._rk, 5._rk])
+  @AssertEqual([0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [5._rk, 5._rk])
+  @AssertEqual([1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [5._rk, 6._rk])
+  @AssertEqual([0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [6._rk, 6._rk])
+  @AssertEqual([1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkQuadIsoInverseCubic(Vertices, [5._rk, 5.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_quad_iso_inverse_cubic
+
+@Test
+subroutine ovkGeometryTest_cuboid_iso_inverse_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+  real(rk), dimension(3) :: LocalCoords
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk, 2._rk, 3._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 4._rk, 4._rk, 5._rk, 5._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  ! Vertex 1
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [2._rk, 4._rk, 6._rk])
+  @AssertEqual([0._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 2
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [3._rk, 4._rk, 6._rk])
+  @AssertEqual([1._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 3
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [2._rk, 5._rk, 6._rk])
+  @AssertEqual([0._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 4
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [3._rk, 5._rk, 6._rk])
+  @AssertEqual([1._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 5
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [2._rk, 4._rk, 7._rk])
+  @AssertEqual([0._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 6
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [3._rk, 4._rk, 7._rk])
+  @AssertEqual([1._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 7
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [2._rk, 5._rk, 7._rk])
+  @AssertEqual([0._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 8
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [3._rk, 5._rk, 7._rk])
+  @AssertEqual([1._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkCuboidIsoInverseLinear(Vertices, [2.5_rk, 4.5_rk, 6.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_cuboid_iso_inverse_linear
+
+@Test
+subroutine ovkGeometryTest_cuboid_iso_inverse_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, k, l
+  real(rk), dimension(3,64) :: Vertices
+  real(rk), dimension(3) :: LocalCoords
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        l = 1 + (i-1) + 4*(j-1) + 16*(k-1)
+        Vertices(:,l) = [2._rk, 4._rk, 6._rk] + real([i-1,j-1,k-1], kind=rk)
+      end do
+    end do
+  end do
+
+  ! Outer cell corner 1
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [2._rk, 4._rk, 6._rk])
+  @AssertEqual([-1._rk, -1._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [5._rk, 4._rk, 6._rk])
+  @AssertEqual([2._rk, -1._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [2._rk, 7._rk, 6._rk])
+  @AssertEqual([-1._rk, 2._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [5._rk, 7._rk, 6._rk])
+  @AssertEqual([2._rk, 2._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 5
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [2._rk, 4._rk, 9._rk])
+  @AssertEqual([-1._rk, -1._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 6
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [5._rk, 4._rk, 9._rk])
+  @AssertEqual([2._rk, -1._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 7
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [2._rk, 7._rk, 9._rk])
+  @AssertEqual([-1._rk, 2._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 8
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [5._rk, 7._rk, 9._rk])
+  @AssertEqual([2._rk, 2._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [3._rk, 5._rk, 7._rk])
+  @AssertEqual([0._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [4._rk, 5._rk, 7._rk])
+  @AssertEqual([1._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [3._rk, 6._rk, 7._rk])
+  @AssertEqual([0._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [4._rk, 6._rk, 7._rk])
+  @AssertEqual([1._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 5
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [3._rk, 5._rk, 8._rk])
+  @AssertEqual([0._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 6
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [4._rk, 5._rk, 8._rk])
+  @AssertEqual([1._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 7
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [3._rk, 6._rk, 8._rk])
+  @AssertEqual([0._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 8
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [4._rk, 6._rk, 8._rk])
+  @AssertEqual([1._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkCuboidIsoInverseCubic(Vertices, [3.5_rk, 5.5_rk, 7.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_cuboid_iso_inverse_cubic
+
+@Test
+subroutine ovkGeometryTest_hexahedron_iso_inverse_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(3,8) :: Vertices
+  real(rk), dimension(3) :: LocalCoords
+
+  Vertices(1,:) = [2._rk, 3._rk, 2._rk, 3._rk, 3._rk, 4._rk, 3._rk, 4._rk]
+  Vertices(2,:) = [4._rk, 4._rk, 5._rk, 5._rk, 5._rk, 5._rk, 6._rk, 6._rk]
+  Vertices(3,:) = [6._rk, 6._rk, 6._rk, 6._rk, 7._rk, 7._rk, 7._rk, 7._rk]
+
+  ! Vertex 1
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [2._rk, 4._rk, 6._rk])
+  @AssertEqual([0._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 2
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [3._rk, 4._rk, 6._rk])
+  @AssertEqual([1._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 3
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [2._rk, 5._rk, 6._rk])
+  @AssertEqual([0._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 4
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [3._rk, 5._rk, 6._rk])
+  @AssertEqual([1._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 5
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [3._rk, 5._rk, 7._rk])
+  @AssertEqual([0._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 6
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [4._rk, 5._rk, 7._rk])
+  @AssertEqual([1._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 7
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [3._rk, 6._rk, 7._rk])
+  @AssertEqual([0._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Vertex 8
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [4._rk, 6._rk, 7._rk])
+  @AssertEqual([1._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkHexahedronIsoInverseLinear(Vertices, [3._rk, 5._rk, 6.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_hexahedron_iso_inverse_linear
+
+@Test
+subroutine ovkGeometryTest_hexahedron_iso_inverse_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: i, j, k, l
+  real(rk), dimension(3,64) :: Vertices
+  real(rk), dimension(3) :: LocalCoords
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        l = 1 + (i-1) + 4*(j-1) + 16*(k-1)
+        Vertices(:,l) = [2._rk, 4._rk, 6._rk] + real([i+k-2,j+k-2,k-1], kind=rk)
+      end do
+    end do
+  end do
+
+  ! Outer cell corner 1
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [2._rk, 4._rk, 6._rk])
+  @AssertEqual([-1._rk, -1._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 2
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 4._rk, 6._rk])
+  @AssertEqual([2._rk, -1._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 3
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [2._rk, 7._rk, 6._rk])
+  @AssertEqual([-1._rk, 2._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 4
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 7._rk, 6._rk])
+  @AssertEqual([2._rk, 2._rk, -1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 5
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 7._rk, 9._rk])
+  @AssertEqual([-1._rk, -1._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 6
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [8._rk, 7._rk, 9._rk])
+  @AssertEqual([2._rk, -1._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 7
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 10._rk, 9._rk])
+  @AssertEqual([-1._rk, 2._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Outer cell corner 8
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [8._rk, 10._rk, 9._rk])
+  @AssertEqual([2._rk, 2._rk, 2._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 1
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [4._rk, 6._rk, 7._rk])
+  @AssertEqual([0._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 2
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 6._rk, 7._rk])
+  @AssertEqual([1._rk, 0._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 3
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [4._rk, 7._rk, 7._rk])
+  @AssertEqual([0._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 4
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 7._rk, 7._rk])
+  @AssertEqual([1._rk, 1._rk, 0._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 5
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 7._rk, 8._rk])
+  @AssertEqual([0._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 6
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [6._rk, 7._rk, 8._rk])
+  @AssertEqual([1._rk, 0._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 7
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 8._rk, 8._rk])
+  @AssertEqual([0._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Central cell vertex 8
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [6._rk, 8._rk, 8._rk])
+  @AssertEqual([1._rk, 1._rk, 1._rk], LocalCoords, 1.e-10_rk)
+
+  ! Center
+  LocalCoords = ovkHexahedronIsoInverseCubic(Vertices, [5._rk, 7._rk, 7.5_rk])
+  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], LocalCoords, 1.e-10_rk)
+
+end subroutine ovkGeometryTest_hexahedron_iso_inverse_cubic
+
+@Test
+subroutine ovkGeometryTest_cartesian_grid_cell(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  integer :: Cell1
+  integer, dimension(2) :: Cell2
+
+  ! 1D
+  Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 1._rk)
+  @AssertEqual(1, Cell1)
+  Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 2._rk)
+  @AssertEqual(1, Cell1)
+  Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 3._rk)
+  @AssertEqual(2, Cell1)
+  Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 0._rk)
+  @AssertEqual(0, Cell1)
+  Cell1 = ovkCartesianGridCell(1._rk, 2._rk, -1._rk)
+  @AssertEqual(0, Cell1)
+
+  ! D > 1
+  Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [1._rk, 3._rk])
+  @AssertEqual([1,1], Cell2)
+  Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [2._rk, 5._rk])
+  @AssertEqual([1,1], Cell2)
+  Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [3._rk, 7._rk])
+  @AssertEqual([2,2], Cell2)
+  Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [0._rk, 1._rk])
+  @AssertEqual([0,0], Cell2)
+  Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [-1._rk, -1._rk])
+  @AssertEqual([0,0], Cell2)
+  Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [3._rk, 5._rk])
+  @AssertEqual([2,1], Cell2)
+
+end subroutine ovkGeometryTest_cartesian_grid_cell
+
+@Test
+subroutine ovkGeometryTest_interp_basis_linear(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(2) :: Basis
+  real(rk), dimension(2) :: BasisDeriv
+
+  Basis = ovkInterpBasisLinear(0._rk)
+  BasisDeriv = ovkInterpBasisLinearDeriv(0._rk)
+
+  @AssertEqual(1._rk, Basis(1), 1.e-10_rk)
+  @AssertEqual(0._rk, Basis(2), 1.e-10_rk)
+  @AssertEqual(-1._rk, BasisDeriv(1), 1.e-10_rk)
+  @AssertEqual(1._rk, BasisDeriv(2), 1.e-10_rk)
+
+  Basis = ovkInterpBasisLinear(1._rk)
+  BasisDeriv = ovkInterpBasisLinearDeriv(1._rk)
+
+  @AssertEqual(0._rk, Basis(1), 1.e-10_rk)
+  @AssertEqual(1._rk, Basis(2), 1.e-10_rk)
+  @AssertEqual(-1._rk, BasisDeriv(1), 1.e-10_rk)
+  @AssertEqual(1._rk, BasisDeriv(2), 1.e-10_rk)
+
+  Basis = ovkInterpBasisLinear(0.5_rk)
+  BasisDeriv = ovkInterpBasisLinearDeriv(0.5_rk)
+
+  @AssertEqual(0.5_rk, Basis(1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Basis(2), 1.e-10_rk)
+  @AssertEqual(-1._rk, BasisDeriv(1), 1.e-10_rk)
+  @AssertEqual(1._rk, BasisDeriv(2), 1.e-10_rk)
+
+end subroutine ovkGeometryTest_interp_basis_linear
+
+@Test
+subroutine ovkGeometryTest_interp_basis_cubic(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  real(rk), dimension(4) :: Basis
+  real(rk), dimension(4) :: BasisDeriv
+
+  Basis = ovkInterpBasisCubic(0._rk)
+  BasisDeriv = ovkInterpBasisCubicDeriv(0._rk)
+
+  @AssertEqual(0._rk, Basis(1), 1.e-10_rk)
+  @AssertEqual(1._rk, Basis(2), 1.e-10_rk)
+  @AssertEqual(0._rk, Basis(3), 1.e-10_rk)
+  @AssertEqual(0._rk, Basis(4), 1.e-10_rk)
+  @AssertEqual(-1._rk/3._rk, BasisDeriv(1), 1.e-10_rk)
+  @AssertEqual(-0.5_rk, BasisDeriv(2), 1.e-10_rk)
+  @AssertEqual(1._rk, BasisDeriv(3), 1.e-10_rk)
+  @AssertEqual(-1._rk/6._rk, BasisDeriv(4), 1.e-10_rk)
+
+  Basis = ovkInterpBasisCubic(1._rk)
+  BasisDeriv = ovkInterpBasisCubicDeriv(1._rk)
+
+  @AssertEqual(0._rk, Basis(1), 1.e-10_rk)
+  @AssertEqual(0._rk, Basis(2), 1.e-10_rk)
+  @AssertEqual(1._rk, Basis(3), 1.e-10_rk)
+  @AssertEqual(0._rk, Basis(4), 1.e-10_rk)
+  @AssertEqual(1._rk/6._rk, BasisDeriv(1), 1.e-10_rk)
+  @AssertEqual(-1._rk, BasisDeriv(2), 1.e-10_rk)
+  @AssertEqual(0.5_rk, BasisDeriv(3), 1.e-10_rk)
+  @AssertEqual(1._rk/3._rk, BasisDeriv(4), 1.e-10_rk)
+
+  Basis = ovkInterpBasisCubic(0.5_rk)
+  BasisDeriv = ovkInterpBasisCubicDeriv(0.5_rk)
+
+  @AssertEqual(-0.0625_rk, Basis(1), 1.e-10_rk)
+  @AssertEqual(0.5625_rk, Basis(2), 1.e-10_rk)
+  @AssertEqual(0.5625_rk, Basis(3), 1.e-10_rk)
+  @AssertEqual(-0.0625_rk, Basis(4), 1.e-10_rk)
+  @AssertEqual(1._rk/24._rk, BasisDeriv(1), 1.e-10_rk)
+  @AssertEqual(-1.125_rk, BasisDeriv(2), 1.e-10_rk)
+  @AssertEqual(1.125_rk, BasisDeriv(3), 1.e-10_rk)
+  @AssertEqual(-1._rk/24._rk, BasisDeriv(4), 1.e-10_rk)
+
+end subroutine ovkGeometryTest_interp_basis_cubic

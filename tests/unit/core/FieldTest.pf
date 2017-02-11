@@ -1,0 +1,730 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+@Test
+subroutine ovkFieldTest_default_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_int) :: Field1, Field2
+
+  Field1 = ovk_field_int_(2)
+
+  @AssertTrue(ovk_cart_(2) == Field1%cart)
+  @AssertFalse(allocated(Field1%values))
+
+  Field2 = ovk_field_int_(3)
+
+  @AssertTrue(ovk_cart_(3) == Field2%cart)
+  @AssertFalse(allocated(Field2%values))
+
+end subroutine ovkFieldTest_default_integer
+
+@Test
+subroutine ovkFieldTest_default_large_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_large_int) :: Field1, Field2
+
+  Field1 = ovk_field_large_int_(2)
+
+  @AssertTrue(ovk_cart_(2) == Field1%cart)
+  @AssertFalse(allocated(Field1%values))
+
+  Field2 = ovk_field_large_int_(3)
+
+  @AssertTrue(ovk_cart_(3) == Field2%cart)
+  @AssertFalse(allocated(Field2%values))
+
+end subroutine ovkFieldTest_default_large_integer
+
+@Test
+subroutine ovkFieldTest_default_real(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_real) :: Field1, Field2
+
+  Field1 = ovk_field_real_(2)
+
+  @AssertTrue(ovk_cart_(2) == Field1%cart)
+  @AssertFalse(allocated(Field1%values))
+
+  Field2 = ovk_field_real_(3)
+
+  @AssertTrue(ovk_cart_(3) == Field2%cart)
+  @AssertFalse(allocated(Field2%values))
+
+end subroutine ovkFieldTest_default_real
+
+@Test
+subroutine ovkFieldTest_default_logical(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_logical) :: Field1, Field2
+
+  Field1 = ovk_field_logical_(2)
+
+  @AssertTrue(ovk_cart_(2) == Field1%cart)
+  @AssertFalse(allocated(Field1%values))
+
+  Field2 = ovk_field_logical_(3)
+
+  @AssertTrue(ovk_cart_(3) == Field2%cart)
+  @AssertFalse(allocated(Field2%values))
+
+end subroutine ovkFieldTest_default_logical
+
+@Test
+subroutine ovkFieldTest_make_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(2,3) :: ValuesRank2
+  integer, dimension(2,3,4) :: ValuesRank3
+  type(ovk_field_int) :: Field1, Field2, Field3, Field4, Field5, Field6, Field7
+
+  ValuesRank2(1,:) = 1
+  ValuesRank2(2,:) = 2
+  ValuesRank3(1,:,:) = 1
+  ValuesRank3(2,:,:) = 2
+
+  ! 2D
+  Cart = ovk_cart_(2, [2,3], [.true.,.false.])
+
+  ! 2D with no initial values
+  Field1 = ovk_field_int_(Cart)
+
+  @AssertTrue(Cart == Field1%cart)
+  @AssertTrue(allocated(Field1%values))
+  @AssertEqual([2,3,1], shape(Field1%values))
+
+  ! 2D with scalar initial value
+  Field2 = ovk_field_int_(Cart, 1)
+
+  @AssertTrue(Cart == Field2%cart)
+  @AssertTrue(allocated(Field2%values))
+  @AssertEqual([2,3,1], shape(Field2%values))
+  @AssertTrue(all(1 == Field2%values))
+
+  ! 2D with rank 2 initial values
+  Field3 = ovk_field_int_(Cart, ValuesRank2)
+
+  @AssertTrue(Cart == Field3%cart)
+  @AssertTrue(allocated(Field3%values))
+  @AssertEqual([2,3,1], shape(Field3%values))
+  @AssertEqual(ValuesRank2, Field3%values(:,:,1))
+
+  ! 2D with rank 3 initial values
+  Field4 = ovk_field_int_(Cart, ValuesRank3(:,:,:1))
+
+  @AssertTrue(Cart == Field4%cart)
+  @AssertTrue(allocated(Field4%values))
+  @AssertEqual([2,3,1], shape(Field4%values))
+  @AssertTrue(all(ValuesRank3(:,:,:1) == Field4%values))
+
+  ! 3D
+  Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.])
+
+  ! 3D with no initial values
+  Field5 = ovk_field_int_(Cart)
+
+  @AssertTrue(Cart == Field5%cart)
+  @AssertTrue(allocated(Field5%values))
+  @AssertEqual([2,3,4], shape(Field5%values))
+
+  ! 3D with scalar initial value
+  Field6 = ovk_field_int_(Cart, 1)
+
+  @AssertTrue(Cart == Field6%cart)
+  @AssertTrue(allocated(Field6%values))
+  @AssertEqual([2,3,4], shape(Field6%values))
+  @AssertTrue(all(1 == Field6%values))
+
+  ! 3D with rank 3 initial values
+  Field7 = ovk_field_int_(Cart, ValuesRank3)
+
+  @AssertTrue(Cart == Field7%cart)
+  @AssertTrue(allocated(Field7%values))
+  @AssertEqual([2,3,4], shape(Field7%values))
+  @AssertTrue(all(ValuesRank3 == Field7%values))
+
+end subroutine ovkFieldTest_make_integer
+
+@Test
+subroutine ovkFieldTest_make_large_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer(lk), dimension(2,3) :: ValuesRank2
+  integer(lk), dimension(2,3,4) :: ValuesRank3
+  type(ovk_field_large_int) :: Field1, Field2, Field3, Field4, Field5, Field6, Field7
+
+  ValuesRank2(1,:) = 1_lk
+  ValuesRank2(2,:) = 2_lk
+  ValuesRank3(1,:,:) = 1_lk
+  ValuesRank3(2,:,:) = 2_lk
+
+  ! 2D
+  Cart = ovk_cart_(2, [2,3], [.true.,.false.])
+
+  ! 2D with no initial values
+  Field1 = ovk_field_large_int_(Cart)
+
+  @AssertTrue(Cart == Field1%cart)
+  @AssertTrue(allocated(Field1%values))
+  @AssertEqual([2,3,1], shape(Field1%values))
+
+  ! 2D with scalar initial value
+  Field2 = ovk_field_large_int_(Cart, 1_lk)
+
+  @AssertTrue(Cart == Field2%cart)
+  @AssertTrue(allocated(Field2%values))
+  @AssertEqual([2,3,1], shape(Field2%values))
+  @AssertTrue(all(1_lk == Field2%values))
+
+  ! 2D with rank 2 initial values
+  Field3 = ovk_field_large_int_(Cart, ValuesRank2)
+
+  @AssertTrue(Cart == Field3%cart)
+  @AssertTrue(allocated(Field3%values))
+  @AssertEqual([2,3,1], shape(Field3%values))
+  @AssertTrue(all(ValuesRank2 == Field3%values(:,:,1)))
+
+  ! 2D with rank 3 initial values
+  Field4 = ovk_field_large_int_(Cart, ValuesRank3(:,:,:1))
+
+  @AssertTrue(Cart == Field4%cart)
+  @AssertTrue(allocated(Field4%values))
+  @AssertEqual([2,3,1], shape(Field4%values))
+  @AssertTrue(all(ValuesRank3(:,:,:1) == Field4%values))
+
+  ! 3D
+  Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.])
+
+  ! 3D with no initial values
+  Field5 = ovk_field_large_int_(Cart)
+
+  @AssertTrue(Cart == Field5%cart)
+  @AssertTrue(allocated(Field5%values))
+  @AssertEqual([2,3,4], shape(Field5%values))
+
+  ! 3D with scalar initial value
+  Field6 = ovk_field_large_int_(Cart, 1_lk)
+
+  @AssertTrue(Cart == Field6%cart)
+  @AssertTrue(allocated(Field6%values))
+  @AssertEqual([2,3,4], shape(Field6%values))
+  @AssertTrue(all(1_lk == Field6%values))
+
+  ! 3D with rank 3 initial values
+  Field7 = ovk_field_large_int_(Cart, ValuesRank3)
+
+  @AssertTrue(Cart == Field7%cart)
+  @AssertTrue(allocated(Field7%values))
+  @AssertEqual([2,3,4], shape(Field7%values))
+  @AssertTrue(all(ValuesRank3 == Field7%values))
+
+end subroutine ovkFieldTest_make_large_integer
+
+@Test
+subroutine ovkFieldTest_make_real(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  real(rk), dimension(2,3) :: ValuesRank2
+  real(rk), dimension(2,3,4) :: ValuesRank3
+  type(ovk_field_real) :: Field1, Field2, Field3, Field4, Field5, Field6, Field7
+
+  ValuesRank2(1,:) = 1._rk
+  ValuesRank2(2,:) = 2._rk
+  ValuesRank3(1,:,:) = 1._rk
+  ValuesRank3(2,:,:) = 2._rk
+
+  ! 2D
+  Cart = ovk_cart_(2, [2,3], [.true.,.false.])
+
+  ! 2D with no initial values
+  Field1 = ovk_field_real_(Cart)
+
+  @AssertTrue(Cart == Field1%cart)
+  @AssertTrue(allocated(Field1%values))
+  @AssertEqual([2,3,1], shape(Field1%values))
+
+  ! 2D with scalar initial value
+  Field2 = ovk_field_real_(Cart, 1._rk)
+
+  @AssertTrue(Cart == Field2%cart)
+  @AssertTrue(allocated(Field2%values))
+  @AssertEqual([2,3,1], shape(Field2%values))
+  @AssertEqual(1._rk, Field2%values)
+
+  ! 2D with rank 2 initial values
+  Field3 = ovk_field_real_(Cart, ValuesRank2)
+
+  @AssertTrue(Cart == Field3%cart)
+  @AssertTrue(allocated(Field3%values))
+  @AssertEqual([2,3,1], shape(Field3%values))
+  @AssertEqual(ValuesRank2, Field3%values(:,:,1))
+
+  ! 2D with rank 3 initial values
+  Field4 = ovk_field_real_(Cart, ValuesRank3(:,:,:1))
+
+  @AssertTrue(Cart == Field4%cart)
+  @AssertTrue(allocated(Field4%values))
+  @AssertEqual([2,3,1], shape(Field4%values))
+  @AssertEqual(ValuesRank3(:,:,:1), Field4%values)
+
+  ! 3D
+  Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.])
+
+  ! 3D with no initial values
+  Field5 = ovk_field_real_(Cart)
+
+  @AssertTrue(Cart == Field5%cart)
+  @AssertTrue(allocated(Field5%values))
+  @AssertEqual([2,3,4], shape(Field5%values))
+
+  ! 3D with scalar initial value
+  Field6 = ovk_field_real_(Cart, 1._rk)
+
+  @AssertTrue(Cart == Field6%cart)
+  @AssertTrue(allocated(Field6%values))
+  @AssertEqual([2,3,4], shape(Field6%values))
+  @AssertEqual(1._rk, Field6%values)
+
+  ! 3D with rank 3 initial values
+  Field7 = ovk_field_real_(Cart, ValuesRank3)
+
+  @AssertTrue(Cart == Field7%cart)
+  @AssertTrue(allocated(Field7%values))
+  @AssertEqual([2,3,4], shape(Field7%values))
+  @AssertEqual(ValuesRank3, Field7%values)
+
+end subroutine ovkFieldTest_make_real
+
+@Test
+subroutine ovkFieldTest_make_logical(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  logical, dimension(2,3) :: ValuesRank2
+  logical, dimension(2,3,4) :: ValuesRank3
+  logical(bk), dimension(2,3) :: ValuesRank2_1Byte
+  logical(bk), dimension(2,3,4) :: ValuesRank3_1Byte
+  type(ovk_field_logical) :: Field1, Field2, Field3, Field4, Field5, Field6, Field7, Field8, &
+    Field9, Field10, Field11, Field12
+
+  ValuesRank2(1,:) = .false.
+  ValuesRank2(2,:) = .true.
+  ValuesRank3(1,:,:) = .false.
+  ValuesRank3(2,:,:) = .true.
+
+  ValuesRank2_1Byte(1,:) = .false.
+  ValuesRank2_1Byte(2,:) = .true.
+  ValuesRank3_1Byte(1,:,:) = .false.
+  ValuesRank3_1Byte(2,:,:) = .true.
+
+  ! 2D
+  Cart = ovk_cart_(2, [2,3], [.true.,.false.])
+
+  ! 2D with no initial values
+  Field1 = ovk_field_logical_(Cart)
+
+  @AssertTrue(Cart == Field1%cart)
+  @AssertTrue(allocated(Field1%values))
+  @AssertEqual([2,3,1], shape(Field1%values))
+
+  ! 2D with scalar initial value
+  Field2 = ovk_field_logical_(Cart, .true.)
+
+  @AssertTrue(Cart == Field2%cart)
+  @AssertTrue(allocated(Field2%values))
+  @AssertEqual([2,3,1], shape(Field2%values))
+  @AssertTrue(logical(all(Field2%values)))
+
+  ! 2D with scalar initial value (1 byte)
+  Field3 = ovk_field_logical_(Cart, logical(.true.,kind=bk))
+
+  @AssertTrue(Cart == Field3%cart)
+  @AssertTrue(allocated(Field3%values))
+  @AssertEqual([2,3,1], shape(Field3%values))
+  @AssertTrue(logical(all(Field3%values)))
+
+  ! 2D with rank 2 initial values
+  Field4 = ovk_field_logical_(Cart, ValuesRank2)
+
+  @AssertTrue(Cart == Field4%cart)
+  @AssertTrue(allocated(Field4%values))
+  @AssertEqual([2,3,1], shape(Field4%values))
+  @AssertTrue(all(ValuesRank2 .eqv. Field4%values(:,:,1)))
+
+  ! 2D with rank 2 initial values
+  Field5 = ovk_field_logical_(Cart, ValuesRank2_1Byte)
+
+  @AssertTrue(Cart == Field5%cart)
+  @AssertTrue(allocated(Field5%values))
+  @AssertEqual([2,3,1], shape(Field5%values))
+  @AssertTrue(logical(all(ValuesRank2_1Byte .eqv. Field5%values(:,:,1))))
+
+  ! 2D with rank 3 initial values
+  Field6 = ovk_field_logical_(Cart, ValuesRank3(:,:,:1))
+
+  @AssertTrue(Cart == Field6%cart)
+  @AssertTrue(allocated(Field6%values))
+  @AssertEqual([2,3,1], shape(Field6%values))
+  @AssertTrue(all(ValuesRank3(:,:,:1) .eqv. Field6%values))
+
+  ! 2D with rank 3 initial values (1 byte)
+  Field7 = ovk_field_logical_(Cart, ValuesRank3_1Byte(:,:,:1))
+
+  @AssertTrue(Cart == Field7%cart)
+  @AssertTrue(allocated(Field7%values))
+  @AssertEqual([2,3,1], shape(Field7%values))
+  @AssertTrue(logical(all(ValuesRank3_1Byte(:,:,:1) .eqv. Field7%values)))
+
+  ! 3D
+  Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.])
+
+  ! 3D with no initial values
+  Field8 = ovk_field_logical_(Cart)
+
+  @AssertTrue(Cart == Field8%cart)
+  @AssertTrue(allocated(Field8%values))
+  @AssertEqual([2,3,4], shape(Field8%values))
+
+  ! 3D with scalar initial value
+  Field9 = ovk_field_logical_(Cart, .true.)
+
+  @AssertTrue(Cart == Field9%cart)
+  @AssertTrue(allocated(Field9%values))
+  @AssertEqual([2,3,4], shape(Field9%values))
+  @AssertTrue(logical(all(Field9%values)))
+
+  ! 3D with scalar initial value (1 byte)
+  Field10 = ovk_field_logical_(Cart, logical(.true.,kind=bk))
+
+  @AssertTrue(Cart == Field10%cart)
+  @AssertTrue(allocated(Field10%values))
+  @AssertEqual([2,3,4], shape(Field10%values))
+  @AssertTrue(logical(all(Field10%values)))
+
+  ! 3D with rank 3 initial values
+  Field11 = ovk_field_logical_(Cart, ValuesRank3)
+
+  @AssertTrue(Cart == Field11%cart)
+  @AssertTrue(allocated(Field11%values))
+  @AssertEqual([2,3,4], shape(Field11%values))
+  @AssertTrue(all(ValuesRank3 .eqv. Field11%values))
+
+  ! 3D with rank 3 initial values (1 byte)
+  Field12 = ovk_field_logical_(Cart, ValuesRank3_1Byte)
+
+  @AssertTrue(Cart == Field12%cart)
+  @AssertTrue(allocated(Field12%values))
+  @AssertEqual([2,3,4], shape(Field12%values))
+  @AssertTrue(logical(all(ValuesRank3_1Byte .eqv. Field12%values)))
+
+end subroutine ovkFieldTest_make_logical
+
+@Test
+subroutine ovkFieldTest_destroy_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_int) :: Field
+
+  Field = ovk_field_int_(ovk_cart_(2, [3,1]))
+  Field = ovk_field_int_(2)
+
+  @AssertFalse(allocated(Field%values))
+
+end subroutine ovkFieldTest_destroy_integer
+
+@Test
+subroutine ovkFieldTest_destroy_large_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_large_int) :: Field
+
+  Field = ovk_field_large_int_(ovk_cart_(2, [3,1]))
+  Field = ovk_field_large_int_(2)
+
+  @AssertFalse(allocated(Field%values))
+
+end subroutine ovkFieldTest_destroy_large_integer
+
+@Test
+subroutine ovkFieldTest_destroy_real(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_real) :: Field
+
+  Field = ovk_field_real_(ovk_cart_(2, [3,1]))
+  Field = ovk_field_real_(2)
+
+  @AssertFalse(allocated(Field%values))
+
+end subroutine ovkFieldTest_destroy_real
+
+@Test
+subroutine ovkFieldTest_destroy_logical(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_field_logical) :: Field
+
+  Field = ovk_field_logical_(ovk_cart_(2, [3,1]))
+  Field = ovk_field_logical_(2)
+
+  @AssertFalse(allocated(Field%values))
+
+end subroutine ovkFieldTest_destroy_logical
+
+@Test
+subroutine ovkFieldTest_equality_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(3,3) :: Values
+  type(ovk_field_int) :: Field1, Field2
+
+  Cart = ovk_cart_(2, [3,3])
+
+  Values = reshape([ &
+    1, 2, 3, &
+    4, 5, 6, &
+    7, 8, 9 &
+  ], [3,3])
+
+  Field1 = ovk_field_int_(Cart, Values)
+
+  ! Self
+  @AssertTrue(Field1 == Field1)
+
+  ! Other with same data
+  Field2 = ovk_field_int_(Cart, Values)
+  @AssertTrue(Field1 == Field2)
+
+  ! Different dimension
+  Field2 = ovk_field_int_(ovk_cart_(3, [3,3,1]), reshape(Values, [3,3,1]))
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different shape
+  Field2 = ovk_field_int_(ovk_cart_(2, [2,2]), 1)
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different values
+  Field2 = ovk_field_int_(Cart, 1)
+  @AssertTrue(Field1 /= Field2)
+
+end subroutine ovkFieldTest_equality_integer
+
+@Test
+subroutine ovkFieldTest_equality_large_integer(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer(lk), dimension(3,3) :: Values
+  type(ovk_field_large_int) :: Field1, Field2
+
+  Cart = ovk_cart_(2, [3,3])
+
+  Values = reshape([ &
+    1_lk, 2_lk, 3_lk, &
+    4_lk, 5_lk, 6_lk, &
+    7_lk, 8_lk, 9_lk &
+  ], [3,3])
+
+  Field1 = ovk_field_large_int_(Cart, Values)
+
+  ! Self
+  @AssertTrue(Field1 == Field1)
+
+  ! Other with same data
+  Field2 = ovk_field_large_int_(Cart, Values)
+  @AssertTrue(Field1 == Field2)
+
+  ! Different dimension
+  Field2 = ovk_field_large_int_(ovk_cart_(3, [3,3,1]), reshape(Values, [3,3,1]))
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different shape
+  Field2 = ovk_field_large_int_(ovk_cart_(2, [2,2]), 1_lk)
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different values
+  Field2 = ovk_field_large_int_(Cart, 1_lk)
+  @AssertTrue(Field1 /= Field2)
+
+end subroutine ovkFieldTest_equality_large_integer
+
+@Test
+subroutine ovkFieldTest_equality_real(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  real(rk), dimension(3,3) :: Values
+  type(ovk_field_real) :: Field1, Field2
+
+  Cart = ovk_cart_(2, [3,3])
+
+  Values = reshape([ &
+    1._rk, 2._rk, 3._rk, &
+    4._rk, 5._rk, 6._rk, &
+    7._rk, 8._rk, 9._rk &
+  ], [3,3])
+
+  Field1 = ovk_field_real_(Cart, Values)
+
+  ! Self
+  @AssertTrue(Field1 == Field1)
+
+  ! Other with same data
+  Field2 = ovk_field_real_(Cart, Values)
+  @AssertTrue(Field1 == Field2)
+
+  ! Different dimension
+  Field2 = ovk_field_real_(ovk_cart_(3, [3,3,1]), reshape(Values, [3,3,1]))
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different shape
+  Field2 = ovk_field_real_(ovk_cart_(2, [2,2]), 1._rk)
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different values
+  Field2 = ovk_field_real_(Cart, 1._rk)
+  @AssertTrue(Field1 /= Field2)
+
+end subroutine ovkFieldTest_equality_real
+
+@Test
+subroutine ovkFieldTest_equality_logical(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  logical, dimension(3,3) :: Values
+  type(ovk_field_logical) :: Field1, Field2
+
+  Cart = ovk_cart_(2, [3,3])
+
+  Values = reshape([ &
+    .false., .true., .true., &
+    .false., .true., .false., &
+    .true., .false., .false. &
+  ], [3,3])
+
+  Field1 = ovk_field_logical_(Cart, Values)
+
+  ! Self
+  @AssertTrue(Field1 == Field1)
+
+  ! Other with same data
+  Field2 = ovk_field_logical_(Cart, Values)
+  @AssertTrue(Field1 == Field2)
+
+  ! Different dimension
+  Field2 = ovk_field_logical_(ovk_cart_(3, [3,3,1]), reshape(Values, [3,3,1]))
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different shape
+  Field2 = ovk_field_logical_(ovk_cart_(2, [2,2]), .true.)
+  @AssertTrue(Field1 /= Field2)
+
+  ! Different values
+  Field2 = ovk_field_logical_(Cart, .true.)
+  @AssertTrue(Field1 /= Field2)
+
+end subroutine ovkFieldTest_equality_logical

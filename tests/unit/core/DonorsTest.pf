@@ -1,0 +1,1687 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+@Test
+subroutine ovkDonorsTest_donors_default(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_donors) :: Donors
+
+  Donors = ovk_donors_(2)
+
+  @AssertTrue(ovk_cart_(2) == Donors%cart)
+  @AssertTrue(ovk_cart_(2) == Donors%valid_mask%cart)
+  @AssertTrue(ovk_field_int_(2) == Donors%grid_ids)
+  @AssertFalse(allocated(Donors%cells))
+  @AssertTrue(ovk_field_int_(2) == Donors%cell_extents)
+  @AssertFalse(allocated(Donors%cell_coords))
+  @AssertTrue(ovk_field_real_(2) == Donors%cell_diff_params)
+
+  Donors = ovk_donors_(3)
+
+  @AssertTrue(ovk_cart_(3) == Donors%cart)
+  @AssertTrue(ovk_cart_(3) == Donors%valid_mask%cart)
+  @AssertTrue(ovk_field_int_(3) == Donors%grid_ids)
+  @AssertFalse(allocated(Donors%cells))
+  @AssertTrue(ovk_field_int_(3) == Donors%cell_extents)
+  @AssertFalse(allocated(Donors%cell_coords))
+  @AssertTrue(ovk_field_real_(3) == Donors%cell_diff_params)
+  
+end subroutine ovkDonorsTest_donors_default
+
+@Test
+subroutine ovkDonorsTest_make_donors_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_cart) :: DonorsCart
+  type(ovk_donors) :: Donors
+
+  Cart = ovk_cart_(2, [3,3], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+
+  DonorsCart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+
+  call ovkMakeDonors(Donors, Cart)
+
+  @AssertTrue(DonorsCart == Donors%cart)
+  @AssertTrue(DonorsCart == Donors%valid_mask%cart)
+  @AssertTrue(DonorsCart == Donors%grid_ids%cart)
+  @AssertTrue(allocated(Donors%cells))
+  @AssertEqual(2, size(Donors%cells))
+  @AssertTrue(DonorsCart == Donors%cells(1)%cart)
+  @AssertTrue(DonorsCart == Donors%cells(2)%cart)
+  @AssertTrue(DonorsCart == Donors%cell_extents%cart)
+  @AssertTrue(allocated(Donors%cell_coords))
+  @AssertEqual(2, size(Donors%cell_coords))
+  @AssertTrue(DonorsCart == Donors%cell_coords(1)%cart)
+  @AssertTrue(DonorsCart == Donors%cell_coords(2)%cart)
+  @AssertTrue(DonorsCart == Donors%cell_diff_params%cart)
+
+end subroutine ovkDonorsTest_make_donors_2d
+
+@Test
+subroutine ovkDonorsTest_make_donors_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_cart) :: DonorsCart
+  type(ovk_donors) :: Donors
+
+  Cart = ovk_cart_(3, [3,3,3], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+
+  DonorsCart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+
+  call ovkMakeDonors(Donors, Cart)
+
+  @AssertTrue(DonorsCart == Donors%cart)
+  @AssertTrue(DonorsCart == Donors%valid_mask%cart)
+  @AssertTrue(DonorsCart == Donors%grid_ids%cart)
+  @AssertTrue(allocated(Donors%cells))
+  @AssertEqual(3, size(Donors%cells))
+  @AssertTrue(DonorsCart == Donors%cells(1)%cart)
+  @AssertTrue(DonorsCart == Donors%cells(2)%cart)
+  @AssertTrue(DonorsCart == Donors%cells(3)%cart)
+  @AssertTrue(DonorsCart == Donors%cell_extents%cart)
+  @AssertTrue(allocated(Donors%cell_coords))
+  @AssertEqual(3, size(Donors%cell_coords))
+  @AssertTrue(DonorsCart == Donors%cell_coords(1)%cart)
+  @AssertTrue(DonorsCart == Donors%cell_coords(2)%cart)
+  @AssertTrue(DonorsCart == Donors%cell_coords(3)%cart)
+  @AssertTrue(DonorsCart == Donors%cell_diff_params%cart)
+
+end subroutine ovkDonorsTest_make_donors_3d
+
+@Test
+subroutine ovkDonorsTest_destroy_donors(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_donors) :: Donors
+
+  call ovkMakeDonors(Donors, ovk_cart_(2, [3,3]))
+
+  call ovkDestroyDonors(Donors)
+
+  @AssertFalse(allocated(Donors%valid_mask%values))
+  @AssertFalse(allocated(Donors%grid_ids%values))
+  @AssertFalse(allocated(Donors%cells))
+  @AssertFalse(allocated(Donors%cell_extents%values))
+  @AssertFalse(allocated(Donors%cell_coords))
+  @AssertFalse(allocated(Donors%cell_diff_params%values))
+
+end subroutine ovkDonorsTest_destroy_donors
+
+@Test
+subroutine ovkDonorsTest_find_donors_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+  integer :: i, j
+  real(rk), dimension(2,5,5) :: XYZ1
+  real(rk), dimension(2,4,4) :: XYZ2
+  type(ovk_field_real), dimension(2) :: Coords1, Coords2
+  type(ovk_field_logical) :: GridMask1
+  type(ovk_grid) :: Grid1, Grid2
+  type(ovk_donor_accel) :: DonorAccel
+  type(ovk_donors) :: Donors
+  logical, dimension(4,4,1) :: ExpectedValidMaskValues
+  integer, dimension(4,4,1) :: ExpectedDonorCells
+
+  Cart1 = ovk_cart_(2, [5,5])
+  Cart2 = ovk_cart_(2, [4,4])
+
+  do j = 1, 5
+    do i = 1, 5
+      XYZ1(:,i,j) = real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do j = 1, 4
+    do i = 1, 4
+      XYZ2(:,i,j) = 0.5_rk + real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do i = 1, 2
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:))
+  end do
+
+  GridMask1 = ovk_field_logical_(Cart1, .true.)
+  GridMask1%values(3,3,1) = .false.
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1, GridMask=GridMask1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+
+  call ovkGenerateDonorAccel(Grid1, DonorAccel)
+  call ovkFindDonors(Grid1, Grid2, DonorAccel, Donors)
+
+  ExpectedValidMaskValues = .true.
+  ExpectedValidMaskValues(2:3,2:3,1) = .false.
+
+  @AssertTrue(all(ExpectedValidMaskValues .eqv. Donors%valid_mask%values))
+
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. Donors%grid_ids%values == 1))
+
+  ExpectedDonorCells = reshape([((i,i=1,4),j=1,4)],[4,4,1])
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. ExpectedDonorCells == Donors%cells(1)%values))
+  ExpectedDonorCells = reshape([((j,i=1,4),j=1,4)],[4,4,1])
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. ExpectedDonorCells == Donors%cells(2)%values))
+
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. Donors%cell_extents%values == 2))
+
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(1,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(1,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(4,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(4,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(:,1,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(:,1,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(:,4,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(:,4,1), 1.e-10_rk)
+
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(1,:,1), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(4,:,1), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(:,1,1), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(:,4,1), 1.e-10_rk)
+
+end subroutine ovkDonorsTest_find_donors_2d
+
+@Test
+subroutine ovkDonorsTest_find_donors_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+  integer :: i, j, k
+  real(rk), dimension(3,5,5,5) :: XYZ1
+  real(rk), dimension(3,4,4,4) :: XYZ2
+  type(ovk_field_real), dimension(3) :: Coords1, Coords2
+  type(ovk_field_logical) :: GridMask1
+  type(ovk_grid) :: Grid1, Grid2
+  type(ovk_donor_accel) :: DonorAccel
+  type(ovk_donors) :: Donors
+  logical, dimension(4,4,4) :: ExpectedValidMaskValues
+  integer, dimension(4,4,4) :: ExpectedDonorCells
+
+  Cart1 = ovk_cart_(3, [5,5,5])
+  Cart2 = ovk_cart_(3, [4,4,4])
+
+  do k = 1, 5
+    do j = 1, 5
+      do i = 1, 5
+        XYZ1(:,i,j,k) = real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        XYZ2(:,i,j,k) = 0.5_rk + real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do i = 1, 3
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:,:))
+  end do
+
+  GridMask1 = ovk_field_logical_(Cart1, .true.)
+  GridMask1%values(3,3,3) = .false.
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1, GridMask=GridMask1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+
+  call ovkGenerateDonorAccel(Grid1, DonorAccel)
+  call ovkFindDonors(Grid1, Grid2, DonorAccel, Donors)
+
+  ExpectedValidMaskValues = .true.
+  ExpectedValidMaskValues(2:3,2:3,2:3) = .false.
+
+  @AssertTrue(all(ExpectedValidMaskValues .eqv. Donors%valid_mask%values))
+
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. Donors%grid_ids%values == 1))
+
+  ExpectedDonorCells = reshape([(((i,i=1,4),j=1,4),k=1,4)],[4,4,4])
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. ExpectedDonorCells == Donors%cells(1)%values))
+
+  ExpectedDonorCells = reshape([(((j,i=1,4),j=1,4),k=1,4)],[4,4,4])
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. ExpectedDonorCells == Donors%cells(2)%values))
+
+  ExpectedDonorCells = reshape([(((k,i=1,4),j=1,4),k=1,4)],[4,4,4])
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. ExpectedDonorCells == Donors%cells(3)%values))
+
+  @AssertTrue(all(.not. Donors%valid_mask%values .or. Donors%cell_extents%values == 2))
+
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(3)%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(4,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(4,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(3)%values(4,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(:,1,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(:,1,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(3)%values(:,1,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(:,4,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(:,4,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(3)%values(:,4,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(:,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(:,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(3)%values(:,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(1)%values(:,:,4), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(2)%values(:,:,4), 1.e-10_rk)
+  @AssertEqual(0.5_rk, Donors%cell_coords(3)%values(:,:,4), 1.e-10_rk)
+
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(4,:,:), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(:,1,:), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(:,4,:), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(:,:,1), 1.e-10_rk)
+  @AssertEqual(0._rk, Donors%cell_diff_params%values(:,:,4), 1.e-10_rk)
+
+end subroutine ovkDonorsTest_find_donors_3d
+
+@Test
+subroutine ovkDonorsTest_choose_donors_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_donors), dimension(2) :: OriginalCandidateDonors
+  type(ovk_donors), dimension(2) :: CandidateDonors
+  type(ovk_field_logical) :: SubsetMask
+
+  ! Receiver grid: 3x3, bounds [0.,0.] to [2.,2.]
+  ! Fine donor grid: 6x6, bounds [0.75,-0.25] to [3.25,2.25]
+  ! Coarse donor grid: 4x4, bounds [-1.5,-0.5] to [1.5,2.5]
+
+  Cart = ovk_cart_(2, [3,3])
+
+  call ovkMakeDonors(OriginalCandidateDonors(1), Cart)
+  call ovkMakeDonors(OriginalCandidateDonors(2), Cart)
+
+  OriginalCandidateDonors(1)%valid_mask%values = .false.
+  OriginalCandidateDonors(1)%valid_mask%values(2:,:,1) = .true.
+  OriginalCandidateDonors(1)%cell_diff_params%values(2:,:,1) = -1._rk
+  OriginalCandidateDonors(2)%valid_mask%values = .false.
+  OriginalCandidateDonors(2)%valid_mask%values(:2,:,1) = .true.
+  OriginalCandidateDonors(2)%cell_diff_params%values(:2,:,1) = 0._rk
+
+  CandidateDonors = OriginalCandidateDonors
+
+  call ovkChooseDonors(CandidateDonors)
+
+  @AssertFalse(logical(any(CandidateDonors(1)%valid_mask%values(1,:,1))))
+  @AssertTrue(logical(all(CandidateDonors(1)%valid_mask%values(2:,:,1))))
+  @AssertTrue(logical(all(CandidateDonors(2)%valid_mask%values(1,:,1))))
+  @AssertFalse(logical(any(CandidateDonors(2)%valid_mask%values(2:,:,1))))
+
+  CandidateDonors = OriginalCandidateDonors
+
+  SubsetMask = ovk_field_logical_(Cart, .false.)
+  SubsetMask%values(2,2,1) = .true.
+
+  call ovkChooseDonors(CandidateDonors, Subset=SubsetMask)
+
+  @AssertTrue(logical(all(CandidateDonors(2)%valid_mask%values(1,:,1))))
+  @AssertTrue(logical(CandidateDonors(2)%valid_mask%values(2,1,1)))
+  @AssertFalse(logical(CandidateDonors(2)%valid_mask%values(2,2,1)))
+  @AssertTrue(logical(CandidateDonors(2)%valid_mask%values(2,3,1)))
+  @AssertFalse(logical(any(CandidateDonors(2)%valid_mask%values(3,:,1))))
+  @AssertFalse(logical(any(CandidateDonors(1)%valid_mask%values(1,:,1))))
+  @AssertTrue(logical(all(CandidateDonors(1)%valid_mask%values(2:,:,1))))
+
+end subroutine ovkDonorsTest_choose_donors_2d
+
+@Test
+subroutine ovkDonorsTest_choose_donors_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_donors), dimension(2) :: OriginalCandidateDonors
+  type(ovk_donors), dimension(2) :: CandidateDonors
+  type(ovk_field_logical) :: SubsetMask
+
+  ! Receiver grid: 3x3x3, bounds [0.,0.,0.] to [2.,2.,2.]
+  ! Fine donor grid: 6x6x6, bounds [0.75,-0.25,-0.25] to [3.25,2.25,2.25]
+  ! Coarse donor grid: 4x4x4, bounds [-1.5,-0.5,-0.5] to [1.5,2.5,2.5]
+
+  Cart = ovk_cart_(3, [3,3,3])
+
+  call ovkMakeDonors(OriginalCandidateDonors(1), Cart)
+  call ovkMakeDonors(OriginalCandidateDonors(2), Cart)
+
+  OriginalCandidateDonors(1)%valid_mask%values = .false.
+  OriginalCandidateDonors(1)%valid_mask%values(2:,:,:) = .true.
+  OriginalCandidateDonors(1)%cell_diff_params%values(2:,:,:) = -1._rk
+  OriginalCandidateDonors(2)%valid_mask%values = .false.
+  OriginalCandidateDonors(2)%valid_mask%values(:2,:,:) = .true.
+  OriginalCandidateDonors(2)%cell_diff_params%values(:2,:,:) = 0._rk
+
+  CandidateDonors = OriginalCandidateDonors
+
+  call ovkChooseDonors(CandidateDonors)
+
+  @AssertFalse(logical(any(CandidateDonors(1)%valid_mask%values(1,:,:))))
+  @AssertTrue(logical(all(CandidateDonors(1)%valid_mask%values(2:,:,:))))
+  @AssertTrue(logical(all(CandidateDonors(2)%valid_mask%values(1,:,:))))
+  @AssertFalse(logical(any(CandidateDonors(2)%valid_mask%values(2:,:,:))))
+
+  CandidateDonors = OriginalCandidateDonors
+
+  SubsetMask = ovk_field_logical_(Cart, .false.)
+  SubsetMask%values(2,2,2) = .true.
+
+  call ovkChooseDonors(CandidateDonors, Subset=SubsetMask)
+
+  @AssertTrue(logical(all(CandidateDonors(2)%valid_mask%values(1,:,:))))
+  @AssertTrue(logical(all(CandidateDonors(2)%valid_mask%values(2,1,:))))
+  @AssertTrue(logical(CandidateDonors(2)%valid_mask%values(2,2,1)))
+  @AssertFalse(logical(CandidateDonors(2)%valid_mask%values(2,2,2)))
+  @AssertTrue(logical(CandidateDonors(2)%valid_mask%values(2,2,3)))
+  @AssertTrue(logical(all(CandidateDonors(2)%valid_mask%values(2,3,:))))
+  @AssertFalse(logical(any(CandidateDonors(2)%valid_mask%values(3,:,:))))
+  @AssertFalse(logical(any(CandidateDonors(1)%valid_mask%values(1,:,:))))
+  @AssertTrue(logical(all(CandidateDonors(1)%valid_mask%values(2:,:,:))))
+
+end subroutine ovkDonorsTest_choose_donors_3d
+
+@Test
+subroutine ovkDonorsTest_merge_donors_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_donors), dimension(2) :: CandidateDonors
+  type(ovk_donors) :: MergedDonors
+
+  ! Receiver grid: 3x3, bounds [0.,0.] to [2.,2.]
+  ! Donor grid 1: 4x4, bounds [-2.5,-0.5] to [0.5,2.5]
+  ! Donor grid 2: 4x4, bounds [1.5,-0.5] to [4.5,2.5]
+
+  Cart = ovk_cart_(2, [3,3])
+
+  call ovkMakeDonors(CandidateDonors(1), Cart)
+  call ovkMakeDonors(CandidateDonors(2), Cart)
+
+  CandidateDonors(1)%valid_mask%values = .false.
+  CandidateDonors(1)%valid_mask%values(1,:,1) = .true.
+  CandidateDonors(1)%grid_ids%values(1,:,1) = 2
+  CandidateDonors(1)%cells(1)%values(1,:,1) = [3,3,3]
+  CandidateDonors(1)%cells(2)%values(1,:,1) = [1,2,3]
+  CandidateDonors(1)%cell_extents%values(1,:,1) = 2
+  CandidateDonors(1)%cell_coords(1)%values(1,:,1) = 0.5_rk
+  CandidateDonors(1)%cell_coords(2)%values(1,:,1) = 0.5_rk
+  CandidateDonors(1)%cell_diff_params%values(1,:,1) = 0._rk
+  CandidateDonors(2)%valid_mask%values = .false.
+  CandidateDonors(2)%valid_mask%values(3,:,1) = .true.
+  CandidateDonors(2)%grid_ids%values(3,:,1) = 3
+  CandidateDonors(2)%cells(1)%values(3,:,1) = [1,1,1]
+  CandidateDonors(2)%cells(2)%values(3,:,1) = [1,2,3]
+  CandidateDonors(2)%cell_extents%values(3,:,1) = 2
+  CandidateDonors(2)%cell_coords(1)%values(3,:,1) = 0.5_rk
+  CandidateDonors(2)%cell_coords(2)%values(3,:,1) = 0.5_rk
+  CandidateDonors(2)%cell_diff_params%values(3,:,1) = 0._rk
+
+  call ovkMergeDonors(CandidateDonors, MergedDonors)
+
+  @AssertTrue(logical(all(MergedDonors%valid_mask%values(1,:,1))))
+  @AssertFalse(logical(any(MergedDonors%valid_mask%values(2,:,1))))
+  @AssertTrue(logical(all(MergedDonors%valid_mask%values(3,:,1))))
+  @AssertEqual(2, MergedDonors%grid_ids%values(1,:,1))
+  @AssertEqual(3, MergedDonors%grid_ids%values(3,:,1))
+  @AssertEqual([3,3,3], MergedDonors%cells(1)%values(1,:,1))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(1,:,1))
+  @AssertEqual([1,1,1], MergedDonors%cells(1)%values(3,:,1))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(3,:,1))
+  @AssertEqual(2, MergedDonors%cell_extents%values(1,:,1))
+  @AssertEqual(2, MergedDonors%cell_extents%values(3,:,1))
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(1)%values(1,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(2)%values(1,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(1)%values(3,:,1), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(2)%values(3,:,1), 1.e-10_rk)
+  @AssertEqual(0._rk, MergedDonors%cell_diff_params%values(1,:,1), 1.e-10_rk)
+  @AssertEqual(0._rk, MergedDonors%cell_diff_params%values(3,:,1), 1.e-10_rk)
+
+end subroutine ovkDonorsTest_merge_donors_2d
+
+@Test
+subroutine ovkDonorsTest_merge_donors_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_donors), dimension(2) :: CandidateDonors
+  type(ovk_donors) :: MergedDonors
+
+  ! Receiver grid: 3x3x3, bounds [0.,0.,0.] to [2.,2.,2.]
+  ! Donor grid 1: 4x4x4, bounds [-2.5,-0.5,-0.5] to [0.5,2.5,2.5]
+  ! Donor grid 2: 4x4x4, bounds [1.5,-0.5,-0.5] to [4.5,2.5,2.5]
+
+  Cart = ovk_cart_(3, [3,3,3])
+
+  call ovkMakeDonors(CandidateDonors(1), Cart)
+  call ovkMakeDonors(CandidateDonors(2), Cart)
+
+  CandidateDonors(1)%valid_mask%values = .false.
+  CandidateDonors(1)%valid_mask%values(1,:,:) = .true.
+  CandidateDonors(1)%grid_ids%values(1,:,:) = 2
+  CandidateDonors(1)%cells(1)%values(1,:,1) = [3,3,3]
+  CandidateDonors(1)%cells(2)%values(1,:,1) = [1,2,3]
+  CandidateDonors(1)%cells(3)%values(1,:,1) = [1,1,1]
+  CandidateDonors(1)%cells(1)%values(1,:,2) = [3,3,3]
+  CandidateDonors(1)%cells(2)%values(1,:,2) = [1,2,3]
+  CandidateDonors(1)%cells(3)%values(1,:,2) = [2,2,2]
+  CandidateDonors(1)%cells(1)%values(1,:,3) = [3,3,3]
+  CandidateDonors(1)%cells(2)%values(1,:,3) = [1,2,3]
+  CandidateDonors(1)%cells(3)%values(1,:,3) = [3,3,3]
+  CandidateDonors(1)%cell_extents%values(1,:,:) = 2
+  CandidateDonors(1)%cell_coords(1)%values(1,:,:) = 0.5_rk
+  CandidateDonors(1)%cell_coords(2)%values(1,:,:) = 0.5_rk
+  CandidateDonors(1)%cell_coords(3)%values(1,:,:) = 0.5_rk
+  CandidateDonors(1)%cell_diff_params%values(1,:,:) = 0._rk
+  CandidateDonors(2)%valid_mask%values = .false.
+  CandidateDonors(2)%valid_mask%values(3,:,:) = .true.
+  CandidateDonors(2)%grid_ids%values(3,:,:) = 3
+  CandidateDonors(2)%cells(1)%values(3,:,1) = [1,1,1]
+  CandidateDonors(2)%cells(2)%values(3,:,1) = [1,2,3]
+  CandidateDonors(2)%cells(3)%values(3,:,1) = [1,1,1]
+  CandidateDonors(2)%cells(1)%values(3,:,2) = [1,1,1]
+  CandidateDonors(2)%cells(2)%values(3,:,2) = [1,2,3]
+  CandidateDonors(2)%cells(3)%values(3,:,2) = [2,2,2]
+  CandidateDonors(2)%cells(1)%values(3,:,3) = [1,1,1]
+  CandidateDonors(2)%cells(2)%values(3,:,3) = [1,2,3]
+  CandidateDonors(2)%cells(3)%values(3,:,3) = [3,3,3]
+  CandidateDonors(2)%cell_extents%values(3,:,:) = 2
+  CandidateDonors(2)%cell_coords(1)%values(3,:,:) = 0.5_rk
+  CandidateDonors(2)%cell_coords(2)%values(3,:,:) = 0.5_rk
+  CandidateDonors(2)%cell_coords(3)%values(3,:,:) = 0.5_rk
+  CandidateDonors(2)%cell_diff_params%values(3,:,:) = 0._rk
+
+  call ovkMergeDonors(CandidateDonors, MergedDonors)
+
+  @AssertTrue(logical(all(MergedDonors%valid_mask%values(1,:,:))))
+  @AssertFalse(logical(any(MergedDonors%valid_mask%values(2,:,:))))
+  @AssertTrue(logical(all(MergedDonors%valid_mask%values(3,:,:))))
+  @AssertEqual(2, MergedDonors%grid_ids%values(1,:,:))
+  @AssertEqual(3, MergedDonors%grid_ids%values(3,:,:))
+  @AssertEqual([3,3,3], MergedDonors%cells(1)%values(1,:,1))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(1,:,1))
+  @AssertEqual([1,1,1], MergedDonors%cells(3)%values(1,:,1))
+  @AssertEqual([3,3,3], MergedDonors%cells(1)%values(1,:,2))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(1,:,2))
+  @AssertEqual([2,2,2], MergedDonors%cells(3)%values(1,:,2))
+  @AssertEqual([3,3,3], MergedDonors%cells(1)%values(1,:,3))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(1,:,3))
+  @AssertEqual([3,3,3], MergedDonors%cells(3)%values(1,:,3))
+  @AssertEqual([1,1,1], MergedDonors%cells(1)%values(3,:,1))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(3,:,1))
+  @AssertEqual([1,1,1], MergedDonors%cells(3)%values(3,:,1))
+  @AssertEqual([1,1,1], MergedDonors%cells(1)%values(3,:,2))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(3,:,2))
+  @AssertEqual([2,2,2], MergedDonors%cells(3)%values(3,:,2))
+  @AssertEqual([1,1,1], MergedDonors%cells(1)%values(3,:,3))
+  @AssertEqual([1,2,3], MergedDonors%cells(2)%values(3,:,3))
+  @AssertEqual([3,3,3], MergedDonors%cells(3)%values(3,:,3))
+  @AssertEqual(2, MergedDonors%cell_extents%values(1,:,:))
+  @AssertEqual(2, MergedDonors%cell_extents%values(3,:,:))
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(1)%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(2)%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(3)%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(1)%values(3,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(2)%values(3,:,:), 1.e-10_rk)
+  @AssertEqual(0.5_rk, MergedDonors%cell_coords(3)%values(3,:,:), 1.e-10_rk)
+  @AssertEqual(0._rk, MergedDonors%cell_diff_params%values(1,:,:), 1.e-10_rk)
+  @AssertEqual(0._rk, MergedDonors%cell_diff_params%values(3,:,:), 1.e-10_rk)
+
+end subroutine ovkDonorsTest_merge_donors_3d
+
+@Test
+subroutine ovkDonorsTest_receiver_mask_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2, Cart3
+  integer :: i, j
+  real(rk), dimension(2,3,3) :: XYZ1
+  real(rk), dimension(2,4,4) :: XYZ2, XYZ3
+  type(ovk_field_real), dimension(2) :: Coords1, Coords2, Coords3
+  type(ovk_grid) :: Grid1, Grid2, Grid3
+  type(ovk_donors) :: Donors
+  type(ovk_field_logical) :: ReceiverMask
+  logical, dimension(3,3,1) :: ExpectedValues
+  type(ovk_field_logical) :: SubsetMask
+
+  Cart1 = ovk_cart_(2, [3,3])
+  Cart2 = ovk_cart_(2, [4,4])
+  Cart3 = ovk_cart_(2, [4,4])
+
+  do j = 1, 3
+    do i = 1, 3
+      XYZ1(:,i,j) = real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do j = 1, 4
+    do i = 1, 4
+      XYZ2(:,i,j) = [-2.5_rk, -0.5_rk] + real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do j = 1, 4
+    do i = 1, 4
+      XYZ3(:,i,j) = [1.5_rk, -0.5_rk] + real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do i = 1, 2
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:))
+    Coords3(i) = ovk_field_real_(Cart3, XYZ3(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+  call ovkMakeGrid(Grid3, Cart3, Coords3)
+  Grid3%id = 3
+
+  call ovkMakeDonors(Donors, Cart1)
+
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(1,:,1) = .true.
+  Donors%grid_ids%values(1,:,1) = 2
+  Donors%cells(1)%values(1,:,1) = [3,3,3]
+  Donors%cells(2)%values(1,:,1) = [1,2,3]
+  Donors%cell_extents%values(1,:,1) = 2
+  Donors%valid_mask%values(3,:,1) = .true.
+  Donors%grid_ids%values(3,:,1) = 3
+  Donors%cells(1)%values(3,:,1) = [1,1,1]
+  Donors%cells(2)%values(3,:,1) = [1,2,3]
+  Donors%cell_extents%values(3,:,1) = 2
+
+  call ovkGenerateReceiverMask(Grid1, Grid2, Donors, ReceiverMask)
+
+  @AssertTrue(allocated(ReceiverMask%values))
+  @AssertEqual([3,3,1], shape(ReceiverMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(1,:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. ReceiverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart2, .false.)
+  SubsetMask%values(:,1,1) = .true.
+
+  ! With optional argument restricting donors considered
+  call ovkGenerateReceiverMask(Grid1, Grid2, Donors, ReceiverMask, DonorSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(1,1,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. ReceiverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:,3,1) = .true.
+
+  ! With optional argument restricting receivers considered
+  call ovkGenerateReceiverMask(Grid1, Grid2, Donors, ReceiverMask, ReceiverSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(1,3,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. ReceiverMask%values))
+
+end subroutine ovkDonorsTest_receiver_mask_2d
+
+@Test
+subroutine ovkDonorsTest_receiver_mask_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2, Cart3
+  integer :: i, j, k
+  real(rk), dimension(3,3,3,3) :: XYZ1
+  real(rk), dimension(3,4,4,4) :: XYZ2, XYZ3
+  type(ovk_field_real), dimension(3) :: Coords1, Coords2, Coords3
+  type(ovk_grid) :: Grid1, Grid2, Grid3
+  type(ovk_donors) :: Donors
+  type(ovk_field_logical) :: ReceiverMask
+  logical, dimension(3,3,3) :: ExpectedValues
+  type(ovk_field_logical) :: SubsetMask
+
+  Cart1 = ovk_cart_(3, [3,3,3])
+  Cart2 = ovk_cart_(3, [4,4,4])
+  Cart3 = ovk_cart_(3, [4,4,4])
+
+  do k = 1, 3
+    do j = 1, 3
+      do i = 1, 3
+        XYZ1(:,i,j,k) = real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        XYZ2(:,i,j,k) = [-2.5_rk, -0.5_rk, -0.5_rk] + real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        XYZ3(:,i,j,k) = [1.5_rk, -0.5_rk, -0.5_rk] + real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do i = 1, 3
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:,:))
+    Coords3(i) = ovk_field_real_(Cart3, XYZ3(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+  call ovkMakeGrid(Grid3, Cart3, Coords3)
+  Grid3%id = 3
+
+  call ovkMakeDonors(Donors, Cart1)
+
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(1,:,:) = .true.
+  Donors%grid_ids%values(1,:,:) = 2
+  Donors%cells(1)%values(1,:,1) = [3,3,3]
+  Donors%cells(2)%values(1,:,1) = [1,2,3]
+  Donors%cells(3)%values(1,:,1) = [1,1,1]
+  Donors%cells(1)%values(1,:,2) = [3,3,3]
+  Donors%cells(2)%values(1,:,2) = [1,2,3]
+  Donors%cells(3)%values(1,:,2) = [2,2,2]
+  Donors%cells(1)%values(1,:,3) = [3,3,3]
+  Donors%cells(2)%values(1,:,3) = [1,2,3]
+  Donors%cells(3)%values(1,:,3) = [3,3,3]
+  Donors%cell_extents%values(1,:,:) = 2
+  Donors%valid_mask%values(3,:,:) = .true.
+  Donors%grid_ids%values(3,:,:) = 3
+  Donors%cells(1)%values(3,:,1) = [1,1,1]
+  Donors%cells(2)%values(3,:,1) = [1,2,3]
+  Donors%cells(3)%values(3,:,1) = [1,1,1]
+  Donors%cells(1)%values(3,:,2) = [1,1,1]
+  Donors%cells(2)%values(3,:,2) = [1,2,3]
+  Donors%cells(3)%values(3,:,2) = [2,2,2]
+  Donors%cells(1)%values(3,:,3) = [1,1,1]
+  Donors%cells(2)%values(3,:,3) = [1,2,3]
+  Donors%cells(3)%values(3,:,3) = [3,3,3]
+  Donors%cell_extents%values(3,:,:) = 2
+
+  call ovkGenerateReceiverMask(Grid1, Grid2, Donors, ReceiverMask)
+
+  @AssertTrue(allocated(ReceiverMask%values))
+  @AssertEqual([3,3,3], shape(ReceiverMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(1,:,:) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. ReceiverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart2, .false.)
+  SubsetMask%values(:,:,1) = .true.
+
+  ! With optional argument restricting donors considered
+  call ovkGenerateReceiverMask(Grid1, Grid2, Donors, ReceiverMask, DonorSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(1,:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. ReceiverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:,:,3) = .true.
+
+  ! With optional argument restricting receivers considered
+  call ovkGenerateReceiverMask(Grid1, Grid2, Donors, ReceiverMask, ReceiverSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(1,:,3) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. ReceiverMask%values))
+
+end subroutine ovkDonorsTest_receiver_mask_3d
+
+@Test
+subroutine ovkDonorsTest_donor_mask_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2, Cart3
+  integer :: i, j
+  real(rk), dimension(2,3,3) :: XYZ1
+  real(rk), dimension(2,4,4) :: XYZ2, XYZ3
+  type(ovk_field_real), dimension(2) :: Coords1, Coords2, Coords3
+  type(ovk_grid) :: Grid1, Grid2, Grid3
+  type(ovk_donors) :: Donors
+  type(ovk_field_logical) :: DonorMask
+  logical, dimension(4,4,1) :: ExpectedValues
+  type(ovk_field_logical) :: SubsetMask
+
+  Cart1 = ovk_cart_(2, [3,3])
+  Cart2 = ovk_cart_(2, [4,4])
+  Cart3 = ovk_cart_(2, [4,4])
+
+  do j = 1, 3
+    do i = 1, 3
+      XYZ1(:,i,j) = real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do j = 1, 4
+    do i = 1, 4
+      XYZ2(:,i,j) = [-2.5_rk, -0.5_rk] + real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do j = 1, 4
+    do i = 1, 4
+      XYZ3(:,i,j) = [1.5_rk, -0.5_rk] + real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do i = 1, 2
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:))
+    Coords3(i) = ovk_field_real_(Cart3, XYZ3(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+  call ovkMakeGrid(Grid3, Cart3, Coords3)
+  Grid3%id = 3
+
+  call ovkMakeDonors(Donors, Cart1)
+
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(1,:,1) = .true.
+  Donors%grid_ids%values(1,:,1) = 2
+  Donors%cells(1)%values(1,:,1) = [3,3,3]
+  Donors%cells(2)%values(1,:,1) = [1,2,3]
+  Donors%cell_extents%values(1,:,1) = 2
+  Donors%valid_mask%values(3,:,1) = .true.
+  Donors%grid_ids%values(3,:,1) = 3
+  Donors%cells(1)%values(3,:,1) = [1,1,1]
+  Donors%cells(2)%values(3,:,1) = [1,2,3]
+  Donors%cell_extents%values(3,:,1) = 2
+
+  call ovkGenerateDonorMask(Grid2, Grid1, Donors, DonorMask)
+
+  @AssertTrue(allocated(DonorMask%values))
+  @AssertEqual([4,4,1], shape(DonorMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(3:,:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. DonorMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:,3,1) = .true.
+
+  ! With optional argument restricting receivers considered
+  call ovkGenerateDonorMask(Grid2, Grid1, Donors, DonorMask, ReceiverSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(3:,3:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. DonorMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart2, .false.)
+  SubsetMask%values(:,1,1) = .true.
+
+  ! With optional argument restricting donors considered
+  call ovkGenerateDonorMask(Grid2, Grid1, Donors, DonorMask, DonorSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(3:,1,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. DonorMask%values))
+
+end subroutine ovkDonorsTest_donor_mask_2d
+
+@Test
+subroutine ovkDonorsTest_donor_mask_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2, Cart3
+  integer :: i, j, k
+  real(rk), dimension(3,3,3,3) :: XYZ1
+  real(rk), dimension(3,4,4,4) :: XYZ2, XYZ3
+  type(ovk_field_real), dimension(3) :: Coords1, Coords2, Coords3
+  type(ovk_grid) :: Grid1, Grid2, Grid3
+  type(ovk_donors) :: Donors
+  type(ovk_field_logical) :: DonorMask
+  logical, dimension(4,4,4) :: ExpectedValues
+  type(ovk_field_logical) :: SubsetMask
+
+  Cart1 = ovk_cart_(3, [3,3,3])
+  Cart2 = ovk_cart_(3, [4,4,4])
+  Cart3 = ovk_cart_(3, [4,4,4])
+
+  do k = 1, 3
+    do j = 1, 3
+      do i = 1, 3
+        XYZ1(:,i,j,k) = real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        XYZ2(:,i,j,k) = [-2.5_rk, -0.5_rk, -0.5_rk] + real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        XYZ3(:,i,j,k) = [1.5_rk, -0.5_rk, -0.5_rk] + real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do i = 1, 3
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:,:))
+    Coords3(i) = ovk_field_real_(Cart3, XYZ3(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+  call ovkMakeGrid(Grid3, Cart3, Coords3)
+  Grid3%id = 3
+
+  call ovkMakeDonors(Donors, Cart1)
+
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(1,:,:) = .true.
+  Donors%grid_ids%values(1,:,:) = 2
+  Donors%cells(1)%values(1,:,1) = [3,3,3]
+  Donors%cells(2)%values(1,:,1) = [1,2,3]
+  Donors%cells(3)%values(1,:,1) = [1,1,1]
+  Donors%cells(1)%values(1,:,2) = [3,3,3]
+  Donors%cells(2)%values(1,:,2) = [1,2,3]
+  Donors%cells(3)%values(1,:,2) = [2,2,2]
+  Donors%cells(1)%values(1,:,3) = [3,3,3]
+  Donors%cells(2)%values(1,:,3) = [1,2,3]
+  Donors%cells(3)%values(1,:,3) = [3,3,3]
+  Donors%cell_extents%values(1,:,:) = 2
+  Donors%valid_mask%values(3,:,:) = .true.
+  Donors%grid_ids%values(3,:,:) = 3
+  Donors%cells(1)%values(3,:,1) = [1,1,1]
+  Donors%cells(2)%values(3,:,1) = [1,2,3]
+  Donors%cells(3)%values(3,:,1) = [1,1,1]
+  Donors%cells(1)%values(3,:,2) = [1,1,1]
+  Donors%cells(2)%values(3,:,2) = [1,2,3]
+  Donors%cells(3)%values(3,:,2) = [2,2,2]
+  Donors%cells(1)%values(3,:,3) = [1,1,1]
+  Donors%cells(2)%values(3,:,3) = [1,2,3]
+  Donors%cells(3)%values(3,:,3) = [3,3,3]
+  Donors%cell_extents%values(3,:,:) = 2
+
+  call ovkGenerateDonorMask(Grid2, Grid1, Donors, DonorMask)
+
+  @AssertTrue(allocated(DonorMask%values))
+  @AssertEqual([4,4,4], shape(DonorMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(3:,:,:) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. DonorMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:,:,3) = .true.
+
+  ! With optional argument restricting receivers considered
+  call ovkGenerateDonorMask(Grid2, Grid1, Donors, DonorMask, ReceiverSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(3:,:,3:) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. DonorMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart2, .false.)
+  SubsetMask%values(:,:,1) = .true.
+
+  ! With optional argument restricting donors considered
+  call ovkGenerateDonorMask(Grid2, Grid1, Donors, DonorMask, DonorSubset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(3:,:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. DonorMask%values))
+
+end subroutine ovkDonorsTest_donor_mask_3d
+
+@Test
+subroutine ovkDonorsTest_overlap_mask_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_donors), dimension(2) :: CandidateDonors
+  type(ovk_field_logical) :: OverlapMask
+  logical, dimension(3,3,1) :: ExpectedValues
+
+  ! Receiver grid: 3x3, bounds [0.,0.] to [2.,2.]
+  ! Donor grid 1: 4x4, bounds [-2.5,-0.5] to [0.5,2.5]
+  ! Donor grid 2: 4x4, bounds [1.5,-0.5] to [3.5,2.5]
+
+  Cart = ovk_cart_(2, [3,3])
+
+  call ovkMakeDonors(CandidateDonors(1), Cart)
+  call ovkMakeDonors(CandidateDonors(2), Cart)
+
+  CandidateDonors(1)%valid_mask%values = .false.
+  CandidateDonors(1)%valid_mask%values(1,:,1) = .true.
+  CandidateDonors(2)%valid_mask%values = .false.
+  CandidateDonors(2)%valid_mask%values(3,:,1) = .true.
+
+  call ovkGenerateOverlapMask(CandidateDonors, OverlapMask)
+
+  ExpectedValues(1,:,1) = .true.
+  ExpectedValues(2,:,1) = .false.
+  ExpectedValues(3,:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. OverlapMask%values))
+
+end subroutine ovkDonorsTest_overlap_mask_2d
+
+@Test
+subroutine ovkDonorsTest_overlap_mask_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_donors), dimension(2) :: CandidateDonors
+  type(ovk_field_logical) :: OverlapMask
+  logical, dimension(3,3,3) :: ExpectedValues
+
+  ! Receiver grid: 3x3x3, bounds [0.,0.,0.] to [2.,2.,2.]
+  ! Donor grid 1: 4x4x4, bounds [-2.5,-0.5,-0.5] to [0.5,2.5,2.5]
+  ! Donor grid 2: 4x4x4, bounds [1.5,-0.5,-0.5] to [3.5,2.5,2.5]
+
+  Cart = ovk_cart_(3, [3,3,3])
+
+  call ovkMakeDonors(CandidateDonors(1), Cart)
+  call ovkMakeDonors(CandidateDonors(2), Cart)
+
+  CandidateDonors(1)%valid_mask%values = .false.
+  CandidateDonors(1)%valid_mask%values(1,:,:) = .true.
+  CandidateDonors(2)%valid_mask%values = .false.
+  CandidateDonors(2)%valid_mask%values(3,:,:) = .true.
+
+  call ovkGenerateOverlapMask(CandidateDonors, OverlapMask)
+
+  ExpectedValues(1,:,:) = .true.
+  ExpectedValues(2,:,:) = .false.
+  ExpectedValues(3,:,:) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. OverlapMask%values))
+
+end subroutine ovkDonorsTest_overlap_mask_3d
+
+@Test
+subroutine ovkDonorsTest_coarse_to_fine_mask_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2, Cart3
+  integer :: i, j
+  real(rk), dimension(2,3,3) :: XYZ1, XYZ2
+  real(rk), dimension(2,6,6) :: XYZ3
+  type(ovk_field_real), dimension(2) :: Coords1, Coords2, Coords3
+  type(ovk_grid) :: Grid1, Grid2, Grid3
+  type(ovk_donors) :: Donors1, Donors2
+  type(ovk_field_logical) :: CoarseToFineMask1, CoarseToFineMask2
+  type(ovk_field_logical) :: SubsetMask
+  logical, dimension(3,3,1) :: ExpectedValues
+
+  Cart1 = ovk_cart_(2, [3,3])
+  Cart2 = ovk_cart_(2, [3,3])
+  Cart3 = ovk_cart_(2, [6,6])
+
+  ! Receiver grid
+  do j = 1, 3
+    do i = 1, 3
+      XYZ1(:,i,j) = real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  ! Coarse donor grid
+  do j = 1, 3
+    do i = 1, 3
+      XYZ2(:,i,j) = [-2.5_rk, -1._rk] + 2._rk * real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  ! Fine donor grid
+  do j = 1, 6
+    do i = 1, 6
+      XYZ3(:,i,j) = [0.75_rk, -0.25_rk] + 0.5_rk * real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do i = 1, 2
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:))
+    Coords3(i) = ovk_field_real_(Cart3, XYZ3(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+  call ovkMakeGrid(Grid3, Cart3, Coords3)
+  Grid3%id = 3
+
+  call ovkMakeDonors(Donors1, Cart1)
+  call ovkMakeDonors(Donors2, Cart2)
+
+  Donors1%valid_mask%values = .false.
+  Donors1%valid_mask%values(:2,:,1) = .true.
+  Donors1%grid_ids%values(:2,:,1) = 2
+  Donors1%cell_diff_params%values(:2,:,1) = 1._rk
+  Donors2%valid_mask%values = .false.
+  Donors2%valid_mask%values(2:,:,1) = .true.
+  Donors2%grid_ids%values(2:,:,1) = 3
+  Donors2%cell_diff_params%values(2:,:,1) = -1._rk
+
+  call ovkGenerateCoarseToFineMask(Grid1, Donors1, CoarseToFineMask1)
+  call ovkGenerateCoarseToFineMask(Grid1, Donors2, CoarseToFineMask2)
+
+  @AssertTrue(allocated(CoarseToFineMask1%values))
+  @AssertEqual([3,3,1], shape(CoarseToFineMask1%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(:2,:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. CoarseToFineMask1%values))
+  @AssertFalse(logical(any(CoarseToFineMask2%values)))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:,1,1) = .true.
+
+  ! With optional argument restricting receivers considered
+  call ovkGenerateCoarseToFineMask(Grid1, Donors1, CoarseToFineMask1, Subset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(:2,1,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. CoarseToFineMask1%values))
+
+end subroutine ovkDonorsTest_coarse_to_fine_mask_2d
+
+@Test
+subroutine ovkDonorsTest_coarse_to_fine_mask_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2, Cart3
+  integer :: i, j, k
+  real(rk), dimension(3,3,3,3) :: XYZ1, XYZ2
+  real(rk), dimension(3,6,6,6) :: XYZ3
+  type(ovk_field_real), dimension(3) :: Coords1, Coords2, Coords3
+  type(ovk_grid) :: Grid1, Grid2, Grid3
+  type(ovk_donors) :: Donors1, Donors2
+  type(ovk_field_logical) :: CoarseToFineMask1, CoarseToFineMask2
+  type(ovk_field_logical) :: SubsetMask
+  logical, dimension(3,3,3) :: ExpectedValues
+
+  Cart1 = ovk_cart_(3, [3,3,3])
+  Cart2 = ovk_cart_(3, [3,3,3])
+  Cart3 = ovk_cart_(3, [6,6,6])
+
+  ! Receiver grid
+  do k = 1, 3
+    do j = 1, 3
+      do i = 1, 3
+        XYZ1(:,i,j,k) = real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  ! Coarse donor grid
+  do k = 1, 3
+    do j = 1, 3
+      do i = 1, 3
+        XYZ2(:,i,j,k) = [-2.5_rk, -1._rk, -1._rk] + 2._rk * real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  ! Fine donor grid
+  do k = 1, 6
+    do j = 1, 6
+      do i = 1, 6
+        XYZ3(:,i,j,k) = [0.75_rk, -0.25_rk, -0.25_rk] + 0.5_rk * real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do i = 1, 3
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:,:))
+    Coords3(i) = ovk_field_real_(Cart3, XYZ3(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+  call ovkMakeGrid(Grid3, Cart3, Coords3)
+  Grid3%id = 3
+
+  call ovkMakeDonors(Donors1, Cart1)
+  call ovkMakeDonors(Donors2, Cart2)
+
+  Donors1%valid_mask%values = .false.
+  Donors1%valid_mask%values(:2,:,:) = .true.
+  Donors1%grid_ids%values(:2,:,:) = 2
+  Donors1%cell_diff_params%values(:2,:,:) = 1._rk
+  Donors2%valid_mask%values = .false.
+  Donors2%valid_mask%values(2:,:,:) = .true.
+  Donors2%grid_ids%values(2:,:,:) = 3
+  Donors2%cell_diff_params%values(2:,:,:) = -1._rk
+
+  call ovkGenerateCoarseToFineMask(Grid1, Donors1, CoarseToFineMask1)
+  call ovkGenerateCoarseToFineMask(Grid1, Donors2, CoarseToFineMask2)
+
+  @AssertTrue(allocated(CoarseToFineMask1%values))
+  @AssertEqual([3,3,3], shape(CoarseToFineMask1%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(:2,:,:) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. CoarseToFineMask1%values))
+  @AssertFalse(logical(any(CoarseToFineMask2%values)))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:,:,1) = .true.
+
+  ! With optional argument restricting receivers considered
+  call ovkGenerateCoarseToFineMask(Grid1, Donors1, CoarseToFineMask1, Subset=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(:2,:,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. CoarseToFineMask1%values))
+
+end subroutine ovkDonorsTest_coarse_to_fine_mask_3d
+
+@Test
+subroutine ovkDonorsTest_near_crossover_mask_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+  integer :: i, j
+  real(rk), dimension(2,4,4) :: XYZ1, XYZ2
+  type(ovk_field_real), dimension(2) :: Coords1, Coords2
+  type(ovk_grid) :: Grid1, Grid2
+  type(ovk_donors) :: Donors1, Donors2
+  type(ovk_field_logical) :: NearCrossoverMask
+  type(ovk_field_logical) :: SubsetMask
+  logical, dimension(4,4,1) :: ExpectedValues
+
+  Cart1 = ovk_cart_(2, [4,4])
+  Cart2 = ovk_cart_(2, [4,4])
+
+  do j = 1, 4
+    do i = 1, 4
+      XYZ1(:,i,j) = real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do j = 1, 4
+    do i = 1, 4
+      XYZ2(:,i,j) = 0.5_rk + real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do i = 1, 2
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+
+  call ovkMakeDonors(Donors1, Cart1)
+  call ovkMakeDonors(Donors2, Cart2)
+
+  Donors1%valid_mask%values = .false.
+  Donors1%valid_mask%values(2:3,2:3,1) = .true.
+  Donors1%grid_ids%values(2:3,2:3,1) = 2
+  Donors1%cells(1)%values(2:3,2,1) = [1,2]
+  Donors1%cells(2)%values(2:3,2,1) = [1,1]
+  Donors1%cells(1)%values(2:3,3,1) = [1,2]
+  Donors1%cells(2)%values(2:3,3,1) = [2,2]
+  Donors1%cell_extents%values(2:3,2:3,1) = 2
+  Donors2%valid_mask%values = .false.
+  Donors2%valid_mask%values(2:3,2:3,1) = .true.
+  Donors2%grid_ids%values(2:3,2:3,1) = 1
+  Donors2%cells(1)%values(2:3,2,1) = [2,3]
+  Donors2%cells(2)%values(2:3,2,1) = [2,2]
+  Donors2%cells(1)%values(2:3,3,1) = [2,3]
+  Donors2%cells(2)%values(2:3,3,1) = [3,3]
+  Donors2%cell_extents%values(2:3,2:3,1) = 2
+
+  call ovkGenerateNearCrossoverMask(Grid1, Grid2, Donors1, Donors2, 0, NearCrossoverMask)
+
+  @AssertTrue(allocated(NearCrossoverMask%values))
+  @AssertEqual([4,4,1], shape(NearCrossoverMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(2:3,2:3,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. NearCrossoverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:2,:2,1) = .true.
+
+  ! With optional argument restricting points on grid 1 considered
+  call ovkGenerateNearCrossoverMask(Grid1, Grid2, Donors1, Donors2, 0, NearCrossoverMask, &
+    Subset1=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(2,2,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. NearCrossoverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart2, .false.)
+  SubsetMask%values(3:,3:,1) = .true.
+
+  ! With optional argument restricting points on grid 2 considered
+  call ovkGenerateNearCrossoverMask(Grid1, Grid2, Donors1, Donors2, 0, NearCrossoverMask, &
+    Subset2=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(3,3,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. NearCrossoverMask%values))
+
+end subroutine ovkDonorsTest_near_crossover_mask_2d
+
+@Test
+subroutine ovkDonorsTest_near_crossover_mask_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+  integer :: i, j, k
+  real(rk), dimension(3,4,4,4) :: XYZ1, XYZ2
+  type(ovk_field_real), dimension(3) :: Coords1, Coords2
+  type(ovk_grid) :: Grid1, Grid2
+  type(ovk_donors) :: Donors1, Donors2
+  type(ovk_field_logical) :: NearCrossoverMask
+  type(ovk_field_logical) :: SubsetMask
+  logical, dimension(4,4,4) :: ExpectedValues
+
+  Cart1 = ovk_cart_(3, [4,4,4])
+  Cart2 = ovk_cart_(3, [4,4,4])
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        XYZ1(:,i,j,k) = real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do k = 1, 4
+    do j = 1, 4
+      do i = 1, 4
+        XYZ2(:,i,j,k) = 0.5_rk + real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do i = 1, 3
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+
+  call ovkMakeDonors(Donors1, Cart1)
+  call ovkMakeDonors(Donors2, Cart2)
+
+  Donors1%valid_mask%values = .false.
+  Donors1%valid_mask%values(2:3,2:3,2:3) = .true.
+  Donors1%grid_ids%values(2:3,2:3,2:3) = 2
+  Donors1%cells(1)%values(2:3,2,2) = [1,2]
+  Donors1%cells(2)%values(2:3,2,2) = [1,1]
+  Donors1%cells(3)%values(2:3,2,2) = [1,1]
+  Donors1%cells(1)%values(2:3,3,2) = [1,2]
+  Donors1%cells(2)%values(2:3,3,2) = [2,2]
+  Donors1%cells(3)%values(2:3,3,2) = [1,1]
+  Donors1%cells(1)%values(2:3,2,3) = [1,2]
+  Donors1%cells(2)%values(2:3,2,3) = [1,1]
+  Donors1%cells(3)%values(2:3,2,3) = [2,2]
+  Donors1%cells(1)%values(2:3,3,3) = [1,2]
+  Donors1%cells(2)%values(2:3,3,3) = [2,2]
+  Donors1%cells(3)%values(2:3,3,3) = [2,2]
+  Donors1%cell_extents%values(2:3,2:3,2:3) = 2
+  Donors2%valid_mask%values = .false.
+  Donors2%valid_mask%values(2:3,2:3,2:3) = .true.
+  Donors2%grid_ids%values(2:3,2:3,2:3) = 1
+  Donors2%cells(1)%values(2:3,2,2) = [2,3]
+  Donors2%cells(2)%values(2:3,2,2) = [2,2]
+  Donors2%cells(3)%values(2:3,2,2) = [1,1]
+  Donors2%cells(1)%values(2:3,3,2) = [2,3]
+  Donors2%cells(2)%values(2:3,3,2) = [3,3]
+  Donors2%cells(3)%values(2:3,3,2) = [1,1]
+  Donors2%cells(1)%values(2:3,2,3) = [2,3]
+  Donors2%cells(2)%values(2:3,2,3) = [2,2]
+  Donors2%cells(3)%values(2:3,2,3) = [2,2]
+  Donors2%cells(1)%values(2:3,3,3) = [2,3]
+  Donors2%cells(2)%values(2:3,3,3) = [3,3]
+  Donors2%cells(3)%values(2:3,3,3) = [2,2]
+  Donors2%cell_extents%values(2:3,2:3,2:3) = 2
+
+  call ovkGenerateNearCrossoverMask(Grid1, Grid2, Donors1, Donors2, 0, NearCrossoverMask)
+
+  @AssertTrue(allocated(NearCrossoverMask%values))
+  @AssertEqual([4,4,4], shape(NearCrossoverMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(2:3,2:3,2:3) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. NearCrossoverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart1, .false.)
+  SubsetMask%values(:2,:2,:2) = .true.
+
+  ! With optional argument restricting points on grid 1 considered
+  call ovkGenerateNearCrossoverMask(Grid1, Grid2, Donors1, Donors2, 0, NearCrossoverMask, &
+    Subset1=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(2,2,2) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. NearCrossoverMask%values))
+
+  SubsetMask = ovk_field_logical_(Cart2, .false.)
+  SubsetMask%values(3:,3:,3:) = .true.
+
+  ! With optional argument restricting points on grid 2 considered
+  call ovkGenerateNearCrossoverMask(Grid1, Grid2, Donors1, Donors2, 0, NearCrossoverMask, &
+    Subset2=SubsetMask)
+
+  ExpectedValues = .false.
+  ExpectedValues(3,3,3) = .true.
+  
+  @AssertTrue(all(ExpectedValues .eqv. NearCrossoverMask%values))
+
+end subroutine ovkDonorsTest_near_crossover_mask_3d
+
+@Test
+subroutine ovkDonorsTest_orphan_mask_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+  integer :: i, j
+  real(rk), dimension(2,3,3) :: XYZ1, XYZ2
+  type(ovk_field_real), dimension(2) :: Coords1, Coords2
+  type(ovk_grid) :: Grid1, Grid2
+  type(ovk_donors) :: Donors
+  type(ovk_field_logical) :: ReceiverMask
+  type(ovk_field_logical) :: OrphanMask
+  logical, dimension(3,3,1) :: ExpectedValues
+
+  Cart1 = ovk_cart_(2, [3,3])
+  Cart2 = ovk_cart_(2, [3,3])
+
+  do j = 1, 3
+    do i = 1, 3
+      XYZ1(:,i,j) = real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do j = 1, 3
+    do i = 1, 3
+      XYZ2(:,i,j) = 0.5_rk + real([i,j]-1, kind=rk)
+    end do
+  end do
+
+  do i = 1, 2
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+
+  call ovkMakeDonors(Donors, Cart1)
+
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(2:,2:,1) = .true.
+  Donors%valid_mask%values(2,2,1) = .false.
+
+  ReceiverMask = ovk_field_logical_(Cart1, .false.)
+  ReceiverMask%values(2:,2:,1) = .true.
+
+  call ovkGenerateOrphanMask(Donors, ReceiverMask, OrphanMask)
+
+  @AssertTrue(allocated(OrphanMask%values))
+  @AssertEqual([3,3,1], shape(OrphanMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(2,2,1) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. OrphanMask%values))
+
+end subroutine ovkDonorsTest_orphan_mask_2d
+
+@Test
+subroutine ovkDonorsTest_orphan_mask_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+  integer :: i, j, k
+  real(rk), dimension(3,3,3,3) :: XYZ1, XYZ2
+  type(ovk_field_real), dimension(3) :: Coords1, Coords2
+  type(ovk_grid) :: Grid1, Grid2
+  type(ovk_donors) :: Donors
+  type(ovk_field_logical) :: ReceiverMask
+  type(ovk_field_logical) :: OrphanMask
+  logical, dimension(3,3,3) :: ExpectedValues
+
+  Cart1 = ovk_cart_(3, [3,3,3])
+  Cart2 = ovk_cart_(3, [3,3,3])
+
+  do k = 1, 3
+    do j = 1, 3
+      do i = 1, 3
+        XYZ1(:,i,j,k) = real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do k = 1, 3
+    do j = 1, 3
+      do i = 1, 3
+        XYZ2(:,i,j,k) = 0.5_rk + real([i,j,k]-1, kind=rk)
+      end do
+    end do
+  end do
+
+  do i = 1, 3
+    Coords1(i) = ovk_field_real_(Cart1, XYZ1(i,:,:,:))
+    Coords2(i) = ovk_field_real_(Cart2, XYZ2(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid1, Cart1, Coords1)
+  Grid1%id = 1
+  call ovkMakeGrid(Grid2, Cart2, Coords2)
+  Grid2%id = 2
+
+  call ovkMakeDonors(Donors, Cart1)
+
+  Donors%valid_mask%values = .false.
+  Donors%valid_mask%values(2:,2:,2:) = .true.
+  Donors%valid_mask%values(2,2,2) = .false.
+
+  ReceiverMask = ovk_field_logical_(Cart1, .false.)
+  ReceiverMask%values(2:,2:,2:) = .true.
+
+  call ovkGenerateOrphanMask(Donors, ReceiverMask, OrphanMask)
+
+  @AssertTrue(allocated(OrphanMask%values))
+  @AssertEqual([3,3,3], shape(OrphanMask%values))
+
+  ExpectedValues = .false.
+  ExpectedValues(2,2,2) = .true.
+
+  @AssertTrue(all(ExpectedValues .eqv. OrphanMask%values))
+
+end subroutine ovkDonorsTest_orphan_mask_3d

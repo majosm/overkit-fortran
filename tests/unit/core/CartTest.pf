@@ -1,0 +1,1049 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+@Test
+subroutine ovkCartTest_default(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+
+  ! 2D
+  Cart = ovk_cart_(2)
+
+  @AssertEqual(2, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([0,0,1], Cart%ie)
+  @AssertFalse(any(Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 3D
+  Cart = ovk_cart_(3)
+
+  @AssertEqual(3, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([0,0,0], Cart%ie)
+  @AssertFalse(any(Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+end subroutine ovkCartTest_default
+
+@Test
+subroutine ovkCartTest_assigned_numpoints(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+
+  ! 2D
+  Cart = ovk_cart_(2, [2,3])
+
+  @AssertEqual(2, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([2,3,1], Cart%ie)
+  @AssertFalse(any(Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 3D
+  Cart = ovk_cart_(3, [2,3,4])
+
+  @AssertEqual(3, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([2,3,4], Cart%ie)
+  @AssertFalse(any(Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 2D with periodicity
+  Cart = ovk_cart_(2, [2,3], [.true.,.false.])
+
+  @AssertEqual(2, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([2,3,1], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 3D with periodicity
+  Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.])
+
+  @AssertEqual(3, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([2,3,4], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 2D with periodicity and periodic storage
+  Cart = ovk_cart_(2, [2,3], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+
+  @AssertEqual(2, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([2,3,1], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 3D with periodicity and periodic storage
+  Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+
+  @AssertEqual(3, Cart%nd)
+  @AssertEqual([1,1,1], Cart%is)
+  @AssertEqual([2,3,4], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+end subroutine ovkCartTest_assigned_numpoints
+
+@Test
+subroutine ovkCartTest_assigned_start_end(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+
+  ! 2D
+  Cart = ovk_cart_(2, [2,1], [3,4])
+
+  @AssertEqual(2, Cart%nd)
+  @AssertEqual([2,1,1], Cart%is)
+  @AssertEqual([3,4,1], Cart%ie)
+  @AssertFalse(any(Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 3D
+  Cart = ovk_cart_(3, [3,2,1], [4,5,6])
+
+  @AssertEqual(3, Cart%nd)
+  @AssertEqual([3,2,1], Cart%is)
+  @AssertEqual([4,5,6], Cart%ie)
+  @AssertFalse(any(Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 2D with periodicity
+  Cart = ovk_cart_(2, [2,1], [3,4], [.true.,.false.])
+
+  @AssertEqual(2, Cart%nd)
+  @AssertEqual([2,1,1], Cart%is)
+  @AssertEqual([3,4,1], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 3D with periodicity
+  Cart = ovk_cart_(3, [3,2,1], [4,5,6], [.true.,.false.,.false.])
+
+  @AssertEqual(3, Cart%nd)
+  @AssertEqual([3,2,1], Cart%is)
+  @AssertEqual([4,5,6], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 2D with periodicity and periodic storage
+  Cart = ovk_cart_(2, [2,1], [3,4], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+
+  @AssertEqual(2, Cart%nd)
+  @AssertEqual([2,1,1], Cart%is)
+  @AssertEqual([3,4,1], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+  ! 3D with periodicity and periodic storage
+  Cart = ovk_cart_(3, [3,2,1], [4,5,6], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+
+  @AssertEqual(3, Cart%nd)
+  @AssertEqual([3,2,1], Cart%is)
+  @AssertEqual([4,5,6], Cart%ie)
+  @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
+  @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+
+end subroutine ovkCartTest_assigned_start_end
+
+@Test
+subroutine ovkCartTest_equality(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+
+  Cart1 = ovk_cart_(2, [1,2], [3,4])
+
+  ! Self
+  @AssertTrue(Cart1 == Cart1)
+
+  ! Other with same values
+  Cart2 = Cart1
+  @AssertTrue(Cart1 == Cart2)
+
+  ! Different dimension
+  Cart2 = ovk_cart_(3, [1,2,1], [3,4,1])
+  @AssertTrue(Cart1 /= Cart2)
+
+  ! Different iStart
+  Cart2 = ovk_cart_(2, [1,3], [3,4])
+  @AssertTrue(Cart1 /= Cart2)
+
+  ! Different iEnd
+  Cart2 = ovk_cart_(2, [1,2], [2,4])
+  @AssertTrue(Cart1 /= Cart2)
+
+  ! Different periodicity
+  Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.false.])
+  @AssertTrue(Cart1 /= Cart2)
+
+  ! Different periodic storage
+  Cart2 = ovk_cart_(2, [1,2], [3,4], [.false.,.false.], OVK_OVERLAP_PERIODIC)
+  @AssertTrue(Cart1 /= Cart2)
+
+end subroutine ovkCartTest_equality
+
+@Test
+subroutine ovkCartTest_size_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+
+  ! Empty
+  Cart = ovk_cart_(2)
+  @AssertEqual([0,0], ovkCartSize(Cart))
+
+  ! Not empty
+  Cart = ovk_cart_(2, [1,2], [4,3])
+  @AssertEqual([4,2], ovkCartSize(Cart))
+
+end subroutine ovkCartTest_size_2d
+
+@Test
+subroutine ovkCartTest_size_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+
+  ! Empty
+  Cart = ovk_cart_(3)
+  @AssertEqual([0,0,0], ovkCartSize(Cart))
+
+  ! Not empty
+  Cart = ovk_cart_(3, [1,2,3], [6,5,4])
+  @AssertEqual([6,4,2], ovkCartSize(Cart))
+
+end subroutine ovkCartTest_size_3d
+
+@Test
+subroutine ovkCartTest_count_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+
+  ! Empty
+  Cart = ovk_cart_(2)
+  @AssertEqual(0, int(ovkCartCount(Cart)))
+
+  ! Not empty
+  Cart = ovk_cart_(2, [1,2], [4,3])
+  @AssertEqual(8, int(ovkCartCount(Cart)))
+
+end subroutine ovkCartTest_count_2d
+
+@Test
+subroutine ovkCartTest_count_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+
+  ! Empty
+  Cart = ovk_cart_(3)
+  @AssertEqual(0, int(ovkCartCount(Cart)))
+
+  ! Not empty
+  Cart = ovk_cart_(3, [1,2,3], [6,5,4])
+  @AssertEqual(48, int(ovkCartCount(Cart)))
+
+end subroutine ovkCartTest_count_3d
+
+@Test
+subroutine ovkCartTest_tuple_to_index_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer(lk) :: Ind
+
+  Cart = ovk_cart_(2, [2,2], [3,4])
+
+  ! Lower i, lower j corner
+  Ind = ovkCartTupleToIndex(Cart, [2,2])
+  @AssertEqual(1, int(Ind))
+
+  ! Upper i, lower j corner
+  Ind = ovkCartTupleToIndex(Cart, [3,2])
+  @AssertEqual(2, int(Ind))
+
+  ! Lower i, upper j corner
+  Ind = ovkCartTupleToIndex(Cart, [2,4])
+  @AssertEqual(5, int(Ind))
+
+  ! Upper i, upper j corner
+  Ind = ovkCartTupleToIndex(Cart, [3,4])
+  @AssertEqual(6, int(Ind))
+
+end subroutine ovkCartTest_tuple_to_index_2d
+
+@Test
+subroutine ovkCartTest_tuple_to_index_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer(lk) :: Ind
+
+  Cart = ovk_cart_(3, [2,2,2], [3,4,5])
+
+  ! Lower i, lower j, lower k corner
+  Ind = ovkCartTupleToIndex(Cart, [2,2,2])
+  @AssertEqual(1, int(Ind))
+
+  ! Upper i, lower j, lower k corner
+  Ind = ovkCartTupleToIndex(Cart, [3,2,2])
+  @AssertEqual(2, int(Ind))
+
+  ! Lower i, upper j, lower k corner
+  Ind = ovkCartTupleToIndex(Cart, [2,4,2])
+  @AssertEqual(5, int(Ind))
+
+  ! Upper i, upper j, lower k corner
+  Ind = ovkCartTupleToIndex(Cart, [3,4,2])
+  @AssertEqual(6, int(Ind))
+
+  ! Lower i, lower j, upper k corner
+  Ind = ovkCartTupleToIndex(Cart, [2,2,5])
+  @AssertEqual(19, int(Ind))
+
+  ! Upper i, lower j, upper k corner
+  Ind = ovkCartTupleToIndex(Cart, [3,2,5])
+  @AssertEqual(20, int(Ind))
+
+  ! Lower i, upper j, upper k corner
+  Ind = ovkCartTupleToIndex(Cart, [2,4,5])
+  @AssertEqual(23, int(Ind))
+
+  ! Upper i, upper j, upper k corner
+  Ind = ovkCartTupleToIndex(Cart, [3,4,5])
+  @AssertEqual(24, int(Ind))
+
+end subroutine ovkCartTest_tuple_to_index_3d
+
+@Test
+subroutine ovkCartTest_index_to_tuple_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(2) :: Tuple
+
+  Cart = ovk_cart_(2, [2,2], [3,4])
+
+  ! Lower i, lower j corner
+  Tuple = ovkCartIndexToTuple(Cart, 1_lk)
+  @AssertEqual([2,2], Tuple)
+
+  ! Upper i, lower j corner
+  Tuple = ovkCartIndexToTuple(Cart, 2_lk)
+  @AssertEqual([3,2], Tuple)
+
+  ! Lower i, upper j corner
+  Tuple = ovkCartIndexToTuple(Cart, 5_lk)
+  @AssertEqual([2,4], Tuple)
+
+  ! Upper i, upper j corner
+  Tuple = ovkCartIndexToTuple(Cart, 6_lk)
+  @AssertEqual([3,4], Tuple)
+
+end subroutine ovkCartTest_index_to_tuple_2d
+
+@Test
+subroutine ovkCartTest_index_to_tuple_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(3) :: Tuple
+
+  Cart = ovk_cart_(3, [2,2,2], [3,4,5])
+
+  ! Lower i, lower j, lower k corner
+  Tuple = ovkCartIndexToTuple(Cart, 1_lk)
+  @AssertEqual([2,2,2], Tuple)
+
+  ! Upper i, lower j, lower k corner
+  Tuple = ovkCartIndexToTuple(Cart, 2_lk)
+  @AssertEqual([3,2,2], Tuple)
+
+  ! Lower i, upper j, lower k corner
+  Tuple = ovkCartIndexToTuple(Cart, 5_lk)
+  @AssertEqual([2,4,2], Tuple)
+
+  ! Upper i, upper j, lower k corner
+  Tuple = ovkCartIndexToTuple(Cart, 6_lk)
+  @AssertEqual([3,4,2], Tuple)
+
+  ! Lower i, lower j, upper k corner
+  Tuple = ovkCartIndexToTuple(Cart, 19_lk)
+  @AssertEqual([2,2,5], Tuple)
+
+  ! Upper i, lower j, upper k corner
+  Tuple = ovkCartIndexToTuple(Cart, 20_lk)
+  @AssertEqual([3,2,5], Tuple)
+
+  ! Lower i, upper j, upper k corner
+  Tuple = ovkCartIndexToTuple(Cart, 23_lk)
+  @AssertEqual([2,4,5], Tuple)
+
+  ! Upper i, upper j, upper k corner
+  Tuple = ovkCartIndexToTuple(Cart, 24_lk)
+  @AssertEqual([3,4,5], Tuple)
+
+end subroutine ovkCartTest_index_to_tuple_3d
+
+@Test
+subroutine ovkCartTest_periodic_adjust_non_periodic_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(2) :: Point
+
+  Cart = ovk_cart_(2, [1,1], [5,5])
+
+  ! Lower x boundary
+  Point = ovkCartPeriodicAdjust(Cart, [1,3])
+  @AssertEqual([1,3], Point)
+
+  ! Upper x boundary
+  Point = ovkCartPeriodicAdjust(Cart, [5,3])
+  @AssertEqual([5,3], Point)
+
+  ! Lower y boundary
+  Point = ovkCartPeriodicAdjust(Cart, [3,1])
+  @AssertEqual([3,1], Point)
+
+  ! Upper y boundary
+  Point = ovkCartPeriodicAdjust(Cart, [3,5])
+  @AssertEqual([3,5], Point)
+
+end subroutine ovkCartTest_periodic_adjust_non_periodic_2d
+
+@Test
+subroutine ovkCartTest_periodic_adjust_non_periodic_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(3) :: Point
+
+  Cart = ovk_cart_(3, [1,1,1], [5,5,5])
+
+  ! Lower x boundary
+  Point = ovkCartPeriodicAdjust(Cart, [1,3,3])
+  @AssertEqual([1,3,3], Point)
+
+  ! Upper x boundary
+  Point = ovkCartPeriodicAdjust(Cart, [5,3,3])
+  @AssertEqual([5,3,3], Point)
+
+  ! Lower y boundary
+  Point = ovkCartPeriodicAdjust(Cart, [3,1,3])
+  @AssertEqual([3,1,3], Point)
+
+  ! Upper y boundary
+  Point = ovkCartPeriodicAdjust(Cart, [3,5,3])
+  @AssertEqual([3,5,3], Point)
+
+  ! Lower z boundary
+  Point = ovkCartPeriodicAdjust(Cart, [3,3,1])
+  @AssertEqual([3,3,1], Point)
+
+  ! Upper z boundary
+  Point = ovkCartPeriodicAdjust(Cart, [3,3,5])
+  @AssertEqual([3,3,5], Point)
+
+end subroutine ovkCartTest_periodic_adjust_non_periodic_3d
+
+@Test
+subroutine ovkCartTest_periodic_adjust_no_overlap_periodic_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: ovkCartX, ovkCartY
+  integer, dimension(2) :: Point
+
+  ovkCartX = ovk_cart_(2, [1,1], [4,5], [.true.,.false.])
+  ovkCartY = ovk_cart_(2, [1,1], [5,4], [.false.,.true.])
+
+  ! Lower x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [1,3])
+  @AssertEqual([1,3], Point)
+
+  ! Upper x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [5,3])
+  @AssertEqual([1,3], Point)
+
+  ! Lower y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,1])
+  @AssertEqual([3,1], Point)
+
+  ! Upper y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,5])
+  @AssertEqual([3,1], Point)
+
+  ! Lower x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [0,3])
+  @AssertEqual([4,3], Point)
+
+  ! Upper x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [6,3])
+  @AssertEqual([2,3], Point)
+
+  ! Lower y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,0])
+  @AssertEqual([3,4], Point)
+
+  ! Upper y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,6])
+  @AssertEqual([3,2], Point)
+
+end subroutine ovkCartTest_periodic_adjust_no_overlap_periodic_2d
+
+@Test
+subroutine ovkCartTest_periodic_adjust_no_overlap_periodic_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: ovkCartX, ovkCartY, ovkCartZ
+  integer, dimension(3) :: Point
+
+  ovkCartX = ovk_cart_(3, [1,1,1], [4,5,5], [.true.,.false.,.false.])
+  ovkCartY = ovk_cart_(3, [1,1,1], [5,4,5], [.false.,.true.,.false.])
+  ovkCartZ = ovk_cart_(3, [1,1,1], [5,5,4], [.false.,.false.,.true.])
+
+  ! Lower x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [1,3,3])
+  @AssertEqual([1,3,3], Point)
+
+  ! Upper x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [5,3,3])
+  @AssertEqual([1,3,3], Point)
+
+  ! Lower y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,1,3])
+  @AssertEqual([3,1,3], Point)
+
+  ! Upper y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,5,3])
+  @AssertEqual([3,1,3], Point)
+
+  ! Lower z boundary
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,1])
+  @AssertEqual([3,3,1], Point)
+
+  ! Upper z boundary
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,5])
+  @AssertEqual([3,3,1], Point)
+
+  ! Lower x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [0,3,3])
+  @AssertEqual([4,3,3], Point)
+
+  ! Upper x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [6,3,3])
+  @AssertEqual([2,3,3], Point)
+
+  ! Lower y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,0,3])
+  @AssertEqual([3,4,3], Point)
+
+  ! Upper y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,6,3])
+  @AssertEqual([3,2,3], Point)
+
+  ! Lower z off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,0])
+  @AssertEqual([3,3,4], Point)
+
+  ! Upper z off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,6])
+  @AssertEqual([3,3,2], Point)
+
+end subroutine ovkCartTest_periodic_adjust_no_overlap_periodic_3d
+
+@Test
+subroutine ovkCartTest_periodic_adjust_overlap_periodic_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: ovkCartX, ovkCartY
+  integer, dimension(2) :: Point
+
+  ovkCartX = ovk_cart_(2, [1,1], [5,5], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+  ovkCartY = ovk_cart_(2, [1,1], [5,5], [.false.,.true.], OVK_OVERLAP_PERIODIC)
+
+  ! Lower x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [1,3])
+  @AssertEqual([1,3], Point)
+
+  ! Upper x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [5,3])
+  @AssertEqual([1,3], Point)
+
+  ! Lower y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,1])
+  @AssertEqual([3,1], Point)
+
+  ! Upper y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,5])
+  @AssertEqual([3,1], Point)
+
+  ! Lower x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [0,3])
+  @AssertEqual([4,3], Point)
+
+  ! Upper x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [6,3])
+  @AssertEqual([2,3], Point)
+
+  ! Lower y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,0])
+  @AssertEqual([3,4], Point)
+
+  ! Upper y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,6])
+  @AssertEqual([3,2], Point)
+
+end subroutine ovkCartTest_periodic_adjust_overlap_periodic_2d
+
+@Test
+subroutine ovkCartTest_periodic_adjust_overlap_periodic_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: ovkCartX, ovkCartY, ovkCartZ
+  integer, dimension(3) :: Point
+
+  ovkCartX = ovk_cart_(3, [1,1,1], [5,5,5], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+  ovkCartY = ovk_cart_(3, [1,1,1], [5,5,5], [.false.,.true.,.false.], OVK_OVERLAP_PERIODIC)
+  ovkCartZ = ovk_cart_(3, [1,1,1], [5,5,5], [.false.,.false.,.true.], OVK_OVERLAP_PERIODIC)
+
+  ! Lower x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [1,3,3])
+  @AssertEqual([1,3,3], Point)
+
+  ! Upper x boundary
+  Point = ovkCartPeriodicAdjust(ovkCartX, [5,3,3])
+  @AssertEqual([1,3,3], Point)
+
+  ! Lower y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,1,3])
+  @AssertEqual([3,1,3], Point)
+
+  ! Upper y boundary
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,5,3])
+  @AssertEqual([3,1,3], Point)
+
+  ! Lower z boundary
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,1])
+  @AssertEqual([3,3,1], Point)
+
+  ! Upper z boundary
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,5])
+  @AssertEqual([3,3,1], Point)
+
+  ! Lower x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [0,3,3])
+  @AssertEqual([4,3,3], Point)
+
+  ! Upper x off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartX, [6,3,3])
+  @AssertEqual([2,3,3], Point)
+
+  ! Lower y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,0,3])
+  @AssertEqual([3,4,3], Point)
+
+  ! Upper y off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartY, [3,6,3])
+  @AssertEqual([3,2,3], Point)
+
+  ! Lower z off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,0])
+  @AssertEqual([3,3,4], Point)
+
+  ! Upper z off-grid
+  Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,6])
+  @AssertEqual([3,3,2], Point)
+
+end subroutine ovkCartTest_periodic_adjust_overlap_periodic_3d
+
+@Test
+subroutine ovkCartTest_contains_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(2) :: Point
+
+  ! Inside
+  Cart = ovk_cart_(2, [1,2], [3,4])
+  Point = [2,3]
+  @AssertTrue(ovkCartContains(Cart, Point))
+
+  ! Outside
+  Cart = ovk_cart_(2, [1,2], [3,4])
+  Point = [0,0]
+  @AssertFalse(ovkCartContains(Cart, Point))
+
+  ! Empty cart
+  Cart = ovk_cart_(2)
+  Point = [1,1]
+  @AssertFalse(ovkCartContains(Cart, Point))
+
+end subroutine ovkCartTest_contains_2d
+
+@Test
+subroutine ovkCartTest_contains_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(3) :: Point
+
+  ! Inside
+  Cart = ovk_cart_(3, [1,2,3], [4,5,6])
+  Point = [2,3,4]
+  @AssertTrue(ovkCartContains(Cart, Point))
+
+  ! Outside
+  Cart = ovk_cart_(3, [1,2,3], [4,5,6])
+  Point = [0,0,0]
+  @AssertFalse(ovkCartContains(Cart, Point))
+
+  ! Empty cart
+  Cart = ovk_cart_(3)
+  Point = [1,1,1]
+  @AssertFalse(ovkCartContains(Cart, Point))
+
+end subroutine ovkCartTest_contains_3d
+
+@Test
+subroutine ovkCartTest_clamp_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(2) :: Point
+
+  ! Inside
+  Cart = ovk_cart_(2, [1,2], [3,4])
+  Point = [2,3]
+  @AssertEqual([2,3], ovkCartClamp(Cart, Point))
+
+  ! Outside
+  Cart = ovk_cart_(2, [1,2], [3,4])
+  Point = [0,0]
+  @AssertEqual([1,2], ovkCartClamp(Cart, Point))
+
+end subroutine ovkCartTest_clamp_2d
+
+@Test
+subroutine ovkCartTest_clamp_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer, dimension(3) :: Point
+
+  ! Inside
+  Cart = ovk_cart_(3, [1,2,3], [4,5,6])
+  Point = [2,3,4]
+  @AssertEqual([2,3,4], ovkCartClamp(Cart, Point))
+
+  ! Outside
+  Cart = ovk_cart_(3, [1,2,3], [4,5,6])
+  Point = [0,0,0]
+  @AssertEqual([1,2,3], ovkCartClamp(Cart, Point))
+
+end subroutine ovkCartTest_clamp_3d
+
+@Test
+subroutine ovkCartTest_convert_periodic_storage_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+
+  ! No overlap -> no overlap
+  Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+  @AssertTrue(Cart1 == Cart2)
+
+  ! No overlap -> overlap
+  Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+  @AssertEqual(2, Cart2%nd)
+  @AssertEqual([1,2,1], Cart2%is)
+  @AssertEqual([4,5,1], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Overlap -> no overlap
+  Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+  @AssertEqual(2, Cart2%nd)
+  @AssertEqual([1,2,1], Cart2%is)
+  @AssertEqual([3,4,1], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Overlap -> overlap
+  Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+  @AssertTrue(Cart1 == Cart2)
+
+end subroutine ovkCartTest_convert_periodic_storage_2d
+
+@Test
+subroutine ovkCartTest_convert_periodic_storage_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+
+  ! No overlap -> no overlap
+  Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+  @AssertTrue(Cart1 == Cart2)
+
+  ! No overlap -> overlap
+  Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+  @AssertEqual(3, Cart2%nd)
+  @AssertEqual([1,2,3], Cart2%is)
+  @AssertEqual([5,6,7], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Overlap -> no overlap
+  Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+  @AssertEqual(3, Cart2%nd)
+  @AssertEqual([1,2,3], Cart2%is)
+  @AssertEqual([4,5,6], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Overlap -> overlap
+  Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+  Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+  @AssertTrue(Cart1 == Cart2)
+
+end subroutine ovkCartTest_convert_periodic_storage_3d
+
+@Test
+subroutine ovkCartTest_convert_point_to_cell_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+
+  ! Non-periodic
+  Cart1 = ovk_cart_(2, [1,2], [3,4])
+  Cart2 = ovkCartConvertPointToCell(Cart1)
+  @AssertEqual(2, Cart2%nd)
+  @AssertEqual([1,2,1], Cart2%is)
+  @AssertEqual([2,3,1], Cart2%ie)
+  @AssertTrue(all([.false.,.false.,.false.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Periodic, no overlap
+  Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
+  Cart2 = ovkCartConvertPointToCell(Cart1)
+  @AssertEqual(2, Cart2%nd)
+  @AssertEqual([1,2,1], Cart2%is)
+  @AssertEqual([3,4,1], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Periodic, overlap
+  Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+  Cart2 = ovkCartConvertPointToCell(Cart1)
+  @AssertEqual(2, Cart2%nd)
+  @AssertEqual([1,2,1], Cart2%is)
+  @AssertEqual([3,4,1], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+end subroutine ovkCartTest_convert_point_to_cell_2d
+
+@Test
+subroutine ovkCartTest_convert_point_to_cell_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart1, Cart2
+
+  ! Non-periodic
+  Cart1 = ovk_cart_(3, [1,2,3], [4,5,6])
+  Cart2 = ovkCartConvertPointToCell(Cart1)
+  @AssertEqual(3, Cart2%nd)
+  @AssertEqual([1,2,3], Cart2%is)
+  @AssertEqual([3,4,5], Cart2%ie)
+  @AssertTrue(all([.false.,.false.,.false.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Periodic, no overlap
+  Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
+  Cart2 = ovkCartConvertPointToCell(Cart1)
+  @AssertEqual(3, Cart2%nd)
+  @AssertEqual([1,2,3], Cart2%is)
+  @AssertEqual([4,5,6], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+  ! Periodic, overlap
+  Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+  Cart2 = ovkCartConvertPointToCell(Cart1)
+  @AssertEqual(3, Cart2%nd)
+  @AssertEqual([1,2,3], Cart2%is)
+  @AssertEqual([4,5,6], Cart2%ie)
+  @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
+  @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+
+end subroutine ovkCartTest_convert_point_to_cell_3d

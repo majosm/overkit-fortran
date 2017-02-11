@@ -1,0 +1,655 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+@Test
+subroutine ovkDonorAccelTest_donor_accel_default(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_donor_accel) :: Accel
+
+  Accel = ovk_donor_accel_(2)
+
+  @AssertEqual(2, Accel%nd)
+  @AssertTrue(ovk_bbox_(2) == Accel%bounds)
+  @AssertEqual(0._rk, Accel%max_cell_size_deviation)
+  @AssertEqual(0._rk, Accel%bin_scale)
+  @AssertEqual(0._rk, Accel%overlap_tolerance)
+  @AssertEqual(0, Accel%max_depth)
+  @AssertFalse(associated(Accel%root))
+
+  Accel = ovk_donor_accel_(3)
+
+  @AssertEqual(3, Accel%nd)
+  @AssertTrue(ovk_bbox_(3) == Accel%bounds)
+  @AssertEqual(0._rk, Accel%max_cell_size_deviation)
+  @AssertEqual(0._rk, Accel%bin_scale)
+  @AssertEqual(0._rk, Accel%overlap_tolerance)
+  @AssertEqual(0, Accel%max_depth)
+  @AssertFalse(associated(Accel%root))
+
+end subroutine ovkDonorAccelTest_donor_accel_default
+
+@Test
+subroutine ovkDonorAccelTest_generate_non_overlapping_bounds_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(2,2,3) :: XYZ
+  type(ovk_field_real), dimension(2) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+
+  Cart = ovk_cart_(2, [2,3])
+
+  XYZ = reshape([ &
+    0._rk, 0._rk, &
+    1._rk, 0._rk, &
+    0._rk, 1._rk, &
+    1._rk, 1._rk, &
+    0._rk, 2._rk, &
+    1._rk, 2._rk &
+  ], [2,2,3])
+
+  do i = 1, 2
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel, Bounds=ovkBBMove(Grid%bounds, [5._rk, 5._rk]), &
+    BinScale=0.6_rk)
+
+  @AssertTrue(2 == Accel%nd)
+  @AssertTrue(ovk_bbox_(2) == Accel%bounds)
+  @AssertEqual(0._rk, Accel%max_cell_size_deviation)
+  @AssertEqual(0._rk, Accel%bin_scale)
+  @AssertEqual(0._rk, Accel%overlap_tolerance)
+  @AssertEqual(0, Accel%max_depth)
+  @AssertFalse(associated(Accel%root))
+
+end subroutine ovkDonorAccelTest_generate_non_overlapping_bounds_2d
+
+@Test
+subroutine ovkDonorAccelTest_generate_non_overlapping_bounds_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(3,2,2,3) :: XYZ
+  type(ovk_field_real), dimension(3) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+
+  Cart = ovk_cart_(3, [2,2,3])
+
+  XYZ = reshape([ &
+    0._rk, 0._rk, 0._rk, &
+    1._rk, 0._rk, 0._rk, &
+    0._rk, 1._rk, 0._rk, &
+    1._rk, 1._rk, 0._rk, &
+    0._rk, 0._rk, 1._rk, &
+    1._rk, 0._rk, 1._rk, &
+    0._rk, 1._rk, 1._rk, &
+    1._rk, 1._rk, 1._rk, &
+    0._rk, 0._rk, 2._rk, &
+    1._rk, 0._rk, 2._rk, &
+    0._rk, 1._rk, 2._rk, &
+    1._rk, 1._rk, 2._rk &
+  ], [3,2,2,3])
+
+  do i = 1, 3
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel, ovkBBMove(Grid%bounds, [5._rk, 5._rk, 5._rk]), &
+    BinScale=0.6_rk)
+
+  @AssertTrue(3 == Accel%nd)
+  @AssertTrue(ovk_bbox_(3) == Accel%bounds)
+  @AssertEqual(0._rk, Accel%max_cell_size_deviation)
+  @AssertEqual(0._rk, Accel%bin_scale)
+  @AssertEqual(0._rk, Accel%overlap_tolerance)
+  @AssertEqual(0, Accel%max_depth)
+  @AssertFalse(associated(Accel%root))
+
+end subroutine ovkDonorAccelTest_generate_non_overlapping_bounds_3d
+
+@Test
+subroutine ovkDonorAccelTest_generate_uniform_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(2,2,3) :: XYZ
+  type(ovk_field_real), dimension(2) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(2) :: Cell
+
+  Cart = ovk_cart_(2, [2,3])
+
+  XYZ = reshape([ &
+    0._rk, 0._rk, &
+    1._rk, 0._rk, &
+    0._rk, 1._rk, &
+    1._rk, 1._rk, &
+    0._rk, 2._rk, &
+    1._rk, 2._rk &
+  ], [2,2,3])
+
+  do i = 1, 2
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel)
+
+  ! For uniform grid, root node should be a leaf
+  @AssertTrue(associated(Accel%root))
+  @AssertFalse(associated(Accel%root%left_child))
+  @AssertFalse(associated(Accel%root%right_child))
+  @AssertTrue(allocated(Accel%root%hash_grid))
+
+  ! Interior
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 1.5_rk])
+  @AssertEqual([1,2], Cell)
+
+  ! Boundaries
+  Cell = ovkFindDonorCell(Grid, Accel, [0._rk, 0._rk])
+  @AssertEqual([1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1._rk, 2._rk])
+  @AssertEqual([1,2], Cell)
+
+  ! Outside
+  Cell = ovkFindDonorCell(Grid, Accel, [-0.5_rk, -0.5_rk])
+  @AssertEqual(0, Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1.5_rk, 2.5_rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ovkDonorAccelTest_generate_uniform_2d
+
+@Test
+subroutine ovkDonorAccelTest_generate_uniform_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(3,2,2,3) :: XYZ
+  type(ovk_field_real), dimension(3) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(3) :: Cell
+
+  Cart = ovk_cart_(3, [2,2,3])
+
+  XYZ = reshape([ &
+    0._rk, 0._rk, 0._rk, &
+    1._rk, 0._rk, 0._rk, &
+    0._rk, 1._rk, 0._rk, &
+    1._rk, 1._rk, 0._rk, &
+    0._rk, 0._rk, 1._rk, &
+    1._rk, 0._rk, 1._rk, &
+    0._rk, 1._rk, 1._rk, &
+    1._rk, 1._rk, 1._rk, &
+    0._rk, 0._rk, 2._rk, &
+    1._rk, 0._rk, 2._rk, &
+    0._rk, 1._rk, 2._rk, &
+    1._rk, 1._rk, 2._rk &
+  ], [3,2,2,3])
+
+  do i = 1, 3
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel)
+
+  ! For uniform grid, root node should be a leaf
+  @AssertTrue(associated(Accel%root))
+  @AssertFalse(associated(Accel%root%left_child))
+  @AssertFalse(associated(Accel%root%right_child))
+  @AssertTrue(allocated(Accel%root%hash_grid))
+
+  ! Interior
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 0.5_rk, 1.5_rk])
+  @AssertEqual([1,1,2], Cell)
+
+  ! Boundaries
+  Cell = ovkFindDonorCell(Grid, Accel, [0._rk, 0._rk, 0._rk])
+  @AssertEqual([1,1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1._rk, 1._rk, 2._rk])
+  @AssertEqual([1,1,2], Cell)
+
+  ! Outside
+  Cell = ovkFindDonorCell(Grid, Accel, [-0.5_rk, -0.5_rk, -0.5_rk])
+  @AssertEqual(0, Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1.5_rk, 1.5_rk, 2.5_rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ovkDonorAccelTest_generate_uniform_3d
+
+@Test
+subroutine ovkDonorAccelTest_generate_stretched_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(2,2,11) :: XYZ
+  type(ovk_field_real), dimension(2) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(2) :: Cell
+
+  Cart = ovk_cart_(2, [2,11])
+
+  do i = 1, 11
+    XYZ(:,1,i) = [0._rk, 2._rk**(i-1)]
+    XYZ(:,2,i) = [1._rk, 2._rk**(i-1)]
+  end do
+
+  do i = 1, 2
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel, MaxDepth=1)
+
+  ! For stretched grid, root should have children
+  @AssertTrue(associated(Accel%root))
+  @AssertFalse(allocated(Accel%root%hash_grid))
+  @AssertTrue(associated(Accel%root%left_child))
+  @AssertFalse(associated(Accel%root%left_child%left_child))
+  @AssertFalse(associated(Accel%root%left_child%right_child))
+  @AssertTrue(allocated(Accel%root%left_child%hash_grid))
+  @AssertTrue(associated(Accel%root%right_child))
+  @AssertFalse(associated(Accel%root%right_child%left_child))
+  @AssertFalse(associated(Accel%root%right_child%right_child))
+  @AssertTrue(allocated(Accel%root%right_child%hash_grid))
+
+  ! Interior
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 100._rk])
+  @AssertEqual([1,7], Cell)
+
+  ! Boundaries
+  Cell = ovkFindDonorCell(Grid, Accel, [0._rk, 1._rk])
+  @AssertEqual([1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1._rk, 1024._rk])
+  @AssertEqual([1,10], Cell)
+
+  ! Outside
+  Cell = ovkFindDonorCell(Grid, Accel, [-0.5_rk, 0.5_rk])
+  @AssertEqual(0, Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1.5_rk, 1025._rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ovkDonorAccelTest_generate_stretched_2d
+
+@Test
+subroutine ovkDonorAccelTest_generate_stretched_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(3,2,2,11) :: XYZ
+  type(ovk_field_real), dimension(3) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(3) :: Cell
+
+  Cart = ovk_cart_(3, [2,2,11])
+
+  do i = 1, 11
+    XYZ(:,1,1,i) = [0._rk, 0._rk, 2._rk**(i-1)]
+    XYZ(:,2,1,i) = [1._rk, 0._rk, 2._rk**(i-1)]
+    XYZ(:,1,2,i) = [0._rk, 1._rk, 2._rk**(i-1)]
+    XYZ(:,2,2,i) = [1._rk, 1._rk, 2._rk**(i-1)]
+  end do
+
+  do i = 1, 3
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel, MaxDepth=1)
+
+  ! For stretched grid, root should have children
+  @AssertTrue(associated(Accel%root))
+  @AssertFalse(allocated(Accel%root%hash_grid))
+  @AssertTrue(associated(Accel%root%left_child))
+  @AssertFalse(associated(Accel%root%left_child%left_child))
+  @AssertFalse(associated(Accel%root%left_child%right_child))
+  @AssertTrue(allocated(Accel%root%left_child%hash_grid))
+  @AssertTrue(associated(Accel%root%right_child))
+  @AssertFalse(associated(Accel%root%right_child%left_child))
+  @AssertFalse(associated(Accel%root%right_child%right_child))
+  @AssertTrue(allocated(Accel%root%right_child%hash_grid))
+
+  ! Interior
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 0.5_rk, 100._rk])
+  @AssertEqual([1,1,7], Cell)
+
+  ! Boundaries
+  Cell = ovkFindDonorCell(Grid, Accel, [0._rk, 0._rk, 1._rk])
+  @AssertEqual([1,1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1._rk, 1._rk, 1024._rk])
+  @AssertEqual([1,1,10], Cell)
+
+  ! Outside
+  Cell = ovkFindDonorCell(Grid, Accel, [-0.5_rk, -0.5_rk, 0.5_rk])
+  @AssertEqual(0, Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [1.5_rk, 1.5_rk, 1025._rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ovkDonorAccelTest_generate_stretched_3d
+
+@Test
+subroutine ModDonorAccel_generate_curvilinear_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(2,2,3) :: XYZ
+  type(ovk_field_real), dimension(2) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(2) :: Cell
+
+  Cart = ovk_cart_(2, [2,3])
+
+  XYZ = reshape([ &
+    2._rk, 4._rk, &
+    3._rk, 4._rk, &
+    1._rk, 5._rk, &
+    4._rk, 5._rk, &
+    0._rk, 6._rk, &
+    5._rk, 6._rk &
+  ], [2,2,3])
+
+  do i = 1, 2
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel)
+
+  ! Interior
+  Cell = ovkFindDonorCell(Grid, Accel, [2.5_rk, 4.5_rk])
+  @AssertEqual([1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [2.5_rk, 5.5_rk])
+  @AssertEqual([1,2], Cell)
+
+  ! Boundaries
+  Cell = ovkFindDonorCell(Grid, Accel, [2._rk, 4._rk])
+  @AssertEqual([1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [5._rk, 6._rk])
+  @AssertEqual([1,2], Cell)
+
+  ! Outside (inside bounds)
+  Cell = ovkFindDonorCell(Grid, Accel, [3.75_rk, 4.5_rk])
+  @AssertEqual(0, Cell)
+
+  ! Outside (outside bounds)
+  Cell = ovkFindDonorCell(Grid, Accel, [0._rk, 0._rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ModDonorAccel_generate_curvilinear_2d
+
+@Test
+subroutine ModDonorAccel_generate_curvilinear_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(3,2,2,3) :: XYZ
+  type(ovk_field_real), dimension(3) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(3) :: Cell
+
+  Cart = ovk_cart_(3, [2,2,3])
+
+  XYZ = reshape([ &
+    2._rk, 4._rk, 6._rk, &
+    3._rk, 4._rk, 6._rk, &
+    2._rk, 5._rk, 6._rk, &
+    3._rk, 5._rk, 6._rk, &
+    1._rk, 3._rk, 7._rk, &
+    4._rk, 3._rk, 7._rk, &
+    1._rk, 6._rk, 7._rk, &
+    4._rk, 6._rk, 7._rk, &
+    0._rk, 2._rk, 8._rk, &
+    5._rk, 2._rk, 8._rk, &
+    0._rk, 7._rk, 8._rk, &
+    5._rk, 7._rk, 8._rk &
+  ], [3,2,2,3])
+
+  do i = 1, 3
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel)
+
+  ! Interior
+  Cell = ovkFindDonorCell(Grid, Accel, [2.5_rk, 4.5_rk, 6.5_rk])
+  @AssertEqual([1,1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [2.5_rk, 4.5_rk, 7.5_rk])
+  @AssertEqual([1,1,2], Cell)
+
+  ! Boundaries
+  Cell = ovkFindDonorCell(Grid, Accel, [2._rk, 4._rk, 6._rk])
+  @AssertEqual([1,1,1], Cell)
+  Cell = ovkFindDonorCell(Grid, Accel, [5._rk, 7._rk, 8._rk])
+  @AssertEqual([1,1,2], Cell)
+
+  ! Outside (inside bounds)
+  Cell = ovkFindDonorCell(Grid, Accel, [3.75_rk, 3.25_rk, 6.5_rk])
+  @AssertEqual(0, Cell)
+
+  ! Outside (outside bounds)
+  Cell = ovkFindDonorCell(Grid, Accel, [0._rk, 0._rk, 0._rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ModDonorAccel_generate_curvilinear_3d
+
+@Test
+subroutine ovkDonorAccelTest_generate_partial_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(2,2,3) :: XYZ
+  type(ovk_field_real), dimension(2) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_bbox) :: Bounds
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(2) :: Cell
+
+  Cart = ovk_cart_(2, [2,3])
+
+  XYZ = reshape([ &
+    0._rk, 0._rk, &
+    1._rk, 0._rk, &
+    0._rk, 1._rk, &
+    1._rk, 1._rk, &
+    0._rk, 2._rk, &
+    1._rk, 2._rk &
+  ], [2,2,3])
+
+  do i = 1, 2
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+
+  ! Only overlaps grid cell formed by points 3:6
+  Bounds = ovkBBGrow(ovk_bbox_(2, [0._rk, 1._rk], [1._rk, 2._rk]), -0.0625_rk)
+
+  call ovkGenerateDonorAccel(Grid, Accel, Bounds=Bounds)
+
+  ! Inside
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 1.5_rk])
+  @AssertEqual([1,2], Cell)
+
+  ! Outside
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 0.5_rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ovkDonorAccelTest_generate_partial_2d
+
+@Test
+subroutine ovkDonorAccelTest_generate_partial_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(3,2,2,3) :: XYZ
+  type(ovk_field_real), dimension(3) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_bbox) :: Bounds
+  type(ovk_donor_accel) :: Accel
+  integer, dimension(3) :: Cell
+
+  Cart = ovk_cart_(3, [2,2,3])
+
+  XYZ = reshape([ &
+    0._rk, 0._rk, 0._rk, &
+    1._rk, 0._rk, 0._rk, &
+    0._rk, 1._rk, 0._rk, &
+    1._rk, 1._rk, 0._rk, &
+    0._rk, 0._rk, 1._rk, &
+    1._rk, 0._rk, 1._rk, &
+    0._rk, 1._rk, 1._rk, &
+    1._rk, 1._rk, 1._rk, &
+    0._rk, 0._rk, 2._rk, &
+    1._rk, 0._rk, 2._rk, &
+    0._rk, 1._rk, 2._rk, &
+    1._rk, 1._rk, 2._rk &
+  ], [3,2,2,3])
+
+  do i = 1, 3
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+
+  ! Only overlaps grid cell formed by points 5:12
+  Bounds = ovkBBGrow(ovk_bbox_(3, [0._rk, 0._rk, 1._rk], [1._rk, 1._rk, 2._rk]), -0.0625_rk)
+
+  call ovkGenerateDonorAccel(Grid, Accel, Bounds=Bounds)
+
+  ! Inside
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 0.5_rk, 1.5_rk])
+  @AssertEqual([1,1,2], Cell)
+
+  ! Outside
+  Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 0.5_rk, 0.5_rk])
+  @AssertEqual(0, Cell)
+
+end subroutine ovkDonorAccelTest_generate_partial_3d
+
+@Test
+subroutine ovkDonorAccelTest_destroy(this)
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  integer :: i
+  real(rk), dimension(2,2,2) :: XYZ
+  type(ovk_field_real), dimension(2) :: Coords
+  type(ovk_grid) :: Grid
+  type(ovk_donor_accel) :: Accel
+
+  Cart = ovk_cart_(2, [2,2])
+
+  XYZ = reshape([ &
+    2._rk, 4._rk, &
+    3._rk, 4._rk, &
+    2._rk, 5._rk, &
+    3._rk, 5._rk &
+  ], [2,2,2])
+
+  do i = 1, 2
+    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
+  end do
+
+  call ovkMakeGrid(Grid, Cart, Coords)
+  call ovkGenerateDonorAccel(Grid, Accel)
+
+  call ovkDestroyDonorAccel(Accel)
+
+  @AssertFalse(associated(Accel%root))
+
+end subroutine ovkDonorAccelTest_destroy
