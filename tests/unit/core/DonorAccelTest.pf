@@ -173,7 +173,7 @@ subroutine ovkDonorAccelTest_generate_uniform_2d(this)
   @AssertTrue(associated(Accel%root))
   @AssertFalse(associated(Accel%root%left_child))
   @AssertFalse(associated(Accel%root%right_child))
-  @AssertTrue(allocated(Accel%root%hash_grid))
+  @AssertTrue(associated(Accel%root%hash_grid))
 
   ! Interior
   Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 1.5_rk])
@@ -239,7 +239,7 @@ subroutine ovkDonorAccelTest_generate_uniform_3d(this)
   @AssertTrue(associated(Accel%root))
   @AssertFalse(associated(Accel%root%left_child))
   @AssertFalse(associated(Accel%root%right_child))
-  @AssertTrue(allocated(Accel%root%hash_grid))
+  @AssertTrue(associated(Accel%root%hash_grid))
 
   ! Interior
   Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 0.5_rk, 1.5_rk])
@@ -293,15 +293,15 @@ subroutine ovkDonorAccelTest_generate_stretched_2d(this)
 
   ! For stretched grid, root should have children
   @AssertTrue(associated(Accel%root))
-  @AssertFalse(allocated(Accel%root%hash_grid))
+  @AssertFalse(associated(Accel%root%hash_grid))
   @AssertTrue(associated(Accel%root%left_child))
   @AssertFalse(associated(Accel%root%left_child%left_child))
   @AssertFalse(associated(Accel%root%left_child%right_child))
-  @AssertTrue(allocated(Accel%root%left_child%hash_grid))
+  @AssertTrue(associated(Accel%root%left_child%hash_grid))
   @AssertTrue(associated(Accel%root%right_child))
   @AssertFalse(associated(Accel%root%right_child%left_child))
   @AssertFalse(associated(Accel%root%right_child%right_child))
-  @AssertTrue(allocated(Accel%root%right_child%hash_grid))
+  @AssertTrue(associated(Accel%root%right_child%hash_grid))
 
   ! Interior
   Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 100._rk])
@@ -357,15 +357,15 @@ subroutine ovkDonorAccelTest_generate_stretched_3d(this)
 
   ! For stretched grid, root should have children
   @AssertTrue(associated(Accel%root))
-  @AssertFalse(allocated(Accel%root%hash_grid))
+  @AssertFalse(associated(Accel%root%hash_grid))
   @AssertTrue(associated(Accel%root%left_child))
   @AssertFalse(associated(Accel%root%left_child%left_child))
   @AssertFalse(associated(Accel%root%left_child%right_child))
-  @AssertTrue(allocated(Accel%root%left_child%hash_grid))
+  @AssertTrue(associated(Accel%root%left_child%hash_grid))
   @AssertTrue(associated(Accel%root%right_child))
   @AssertFalse(associated(Accel%root%right_child%left_child))
   @AssertFalse(associated(Accel%root%right_child%right_child))
-  @AssertTrue(allocated(Accel%root%right_child%hash_grid))
+  @AssertTrue(associated(Accel%root%right_child%hash_grid))
 
   ! Interior
   Cell = ovkFindDonorCell(Grid, Accel, [0.5_rk, 0.5_rk, 100._rk])

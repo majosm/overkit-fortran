@@ -27,7 +27,7 @@ module ovkDonorAccel
     integer :: split_dir
     type(t_node), pointer :: left_child
     type(t_node), pointer :: right_child
-    type(ovk_hash_grid), allocatable :: hash_grid
+    type(ovk_hash_grid), pointer :: hash_grid
   end type t_node
 
   type ovk_donor_accel
@@ -239,6 +239,7 @@ contains
     type(ovk_bbox) :: CellBounds
     integer(lk) :: BinStart, BinEnd
 
+    nullify(Node%hash_grid)
     nullify(Node%left_child)
     nullify(Node%right_child)
 
@@ -556,7 +557,7 @@ contains
 
     type(t_node), intent(inout) :: Node
 
-    if (allocated(Node%hash_grid)) then
+    if (associated(Node%hash_grid)) then
       deallocate(Node%hash_grid)
     end if
 
@@ -607,7 +608,7 @@ contains
 
     DonorCell = Grid%cell_cart%is(:Grid%cell_cart%nd) - 1
 
-    LeafNode = allocated(Node%hash_grid)
+    LeafNode = associated(Node%hash_grid)
 
     if (.not. LeafNode) then
 
@@ -722,7 +723,7 @@ contains
     integer(lk) :: nLeavesLeft, nLeavesRight
     integer(lk) :: TotalLeafDepthLeft, TotalLeafDepthRight
 
-    LeafNode = allocated(Node%hash_grid)
+    LeafNode = associated(Node%hash_grid)
 
     if (LeafNode) then
       TotalLeafDepth = 0_lk
@@ -756,7 +757,7 @@ contains
     integer :: MaxBinEntriesLeft, MaxBinEntriesRight
     integer(lk) :: TotalBinEntriesLeft, TotalBinEntriesRight
 
-    LeafNode = allocated(Node%hash_grid)
+    LeafNode = associated(Node%hash_grid)
 
     if (LeafNode) then
       call ovkHashGridStats(Node%hash_grid, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, &
@@ -791,7 +792,7 @@ contains
     logical :: LeafNode
     integer(lk), dimension(N) :: HistogramChild
 
-    LeafNode = allocated(Node%hash_grid)
+    LeafNode = associated(Node%hash_grid)
 
     if (LeafNode) then
       call ovkHashGridHistogram(Node%hash_grid, Lower, Upper, N, Histogram)
