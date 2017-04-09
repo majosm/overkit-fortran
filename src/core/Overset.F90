@@ -209,7 +209,7 @@ contains
         OverlapTolerance=OverlapTolerance_(n))
       do m = 1, size(Grids)
         if (AllowInterpolation_(n,m)) then
-          call FindDonors(Grids(n), Grids(m), DonorAccel, PairwiseDonors(n,m))
+          call ovkFindDonors(Grids(n), Grids(m), DonorAccel, PairwiseDonors(n,m))
           if (OVK_VERBOSE) then
             nReceivers = ovkCountMask(PairwiseDonors(n,m)%valid_mask)
             write (*, '(7a)') "* ", trim(LargeIntToString(nReceivers)), &
