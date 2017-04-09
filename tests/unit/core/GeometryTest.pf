@@ -1252,17 +1252,17 @@ subroutine ovkGeometryTest_cartesian_grid_cell(this)
 
   ! D > 1
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [1._rk, 3._rk])
-  @AssertTrue([1_lk,1_lk] == Cell2)
+  @AssertTrue(all([1_lk,1_lk] == Cell2))
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [2._rk, 5._rk])
-  @AssertTrue([1_lk,1_lk] == Cell2)
+  @AssertTrue(all([1_lk,1_lk] == Cell2))
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [3._rk, 7._rk])
-  @AssertTrue([2_lk,2_lk] == Cell2)
+  @AssertTrue(all([2_lk,2_lk] == Cell2))
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [0._rk, 1._rk])
-  @AssertTrue([0_lk,0_lk] == Cell2)
+  @AssertTrue(all([0_lk,0_lk] == Cell2))
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [-1._rk, -1._rk])
-  @AssertTrue([0_lk,0_lk] == Cell2)
+  @AssertTrue(all([0_lk,0_lk] == Cell2))
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [3._rk, 5._rk])
-  @AssertTrue([2_lk,1_lk] == Cell2)
+  @AssertTrue(all([2_lk,1_lk] == Cell2))
 
 end subroutine ovkGeometryTest_cartesian_grid_cell
 
