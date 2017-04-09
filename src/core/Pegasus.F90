@@ -86,6 +86,8 @@ module ovkPegasus
     module procedure ovk_pegasus_Default
   end interface ovk_pegasus_
 
+#define IO_ERROR 1
+
 contains
 
   pure function ovk_pegasus_Default() result(PegasusData)
@@ -427,10 +429,10 @@ contains
 
 999 if (Error_ /= 0) then
       if (present(Error)) then
-        Error = OVK_IO_ERROR
+        Error = IO_ERROR
         return
       else
-        stop OVK_IO_ERROR
+        stop IO_ERROR
       end if
     end if
 

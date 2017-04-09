@@ -59,6 +59,8 @@ module ovkPLOT3D
 
   integer, parameter :: ikoffset = c_long_long
 
+#define IO_ERROR 1
+
   ! Internal C routines
   interface
 
@@ -276,7 +278,7 @@ contains
         Error = Error_
         return
       else
-        stop OVK_IO_ERROR
+        stop IO_ERROR
       end if
     end if
 
@@ -349,7 +351,7 @@ contains
         Error = Error_
         return
       else
-        stop OVK_IO_ERROR
+        stop IO_ERROR
       end if
     end if
 
@@ -445,7 +447,7 @@ contains
         Error = Error_
         return
       else
-        stop OVK_IO_ERROR
+        stop IO_ERROR
       end if
     end if
 
@@ -511,7 +513,7 @@ contains
         Error = Error_
         return
       else
-        stop OVK_IO_ERROR
+        stop IO_ERROR
       end if
     end if
 
@@ -596,7 +598,7 @@ contains
         Error = Error_
         return
       else
-        stop OVK_IO_ERROR
+        stop IO_ERROR
       end if
     end if
 
@@ -671,7 +673,7 @@ contains
         Error = Error_
         return
       else
-        stop OVK_IO_ERROR
+        stop IO_ERROR
       end if
     end if
 
