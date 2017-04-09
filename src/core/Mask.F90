@@ -13,6 +13,7 @@ module ovkMask
   ! API
   public :: ovkFindMaskEdge
   public :: ovkGrowMask
+  public :: ovkGenerateExteriorMask
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
   public :: ovkMaskToIBlank
@@ -184,6 +185,90 @@ contains
     end do
 
   end subroutine ovkGrowMask
+
+  subroutine ovkGenerateExteriorMask(Mask, ExteriorMask, EdgeMask)
+
+    type(ovk_field_logical), intent(in) :: Mask
+    type(ovk_field_logical), intent(out) :: ExteriorMask
+    type(ovk_field_logical), intent(in), optional :: EdgeMask
+
+    integer :: i, j, k, d, dOther1, dOther2
+    type(ovk_field_int) :: State
+    integer, dimension(MAX_ND) :: Point
+    integer :: PrevState
+    integer, parameter :: UNKNOWN = 1, INTERIOR = 2, EDGE = 3, EXTERIOR = 4
+
+    if (present(EdgeMask)) then
+
+      State = ovk_field_int_(Mask%cart)
+
+      do k = Mask%cart%is(3), Mask%cart%ie(3)
+        do j = Mask%cart%is(2), Mask%cart%ie(2)
+          do i = Mask%cart%is(1), Mask%cart%ie(1)
+            if (EdgeMask%values(i,j,k)) then
+              State%values(i,j,k) = EDGE
+            else if (Mask%values(i,j,k)) then
+              State%values(i,j,k) = INTERIOR
+            else
+              State%values(i,j,k) = UNKNOWN
+            end if
+          end do
+        end do
+      end do
+
+      do d = 1, MAX_ND
+        dOther1 = modulo(d, MAX_ND) + 1
+        dOther2 = modulo(d+1, MAX_ND) + 1
+        do k = Mask%cart%is(dOther2), Mask%cart%ie(dOther2)
+          do j = Mask%cart%is(dOther1), Mask%cart%ie(dOther1)
+            Point(d) = Mask%cart%is(d)
+            Point(dOther1) = j
+            Point(dOther2) = k
+            PrevState = State%values(Point(1),Point(2),Point(3))
+            if (PrevState == UNKNOWN) then
+              do i = Mask%cart%is(d)+1, Mask%cart%ie(d)
+                Point(d) = i
+                Point(dOther1) = j
+                Point(dOther2) = k
+                select case (State%values(Point(1),Point(2),Point(3)))
+                case (INTERIOR)
+                  PrevState = INTERIOR
+                case (EDGE, EXTERIOR)
+                  PrevState = EXTERIOR
+                end select
+                if (PrevState /= UNKNOWN) then
+                  exit
+                end if
+              end do
+            end if
+            do i = Mask%cart%is(d), Mask%cart%ie(d)
+              Point(d) = i
+              Point(dOther1) = j
+              Point(dOther2) = k
+              if (State%values(Point(1),Point(2),Point(3)) == UNKNOWN) then
+                select case (PrevState)
+                case (INTERIOR)
+                  State%values(Point(1),Point(2),Point(3)) = INTERIOR
+                case (EDGE, EXTERIOR)
+                  State%values(Point(1),Point(2),Point(3)) = EXTERIOR
+                end select
+              end if
+              PrevState = State%values(Point(1),Point(2),Point(3))
+            end do
+          end do
+        end do
+      end do
+
+      ExteriorMask = ovk_field_logical_(Mask%cart)
+      ExteriorMask%values = State%values == EXTERIOR
+
+    else
+
+      ExteriorMask%values = .not. Mask%values
+
+    end if
+
+  end subroutine ovkGenerateExteriorMask
 
   subroutine ovkGenerateNearEdgeMask(Mask, EdgeType, EdgeDistance, NearEdgeMask)
 

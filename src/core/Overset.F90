@@ -25,7 +25,8 @@ module ovkOverset
 contains
 
   subroutine ovkAssembleOverset(Grids, InterpData, FringeSize, DisjointFringes, FringePadding, &
-    InterpScheme, AllowInterpolation, OptimizeOverlap, OverlapTolerance, HoleMasks, OrphanMasks)
+    InterpScheme, AllowInterpolation, AllowCutting, OptimizeOverlap, OverlapTolerance, HoleMasks, &
+    OrphanMasks)
 
     type(ovk_grid), dimension(:), intent(inout) :: Grids
     type(ovk_interp), dimension(size(Grids)), intent(out) :: InterpData
@@ -34,6 +35,7 @@ contains
     integer, dimension(size(Grids),size(Grids)), intent(in), optional :: FringePadding
     integer, dimension(size(Grids)), intent(in), optional :: InterpScheme
     logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowInterpolation
+    logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowCutting
     logical, dimension(size(Grids)), intent(in), optional :: OptimizeOverlap
     real(rk), dimension(size(Grids)), intent(in), optional :: OverlapTolerance
     type(ovk_field_logical), dimension(size(Grids)), intent(out), optional :: HoleMasks
@@ -44,6 +46,7 @@ contains
     integer, dimension(:,:), allocatable :: FringePadding_
     integer, dimension(:), allocatable :: InterpScheme_
     logical, dimension(:,:), allocatable :: AllowInterpolation_
+    logical, dimension(:,:), allocatable :: AllowCutting_
     logical, dimension(:), allocatable :: OptimizeOverlap_
     real(rk), dimension(:), allocatable :: OverlapTolerance_
     integer :: i, j, k, l, m, n, p, q, r
@@ -65,6 +68,12 @@ contains
     type(ovk_donors), dimension(:), allocatable :: Donors
     type(ovk_field_logical), dimension(:), allocatable :: OuterReceiverMasks
     type(ovk_field_logical), dimension(:), allocatable :: InnerReceiverMasks
+    type(ovk_field_logical) :: DonorMask
+    type(ovk_field_logical) :: EdgeMask
+    type(ovk_field_logical) :: InteriorEdgeMask
+    type(ovk_field_logical) :: ReceiverBoundaryMask
+    type(ovk_field_logical) :: ReceiverInteriorEdgeMask
+    type(ovk_field_logical) :: HoleCutMask
     type(ovk_field_logical) :: CoarseToFineMask
     type(ovk_field_logical) :: NearCrossoverMask1, NearCrossoverMask2
     type(ovk_field_logical) :: OverlapOptimizationMask
@@ -122,6 +131,13 @@ contains
       AllowInterpolation_ = AllowInterpolation
     else
       AllowInterpolation_ = .true.
+    end if
+
+    allocate(AllowCutting_(size(Grids),size(Grids)))
+    if (present(AllowCutting)) then
+      AllowCutting_ = AllowCutting
+    else
+      AllowCutting_ = .true.
     end if
 
     allocate(OptimizeOverlap_(size(Grids)))
@@ -182,6 +198,7 @@ contains
 
     do m = 1, size(Grids)
       AllowInterpolation_(m,m) = .false.
+      AllowCutting_(m,m) = .false.
     end do
 
     allocate(OverlapBounds(size(Grids)))
@@ -226,6 +243,67 @@ contains
 
     if (OVK_VERBOSE) then
       write (*, '(a)') "Finished searching for candidate donor/receiver pairs."
+    end if
+
+    if (OVK_VERBOSE) then
+      write (*, '(a)') "Cutting holes..."
+    end if
+
+    if (present(HoleMasks)) then
+      do m = 1, size(Grids)
+        HoleMasks(m) = ovk_field_logical_(Grids(m)%cart, .false.)
+      end do
+    end if
+
+    do n = 1, size(Grids)
+      ReceiverBoundaryMask = ovk_field_logical_(Grids(n)%cart, .false.)
+      ReceiverInteriorEdgeMask = ovk_field_logical_(Grids(n)%cart, .false.)
+      do m = 1, size(Grids)
+        if (AllowCutting_(m,n)) then
+          call ovkFindMaskEdge(PairwiseDonors(m,n)%valid_mask, OVK_EDGE_TYPE_INNER, EdgeMask)
+          call ovkGenerateDonorMask(Grids(m), Grids(n), PairwiseDonors(m,n), DonorMask, &
+            ReceiverSubset=EdgeMask)
+          call ovkFindMaskEdge(PairwiseDonors(n,m)%valid_mask, OVK_EDGE_TYPE_INNER, EdgeMask)
+          DonorMask%values = DonorMask%values .and. .not. EdgeMask%values
+          i = 0
+          do while (any(DonorMask%values))
+            call ovkGrowMask(EdgeMask, 1)
+            DonorMask%values = DonorMask%values .and. .not. EdgeMask%values
+            i = i + 1
+          end do
+          EdgeMask = Grids(m)%boundary_mask
+          call ovkGrowMask(EdgeMask, i)
+          call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), ReceiverMask, &
+            DonorSubset=EdgeMask)
+          ReceiverBoundaryMask%values = ReceiverBoundaryMask%values .or. ReceiverMask%values
+          InteriorEdgeMask = ReceiverMask
+          call ovkGrowMask(InteriorEdgeMask, 1)
+          InteriorEdgeMask%values = InteriorEdgeMask%values .and. &
+            PairwiseDonors(m,n)%valid_mask%values
+          ReceiverInteriorEdgeMask%values = ReceiverInteriorEdgeMask%values .or. &
+            InteriorEdgeMask%values
+        end if
+      end do
+      call ovkGenerateExteriorMask(ReceiverInteriorEdgeMask, HoleCutMask, &
+        EdgeMask=ReceiverBoundaryMask)
+      Grids(n)%grid_mask%values = Grids(n)%grid_mask%values .and. .not. HoleCutMask%values
+      Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. HoleCutMask%values
+      do m = 1, size(Grids)
+        PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. .not. &
+          HoleCutMask%values
+      end do
+      if (present(HoleMasks)) then
+        HoleMasks(n)%values = HoleMasks(n)%values .or. HoleCutMask%values
+      end if
+      if (OVK_VERBOSE) then
+        nRemovedPoints = ovkCountMask(HoleCutMask)
+        write (*, '(5a)') "* ", trim(LargeIntToString(nRemovedPoints)), &
+          " points removed from grid ", trim(IntToString(n)), "."
+      end if
+    end do
+
+    if (OVK_VERBOSE) then
+      write (*, '(a)') "Finished cutting holes."
     end if
 
     if (OVK_VERBOSE) then
@@ -409,7 +487,7 @@ contains
     end if
 
     if (OVK_VERBOSE) then
-      write (*, '(a)') "Cutting holes and optimizing overlap..."
+      write (*, '(a)') "Optimizing overlap..."
     end if
 
     do m = 1, size(Grids)
@@ -430,22 +508,18 @@ contains
           end do
         end do
         if (present(HoleMasks)) then
-          HoleMasks(m) = OverlapOptimizationMask
+          HoleMasks(m)%values = HoleMasks(m)%values .or. OverlapOptimizationMask%values
         end if
         if (OVK_VERBOSE) then
           nRemovedPoints = ovkCountMask(OverlapOptimizationMask)
           write (*, '(5a)') "* ", trim(LargeIntToString(nRemovedPoints)), &
             " points removed from grid ", trim(IntToString(m)), "."
         end if
-      else
-        if (present(HoleMasks)) then
-          HoleMasks(m) = ovk_field_logical_(Grids(m)%cart, .false.)
-        end if
       end if
     end do
 
     if (OVK_VERBOSE) then
-      write (*, '(a)') "Finished cutting holes and optimizing overlap."
+      write (*, '(a)') "Finished optimizing overlap."
     end if
 
     ! TODO: Decide whether it makes sense for InterpScheme_ to be non-scalar (and if so, should

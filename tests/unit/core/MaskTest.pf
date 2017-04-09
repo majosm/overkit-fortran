@@ -552,3 +552,101 @@ subroutine ovkMaskTest_grow_3d(this)
   @AssertTrue(all(ExpectedValues(:7,:7,:7) .eqv. Mask%values))
 
 end subroutine ovkMaskTest_grow_3d
+
+@Test
+subroutine ovkMaskTest_exterior_mask_2d(this)
+
+  use pFUnit_mod
+  use Overkit
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_field_logical) :: Mask
+  type(ovk_field_logical) :: EdgeMask
+  type(ovk_field_logical) :: ExteriorMask
+  logical, dimension(6,6) :: ExpectedValues
+
+  Cart = ovk_cart_(2, [6,6])
+
+  Mask = ovk_field_logical_(Cart, .true.)
+  Mask%values(:,1,1) = .false.
+  Mask%values(1,:,1) = .false.
+  Mask%values(:3,:2,1) = .false.
+  Mask%values(:2,:3,1) = .false.
+
+  EdgeMask = ovk_field_logical_(Cart, .false.)
+  EdgeMask%values(:2,:,1) = .true.
+  EdgeMask%values(:,:2,1) = .true.
+  EdgeMask%values(:4,:3,1) = .true.
+  EdgeMask%values(:3,:4,1) = .true.
+  EdgeMask%values(1,:,1) = .false.
+  EdgeMask%values(:,1,1) = .false.
+  EdgeMask%values(:3,:2,1) = .false.
+  EdgeMask%values(:2,:3,1) = .false.
+
+  ExpectedValues = .false.
+  ExpectedValues(:,1) = .true.
+  ExpectedValues(1,:) = .true.
+  ExpectedValues(:3,:2) = .true.
+  ExpectedValues(:2,:3) = .true.
+
+  call ovkGenerateExteriorMask(Mask, ExteriorMask, EdgeMask=EdgeMask)
+
+  @AssertTrue(all(ExpectedValues .eqv. ExteriorMask%values(:,:,1)))
+
+end subroutine ovkMaskTest_exterior_mask_2d
+
+@Test
+subroutine ovkMaskTest_exterior_mask_3d(this)
+
+  use pFUnit_mod
+  use Overkit
+  implicit none
+
+  class(TestCase), intent(inout) :: this
+
+  type(ovk_cart) :: Cart
+  type(ovk_field_logical) :: Mask
+  type(ovk_field_logical) :: EdgeMask
+  type(ovk_field_logical) :: ExteriorMask
+  logical, dimension(6,6,6) :: ExpectedValues
+
+  Cart = ovk_cart_(3, [6,6,6])
+
+  Mask = ovk_field_logical_(Cart, .true.)
+  Mask%values(:,1,1) = .false.
+  Mask%values(1,:,1) = .false.
+  Mask%values(1,1,:) = .false.
+  Mask%values(:3,:2,:2) = .false.
+  Mask%values(:2,:3,:2) = .false.
+  Mask%values(:2,:2,:3) = .false.
+
+  EdgeMask = ovk_field_logical_(Cart, .false.)
+  EdgeMask%values(:,:2,:2) = .true.
+  EdgeMask%values(:2,:,:2) = .true.
+  EdgeMask%values(:2,:2,:) = .true.
+  EdgeMask%values(:4,:3,:3) = .true.
+  EdgeMask%values(:3,:4,:3) = .true.
+  EdgeMask%values(:3,:3,:4) = .true.
+  EdgeMask%values(:,1,1) = .false.
+  EdgeMask%values(1,:,1) = .false.
+  EdgeMask%values(1,1,:) = .false.
+  EdgeMask%values(:3,:2,:2) = .false.
+  EdgeMask%values(:2,:3,:2) = .false.
+  EdgeMask%values(:2,:2,:3) = .false.
+
+  ExpectedValues = .false.
+  ExpectedValues(:,1,1) = .true.
+  ExpectedValues(1,:,1) = .true.
+  ExpectedValues(1,1,:) = .true.
+  ExpectedValues(:3,:2,:2) = .true.
+  ExpectedValues(:2,:3,:2) = .true.
+  ExpectedValues(:2,:2,:3) = .true.
+
+  call ovkGenerateExteriorMask(Mask, ExteriorMask, EdgeMask=EdgeMask)
+
+  @AssertTrue(all(ExpectedValues .eqv. ExteriorMask%values))
+
+end subroutine ovkMaskTest_exterior_mask_3d
