@@ -68,6 +68,7 @@ endif()
 # Build options
 option(VERBOSE "Enable runtime status output" ON)
 option(TESTS "Enable tests" OFF)
+option(EXAMPLES "Build examples" OFF)
 
 #======================
 # Extra compiler flags
