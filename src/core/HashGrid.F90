@@ -89,8 +89,8 @@ contains
     integer, dimension(HashGrid%cart%nd) :: Bin
 
     if (ovkBBContainsPoint(HashGrid%bounds, Coords)) then
-      Bin = ovkCartesianGridCell(HashGrid%bounds%b(:HashGrid%cart%nd), HashGrid%bin_size(: &
-        HashGrid%cart%nd), Coords)
+      Bin = int(ovkCartesianGridCell(HashGrid%bounds%b(:HashGrid%cart%nd), HashGrid%bin_size(: &
+        HashGrid%cart%nd), Coords))
       Bin = ovkCartClamp(HashGrid%cart, Bin)
     else
       Bin = HashGrid%cart%is(:HashGrid%cart%nd)-1
@@ -177,7 +177,8 @@ contains
         do j = HashGrid%cart%is(2), HashGrid%cart%ie(2)
           do i = HashGrid%cart%is(1), HashGrid%cart%ie(1)
             nBinEntries = HashGrid%bin_start(l+1_lk)-HashGrid%bin_start(l)
-            m = ovkCartesianGridCell(HistogramStart, HistogramInterval, real(nBinEntries,kind=rk))
+            m = int(ovkCartesianGridCell(HistogramStart, HistogramInterval, &
+              real(nBinEntries,kind=rk)))
             m = min(max(m, 1), N)
             Histogram(m) = Histogram(m) + 1_lk
             l = l + 1_lk

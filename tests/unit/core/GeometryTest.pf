@@ -1235,34 +1235,34 @@ subroutine ovkGeometryTest_cartesian_grid_cell(this)
 
   class(TestCase), intent(inout) :: this
 
-  integer :: Cell1
-  integer, dimension(2) :: Cell2
+  integer(lk) :: Cell1
+  integer(lk), dimension(2) :: Cell2
 
   ! 1D
   Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 1._rk)
-  @AssertEqual(1, Cell1)
+  @AssertTrue(1_lk == Cell1)
   Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 2._rk)
-  @AssertEqual(1, Cell1)
+  @AssertTrue(1_lk == Cell1)
   Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 3._rk)
-  @AssertEqual(2, Cell1)
+  @AssertTrue(2_lk == Cell1)
   Cell1 = ovkCartesianGridCell(1._rk, 2._rk, 0._rk)
-  @AssertEqual(0, Cell1)
+  @AssertTrue(0_lk == Cell1)
   Cell1 = ovkCartesianGridCell(1._rk, 2._rk, -1._rk)
-  @AssertEqual(0, Cell1)
+  @AssertTrue(0_lk == Cell1)
 
   ! D > 1
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [1._rk, 3._rk])
-  @AssertEqual([1,1], Cell2)
+  @AssertTrue([1_lk,1_lk] == Cell2)
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [2._rk, 5._rk])
-  @AssertEqual([1,1], Cell2)
+  @AssertTrue([1_lk,1_lk] == Cell2)
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [3._rk, 7._rk])
-  @AssertEqual([2,2], Cell2)
+  @AssertTrue([2_lk,2_lk] == Cell2)
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [0._rk, 1._rk])
-  @AssertEqual([0,0], Cell2)
+  @AssertTrue([0_lk,0_lk] == Cell2)
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [-1._rk, -1._rk])
-  @AssertEqual([0,0], Cell2)
+  @AssertTrue([0_lk,0_lk] == Cell2)
   Cell2 = ovkCartesianGridCell([1._rk, 3._rk], [2._rk, 4._rk], [3._rk, 5._rk])
-  @AssertEqual([2,1], Cell2)
+  @AssertTrue([2_lk,1_lk] == Cell2)
 
 end subroutine ovkGeometryTest_cartesian_grid_cell
 

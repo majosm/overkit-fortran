@@ -779,9 +779,9 @@ contains
     real(rk), intent(in) :: Origin
     real(rk), intent(in) :: CellSize
     real(rk), intent(in) :: Coords
-    integer :: Cell
+    integer(lk) :: Cell
 
-    Cell = int(floor((Coords - Origin)/CellSize)) + 1
+    Cell = int(floor((Coords - Origin)/CellSize),kind=lk) + 1_lk
 
   end function ovkCartesianGridCell_Scalar
 
@@ -790,9 +790,9 @@ contains
     real(rk), dimension(:), intent(in) :: Origin
     real(rk), dimension(:), intent(in) :: CellSize
     real(rk), dimension(:), intent(in) :: Coords
-    integer, dimension(size(Origin)) :: Cell
+    integer(lk), dimension(size(Origin)) :: Cell
 
-    Cell = int(floor((Coords - Origin)/CellSize)) + 1
+    Cell = int(floor((Coords - Origin)/CellSize),kind=lk) + 1_lk
 
   end function ovkCartesianGridCell_Array
 

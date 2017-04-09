@@ -387,7 +387,7 @@ contains
       Cell(CellCart%nd+1:) = 1
       Coord = 0.5_rk * (AllCellLower(SplitDir)%values(Cell(1),Cell(2),Cell(3)) + &
         AllCellUpper(SplitDir)%values(Cell(1),Cell(2),Cell(3)))
-      Bin = min(max(ovkCartesianGridCell(Origin, BinSize, Coord), 1), nBins)
+      Bin = min(max(ovkCartesianGridCell(Origin, BinSize, Coord), 1_lk), nBins)
       nCellsPerBin(Bin) = nCellsPerBin(Bin) + 1_lk
     end do
 
@@ -493,10 +493,10 @@ contains
         CellLower(d) = AllCellLower(d)%values(Cell(1),Cell(2),Cell(3))
         CellUpper(d) = AllCellUpper(d)%values(Cell(1),Cell(2),Cell(3))
       end do
-      LowerBin(:BinCart%nd) = ovkCartesianGridCell(Origin, BinSize, CellLower)
+      LowerBin(:BinCart%nd) = int(ovkCartesianGridCell(Origin, BinSize, CellLower))
       LowerBin(:BinCart%nd) = ovkCartClamp(BinCart, LowerBin)
       LowerBin(BinCart%nd+1:) = 1
-      UpperBin(:BinCart%nd) = ovkCartesianGridCell(Origin, BinSize, CellUpper)
+      UpperBin(:BinCart%nd) = int(ovkCartesianGridCell(Origin, BinSize, CellUpper))
       UpperBin(:BinCart%nd) = ovkCartClamp(BinCart, UpperBin)
       UpperBin(BinCart%nd+1:) = 1
       do k = LowerBin(3), UpperBin(3)
@@ -534,10 +534,10 @@ contains
         CellLower(d) = AllCellLower(d)%values(Cell(1),Cell(2),Cell(3))
         CellUpper(d) = AllCellUpper(d)%values(Cell(1),Cell(2),Cell(3))
       end do
-      LowerBin(:BinCart%nd) = ovkCartesianGridCell(Origin, BinSize, CellLower)
+      LowerBin(:BinCart%nd) = int(ovkCartesianGridCell(Origin, BinSize, CellLower))
       LowerBin(:BinCart%nd) = ovkCartClamp(BinCart, LowerBin)
       LowerBin(BinCart%nd+1:) = 1
-      UpperBin(:BinCart%nd) = ovkCartesianGridCell(Origin, BinSize, CellUpper)
+      UpperBin(:BinCart%nd) = int(ovkCartesianGridCell(Origin, BinSize, CellUpper))
       UpperBin(:BinCart%nd) = ovkCartClamp(BinCart, UpperBin)
       UpperBin(BinCart%nd+1:) = 1
       do k = LowerBin(3), UpperBin(3)
