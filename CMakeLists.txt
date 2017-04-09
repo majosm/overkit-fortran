@@ -5,7 +5,7 @@
 # CMake requirements
 #====================
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8.10)
 
 if(${CMAKE_VERSION} VERSION_GREATER 3.4.1)
   include(CheckFortranCompilerFlag)
