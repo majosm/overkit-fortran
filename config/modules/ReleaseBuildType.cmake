@@ -42,7 +42,8 @@ elseif(${CMAKE_Fortran_COMPILER_ID} MATCHES "Intel")
 
   if(Fortran_ENABLED)
     set(CMAKE_Fortran_DIALECT "")
-    set(CMAKE_Fortran_OPTS "-ip -ipo -xHost")
+#    set(CMAKE_Fortran_OPTS "-ip -ipo -xHost")
+    set(CMAKE_Fortran_OPTS "-ip -xHost")
   endif()
 
 else()
