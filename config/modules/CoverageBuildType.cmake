@@ -33,5 +33,5 @@ if(NOT DEFINED COVERAGEBUILDTYPE)
   set(CMAKE_SHARED_LINKER_FLAGS_COVERAGE "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}" CACHE STRING
     "Flags used by the shared libraries linker during coverage builds." FORCE)
   mark_as_advanced(CMAKE_SHARED_LINKER_FLAGS_COVERAGE)
-  set(COVERAGEBUILDTYPE TRUE CACHE INTERNAL "Coverage build type loaded.")
+  set(COVERAGEBUILDTYPE TRUE CACHE INTERNAL "")
 endif()

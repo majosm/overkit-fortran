@@ -87,5 +87,5 @@ if(NOT DEFINED RELEASEBUILDTYPE)
     set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${CMAKE_Fortran_FLAGS_RELEASE_EXTRA}"
       CACHE STRING "Flags used by the Fortran compiler during release builds." FORCE)
   endif()
-  set(RELEASEBUILDTYPE TRUE CACHE INTERNAL "Release build type loaded.")
+  set(RELEASEBUILDTYPE TRUE CACHE INTERNAL "")
 endif()
