@@ -200,8 +200,10 @@ contains
 
     type(ovk_donor_accel), intent(inout) :: Accel
 
-    call DestroyDonorAccelNode(Accel%root)
-    deallocate(Accel%root)
+    if (associated(Accel%root)) then
+      call DestroyDonorAccelNode(Accel%root)
+      deallocate(Accel%root)
+    end if
 
   end subroutine ovkDestroyDonorAccel
 
