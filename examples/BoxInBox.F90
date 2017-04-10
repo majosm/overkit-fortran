@@ -29,7 +29,7 @@ program BoxInBox
   integer, dimension(2) :: InterpScheme
   type(ovk_interp), dimension(2) :: InterpData
   type(ovk_field_logical), dimension(2) :: HoleMasks
-  type(ovk_field_int), dimension(2) :: IBlank
+  type(ovk_field_int) :: IBlank
   type(ovk_p3d_grid_file) :: GridFile
   type(ovk_pegasus) :: PegasusData
 
@@ -96,6 +96,7 @@ program BoxInBox
     end do
   end do
 
+  ! Information about grid type helps optimize performance
   GridType = OVK_GRID_TYPE_CARTESIAN
 
   ! Assemble the grid data structure
@@ -118,10 +119,10 @@ program BoxInBox
   !  -N => receives from grid N
   call ovkP3DCreate(GridFile, "grid.xyz", nGrids=2, Carts=Carts, WithIBlank=.true.)
   do m = 1, 2
-    IBlank(m) = ovk_field_int_(Carts(m), 1)
-    call ovkDonorGridIDToIBlank(InterpData(m), IBlank(m), Multiplier=-1)
-    call ovkMaskToIBlank(HoleMasks(m), IBlank(m), TrueValue=0)
-    call ovkP3DWrite(GridFile, m, Grids(m)%xyz, IBlank(m))
+    IBlank = ovk_field_int_(Carts(m), 1)
+    call ovkDonorGridIDToIBlank(InterpData(m), IBlank, Multiplier=-1)
+    call ovkMaskToIBlank(HoleMasks(m), IBlank, TrueValue=0)
+    call ovkP3DWrite(GridFile, m, Grids(m)%xyz, IBlank)
   end do
   call ovkP3DClose(GridFile)
 

@@ -18,6 +18,7 @@ module ovsGlobal
   public :: DEBUG
   public :: MAX_ND
   public :: PATH_LENGTH
+  public :: Pi
 
   integer, parameter :: rk = selected_real_kind(15, 307)
   integer, parameter :: lk = selected_int_kind(18)
@@ -38,5 +39,7 @@ module ovsGlobal
   integer, parameter :: MAX_ND = 3
 
   integer, parameter :: PATH_LENGTH = 256
+
+  real(rk), parameter :: Pi = 3.1415926535897932385_rk
 
 end module ovsGlobal
