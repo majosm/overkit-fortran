@@ -528,8 +528,11 @@ contains
 
     integer :: i
     integer :: Error_
-    type(ovk_field_int) :: IBlank
+!     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
+    type(ovk_cart) :: ExportCart
+    real(rk), dimension(:,:,:,:), allocatable :: XYZCopy
+    integer, dimension(:,:,:), allocatable :: IBlankCopy
 
     if (OVK_VERBOSE) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
@@ -552,39 +555,79 @@ contains
             trim(GridFile%path), "."
           stop 1
         end if
-        if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
+!         if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+!           write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
+!             trim(GridFile%path), "."
+!           stop 1
+!         end if
       end do
     end if
 
     Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, 1, GridID-1)
 
+!     if (GridFile%with_iblank) then
+!       IBlank = ovk_field_int_(XYZ(1)%cart, 1)
+!     end if
+
+    allocate(XYZCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
+      GridFile%npoints(3,GridID),GridFile%nd))
+
+    if (any(XYZ(1)%cart%periodic .and. (GridFile%npoints(:,GridID) /= &
+      XYZ(1)%cart%ie-XYZ(1)%cart%is+1))) then
+      select case (XYZ(1)%cart%periodic_storage)
+      case (OVK_OVERLAP_PERIODIC)
+        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
+          OVK_NO_OVERLAP_PERIODIC)
+      case (OVK_NO_OVERLAP_PERIODIC)
+        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
+          OVK_OVERLAP_PERIODIC)
+      end select
+      do i = 1, GridFile%nd
+        call ovkExportField(XYZ(i), ExportCart, XYZCopy(:,:,:,i))
+      end do
+    else
+      do i = 1, GridFile%nd
+        XYZCopy(:,:,:,i) = XYZ(i)%values
+      end do
+    end if
+
     if (GridFile%with_iblank) then
-      IBlank = ovk_field_int_(XYZ(1)%cart, 1)
+      allocate(IBlankCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
+        GridFile%npoints(3,GridID)))
+      IBlankCopy = 1
     end if
 
     select case (GridFile%nd)
     case (2)
       if (GridFile%with_iblank) then
+!         call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
+!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
+!           IBlank%values, Error_)
         call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-          IBlank%values, Error_)
+          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
+          XYZCopy(:,:,:,2), IBlankCopy, Error_)
       else
+!         call P3DInternalWriteSingleGrid2D(NullTerminate(GridFile%path), &
+!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, Error_)
         call P3DInternalWriteSingleGrid2D(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, Error_)
+          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
+          XYZCopy(:,:,:,2), Error_)
       end if
     case (3)
       if (GridFile%with_iblank) then
+!         call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
+!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
+!           XYZ(3)%values, IBlank%values, Error_)
         call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-          XYZ(3)%values, IBlank%values, Error_)
+          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
+          XYZCopy(:,:,:,2), XYZCopy(:,:,:,3), IBlankCopy, Error_)
       else
+!         call P3DInternalWriteSingleGrid3D(NullTerminate(GridFile%path), &
+!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
+!           XYZ(3)%values, Error_)
         call P3DInternalWriteSingleGrid3D(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-          XYZ(3)%values, Error_)
+          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
+          XYZCopy(:,:,:,2), XYZCopy(:,:,:,3), Error_)
       end if
     end select
     if (Error_ /= 0) goto 999
@@ -615,6 +658,9 @@ contains
     integer :: i
     integer :: Error_
     integer(ikoffset) :: Offset
+    type(ovk_cart) :: ExportCart
+    real(rk), dimension(:,:,:,:), allocatable :: XYZCopy
+    integer, dimension(:,:,:), allocatable :: IBlankCopy
 
     if (OVK_VERBOSE) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
@@ -637,30 +683,62 @@ contains
             trim(GridFile%path), "."
           stop 1
         end if
-        if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
+!         if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+!           write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
+!             trim(GridFile%path), "."
+!           stop 1
+!         end if
       end do
-      if(any(ovkCartSize(IBlank%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-        write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
-          trim(GridFile%path), "."
-        stop 1
-      end if
+!       if(any(ovkCartSize(IBlank%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+!         write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
+!           trim(GridFile%path), "."
+!         stop 1
+!       end if
     end if
 
     Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, 1, GridID-1)
 
+    allocate(XYZCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
+      GridFile%npoints(3,GridID),GridFile%nd))
+    allocate(IBlankCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
+      GridFile%npoints(3,GridID)))
+
+    if (any(XYZ(1)%cart%periodic .and. (GridFile%npoints(:,GridID) /= &
+      XYZ(1)%cart%ie-XYZ(1)%cart%is+1))) then
+      select case (XYZ(1)%cart%periodic_storage)
+      case (OVK_OVERLAP_PERIODIC)
+        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
+          OVK_NO_OVERLAP_PERIODIC)
+      case (OVK_NO_OVERLAP_PERIODIC)
+        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
+          OVK_OVERLAP_PERIODIC)
+      end select
+      do i = 1, GridFile%nd
+        call ovkExportField(XYZ(i), ExportCart, XYZCopy(:,:,:,i))
+      end do
+      call ovkExportField(IBlank, ExportCart, IBlankCopy)
+    else
+      do i = 1, GridFile%nd
+        XYZCopy(:,:,:,i) = XYZ(i)%values
+      end do
+      IBlankCopy = IBlank%values
+    end if
+
     select case (GridFile%nd)
     case (2)
+!       call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
+!         GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
+!         IBlank%values, Error_)
       call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-        IBlank%values, Error_)
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
+        XYZCopy(:,:,:,2), IBlankCopy, Error_)
     case (3)
+!       call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
+!         GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
+!         XYZ(3)%values, IBlank%values, Error_)
       call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-        XYZ(3)%values, IBlank%values, Error_)
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
+        XYZCopy(:,:,:,2), XYZCopy(:,:,:,3), IBlankCopy, Error_)
     end select
     if (Error_ /= 0) goto 999
 
