@@ -67,5 +67,8 @@ There are currently several known issues:
 
 # Acknowledgements
 
+Overkit is one of several software projects produced by the University of Illinois Center for
+  Exascale Simulation of Plasma-Coupled Combustion (XPACC): http://xpacc.illinois.edu
+
 This material is based in part upon work supported by the Department of Energy, National Nuclear
   Security Administration, under Award Number DE-NA0002374.
