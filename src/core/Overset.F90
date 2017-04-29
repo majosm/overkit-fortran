@@ -24,31 +24,33 @@ module ovkOverset
 
 contains
 
-  subroutine ovkAssembleOverset(Grids, InterpData, FringeSize, DisjointFringes, FringePadding, &
-    InterpScheme, AllowInterpolation, AllowCutting, OptimizeOverlap, OverlapTolerance, HoleMasks, &
-    OrphanMasks)
+  subroutine ovkAssembleOverset(Grids, InterpData, FringeSize, InterpScheme, AllowOverlap, &
+    AllowBoundaryHoleCutting, AllowOverlapHoleCutting, AllowInterpolation, DisjointFringes, &
+    FringePadding, OverlapTolerance, HoleMasks, OrphanMasks)
 
     type(ovk_grid), dimension(:), intent(inout) :: Grids
     type(ovk_interp), dimension(size(Grids)), intent(out) :: InterpData
     integer, dimension(size(Grids)), intent(in), optional :: FringeSize
+    integer, dimension(size(Grids)), intent(in), optional :: InterpScheme
+    logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowOverlap
+    logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowBoundaryHoleCutting
+    logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowOverlapHoleCutting
+    logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowInterpolation
     logical, dimension(size(Grids),size(Grids)), intent(in), optional :: DisjointFringes
     integer, dimension(size(Grids),size(Grids)), intent(in), optional :: FringePadding
-    integer, dimension(size(Grids)), intent(in), optional :: InterpScheme
-    logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowInterpolation
-    logical, dimension(size(Grids),size(Grids)), intent(in), optional :: AllowCutting
-    logical, dimension(size(Grids)), intent(in), optional :: OptimizeOverlap
-    real(rk), dimension(size(Grids)), intent(in), optional :: OverlapTolerance
+    real(rk), dimension(size(Grids),size(Grids)), intent(in), optional :: OverlapTolerance
     type(ovk_field_logical), dimension(size(Grids)), intent(out), optional :: HoleMasks
     type(ovk_field_logical), dimension(size(Grids)), intent(out), optional :: OrphanMasks
 
     integer, dimension(:), allocatable :: FringeSize_
+    integer, dimension(:), allocatable :: InterpScheme_
+    logical, dimension(:,:), allocatable :: AllowOverlap_
+    logical, dimension(:,:), allocatable :: AllowBoundaryHoleCutting_
+    logical, dimension(:,:), allocatable :: AllowOverlapHoleCutting_
+    logical, dimension(:,:), allocatable :: AllowInterpolation_
     logical, dimension(:,:), allocatable :: DisjointFringes_
     integer, dimension(:,:), allocatable :: FringePadding_
-    integer, dimension(:), allocatable :: InterpScheme_
-    logical, dimension(:,:), allocatable :: AllowInterpolation_
-    logical, dimension(:,:), allocatable :: AllowCutting_
-    logical, dimension(:), allocatable :: OptimizeOverlap_
-    real(rk), dimension(:), allocatable :: OverlapTolerance_
+    real(rk), dimension(:,:), allocatable :: OverlapTolerance_
     integer :: i, j, k, l, m, n, p, q, r
     integer :: ClockInitial, ClockFinal, ClockRate
     character(len=STRING_LENGTH) :: nPointsTotalString
@@ -105,6 +107,41 @@ contains
       FringeSize_ = 2
     end if
 
+    allocate(InterpScheme_(size(Grids)))
+    if (present(InterpScheme)) then
+      InterpScheme_ = InterpScheme
+    else
+      InterpScheme_ = OVK_INTERP_LINEAR
+    end if
+
+    allocate(AllowOverlap_(size(Grids),size(Grids)))
+    if (present(AllowOverlap)) then
+      AllowOverlap_ = AllowOverlap
+    else
+      AllowOverlap_ = .true.
+    end if
+
+    allocate(AllowBoundaryHoleCutting_(size(Grids),size(Grids)))
+    if (present(AllowBoundaryHoleCutting)) then
+      AllowBoundaryHoleCutting_ = AllowBoundaryHoleCutting
+    else
+      AllowBoundaryHoleCutting_ = .true.
+    end if
+
+    allocate(AllowOverlapHoleCutting_(size(Grids),size(Grids)))
+    if (present(AllowOverlapHoleCutting)) then
+      AllowOverlapHoleCutting_ = AllowOverlapHoleCutting
+    else
+      AllowOverlapHoleCutting_ = .true.
+    end if
+
+    allocate(AllowInterpolation_(size(Grids),size(Grids)))
+    if (present(AllowInterpolation)) then
+      AllowInterpolation_ = AllowInterpolation
+    else
+      AllowInterpolation_ = .true.
+    end if
+
     allocate(DisjointFringes_(size(Grids),size(Grids)))
     if (present(DisjointFringes)) then
       DisjointFringes_ = DisjointFringes
@@ -119,35 +156,7 @@ contains
       FringePadding_ = 0
     end if
 
-    allocate(InterpScheme_(size(Grids)))
-    if (present(InterpScheme)) then
-      InterpScheme_ = InterpScheme
-    else
-      InterpScheme_ = OVK_INTERP_LINEAR
-    end if
-
-    allocate(AllowInterpolation_(size(Grids),size(Grids)))
-    if (present(AllowInterpolation)) then
-      AllowInterpolation_ = AllowInterpolation
-    else
-      AllowInterpolation_ = .true.
-    end if
-
-    allocate(AllowCutting_(size(Grids),size(Grids)))
-    if (present(AllowCutting)) then
-      AllowCutting_ = AllowCutting
-    else
-      AllowCutting_ = .true.
-    end if
-
-    allocate(OptimizeOverlap_(size(Grids)))
-    if (present(OptimizeOverlap)) then
-      OptimizeOverlap_ = OptimizeOverlap
-    else
-      OptimizeOverlap_ = .true.
-    end if
-
-    allocate(OverlapTolerance_(size(Grids)))
+    allocate(OverlapTolerance_(size(Grids),size(Grids)))
     if (present(OverlapTolerance)) then
       OverlapTolerance_ = OverlapTolerance
     else
@@ -196,46 +205,54 @@ contains
       write (*, '(a)') "Searching for candidate donor/receiver pairs..."
     end if
 
-    do m = 1, size(Grids)
-      AllowInterpolation_(m,m) = .false.
-      AllowCutting_(m,m) = .false.
+    allocate(OverlapBounds(size(Grids)))
+    do n = 1, size(Grids)
+      OverlapBounds(n) = ovk_bbox_(Grids(n)%cart%nd)
+      AllowOverlap_(n,n) = .false.
+      do m = 1, size(Grids)
+        if (AllowOverlap_(m,n)) then
+          Bounds = ovkBBIntersect(Grids(m)%bounds, Grids(n)%bounds)
+          if (.not. ovkBBIsEmpty(Bounds)) then
+            OverlapBounds(n) = ovkBBUnion(OverlapBounds(n), Bounds)
+          else
+            AllowOverlap_(m,n) = .false.
+          end if
+        end if
+      end do
     end do
 
-    allocate(OverlapBounds(size(Grids)))
-    OverlapBounds = ovk_bbox_(Grids(1)%cart%nd)
     do n = 1, size(Grids)
       do m = 1, size(Grids)
-        if (AllowInterpolation_(m,n)) then
-          Bounds = ovkBBIntersect(Grids(m)%bounds, Grids(n)%bounds)
-          OverlapBounds(n) = ovkBBUnion(OverlapBounds(n), Bounds)
-          if (ovkBBIsEmpty(Bounds)) then
-            AllowInterpolation_(m,n) = .false.
-          end if
+        if (.not. AllowOverlap_(m,n)) then
+          AllowBoundaryHoleCutting_(m,n) = .false.
+          AllowOverlapHoleCutting_(m,n) = .false.
+          AllowInterpolation_(m,n) = .false.
         end if
       end do
     end do
 
     allocate(PairwiseDonors(size(Grids),size(Grids)))
 
-    do n = 1, size(Grids)
+    do m = 1, size(Grids)
       if (OVK_VERBOSE) then
-        write (*, '(3a)') "* Generating donor search accelerator on grid ", trim(IntToString(n)), &
+        write (*, '(3a)') "* Generating donor search accelerator on grid ", trim(IntToString(m)), &
           "..."
       end if
-      call ovkGenerateDonorAccel(Grids(n), DonorAccel, Bounds=OverlapBounds(n), &
-        OverlapTolerance=OverlapTolerance_(n))
-      do m = 1, size(Grids)
-        if (AllowInterpolation_(n,m)) then
-          call ovkFindDonors(Grids(n), Grids(m), DonorAccel, PairwiseDonors(n,m))
+      call ovkGenerateDonorAccel(Grids(m), DonorAccel, Bounds=OverlapBounds(m), &
+        OverlapTolerance=maxval(OverlapTolerance_(m,:)))
+      do n = 1, size(Grids)
+        if (AllowOverlap_(m,n)) then
+          call ovkFindDonors(Grids(m), Grids(n), DonorAccel, PairwiseDonors(m,n), &
+            OverlapTolerance=OverlapTolerance_(m,n))
           if (OVK_VERBOSE) then
-            nReceivers = ovkCountMask(PairwiseDonors(n,m)%valid_mask)
+            nReceivers = ovkCountMask(PairwiseDonors(m,n)%valid_mask)
             write (*, '(7a)') "* ", trim(LargeIntToString(nReceivers)), &
-              " candidate donors from grid ", trim(IntToString(n)), " to grid ", &
-              trim(IntToString(m)), " found."
+              " candidate donors from grid ", trim(IntToString(m)), " to grid ", &
+              trim(IntToString(n)), " found."
           end if
         else
-          call ovkMakeDonors(PairwiseDonors(n,m), Grids(m)%cart)
-          PairwiseDonors(n,m)%valid_mask%values = .false.
+          call ovkMakeDonors(PairwiseDonors(m,n), Grids(n)%cart)
+          PairwiseDonors(m,n)%valid_mask%values = .false.
         end if
       end do
       call ovkDestroyDonorAccel(DonorAccel)
@@ -246,7 +263,7 @@ contains
     end if
 
     if (OVK_VERBOSE) then
-      write (*, '(a)') "Cutting holes..."
+      write (*, '(a)') "Cutting boundary holes..."
     end if
 
     if (present(HoleMasks)) then
@@ -256,54 +273,62 @@ contains
     end if
 
     do n = 1, size(Grids)
-      ReceiverBoundaryMask = ovk_field_logical_(Grids(n)%cart, .false.)
-      ReceiverInteriorEdgeMask = ovk_field_logical_(Grids(n)%cart, .false.)
-      do m = 1, size(Grids)
-        if (AllowCutting_(m,n)) then
-          call ovkFindMaskEdge(PairwiseDonors(m,n)%valid_mask, OVK_EDGE_TYPE_INNER, EdgeMask)
-          call ovkGenerateDonorMask(Grids(m), Grids(n), PairwiseDonors(m,n), DonorMask, &
-            ReceiverSubset=EdgeMask)
-          call ovkFindMaskEdge(PairwiseDonors(n,m)%valid_mask, OVK_EDGE_TYPE_INNER, EdgeMask)
-          DonorMask%values = DonorMask%values .and. .not. EdgeMask%values
-          i = 0
-          do while (any(DonorMask%values))
-            call ovkGrowMask(EdgeMask, 1)
+      if (any(AllowBoundaryHoleCutting_(:,n))) then
+        ReceiverBoundaryMask = ovk_field_logical_(Grids(n)%cart, .false.)
+        ReceiverInteriorEdgeMask = ovk_field_logical_(Grids(n)%cart, .false.)
+        do m = 1, size(Grids)
+          if (AllowBoundaryHoleCutting_(m,n)) then
+            call ovkFindMaskEdge(PairwiseDonors(m,n)%valid_mask, OVK_EDGE_TYPE_INNER, EdgeMask)
+            call ovkGenerateDonorMask(Grids(m), Grids(n), PairwiseDonors(m,n), DonorMask, &
+              ReceiverSubset=EdgeMask)
+            call ovkFindMaskEdge(PairwiseDonors(n,m)%valid_mask, OVK_EDGE_TYPE_INNER, EdgeMask)
             DonorMask%values = DonorMask%values .and. .not. EdgeMask%values
-            i = i + 1
-          end do
-          EdgeMask = Grids(m)%boundary_mask
-          call ovkGrowMask(EdgeMask, i)
-          call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), ReceiverMask, &
-            DonorSubset=EdgeMask)
-          ReceiverBoundaryMask%values = ReceiverBoundaryMask%values .or. ReceiverMask%values
-          InteriorEdgeMask = ReceiverMask
-          call ovkGrowMask(InteriorEdgeMask, 1)
-          InteriorEdgeMask%values = InteriorEdgeMask%values .and. &
-            PairwiseDonors(m,n)%valid_mask%values
-          ReceiverInteriorEdgeMask%values = ReceiverInteriorEdgeMask%values .or. &
-            InteriorEdgeMask%values
+            i = 0
+            do while (any(DonorMask%values))
+              call ovkGrowMask(EdgeMask, 1)
+              DonorMask%values = DonorMask%values .and. .not. EdgeMask%values
+              i = i + 1
+            end do
+            EdgeMask = Grids(m)%boundary_mask
+            call ovkGrowMask(EdgeMask, i)
+            call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), ReceiverMask, &
+              DonorSubset=EdgeMask)
+            ReceiverBoundaryMask%values = ReceiverBoundaryMask%values .or. ReceiverMask%values
+            InteriorEdgeMask = ReceiverMask
+            call ovkGrowMask(InteriorEdgeMask, 1)
+            InteriorEdgeMask%values = InteriorEdgeMask%values .and. &
+              PairwiseDonors(m,n)%valid_mask%values
+            ReceiverInteriorEdgeMask%values = ReceiverInteriorEdgeMask%values .or. &
+              InteriorEdgeMask%values
+          end if
+        end do
+        call ovkGenerateExteriorMask(ReceiverInteriorEdgeMask, HoleCutMask, &
+          EdgeMask=ReceiverBoundaryMask)
+        Grids(n)%grid_mask%values = Grids(n)%grid_mask%values .and. .not. HoleCutMask%values
+        Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. HoleCutMask%values
+        do m = 1, size(Grids)
+          PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. .not. &
+            HoleCutMask%values
+        end do
+        if (present(HoleMasks)) then
+          HoleMasks(n)%values = HoleMasks(n)%values .or. HoleCutMask%values
         end if
-      end do
-      call ovkGenerateExteriorMask(ReceiverInteriorEdgeMask, HoleCutMask, &
-        EdgeMask=ReceiverBoundaryMask)
-      Grids(n)%grid_mask%values = Grids(n)%grid_mask%values .and. .not. HoleCutMask%values
-      Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. HoleCutMask%values
-      do m = 1, size(Grids)
-        PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. .not. &
-          HoleCutMask%values
-      end do
-      if (present(HoleMasks)) then
-        HoleMasks(n)%values = HoleMasks(n)%values .or. HoleCutMask%values
+        if (OVK_VERBOSE) then
+          nRemovedPoints = ovkCountMask(HoleCutMask)
+        end if
+      else
+        if (OVK_VERBOSE) then
+          nRemovedPoints = 0_lk
+        end if
       end if
       if (OVK_VERBOSE) then
-        nRemovedPoints = ovkCountMask(HoleCutMask)
         write (*, '(5a)') "* ", trim(LargeIntToString(nRemovedPoints)), &
           " points removed from grid ", trim(IntToString(n)), "."
       end if
     end do
 
     if (OVK_VERBOSE) then
-      write (*, '(a)') "Finished cutting holes."
+      write (*, '(a)') "Finished cutting boundary holes."
     end if
 
     if (OVK_VERBOSE) then
@@ -313,27 +338,15 @@ contains
     allocate(OuterReceiverMasks(size(Grids)))
     allocate(InnerReceiverMasks(size(Grids)))
 
-    do m = 1, size(Grids)
-      call ovkPartitionReceivers(Grids(m), PairwiseDonors(:,m), OuterReceiverMasks(m), &
-        InnerReceiverMasks(m), FringeSize_(m))
+    do n = 1, size(Grids)
+      call ovkPartitionReceivers(Grids(n), PairwiseDonors(:,n), OuterReceiverMasks(n), &
+        InnerReceiverMasks(n), FringeSize_(n))
       if (OVK_VERBOSE) then
-        nOuterReceivers = ovkCountMask(OuterReceiverMasks(m))
-        nInnerReceivers = ovkCountMask(InnerReceiverMasks(m))
-        write (*, '(7a)') "* Partitioned receivers on grid ", trim(IntToString(m)), " into ", &
+        nOuterReceivers = ovkCountMask(OuterReceiverMasks(n))
+        nInnerReceivers = ovkCountMask(InnerReceiverMasks(n))
+        write (*, '(7a)') "* Partitioned receivers on grid ", trim(IntToString(n)), " into ", &
           trim(LargeIntToString(nOuterReceivers)), " near-edge points and ", &
           trim(LargeIntToString(nInnerReceivers)), " interior points."
-      end if
-    end do
-
-    do n = 1, size(Grids)
-      if (.not. OptimizeOverlap_(n)) then
-        do m = 1, size(Grids)
-          if (AllowInterpolation_(m,n)) then
-            PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
-              .not. InnerReceiverMasks(n)%values
-          end if
-        end do
-        InnerReceiverMasks(n)%values = .false.
       end if
     end do
 
@@ -347,7 +360,7 @@ contains
 
     do n = 1, size(Grids)
       do m = 1, size(Grids)
-        if (AllowInterpolation_(m,n) .and. OptimizeOverlap_(m)) then
+        if (AllowOverlapHoleCutting_(m,n) .and. AllowOverlapHoleCutting_(n,m)) then
           call ovkGenerateCoarseToFineMask(Grids(n), PairwiseDonors(m,n), CoarseToFineMask, &
             Subset=InnerReceiverMasks(n))
           PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
@@ -358,6 +371,10 @@ contains
               " donors from grid ", trim(IntToString(m)), " to grid ", trim(IntToString(n)), &
               " invalidated."
           end if
+        else if (.not. AllowOverlapHoleCutting_(m,n)) then
+          ! Behave as if grid m is coarser everywhere
+          PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
+              .not. InnerReceiverMasks(n)%values
         end if
       end do
     end do
@@ -372,13 +389,11 @@ contains
 
     do n = 1, size(Grids)
       do m = 1, size(Grids)
-        if (AllowInterpolation_(m,n) .and. AllowInterpolation_(n,m)) then
-          if (DisjointFringes_(m,n) .or. DisjointFringes_(n,m)) then
-            call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), &
-              ReceiverMask, DonorSubset=OuterReceiverMasks(m))
-            PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
-              .not. ReceiverMask%values
-          end if
+        if (AllowInterpolation_(m,n) .and. DisjointFringes_(m,n)) then
+          call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), &
+            ReceiverMask, DonorSubset=OuterReceiverMasks(m))
+          PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
+            .not. ReceiverMask%values
         end if
       end do
     end do
@@ -487,39 +502,39 @@ contains
     end if
 
     if (OVK_VERBOSE) then
-      write (*, '(a)') "Optimizing overlap..."
+      write (*, '(a)') "Cutting overlap holes..."
     end if
 
-    do m = 1, size(Grids)
-      if (OptimizeOverlap_(m)) then
-        call ovkGenerateOverlapOptimizationMask(Grids(m), Donors(m), OverlapOptimizationMask, &
-          FringeSize=FringeSize_(m))
-        do k = Grids(m)%cart%is(3), Grids(m)%cart%ie(3)
-          do j = Grids(m)%cart%is(2), Grids(m)%cart%ie(2)
-            do i = Grids(m)%cart%is(1), Grids(m)%cart%ie(1)
+    do n = 1, size(Grids)
+      if (any(AllowOverlapHoleCutting_(:,n))) then
+        call ovkGenerateOverlapOptimizationMask(Grids(n), Donors(n), OverlapOptimizationMask, &
+          FringeSize=FringeSize_(n))
+        do k = Grids(n)%cart%is(3), Grids(n)%cart%ie(3)
+          do j = Grids(n)%cart%is(2), Grids(n)%cart%ie(2)
+            do i = Grids(n)%cart%is(1), Grids(n)%cart%ie(1)
               if (OverlapOptimizationMask%values(i,j,k)) then
-                Grids(m)%grid_mask%values(i,j,k) = .false.
-                Grids(m)%boundary_mask%values(i,j,k) = .false.
-                Donors(m)%valid_mask%values(i,j,k) = .false.
-                OuterReceiverMasks(m)%values(i,j,k) = .false.
-                InnerReceiverMasks(m)%values(i,j,k) = .false.
+                Grids(n)%grid_mask%values(i,j,k) = .false.
+                Grids(n)%boundary_mask%values(i,j,k) = .false.
+                Donors(n)%valid_mask%values(i,j,k) = .false.
+                OuterReceiverMasks(n)%values(i,j,k) = .false.
+                InnerReceiverMasks(n)%values(i,j,k) = .false.
               end if
             end do
           end do
         end do
         if (present(HoleMasks)) then
-          HoleMasks(m)%values = HoleMasks(m)%values .or. OverlapOptimizationMask%values
+          HoleMasks(n)%values = HoleMasks(n)%values .or. OverlapOptimizationMask%values
         end if
         if (OVK_VERBOSE) then
           nRemovedPoints = ovkCountMask(OverlapOptimizationMask)
           write (*, '(5a)') "* ", trim(LargeIntToString(nRemovedPoints)), &
-            " points removed from grid ", trim(IntToString(m)), "."
+            " points removed from grid ", trim(IntToString(n)), "."
         end if
       end if
     end do
 
     if (OVK_VERBOSE) then
-      write (*, '(a)') "Finished optimizing overlap."
+      write (*, '(a)') "Finished cutting overlap holes."
     end if
 
     ! TODO: Decide whether it makes sense for InterpScheme_ to be non-scalar (and if so, should
@@ -543,38 +558,38 @@ contains
         call CountNeighbors(ExpandableCellMasks(m), CellQualities(m))
       end do
 
-      do m = 1, size(Grids)
-        if (InterpScheme_(m) /= OVK_INTERP_CUBIC) cycle
-        do k = Grids(m)%cart%is(3), Grids(m)%cart%ie(3)
-          do j = Grids(m)%cart%is(2), Grids(m)%cart%ie(2)
-            do i = Grids(m)%cart%is(1), Grids(m)%cart%ie(1)
+      do n = 1, size(Grids)
+        if (InterpScheme_(n) /= OVK_INTERP_CUBIC) cycle
+        do k = Grids(n)%cart%is(3), Grids(n)%cart%ie(3)
+          do j = Grids(n)%cart%is(2), Grids(n)%cart%ie(2)
+            do i = Grids(n)%cart%is(1), Grids(n)%cart%ie(1)
               ReceiverPoint = [i,j,k]
-              if (Donors(m)%valid_mask%values(i,j,k)) then
-                n = Donors(m)%grid_ids%values(i,j,k)
-                do l = 1, Grids(n)%cart%nd
-                  DonorCell(l) = Donors(m)%cells(l)%values(i,j,k)
-                  DonorCellCoords(l) = Donors(m)%cell_coords(l)%values(i,j,k)
+              if (Donors(n)%valid_mask%values(i,j,k)) then
+                m = Donors(n)%grid_ids%values(i,j,k)
+                do l = 1, Grids(m)%cart%nd
+                  DonorCell(l) = Donors(n)%cells(l)%values(i,j,k)
+                  DonorCellCoords(l) = Donors(n)%cell_coords(l)%values(i,j,k)
                 end do
-                DonorCell(Grids(n)%cell_cart%nd+1:) = 1
-                if (ExpandableCellMasks(n)%values(DonorCell(1),DonorCell(2),DonorCell(3))) then
+                DonorCell(Grids(m)%cell_cart%nd+1:) = 1
+                if (ExpandableCellMasks(m)%values(DonorCell(1),DonorCell(2),DonorCell(3))) then
                   ExpandableCell = .true.
                 else
                   BestCellQuality = 0
                   DonorCellShift = 0
-                  NeighborCellLower(:Grids(n)%cart%nd) = DonorCell(:Grids(n)%cart%nd)-1
-                  NeighborCellLower(Grids(n)%cart%nd+1:) = DonorCell(Grids(n)%cart%nd+1:)
-                  NeighborCellUpper(:Grids(n)%cart%nd) = DonorCell(:Grids(n)%cart%nd)+1
-                  NeighborCellUpper(Grids(n)%cart%nd+1:) = DonorCell(Grids(n)%cart%nd+1:)
-                  AwayFromBoundary = ovkCartContains(Grids(n)%cell_cart, NeighborCellLower) .and. &
-                    ovkCartContains(Grids(n)%cell_cart, NeighborCellUpper)
+                  NeighborCellLower(:Grids(m)%cart%nd) = DonorCell(:Grids(m)%cart%nd)-1
+                  NeighborCellLower(Grids(m)%cart%nd+1:) = DonorCell(Grids(m)%cart%nd+1:)
+                  NeighborCellUpper(:Grids(m)%cart%nd) = DonorCell(:Grids(m)%cart%nd)+1
+                  NeighborCellUpper(Grids(m)%cart%nd+1:) = DonorCell(Grids(m)%cart%nd+1:)
+                  AwayFromBoundary = ovkCartContains(Grids(m)%cell_cart, NeighborCellLower) .and. &
+                    ovkCartContains(Grids(m)%cell_cart, NeighborCellUpper)
                   if (AwayFromBoundary) then
                     do r = NeighborCellLower(3), NeighborCellUpper(3)
                       do q = NeighborCellLower(2), NeighborCellUpper(2)
                         do p = NeighborCellLower(1), NeighborCellUpper(1)
                           NeighborCell = [p,q,r]
-                          if (ExpandableCellMasks(n)%values(NeighborCell(1),NeighborCell(2), &
+                          if (ExpandableCellMasks(m)%values(NeighborCell(1),NeighborCell(2), &
                             NeighborCell(3))) then
-                            CellQuality = CellQualities(n)%values(NeighborCell(1),NeighborCell(2),NeighborCell(3))
+                            CellQuality = CellQualities(m)%values(NeighborCell(1),NeighborCell(2),NeighborCell(3))
                             if (CellQuality > BestCellQuality) then
                               DonorCellShift = [p-DonorCell(1),q-DonorCell(2),r-DonorCell(3)]
                               BestCellQuality = CellQuality
@@ -588,12 +603,12 @@ contains
                       do q = NeighborCellLower(2), NeighborCellUpper(2)
                         do p = NeighborCellLower(1), NeighborCellUpper(1)
                           NeighborCell = [p,q,r]
-                          NeighborCell(:Grids(n)%cell_cart%nd) = ovkCartPeriodicAdjust( &
-                            Grids(n)%cell_cart, NeighborCell)
-                          if (ovkCartContains(Grids(n)%cell_cart, NeighborCell)) then
-                            if (ExpandableCellMasks(n)%values(NeighborCell(1),NeighborCell(2), &
+                          NeighborCell(:Grids(m)%cell_cart%nd) = ovkCartPeriodicAdjust( &
+                            Grids(m)%cell_cart, NeighborCell)
+                          if (ovkCartContains(Grids(m)%cell_cart, NeighborCell)) then
+                            if (ExpandableCellMasks(m)%values(NeighborCell(1),NeighborCell(2), &
                               NeighborCell(3))) then
-                              CellQuality = CellQualities(n)%values(NeighborCell(1),NeighborCell(2),NeighborCell(3))
+                              CellQuality = CellQualities(m)%values(NeighborCell(1),NeighborCell(2),NeighborCell(3))
                               if (CellQuality > BestCellQuality) then
                                 DonorCellShift = [p-DonorCell(1),q-DonorCell(2),r-DonorCell(3)]
                                 BestCellQuality = CellQuality
@@ -607,30 +622,30 @@ contains
                   if (BestCellQuality > 0) then
                     ExpandableCell = .true.
                     DonorCell = DonorCell + DonorCellShift
-                    DonorCellCoords = DonorCellCoords - real(DonorCellShift(:Grids(n)%cell_cart%nd),kind=rk)
+                    DonorCellCoords = DonorCellCoords - real(DonorCellShift(:Grids(m)%cell_cart%nd),kind=rk)
                   else
                     ExpandableCell = .false.
                     if (OVK_VERBOSE) then
                       write (ERROR_UNIT, '(8a)') "WARNING: Could not use cubic interpolation for donor cell ", &
-                        trim(TupleToString(DonorCell(:Grids(n)%cart%nd))), " of grid ", trim(IntToString(n)), &
-                        " corresponding to receiver point ", trim(TupleToString(ReceiverPoint(:Grids(m)%cart%nd))), &
-                        " of grid ", trim(IntToString(m))
+                        trim(TupleToString(DonorCell(:Grids(m)%cart%nd))), " of grid ", trim(IntToString(m)), &
+                        " corresponding to receiver point ", trim(TupleToString(ReceiverPoint(:Grids(n)%cart%nd))), &
+                        " of grid ", trim(IntToString(n))
                     end if
                   end if
                 end if
                 if (ExpandableCell) then
-                  do l = 1, Grids(m)%cart%nd
-                    ReceiverCoords(l) = Grids(m)%xyz(l)%values(ReceiverPoint(1),ReceiverPoint(2), &
+                  do l = 1, Grids(n)%cart%nd
+                    ReceiverCoords(l) = Grids(n)%xyz(l)%values(ReceiverPoint(1),ReceiverPoint(2), &
                       ReceiverPoint(3))
                   end do
-                  call ExpandDonorCell(Grids(n), DonorCell, DonorCellCoords, &
+                  call ExpandDonorCell(Grids(m), DonorCell, DonorCellCoords, &
                     ReceiverCoords, ExpandedDonorCell, ExpandedDonorCellCoords)
-                  ExpandedDonorCell(Grids(n)%cart%nd+1:) = 1
-                  do l = 1, Grids(n)%cart%nd
-                    Donors(m)%cells(l)%values(i,j,k) = ExpandedDonorCell(l)
-                    Donors(m)%cell_coords(l)%values(i,j,k) = ExpandedDonorCellCoords(l)
+                  ExpandedDonorCell(Grids(m)%cart%nd+1:) = 1
+                  do l = 1, Grids(m)%cart%nd
+                    Donors(n)%cells(l)%values(i,j,k) = ExpandedDonorCell(l)
+                    Donors(n)%cell_coords(l)%values(i,j,k) = ExpandedDonorCellCoords(l)
                   end do
-                  Donors(m)%cell_extents%values(i,j,k) = 4
+                  Donors(n)%cell_extents%values(i,j,k) = 4
                 end if
               end if
             end do
@@ -640,13 +655,11 @@ contains
 
       do n = 1, size(Grids)
         do m = 1, size(Grids)
-          if (AllowInterpolation_(m,n) .and. AllowInterpolation_(n,m)) then
-            if (DisjointFringes_(m,n) .or. DisjointFringes_(n,m)) then
-              call ovkGenerateReceiverMask(Grids(n), Grids(m), Donors(n), ReceiverMask, &
-                DonorSubset=Donors(m)%valid_mask)
-              Donors(n)%valid_mask%values = Donors(n)%valid_mask%values .and. .not. &
-                ReceiverMask%values
-            end if
+          if (AllowInterpolation_(m,n) .and. DisjointFringes_(m,n)) then
+            call ovkGenerateReceiverMask(Grids(n), Grids(m), Donors(n), ReceiverMask, &
+              DonorSubset=Donors(m)%valid_mask)
+            Donors(n)%valid_mask%values = Donors(n)%valid_mask%values .and. .not. &
+              ReceiverMask%values
           end if
         end do
       end do
@@ -769,7 +782,6 @@ contains
     integer, intent(in), optional :: FringeSize
 
     integer :: FringeSize_
-    integer :: i, j, k
 
     if (present(FringeSize)) then
       FringeSize_ = FringeSize
@@ -778,15 +790,7 @@ contains
     end if
 
     OverlapOptimizationMask = ovk_field_logical_(Grid%cart)
-
-    do k = Grid%cart%is(3), Grid%cart%ie(3)
-      do j = Grid%cart%is(2), Grid%cart%ie(2)
-        do i = Grid%cart%is(1), Grid%cart%ie(1)
-          OverlapOptimizationMask%values(i,j,k) = .not. Grid%grid_mask%values(i,j,k) .or. &
-            Donors%valid_mask%values(i,j,k)
-        end do
-      end do
-    end do
+    OverlapOptimizationMask%values = .not. Grid%grid_mask%values .or. Donors%valid_mask%values
 
     call ovkGrowMask(OverlapOptimizationMask, -FringeSize_)
 

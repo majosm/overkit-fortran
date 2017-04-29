@@ -575,17 +575,24 @@ contains
 
   end subroutine DestroyDonorAccelNode
 
-  function ovkFindDonorCell(Grid, Accel, Coords) result(DonorCell)
+  function ovkFindDonorCell(Grid, Accel, Coords, OverlapTolerance) result(DonorCell)
 
     type(ovk_grid), intent(in) :: Grid
     type(ovk_donor_accel), intent(in) :: Accel
     real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
+    real(rk), intent(in), optional :: OverlapTolerance
     integer, dimension(Grid%cart%nd) :: DonorCell
+
+    if (present(OverlapTolerance)) then
+      OverlapTolerance_ = OverlapTolerance
+    else
+      OverlapTolerance_ = Accel%overlap_tolerance
+    end if
 
     DonorCell = Grid%cart%is(:Grid%cart%nd)-1
 
     if (ovkBBContainsPoint(Accel%bounds, Coords)) then
-      DonorCell = FindDonorCellInNode(Grid, Accel%root, Accel%overlap_tolerance, Coords)
+      DonorCell = FindDonorCellInNode(Grid, Accel%root, OverlapTolerance_, Coords)
     end if
 
   end function ovkFindDonorCell
