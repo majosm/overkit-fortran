@@ -53,25 +53,25 @@ module ovkBoundingBox
 
 contains
 
-  pure function ovk_bbox_Default(nDims) result(BBox)
+  pure function ovk_bbox_Default(NumDims) result(BBox)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_bbox) :: BBox
 
-    BBox%nd = nDims
+    BBox%nd = NumDims
     BBox%b = 0._rk
-    BBox%e(:nDims) = -1._rk
-    BBox%e(nDims+1:) = 0._rk
+    BBox%e(:NumDims) = -1._rk
+    BBox%e(NumDims+1:) = 0._rk
 
   end function ovk_bbox_Default
 
-  pure function ovk_bbox_Assigned(nDims, B, E) result(BBox)
+  pure function ovk_bbox_Assigned(NumDims, B, E) result(BBox)
 
-    integer, intent(in) :: nDims
-    real(rk), dimension(nDims), intent(in) :: B, E
+    integer, intent(in) :: NumDims
+    real(rk), dimension(NumDims), intent(in) :: B, E
     type(ovk_bbox) :: BBox
 
-    BBox%nd = nDims
+    BBox%nd = NumDims
     BBox%b(:BBox%nd) = B
     BBox%b(BBox%nd+1:) = 0._rk
     BBox%e(:BBox%nd) = E
@@ -255,24 +255,24 @@ contains
     type(ovk_bbox) :: BBFromPoints
 
     integer :: i
-    integer :: nDims
+    integer :: NumDims
 
-    nDims = size(Points,1)
-    BBFromPoints%nd = nDims
+    NumDims = size(Points,1)
+    BBFromPoints%nd = NumDims
     if (size(Points,2) > 0) then
-      BBFromPoints%b(:nDims) = Points(:,1)
-      BBFromPoints%b(nDims+1:) = 0._rk
-      BBFromPoints%e(:nDims) = Points(:,1)
-      BBFromPoints%e(nDims+1:) = 0._rk
+      BBFromPoints%b(:NumDims) = Points(:,1)
+      BBFromPoints%b(NumDims+1:) = 0._rk
+      BBFromPoints%e(:NumDims) = Points(:,1)
+      BBFromPoints%e(NumDims+1:) = 0._rk
       do i = 1, size(Points,2)
-        BBFromPoints%b(:nDims) = min(BBFromPoints%b(:nDims), Points(:,i))
-        BBFromPoints%e(:nDims) = max(BBFromPoints%e(:nDims), Points(:,i))
+        BBFromPoints%b(:NumDims) = min(BBFromPoints%b(:NumDims), Points(:,i))
+        BBFromPoints%e(:NumDims) = max(BBFromPoints%e(:NumDims), Points(:,i))
       end do
     else
-      BBFromPoints%b(:nDims) = 0._rk
-      BBFromPoints%b(nDims+1:) = 0._rk
-      BBFromPoints%e(:nDims) = -1._rk
-      BBFromPoints%e(nDims+1:) = 0._rk
+      BBFromPoints%b(:NumDims) = 0._rk
+      BBFromPoints%b(NumDims+1:) = 0._rk
+      BBFromPoints%e(:NumDims) = -1._rk
+      BBFromPoints%e(NumDims+1:) = 0._rk
     end if
 
   end function ovkBBFromPoints_Rank2
@@ -283,26 +283,26 @@ contains
     type(ovk_bbox) :: BBFromPoints
 
     integer :: i, j
-    integer :: nDims
+    integer :: NumDims
 
-    nDims = size(Points,1)
-    BBFromPoints%nd = nDims
+    NumDims = size(Points,1)
+    BBFromPoints%nd = NumDims
     if (size(Points,2) > 0 .and. size(Points,3) > 0) then
-      BBFromPoints%b(:nDims) = Points(:,1,1)
-      BBFromPoints%b(nDims+1:) = 0._rk
-      BBFromPoints%e(:nDims) = Points(:,1,1)
-      BBFromPoints%e(nDims+1:) = 0._rk
+      BBFromPoints%b(:NumDims) = Points(:,1,1)
+      BBFromPoints%b(NumDims+1:) = 0._rk
+      BBFromPoints%e(:NumDims) = Points(:,1,1)
+      BBFromPoints%e(NumDims+1:) = 0._rk
       do j = 1, size(Points,3)
         do i = 1, size(Points,2)
-          BBFromPoints%b(:nDims) = min(BBFromPoints%b(:nDims), Points(:,i,j))
-          BBFromPoints%e(:nDims) = max(BBFromPoints%e(:nDims), Points(:,i,j))
+          BBFromPoints%b(:NumDims) = min(BBFromPoints%b(:NumDims), Points(:,i,j))
+          BBFromPoints%e(:NumDims) = max(BBFromPoints%e(:NumDims), Points(:,i,j))
         end do
       end do
     else
-      BBFromPoints%b(:nDims) = 0._rk
-      BBFromPoints%b(nDims+1:) = 0._rk
-      BBFromPoints%e(:nDims) = -1._rk
-      BBFromPoints%e(nDims+1:) = 0._rk
+      BBFromPoints%b(:NumDims) = 0._rk
+      BBFromPoints%b(NumDims+1:) = 0._rk
+      BBFromPoints%e(:NumDims) = -1._rk
+      BBFromPoints%e(NumDims+1:) = 0._rk
     end if
 
   end function ovkBBFromPoints_Rank3
@@ -313,28 +313,28 @@ contains
     type(ovk_bbox) :: BBFromPoints
 
     integer :: i, j, k
-    integer :: nDims
+    integer :: NumDims
 
-    nDims = size(Points,1)
-    BBFromPoints%nd = nDims
+    NumDims = size(Points,1)
+    BBFromPoints%nd = NumDims
     if (size(Points,2) > 0 .and. size(Points,3) > 0 .and. size(Points,4) > 0) then
-      BBFromPoints%b(:nDims) = Points(:,1,1,1)
-      BBFromPoints%b(nDims+1:) = 0._rk
-      BBFromPoints%e(:nDims) = Points(:,1,1,1)
-      BBFromPoints%e(nDims+1:) = 0._rk
+      BBFromPoints%b(:NumDims) = Points(:,1,1,1)
+      BBFromPoints%b(NumDims+1:) = 0._rk
+      BBFromPoints%e(:NumDims) = Points(:,1,1,1)
+      BBFromPoints%e(NumDims+1:) = 0._rk
       do k = 1, size(Points,4)
         do j = 1, size(Points,3)
           do i = 1, size(Points,2)
-            BBFromPoints%b(:nDims) = min(BBFromPoints%b(:nDims), Points(:,i,j,k))
-            BBFromPoints%e(:nDims) = max(BBFromPoints%e(:nDims), Points(:,i,j,k))
+            BBFromPoints%b(:NumDims) = min(BBFromPoints%b(:NumDims), Points(:,i,j,k))
+            BBFromPoints%e(:NumDims) = max(BBFromPoints%e(:NumDims), Points(:,i,j,k))
           end do
         end do
       end do
     else
-      BBFromPoints%b(:nDims) = 0._rk
-      BBFromPoints%b(nDims+1:) = 0._rk
-      BBFromPoints%e(:nDims) = -1._rk
-      BBFromPoints%e(nDims+1:) = 0._rk
+      BBFromPoints%b(:NumDims) = 0._rk
+      BBFromPoints%b(NumDims+1:) = 0._rk
+      BBFromPoints%e(:NumDims) = -1._rk
+      BBFromPoints%e(NumDims+1:) = 0._rk
     end if
 
   end function ovkBBFromPoints_Rank4

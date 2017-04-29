@@ -110,39 +110,39 @@ module ovkField
 
 contains
 
-  pure function ovk_field_int_Default(nDims) result(Field)
+  pure function ovk_field_int_Default(NumDims) result(Field)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_field_int) :: Field
 
-    Field%cart = ovk_cart_(nDims)
+    Field%cart = ovk_cart_(NumDims)
 
   end function ovk_field_int_Default
 
-  pure function ovk_field_large_int_Default(nDims) result(Field)
+  pure function ovk_field_large_int_Default(NumDims) result(Field)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_field_large_int) :: Field
 
-    Field%cart = ovk_cart_(nDims)
+    Field%cart = ovk_cart_(NumDims)
 
   end function ovk_field_large_int_Default
 
-  pure function ovk_field_real_Default(nDims) result(Field)
+  pure function ovk_field_real_Default(NumDims) result(Field)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_field_real) :: Field
 
-    Field%cart = ovk_cart_(nDims)
+    Field%cart = ovk_cart_(NumDims)
 
   end function ovk_field_real_Default
 
-  pure function ovk_field_logical_Default(nDims) result(Field)
+  pure function ovk_field_logical_Default(NumDims) result(Field)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovk_cart_(nDims)
+    Field%cart = ovk_cart_(NumDims)
 
   end function ovk_field_logical_Default
 

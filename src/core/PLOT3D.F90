@@ -69,70 +69,70 @@ module ovkPLOT3D
       integer(c_int) :: Endian
     end function P3DInternalMachineEndian
 
-    subroutine P3DInternalDetectGridFormat(FilePath, nDims, nGrids, WithIBlank, Endian, Error) &
+    subroutine P3DInternalDetectGridFormat(FilePath, NumDims, NumGrids, WithIBlank, Endian, Error) &
       bind(C,name="P3DInternalDetectGridFormat")
       use iso_c_binding, only : c_char, c_int
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int) :: nDims
-      integer(c_int) :: nGrids
+      integer(c_int) :: NumDims
+      integer(c_int) :: NumGrids
       integer(c_int) :: WithIBlank
       integer(c_int) :: Endian
       integer(c_int) :: Error
     end subroutine P3DInternalDetectGridFormat
 
-    subroutine P3DInternalGetGridSize(FilePath, nDims, Endian, GridID, nPoints, Error) bind(C, &
+    subroutine P3DInternalGetGridSize(FilePath, NumDims, Endian, GridID, NumPoints, Error) bind(C, &
       name="P3DInternalGetGridSize")
       use iso_c_binding, only : c_char, c_int
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), value :: nDims
+      integer(c_int), value :: NumDims
       integer(c_int), value :: Endian
       integer(c_int), value :: GridID
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int) :: Error
     end subroutine P3DInternalGetGridSize
 
-    function P3DInternalGetGridOffset(nDims, nGrids, nPointsAll, WithIBlank, GridID) &
+    function P3DInternalGetGridOffset(NumDims, NumGrids, NumPointsAll, WithIBlank, GridID) &
       result(Offset) bind(C,name="P3DInternalGetGridOffset")
       use iso_c_binding, only : c_int, c_long_long
       integer, parameter :: ikoffset = c_long_long
-      integer(c_int), value :: nDims
-      integer(c_int), value :: nGrids
-      integer(c_int), dimension(*) :: nPointsAll
+      integer(c_int), value :: NumDims
+      integer(c_int), value :: NumGrids
+      integer(c_int), dimension(*) :: NumPointsAll
       integer(c_int), value :: WithIBlank
       integer(c_int), value :: GridID
       integer(ikoffset) :: Offset
     end function P3DInternalGetGridOffset
 
-    subroutine P3DInternalCreateGridFile(FilePath, nDims, nGrids, nPointsAll, WithIBlank, Endian, &
-      Error) bind(C,name="P3DInternalCreateGridFile")
+    subroutine P3DInternalCreateGridFile(FilePath, NumDims, NumGrids, NumPointsAll, WithIBlank, &
+      Endian, Error) bind(C,name="P3DInternalCreateGridFile")
       use iso_c_binding, only : c_char, c_int
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), value :: nDims
-      integer(c_int), value :: nGrids
-      integer(c_int), dimension(*) :: nPointsAll
+      integer(c_int), value :: NumDims
+      integer(c_int), value :: NumGrids
+      integer(c_int), dimension(*) :: NumPointsAll
       integer(c_int), value :: WithIBlank
       integer(c_int), value :: Endian
       integer(c_int) :: Error
     end subroutine P3DInternalCreateGridFile
 
-    subroutine P3DInternalReadSingleGrid2D(FilePath, nPoints, Endian, Offset, X, Y, Error) bind(C, &
-      name="P3DInternalReadSingleGrid2D")
+    subroutine P3DInternalReadSingleGrid2D(FilePath, NumPoints, Endian, Offset, X, Y, Error) &
+      bind(C,name="P3DInternalReadSingleGrid2D")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y
       integer(c_int) :: Error
     end subroutine P3DInternalReadSingleGrid2D
 
-    subroutine P3DInternalReadSingleGrid2DWithIBlank(FilePath, nPoints, Endian, Offset, X, Y, &
+    subroutine P3DInternalReadSingleGrid2DWithIBlank(FilePath, NumPoints, Endian, Offset, X, Y, &
       IBlank, Error) bind(C,name="P3DInternalReadSingleGrid2DWithIBlank")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y
@@ -140,24 +140,24 @@ module ovkPLOT3D
       integer(c_int) :: Error
     end subroutine P3DInternalReadSingleGrid2DWithIBlank
 
-    subroutine P3DInternalReadSingleGrid3D(FilePath, nPoints, Endian, Offset, X, Y, Z, Error) &
+    subroutine P3DInternalReadSingleGrid3D(FilePath, NumPoints, Endian, Offset, X, Y, Z, Error) &
       bind(C,name="P3DInternalReadSingleGrid3D")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y, Z
       integer(c_int) :: Error
     end subroutine P3DInternalReadSingleGrid3D
 
-    subroutine P3DInternalReadSingleGrid3DWithIBlank(FilePath, nPoints, Endian, Offset, X, Y, Z, &
+    subroutine P3DInternalReadSingleGrid3DWithIBlank(FilePath, NumPoints, Endian, Offset, X, Y, Z, &
       IBlank, Error) bind(C,name="P3DInternalReadSingleGrid3DWithIBlank")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y, Z
@@ -165,24 +165,24 @@ module ovkPLOT3D
       integer(c_int) :: Error
     end subroutine P3DInternalReadSingleGrid3DWithIBlank
 
-    subroutine P3DInternalWriteSingleGrid2D(FilePath, nPoints, Endian, Offset, X, Y, Error) &
+    subroutine P3DInternalWriteSingleGrid2D(FilePath, NumPoints, Endian, Offset, X, Y, Error) &
       bind(C,name="P3DInternalWriteSingleGrid2D")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y
       integer(c_int) :: Error
     end subroutine P3DInternalWriteSingleGrid2D
 
-    subroutine P3DInternalWriteSingleGrid2DWithIBlank(FilePath, nPoints, Endian, Offset, X, Y, &
+    subroutine P3DInternalWriteSingleGrid2DWithIBlank(FilePath, NumPoints, Endian, Offset, X, Y, &
       IBlank, Error) bind(C,name="P3DInternalWriteSingleGrid2DWithIBlank")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y
@@ -190,24 +190,24 @@ module ovkPLOT3D
       integer(c_int) :: Error
     end subroutine P3DInternalWriteSingleGrid2DWithIBlank
 
-    subroutine P3DInternalWriteSingleGrid3D(FilePath, nPoints, Endian, Offset, X, Y, Z, Error) &
+    subroutine P3DInternalWriteSingleGrid3D(FilePath, NumPoints, Endian, Offset, X, Y, Z, Error) &
       bind(C,name="P3DInternalWriteSingleGrid3D")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y, Z
       integer(c_int) :: Error
     end subroutine P3DInternalWriteSingleGrid3D
 
-    subroutine P3DInternalWriteSingleGrid3DWithIBlank(FilePath, nPoints, Endian, Offset, X, Y, Z, &
-      IBlank, Error) bind(C,name="P3DInternalWriteSingleGrid3DWithIBlank")
+    subroutine P3DInternalWriteSingleGrid3DWithIBlank(FilePath, NumPoints, Endian, Offset, X, Y, &
+      Z, IBlank, Error) bind(C,name="P3DInternalWriteSingleGrid3DWithIBlank")
       use iso_c_binding, only : c_char, c_int, c_double, c_long_long
       integer, parameter :: ikoffset = c_long_long
       character(kind=c_char), dimension(*) :: FilePath
-      integer(c_int), dimension(*) :: nPoints
+      integer(c_int), dimension(*) :: NumPoints
       integer(c_int), value :: Endian
       integer(ikoffset), value :: Offset
       real(c_double), dimension(*) :: X, Y, Z
@@ -284,11 +284,11 @@ contains
 
   end subroutine ovkP3DOpen_Grid
 
-  subroutine ovkP3DCreate_Grid(GridFile, FilePath, nGrids, Carts, WithIBlank, Endian, Error)
+  subroutine ovkP3DCreate_Grid(GridFile, FilePath, NumGrids, Carts, WithIBlank, Endian, Error)
 
     type(ovk_p3d_grid_file), intent(out) :: GridFile
     character(len=*), intent(in) :: FilePath
-    integer, intent(in) :: nGrids
+    integer, intent(in) :: NumGrids
     type(ovk_cart), dimension(:), intent(in) :: Carts
     logical, intent(in), optional :: WithIBlank
     integer, intent(in), optional :: Endian
@@ -302,12 +302,12 @@ contains
     end if
 
     GridFile%path = FilePath
-    GridFile%ngrids = nGrids
+    GridFile%ngrids = NumGrids
 
-    if (nGrids > 0) then
+    if (NumGrids > 0) then
       GridFile%nd = Carts(1)%nd
       if (OVK_DEBUG) then
-        do m = 2, nGrids
+        do m = 2, NumGrids
           if (Carts(m)%nd /= GridFile%nd) then
             write (ERROR_UNIT, '(4a)') "ERROR: Detected mixed grid dimensions when attempting ", &
               "to create PLOT3D file ", trim(GridFile%path), "."
@@ -319,9 +319,9 @@ contains
       GridFile%nd = 2
     end if
 
-    allocate(GridFile%npoints(MAX_ND,nGrids))
+    allocate(GridFile%npoints(MAX_ND,NumGrids))
     GridFile%npoints = 1
-    do m = 1, nGrids
+    do m = 1, NumGrids
       GridFile%npoints(:GridFile%nd,m) = ovkCartSize(Carts(m))
     end do
 
@@ -770,8 +770,8 @@ contains
 
     type(ovk_p3d_grid_file), intent(in) :: GridFile
 
-    integer(lk) :: nPointsTotal
-    character(len=STRING_LENGTH) :: nPointsTotalString
+    integer(lk) :: NumPointsTotal
+    character(len=STRING_LENGTH) :: NumPointsTotalString
     character(len=STRING_LENGTH) :: NiString, NjString, NkString
 
     integer :: m
@@ -789,19 +789,19 @@ contains
       write (*, '(a)') "* Endianness: big"
     end if
     write (*, '(2a)') "* Number of grids: ", trim(IntToString(GridFile%ngrids))
-    nPointsTotal = 0
+    NumPointsTotal = 0
     do m = 1, GridFile%ngrids
-      nPointsTotal = nPointsTotal + product(int(GridFile%npoints(:,m),kind=lk))
+      NumPointsTotal = NumPointsTotal + product(int(GridFile%npoints(:,m),kind=lk))
     end do
-    nPointsTotalString = LargeIntToString(nPointsTotal)
-    write (*, '(2a)') "* Total number of grid points: ", trim(nPointsTotalString)
+    NumPointsTotalString = LargeIntToString(NumPointsTotal)
+    write (*, '(2a)') "* Total number of grid points: ", trim(NumPointsTotalString)
     do m = 1, GridFile%ngrids
-      nPointsTotalString = LargeIntToString(product(int(GridFile%npoints(:,m),kind=lk)))
+      NumPointsTotalString = LargeIntToString(product(int(GridFile%npoints(:,m),kind=lk)))
       NiString = IntToString(GridFile%npoints(1,m))
       NjString = IntToString(GridFile%npoints(2,m))
       NkString = IntToString(GridFile%npoints(3,m))
       write (*, '(3a)', advance="no") "* Grid ", trim(IntToString(m)), ": "
-      write (*, '(2a)', advance="no") trim(nPointsTotalString), " points "
+      write (*, '(2a)', advance="no") trim(NumPointsTotalString), " points "
       select case (GridFile%nd)
       case (2)
         write (*, '(5a)', advance="no") "(Ni=", trim(NiString), ", Nj=", trim(NjString), ")"

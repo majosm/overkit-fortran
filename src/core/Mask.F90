@@ -288,19 +288,19 @@ contains
 
   end subroutine ovkGenerateNearEdgeMask
 
-  function ovkCountMask(Mask) result(nTrue)
+  function ovkCountMask(Mask) result(NumTrue)
 
     type(ovk_field_logical), intent(in) :: Mask
-    integer(lk) :: nTrue
+    integer(lk) :: NumTrue
 
     integer :: i, j, k
 
-    nTrue = 0_lk
+    NumTrue = 0_lk
     do k = Mask%cart%is(3), Mask%cart%ie(3)
       do j = Mask%cart%is(2), Mask%cart%ie(2)
         do i = Mask%cart%is(1), Mask%cart%ie(1)
           if (Mask%values(i,j,k)) then
-            nTrue = nTrue + 1_lk
+            NumTrue = NumTrue + 1_lk
           end if
         end do
       end do
@@ -325,63 +325,63 @@ contains
 
   end subroutine ovkMaskToIBlank
 
-  subroutine ovkPrintMask(Mask, iStart, iEnd)
+  subroutine ovkPrintMask(Mask, StartIndex, EndIndex)
 
     type(ovk_field_logical), intent(in) :: Mask
-    integer, dimension(Mask%cart%nd), intent(in), optional :: iStart, iEnd
+    integer, dimension(Mask%cart%nd), intent(in), optional :: StartIndex, EndIndex
 
-    integer, dimension(MAX_ND) :: iStart_, iEnd_
+    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
     integer :: i, j
     integer :: NormalDir
-    integer :: iDir, jDir
-    integer, dimension(2) :: iSSlice, iESlice
+    integer :: IDir, JDir
+    integer, dimension(2) :: StartSlice, EndSlice
     integer :: Slice
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: AdjustedPoint
 
-    if (present(iStart)) then
-      iStart_(:Mask%cart%nd) = iStart
-      iStart_(Mask%cart%nd+1:) = 1
+    if (present(StartIndex)) then
+      StartIndex_(:Mask%cart%nd) = StartIndex
+      StartIndex_(Mask%cart%nd+1:) = 1
     else
-      iStart_ = Mask%cart%is
+      StartIndex_ = Mask%cart%is
     end if
 
-    if (present(iEnd)) then
-      iEnd_(:Mask%cart%nd) = iEnd
-      iEnd_(Mask%cart%nd+1:) = 1
+    if (present(EndIndex)) then
+      EndIndex_(:Mask%cart%nd) = EndIndex
+      EndIndex_(Mask%cart%nd+1:) = 1
     else
-      iEnd_ = Mask%cart%ie
-      iEnd_(MAX_ND) = Mask%cart%is(MAX_ND)
+      EndIndex_ = Mask%cart%ie
+      EndIndex_(MAX_ND) = Mask%cart%is(MAX_ND)
     end if
 
     do i = 1, MAX_ND
-      if (iEnd_(i) == iStart_(i)) then
+      if (EndIndex_(i) == StartIndex_(i)) then
         exit
       end if
     end do
     NormalDir = i
 
-    iDir = modulo(NormalDir,3) + 1
-    jDir = modulo(NormalDir+1,3) + 1
-    iSSlice = [iStart_(iDir),iStart_(jDir)]
-    iESlice = [iEnd_(iDir),iEnd_(jDir)]
+    IDir = modulo(NormalDir,3) + 1
+    JDir = modulo(NormalDir+1,3) + 1
+    StartSlice = [StartIndex_(IDir),StartIndex_(JDir)]
+    EndSlice = [EndIndex_(IDir),EndIndex_(JDir)]
     if (Mask%cart%nd == 3) then
-      Slice = iStart_(NormalDir)
+      Slice = StartIndex_(NormalDir)
     else
       Slice = 1
     end if
 
     write (*, '(a)', advance='no') "   "
-    do i = iSSlice(1), iESlice(1)
+    do i = StartSlice(1), EndSlice(1)
       write (*, '(a)', advance='no') " - "
     end do
     write (*, '(a)') "   "
 
-    do j = iESlice(2), iSSlice(2), -1
+    do j = EndSlice(2), StartSlice(2), -1
 
       write (*, '(a)', advance='no') " | "
 
-      do i = iSSlice(1), iESlice(1)
+      do i = StartSlice(1), EndSlice(1)
         select case (NormalDir)
         case (1)
           Point = [Slice,i,j]
@@ -401,7 +401,7 @@ contains
     end do
 
     write (*, '(a)', advance='no') "   "
-    do i = iSSlice(1), iESlice(1)
+    do i = StartSlice(1), EndSlice(1)
       write (*, '(a)', advance='no') " - "
     end do
     write (*, '(a)') "   "

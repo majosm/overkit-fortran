@@ -47,13 +47,13 @@ module ovkDonorAccel
 
 contains
 
-  pure function ovk_donor_accel_Default(nDims) result(Accel)
+  pure function ovk_donor_accel_Default(NumDims) result(Accel)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_donor_accel) :: Accel
 
-    Accel%nd = nDims
-    Accel%bounds = ovk_bbox_(nDims)
+    Accel%nd = NumDims
+    Accel%bounds = ovk_bbox_(NumDims)
     Accel%max_cell_size_deviation = 0._rk
     Accel%bin_scale = 0._rk
     Accel%overlap_tolerance = 0._rk
@@ -85,7 +85,7 @@ contains
     real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
     logical, dimension(2**Grid%cart%nd) :: VertexGridMaskValues
     type(ovk_bbox) :: GridCellBounds
-    integer(lk) :: nOverlappingCells, iNextOverlappingCell
+    integer(lk) :: NumOverlappingCells, iNextOverlappingCell
     integer(lk), dimension(:), allocatable :: OverlappingCells
 
     if (present(Bounds)) then
@@ -151,14 +151,14 @@ contains
       end do
     end do
 
-    nOverlappingCells = ovkCountMask(GridCellOverlapMask)
+    NumOverlappingCells = ovkCountMask(GridCellOverlapMask)
 
-    if (nOverlappingCells == 0) then
+    if (NumOverlappingCells == 0) then
       Accel = ovk_donor_accel_(Grid%cart%nd)
       return
     end if
 
-    allocate(OverlappingCells(nOverlappingCells))
+    allocate(OverlappingCells(NumOverlappingCells))
 
     iNextOverlappingCell = 1_lk
     do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
@@ -177,7 +177,7 @@ contains
       MaxDepth_ = MaxDepth
     else
       ! Stop when the number of cells is likely to be small (say 1000)
-      MaxDepth_ = int(ceiling(log(max(real(nOverlappingCells,kind=rk)/1000._rk,1._rk))/log(2._rk)))
+      MaxDepth_ = int(ceiling(log(max(real(NumOverlappingCells,kind=rk)/1000._rk,1._rk))/log(2._rk)))
     end if
 
     Accel%max_cell_size_deviation = MaxCellSizeDeviation_
@@ -223,7 +223,7 @@ contains
 
     integer :: i, j, k, d
     integer(lk) :: l
-    integer(lk) :: nOverlappingCells
+    integer(lk) :: NumOverlappingCells
     integer, dimension(MAX_ND) :: Cell
     real(rk), dimension(CellCart%nd) :: CellSize, MeanCellSize, CellSizeDeviation
     logical :: LeafNode
@@ -232,11 +232,11 @@ contains
     real(rk) :: Split
     type(ovk_bbox) :: LeftBounds, RightBounds
     integer(lk), dimension(:), allocatable :: LeftCells, RightCells
-    integer, dimension(CellCart%nd) :: nBins
+    integer, dimension(CellCart%nd) :: NumBins
     type(ovk_cart) :: BinCart
     type(ovk_field_large_int) :: BinCellsStart, BinCellsEnd
     integer(lk), dimension(:), allocatable :: BinCells
-    type(ovk_field_int) :: nBinElements
+    type(ovk_field_int) :: NumBinElements
     type(ovk_bbox) :: HashGridBounds
     type(ovk_bbox) :: CellBounds
     integer(lk) :: BinStart, BinEnd
@@ -245,10 +245,10 @@ contains
     nullify(Node%left_child)
     nullify(Node%right_child)
 
-    nOverlappingCells = size(OverlappingCells,kind=lk)
+    NumOverlappingCells = size(OverlappingCells,kind=lk)
 
     MeanCellSize = 0._rk
-    do l = 1_lk, nOverlappingCells
+    do l = 1_lk, NumOverlappingCells
       Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
       Cell(CellCart%nd+1:) = 1
       do d = 1, CellCart%nd
@@ -257,11 +257,11 @@ contains
       end do
       MeanCellSize = MeanCellSize + CellSize
     end do
-    MeanCellSize = MeanCellSize/real(nOverlappingCells,kind=rk)
+    MeanCellSize = MeanCellSize/real(NumOverlappingCells,kind=rk)
 
-    if (nOverlappingCells > 1_lk) then
+    if (NumOverlappingCells > 1_lk) then
       CellSizeDeviation = 0._rk
-      do l = 1_lk, nOverlappingCells
+      do l = 1_lk, NumOverlappingCells
         Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
         Cell(CellCart%nd+1:) = 1
         do d = 1, CellCart%nd
@@ -270,7 +270,7 @@ contains
         end do
         CellSizeDeviation = CellSizeDeviation + (CellSize - MeanCellSize)**2
       end do
-      CellSizeDeviation = sqrt(CellSizeDeviation/real(nOverlappingCells-1_lk,kind=rk))
+      CellSizeDeviation = sqrt(CellSizeDeviation/real(NumOverlappingCells-1_lk,kind=rk))
     else
       CellSizeDeviation = 0._rk
     end if
@@ -278,7 +278,7 @@ contains
     CellSizeDeviation = CellSizeDeviation/MeanCellSize
 
     ! Don't want to generate a hash grid if the set of cells is highly uniform or very large
-    LeafNode = (all(CellSizeDeviation <= MaxCellSizeDeviation) .and. nOverlappingCells <= 2**26) &
+    LeafNode = (all(CellSizeDeviation <= MaxCellSizeDeviation) .and. NumOverlappingCells <= 2**26) &
       .or. Depth == MaxDepth
 
     if (.not. LeafNode) then
@@ -309,11 +309,11 @@ contains
 
     else
 
-      nBins = max(int(ceiling(ovkBBSize(Bounds)/(BinScale * MeanCellSize))),1)
-      BinCart = ovk_cart_(CellCart%nd, nBins)
+      NumBins = max(int(ceiling(ovkBBSize(Bounds)/(BinScale * MeanCellSize))),1)
+      BinCart = ovk_cart_(CellCart%nd, NumBins)
 
       HashGridBounds = ovk_bbox_(CellCart%nd)
-      do l = 1, nOverlappingCells
+      do l = 1, NumOverlappingCells
         Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
         Cell(CellCart%nd+1:) = 1
         CellBounds = ovk_bbox_(CellCart%nd)
@@ -327,11 +327,11 @@ contains
       call DistributeCellsToBins(BinCart, HashGridBounds, CellCart, AllCellLower, AllCellUpper, &
         OverlappingCells, BinCellsStart, BinCellsEnd, BinCells)
 
-      nBinElements = ovk_field_int_(BinCart)
-      nBinElements%values = int(BinCellsEnd%values - BinCellsStart%values + 1_lk)
+      NumBinElements = ovk_field_int_(BinCart)
+      NumBinElements%values = int(BinCellsEnd%values - BinCellsStart%values + 1_lk)
 
       allocate(Node%hash_grid)
-      Node%hash_grid = ovk_hash_grid_(BinCart, HashGridBounds, nBinElements)
+      Node%hash_grid = ovk_hash_grid_(BinCart, HashGridBounds, NumBinElements)
 
       l = 1_lk
       do k = BinCart%is(3), BinCart%ie(3)
@@ -363,41 +363,41 @@ contains
     real(rk) :: Split
 
     integer(lk) :: l
-    integer(lk) :: nOverlappingCells
-    integer(lk) :: nBins
+    integer(lk) :: NumOverlappingCells
+    integer(lk) :: NumBins
     real(rk) :: Origin
     real(rk) :: BinSize
-    integer(lk), dimension(:), allocatable :: nCellsPerBin
+    integer(lk), dimension(:), allocatable :: NumCellsPerBin
     integer, dimension(MAX_ND) :: Cell
     real(rk) :: Coord
     integer(lk) :: Bin
     integer(lk) :: iSplit
-    integer(lk) :: nCellsBelowSplit
+    integer(lk) :: NumCellsBelowSplit
 
-    nOverlappingCells = size(OverlappingCells,kind=lk)
+    NumOverlappingCells = size(OverlappingCells,kind=lk)
 
-    nBins = nOverlappingCells/10_lk
+    NumBins = NumOverlappingCells/10_lk
 
     Origin = Bounds%b(SplitDir)
-    BinSize = (Bounds%e(SplitDir)-Bounds%b(SplitDir))/real(nBins,kind=rk)
+    BinSize = (Bounds%e(SplitDir)-Bounds%b(SplitDir))/real(NumBins,kind=rk)
 
-    allocate(nCellsPerBin(nBins))
-    nCellsPerBin = 0_lk
+    allocate(NumCellsPerBin(NumBins))
+    NumCellsPerBin = 0_lk
 
-    do l = 1_lk, nOverlappingCells
+    do l = 1_lk, NumOverlappingCells
       Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
       Cell(CellCart%nd+1:) = 1
       Coord = 0.5_rk * (AllCellLower(SplitDir)%values(Cell(1),Cell(2),Cell(3)) + &
         AllCellUpper(SplitDir)%values(Cell(1),Cell(2),Cell(3)))
-      Bin = min(max(ovkCartesianGridCell(Origin, BinSize, Coord), 1_lk), nBins)
-      nCellsPerBin(Bin) = nCellsPerBin(Bin) + 1_lk
+      Bin = min(max(ovkCartesianGridCell(Origin, BinSize, Coord), 1_lk), NumBins)
+      NumCellsPerBin(Bin) = NumCellsPerBin(Bin) + 1_lk
     end do
 
     iSplit = 0_lk
-    nCellsBelowSplit = 0_lk
-    do while (nCellsBelowSplit < nOverlappingCells/2_lk)
+    NumCellsBelowSplit = 0_lk
+    do while (NumCellsBelowSplit < NumOverlappingCells/2_lk)
       iSplit = iSplit + 1_lk
-      nCellsBelowSplit = nCellsBelowSplit + nCellsPerBin(iSplit)
+      NumCellsBelowSplit = NumCellsBelowSplit + NumCellsPerBin(iSplit)
     end do
 
     Split = Origin + BinSize * real(iSplit-1_lk,kind=rk)
@@ -416,32 +416,32 @@ contains
     integer(lk), dimension(:), allocatable :: RightCells
 
     integer(lk) :: l
-    integer(lk) :: nOverlappingCells
+    integer(lk) :: NumOverlappingCells
     integer, dimension(MAX_ND) :: Cell
-    integer(lk) :: nLeftCells, nRightCells
+    integer(lk) :: NumLeftCells, NumRightCells
     integer(lk) :: NextLeftCell, NextRightCell
 
-    nOverlappingCells = size(OverlappingCells,kind=lk)
+    NumOverlappingCells = size(OverlappingCells,kind=lk)
 
-    nLeftCells = 0_lk
-    nRightCells = 0_lk
-    do l = 1_lk, nOverlappingCells
+    NumLeftCells = 0_lk
+    NumRightCells = 0_lk
+    do l = 1_lk, NumOverlappingCells
       Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
       Cell(CellCart%nd+1:) = 1
       if (AllCellLower(SplitDir)%values(Cell(1),Cell(2),Cell(3)) <= Split) then
-        nLeftCells = nLeftCells + 1_lk
+        NumLeftCells = NumLeftCells + 1_lk
       end if
       if (AllCellUpper(SplitDir)%values(Cell(1),Cell(2),Cell(3)) >= Split) then
-        nRightCells = nRightCells + 1_lk
+        NumRightCells = NumRightCells + 1_lk
       end if
     end do
 
-    allocate(LeftCells(nLeftCells))
-    allocate(RightCells(nRightCells))
+    allocate(LeftCells(NumLeftCells))
+    allocate(RightCells(NumRightCells))
 
     NextLeftCell = 1_lk
     NextRightCell = 1_lk
-    do l = 1_lk, nOverlappingCells
+    do l = 1_lk, NumOverlappingCells
       Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
       Cell(CellCart%nd+1:) = 1
       if (AllCellLower(SplitDir)%values(Cell(1),Cell(2),Cell(3)) <= Split) then
@@ -469,26 +469,26 @@ contains
 
     integer :: i, j, k, d
     integer(lk) :: l, m
-    integer(lk) :: nOverlappingCells
+    integer(lk) :: NumOverlappingCells
     real(rk), dimension(CellCart%nd) :: Origin
     real(rk), dimension(CellCart%nd) :: BinSize
-    type(ovk_field_large_int) :: nCellsInBin
-    integer(lk) :: nBinCells
+    type(ovk_field_large_int) :: NumCellsInBin
+    integer(lk) :: NumBinCells
     integer, dimension(MAX_ND) :: Cell
     real(rk), dimension(CellCart%nd) :: CellLower, CellUpper
     integer, dimension(MAX_ND) :: LowerBin, UpperBin
     type(ovk_field_large_int) :: NextCellInBin
     integer(lk) :: BinCellsIndex
 
-    nOverlappingCells = size(OverlappingCells,kind=lk)
+    NumOverlappingCells = size(OverlappingCells,kind=lk)
 
     Origin = Bounds%b(:BinCart%nd)
     BinSize = ovkBBSize(Bounds)/real(ovkCartSize(BinCart),kind=rk)
 
-    nCellsInBin = ovk_field_large_int_(BinCart, 0_lk)
-    nBinCells = 0
+    NumCellsInBin = ovk_field_large_int_(BinCart, 0_lk)
+    NumBinCells = 0
 
-    do l = 1_lk, nOverlappingCells
+    do l = 1_lk, NumOverlappingCells
       Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
       Cell(CellCart%nd+1:) = 1
       do d = 1, CellCart%nd
@@ -504,8 +504,8 @@ contains
       do k = LowerBin(3), UpperBin(3)
         do j = LowerBin(2), UpperBin(2)
           do i = LowerBin(1), UpperBin(1)
-            nCellsInBin%values(i,j,k) = nCellsInBin%values(i,j,k) + 1_lk
-            nBinCells = nBinCells + 1_lk
+            NumCellsInBin%values(i,j,k) = NumCellsInBin%values(i,j,k) + 1_lk
+            NumBinCells = NumBinCells + 1_lk
           end do
         end do
       end do
@@ -519,17 +519,17 @@ contains
       do j = BinCart%is(2), BinCart%ie(2)
         do i = BinCart%is(1), BinCart%ie(1)
           BinCellsStart%values(i,j,k) = m
-          BinCellsEnd%values(i,j,k) = m + nCellsInBin%values(i,j,k)-1
-          m = m + nCellsInBin%values(i,j,k)
+          BinCellsEnd%values(i,j,k) = m + NumCellsInBin%values(i,j,k)-1
+          m = m + NumCellsInBin%values(i,j,k)
         end do
       end do
     end do
 
     NextCellInBin = ovk_field_large_int_(BinCart, 1_lk)
 
-    allocate(BinCells(nBinCells))
+    allocate(BinCells(NumBinCells))
 
-    do l = 1_lk, nOverlappingCells
+    do l = 1_lk, NumOverlappingCells
       Cell(:CellCart%nd) = ovkCartIndexToTuple(CellCart, OverlappingCells(l))
       Cell(CellCart%nd+1:) = 1
       do d = 1, CellCart%nd
@@ -582,6 +582,8 @@ contains
     real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
     real(rk), intent(in), optional :: OverlapTolerance
     integer, dimension(Grid%cart%nd) :: DonorCell
+
+    real(rk) :: OverlapTolerance_
 
     if (present(OverlapTolerance)) then
       OverlapTolerance_ = OverlapTolerance
@@ -676,10 +678,10 @@ contains
 
     type(ovk_donor_accel), intent(in) :: Accel
 
-    integer(lk) :: nLeaves
+    integer(lk) :: NumLeaves
     integer(lk) :: TotalLeafDepth
-    integer(lk) :: nBins
-    integer(lk) :: nNonEmptyBins
+    integer(lk) :: NumBins
+    integer(lk) :: NumNonEmptyBins
     integer :: MinBinEntries, MaxBinEntries
     integer(lk) :: TotalBinEntries
     real(rk) :: PercentFilled
@@ -687,20 +689,20 @@ contains
     real(rk) :: AvgLeafDepth
     integer(lk), dimension(10) :: Histogram
 
-    call LeafStats(Accel%root, nLeaves, TotalLeafDepth)
+    call LeafStats(Accel%root, NumLeaves, TotalLeafDepth)
 
-    AvgLeafDepth = real(TotalLeafDepth,kind=rk)/real(nLeaves,kind=rk)
+    AvgLeafDepth = real(TotalLeafDepth,kind=rk)/real(NumLeaves,kind=rk)
 
-    call BinStats(Accel%root, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, &
+    call BinStats(Accel%root, NumBins, NumNonEmptyBins, MinBinEntries, MaxBinEntries, &
       TotalBinEntries)
 
-    PercentFilled = 100._rk * real(nNonEmptyBins,kind=rk)/real(nBins,kind=rk)
-    AvgEntriesPerBin = real(TotalBinEntries,kind=rk)/real(nNonEmptyBins,kind=rk)
+    PercentFilled = 100._rk * real(NumNonEmptyBins,kind=rk)/real(NumBins,kind=rk)
+    AvgEntriesPerBin = real(TotalBinEntries,kind=rk)/real(NumNonEmptyBins,kind=rk)
 
-    write (*, '(2a)') "* Number of leaf nodes: ", trim(LargeIntToString(nLeaves))
+    write (*, '(2a)') "* Number of leaf nodes: ", trim(LargeIntToString(NumLeaves))
     write (*, '(a,f10.4)') "* Average leaf node depth: ", AvgLeafDepth
-    write (*, '(2a)') "* Number of bins: ", trim(LargeIntToString(nBins))
-    write (*, '(3a,f8.4,a)') "* Number of non-empty bins: ", trim(LargeIntToString(nNonEmptyBins)), &
+    write (*, '(2a)') "* Number of bins: ", trim(LargeIntToString(NumBins))
+    write (*, '(3a,f8.4,a)') "* Number of non-empty bins: ", trim(LargeIntToString(NumNonEmptyBins)), &
       " (", PercentFilled, "%)"
     write (*, '(a,f10.4)') "* Average cells per non-empty bin: ", AvgEntriesPerBin
     write (*, '(2a)') "* Smallest number of cells per bin: ", trim(IntToString(MinBinEntries))
@@ -722,46 +724,46 @@ contains
 
   end subroutine PrintStats
 
-  recursive subroutine LeafStats(Node, nLeaves, TotalLeafDepth)
+  recursive subroutine LeafStats(Node, NumLeaves, TotalLeafDepth)
 
     type(t_node), intent(in) :: Node
-    integer(lk), intent(out) :: nLeaves
+    integer(lk), intent(out) :: NumLeaves
     integer(lk), intent(out) :: TotalLeafDepth
 
     logical :: LeafNode
-    integer(lk) :: nLeavesLeft, nLeavesRight
+    integer(lk) :: NumLeavesLeft, NumLeavesRight
     integer(lk) :: TotalLeafDepthLeft, TotalLeafDepthRight
 
     LeafNode = associated(Node%hash_grid)
 
     if (LeafNode) then
       TotalLeafDepth = 0_lk
-      nLeaves = 1_lk
+      NumLeaves = 1_lk
     else
       TotalLeafDepth = 0_lk
-      nLeaves = 0_lk
-      call LeafStats(Node%left_child, nLeavesLeft, TotalLeafDepthLeft)
-      call LeafStats(Node%right_child, nLeavesRight, TotalLeafDepthRight)
-      nLeaves = nLeaves + nLeavesLeft + nLeavesRight
+      NumLeaves = 0_lk
+      call LeafStats(Node%left_child, NumLeavesLeft, TotalLeafDepthLeft)
+      call LeafStats(Node%right_child, NumLeavesRight, TotalLeafDepthRight)
+      NumLeaves = NumLeaves + NumLeavesLeft + NumLeavesRight
       TotalLeafDepth = TotalLeafDepth + TotalLeafDepthLeft + TotalLeafDepthRight + &
-        nLeavesLeft + nLeavesRight
+        NumLeavesLeft + NumLeavesRight
     end if
 
   end subroutine LeafStats
 
-  recursive subroutine BinStats(Node, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, &
+  recursive subroutine BinStats(Node, NumBins, NumNonEmptyBins, MinBinEntries, MaxBinEntries, &
     TotalBinEntries)
 
     type(t_node), intent(in) :: Node
-    integer(lk), intent(out) :: nBins
-    integer(lk), intent(out) :: nNonEmptyBins
+    integer(lk), intent(out) :: NumBins
+    integer(lk), intent(out) :: NumNonEmptyBins
     integer, intent(out) :: MinBinEntries
     integer, intent(out) :: MaxBinEntries
     integer(lk), intent(out) :: TotalBinEntries
 
     logical :: LeafNode
-    integer(lk) :: nBinsLeft, nBinsRight
-    integer(lk) :: nNonEmptyBinsLeft, nNonEmptyBinsRight
+    integer(lk) :: NumBinsLeft, NumBinsRight
+    integer(lk) :: NumNonEmptyBinsLeft, NumNonEmptyBinsRight
     integer :: MinBinEntriesLeft, MinBinEntriesRight
     integer :: MaxBinEntriesLeft, MaxBinEntriesRight
     integer(lk) :: TotalBinEntriesLeft, TotalBinEntriesRight
@@ -769,20 +771,20 @@ contains
     LeafNode = associated(Node%hash_grid)
 
     if (LeafNode) then
-      call ovkHashGridStats(Node%hash_grid, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, &
-        TotalBinEntries)
+      call ovkHashGridStats(Node%hash_grid, NumBins, NumNonEmptyBins, MinBinEntries, &
+        MaxBinEntries, TotalBinEntries)
     else
-      nBins = 0_lk
-      nNonEmptyBins = 0_lk
+      NumBins = 0_lk
+      NumNonEmptyBins = 0_lk
       MinBinEntries = huge(0)
       MaxBinEntries = 0
       TotalBinEntries = 0_lk
-      call BinStats(Node%left_child, nBinsLeft, nNonEmptyBinsLeft, &
+      call BinStats(Node%left_child, NumBinsLeft, NumNonEmptyBinsLeft, &
         MinBinEntriesLeft, MaxBinEntriesLeft, TotalBinEntriesLeft)
-      call BinStats(Node%right_child, nBinsRight, nNonEmptyBinsRight, &
+      call BinStats(Node%right_child, NumBinsRight, NumNonEmptyBinsRight, &
         MinBinEntriesRight, MaxBinEntriesRight, TotalBinEntriesRight)
-      nBins = nBins + nBinsLeft + nBinsRight
-      nNonEmptyBins = nNonEmptyBins + nNonEmptyBinsLeft + nNonEmptyBinsRight
+      NumBins = NumBins + NumBinsLeft + NumBinsRight
+      NumNonEmptyBins = NumNonEmptyBins + NumNonEmptyBinsLeft + NumNonEmptyBinsRight
       MinBinEntries = min(MinBinEntries, min(MinBinEntriesLeft, MinBinEntriesRight))
       MaxBinEntries = max(MaxBinEntries, max(MaxBinEntriesLeft, MaxBinEntriesRight))
       TotalBinEntries = TotalBinEntries + TotalBinEntriesLeft + TotalBinEntriesRight

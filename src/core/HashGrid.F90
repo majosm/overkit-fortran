@@ -36,22 +36,22 @@ module ovkHashGrid
 
 contains
 
-  pure function ovk_hash_grid_Default(nDims) result(HashGrid)
+  pure function ovk_hash_grid_Default(NumDims) result(HashGrid)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_hash_grid) :: HashGrid
 
-    HashGrid%cart = ovk_cart_(nDims)
-    HashGrid%bounds = ovk_bbox_(nDims)
+    HashGrid%cart = ovk_cart_(NumDims)
+    HashGrid%bounds = ovk_bbox_(NumDims)
     HashGrid%bin_size = 0._rk
 
   end function ovk_hash_grid_Default
 
-  pure function ovk_hash_grid_Allocated(Cart, Bounds, nBinEntries) result(HashGrid)
+  pure function ovk_hash_grid_Allocated(Cart, Bounds, NumBinEntries) result(HashGrid)
 
     type(ovk_cart), intent(in) :: Cart
     type(ovk_bbox), intent(in) :: Bounds
-    type(ovk_field_int), intent(in) :: nBinEntries
+    type(ovk_field_int), intent(in) :: NumBinEntries
     type(ovk_hash_grid) :: HashGrid
 
     integer :: i, j, k
@@ -71,7 +71,7 @@ contains
       do j = Cart%is(2), Cart%ie(2)
         do i = Cart%is(1), Cart%ie(1)
           HashGrid%bin_start(l) = BinStart
-          BinStart = BinStart + int(nBinEntries%values(i,j,k),kind=lk)
+          BinStart = BinStart + int(NumBinEntries%values(i,j,k),kind=lk)
           l = l + 1_lk
         end do
       end do
@@ -115,23 +115,23 @@ contains
 
   end function ovkHashGridBinBounds
 
-  subroutine ovkHashGridStats(HashGrid, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, &
+  subroutine ovkHashGridStats(HashGrid, NumBins, NumNonEmptyBins, MinBinEntries, MaxBinEntries, &
     TotalBinEntries)
 
     type(ovk_hash_grid), intent(in) :: HashGrid
-    integer(lk), intent(out) :: nBins
-    integer(lk), intent(out) :: nNonEmptyBins
+    integer(lk), intent(out) :: NumBins
+    integer(lk), intent(out) :: NumNonEmptyBins
     integer, intent(out) :: MinBinEntries
     integer, intent(out) :: MaxBinEntries
     integer(lk), intent(out) :: TotalBinEntries
 
     integer :: i, j, k
     integer(lk) :: l
-    integer :: nBinEntries
+    integer :: NumBinEntries
 
-    nBins = ovkCartCount(HashGrid%cart)
+    NumBins = ovkCartCount(HashGrid%cart)
 
-    nNonEmptyBins = 0_lk
+    NumNonEmptyBins = 0_lk
     MinBinEntries = huge(0)
     MaxBinEntries = 0
     TotalBinEntries = 0_lk
@@ -139,11 +139,11 @@ contains
     do k = HashGrid%cart%is(3), HashGrid%cart%ie(3)
       do j = HashGrid%cart%is(2), HashGrid%cart%ie(2)
         do i = HashGrid%cart%is(1), HashGrid%cart%ie(1)
-          nBinEntries = int(HashGrid%bin_start(l+1_lk)-HashGrid%bin_start(l))
-          nNonEmptyBins = nNonEmptyBins + merge(1_lk, 0_lk, nBinEntries > 0_lk)
-          MinBinEntries = min(MinBinEntries, nBinEntries)
-          MaxBinEntries = max(MaxBinEntries, nBinEntries)
-          TotalBinEntries = TotalBinEntries + nBinEntries
+          NumBinEntries = int(HashGrid%bin_start(l+1_lk)-HashGrid%bin_start(l))
+          NumNonEmptyBins = NumNonEmptyBins + merge(1_lk, 0_lk, NumBinEntries > 0_lk)
+          MinBinEntries = min(MinBinEntries, NumBinEntries)
+          MaxBinEntries = max(MaxBinEntries, NumBinEntries)
+          TotalBinEntries = TotalBinEntries + NumBinEntries
           l = l + 1_lk
         end do
       end do
@@ -163,7 +163,7 @@ contains
     integer(lk) :: l
     real(rk) :: HistogramStart
     real(rk) :: HistogramInterval
-    integer(lk) :: nBinEntries
+    integer(lk) :: NumBinEntries
 
     Histogram = 0_lk
 
@@ -176,9 +176,9 @@ contains
       do k = HashGrid%cart%is(3), HashGrid%cart%ie(3)
         do j = HashGrid%cart%is(2), HashGrid%cart%ie(2)
           do i = HashGrid%cart%is(1), HashGrid%cart%ie(1)
-            nBinEntries = HashGrid%bin_start(l+1_lk)-HashGrid%bin_start(l)
+            NumBinEntries = HashGrid%bin_start(l+1_lk)-HashGrid%bin_start(l)
             m = int(ovkCartesianGridCell(HistogramStart, HistogramInterval, &
-              real(nBinEntries,kind=rk)))
+              real(NumBinEntries,kind=rk)))
             m = min(max(m, 1), N)
             Histogram(m) = Histogram(m) + 1_lk
             l = l + 1_lk

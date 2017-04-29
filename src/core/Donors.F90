@@ -49,16 +49,16 @@ module ovkDonors
 
 contains
 
-  pure function ovk_donors_Default(nDims) result(Donors)
+  pure function ovk_donors_Default(NumDims) result(Donors)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_donors) :: Donors
 
-    Donors%cart = ovk_cart_(nDims)
-    Donors%valid_mask = ovk_field_logical_(nDims)
-    Donors%grid_ids = ovk_field_int_(nDims)
-    Donors%cell_extents = ovk_field_int_(nDims)
-    Donors%cell_diff_params = ovk_field_real_(nDims)
+    Donors%cart = ovk_cart_(NumDims)
+    Donors%valid_mask = ovk_field_logical_(NumDims)
+    Donors%grid_ids = ovk_field_int_(NumDims)
+    Donors%cell_extents = ovk_field_int_(NumDims)
+    Donors%cell_diff_params = ovk_field_real_(NumDims)
 
   end function ovk_donors_Default
 
@@ -107,12 +107,14 @@ contains
 
   end subroutine ovkDestroyDonors
 
-  subroutine ovkFindDonors(DonorGrid, ReceiverGrid, DonorAccel, Donors, ReceiverSubset)
+  subroutine ovkFindDonors(DonorGrid, ReceiverGrid, DonorAccel, Donors, ReceiverSubset, &
+    OverlapTolerance)
 
     type(ovk_grid), intent(in) :: DonorGrid, ReceiverGrid
     type(ovk_donor_accel), intent(in) :: DonorAccel
     type(ovk_donors), intent(out) :: Donors
     type(ovk_field_logical), intent(in), optional :: ReceiverSubset
+    real(rk), intent(in), optional :: OverlapTolerance
 
     integer :: i, j, k, l
     type(ovk_bbox) :: Bounds
@@ -148,7 +150,8 @@ contains
             end do
             ValidReceiverPoint = ReceiverGrid%grid_mask%values(i,j,k)
             if (ValidReceiverPoint .and. ovkBBContainsPoint(Bounds, ReceiverCoords)) then
-              DonorCell = ovkFindDonorCell(DonorGrid, DonorAccel, ReceiverCoords)
+              DonorCell = ovkFindDonorCell(DonorGrid, DonorAccel, ReceiverCoords, &
+                OverlapTolerance=OverlapTolerance)
               if (ovkCartContains(DonorGrid%cell_cart, DonorCell)) then
                 Donors%valid_mask%values(i,j,k) = .true.
                 Donors%grid_ids%values(i,j,k) = DonorGrid%id

@@ -14,7 +14,7 @@ program Blobs
   character(len=256) :: Description
   type(t_cmd_opt), dimension(1) :: Options
   integer :: N
-  integer, dimension(MAX_ND,4) :: nPoints
+  integer, dimension(MAX_ND,4) :: NumPoints
   type(ovk_cart), dimension(4) :: Carts
   type(ovk_field_real), dimension(2,4) :: XYZ
   real(rk) :: U, V
@@ -49,22 +49,22 @@ program Blobs
 
   call GetOptionValue(Options(1), N, 81)
 
-  nPoints = 1
-  nPoints(:2,1) = N
-  nPoints(1,2) = N
-  nPoints(2,2) = 2*N
-  nPoints(1,3) = N
-  nPoints(2,3) = 2*N
-  nPoints(1,4) = N
-  nPoints(2,4) = 2*N
+  NumPoints = 1
+  NumPoints(:2,1) = N
+  NumPoints(1,2) = N
+  NumPoints(2,2) = 2*N
+  NumPoints(1,3) = N
+  NumPoints(2,3) = 2*N
+  NumPoints(1,4) = N
+  NumPoints(2,4) = 2*N
 
   Length = 2._rk
 
   ! Specify the grids' structural properties (dimension, size, periodicity, etc.)
-  Carts(1) = ovk_cart_(2, nPoints(:,1))
-  Carts(2) = ovk_cart_(2, nPoints(:,2), [.false.,.true.], OVK_OVERLAP_PERIODIC)
-  Carts(3) = ovk_cart_(2, nPoints(:,3), [.false.,.true.], OVK_OVERLAP_PERIODIC)
-  Carts(4) = ovk_cart_(2, nPoints(:,4), [.false.,.true.], OVK_OVERLAP_PERIODIC)
+  Carts(1) = ovk_cart_(2, NumPoints(:,1))
+  Carts(2) = ovk_cart_(2, NumPoints(:,2), [.false.,.true.], OVK_OVERLAP_PERIODIC)
+  Carts(3) = ovk_cart_(2, NumPoints(:,3), [.false.,.true.], OVK_OVERLAP_PERIODIC)
+  Carts(4) = ovk_cart_(2, NumPoints(:,4), [.false.,.true.], OVK_OVERLAP_PERIODIC)
 
   ! Create the coordinate arrays
   XYZ(:,1) = ovk_field_real_(Carts(1))
@@ -73,10 +73,10 @@ program Blobs
   XYZ(:,4) = ovk_field_real_(Carts(4))
 
   ! Grid 1 is the Cartesian background grid
-  do j = 1, nPoints(2,1)
-    do i = 1, nPoints(1,1)
-      U = real(i-1,kind=rk)/real(nPoints(1,1)-1,kind=rk)
-      V = real(j-1,kind=rk)/real(nPoints(2,1)-1,kind=rk)
+  do j = 1, NumPoints(2,1)
+    do i = 1, NumPoints(1,1)
+      U = real(i-1,kind=rk)/real(NumPoints(1,1)-1,kind=rk)
+      V = real(j-1,kind=rk)/real(NumPoints(2,1)-1,kind=rk)
       XYZ(1,1)%values(i,j,1) = Length(1) * (U-0.5_rk)
       XYZ(2,1)%values(i,j,1) = Length(2) * (V-0.5_rk)
     end do
@@ -85,10 +85,10 @@ program Blobs
   SeparationScale = 0.8_rk
 
   ! Grid 2 wraps around a blob
-  do j = 1, nPoints(2,2)-1
-    do i = 1, nPoints(1,2)
-      U = real(i-1, kind=rk)/real(nPoints(1,2)-1, kind=rk)
-      V = real(j-1, kind=rk)/real(nPoints(2,2)-1, kind=rk)
+  do j = 1, NumPoints(2,2)-1
+    do i = 1, NumPoints(1,2)
+      U = real(i-1, kind=rk)/real(NumPoints(1,2)-1, kind=rk)
+      V = real(j-1, kind=rk)/real(NumPoints(2,2)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(3._rk*Theta) + 0.1_rk*sin(2._rk*Theta+Pi/4._rk))
       RMax = 0.3_rk + 2._rk * RMin
@@ -99,10 +99,10 @@ program Blobs
   end do
 
   ! Grid 3 wraps around another blob
-  do j = 1, nPoints(2,3)-1
-    do i = 1, nPoints(1,3)
-      U = real(i-1, kind=rk)/real(nPoints(1,3)-1, kind=rk)
-      V = real(j-1, kind=rk)/real(nPoints(2,3)-1, kind=rk)
+  do j = 1, NumPoints(2,3)-1
+    do i = 1, NumPoints(1,3)
+      U = real(i-1, kind=rk)/real(NumPoints(1,3)-1, kind=rk)
+      V = real(j-1, kind=rk)/real(NumPoints(2,3)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(4._rk*Theta+Pi/4._rk) + 0.1_rk*sin(2._rk*Theta))
       RMax = 0.4_rk + 2_rk * RMin
@@ -113,10 +113,10 @@ program Blobs
   end do
 
   ! Grid 4 wraps around yet another blob
-  do j = 1, nPoints(2,4)-1
-    do i = 1, nPoints(1,4)
-      U = real(i-1, kind=rk)/real(nPoints(1,4)-1, kind=rk)
-      V = real(j-1, kind=rk)/real(nPoints(2,4)-1, kind=rk)
+  do j = 1, NumPoints(2,4)-1
+    do i = 1, NumPoints(1,4)
+      U = real(i-1, kind=rk)/real(NumPoints(1,4)-1, kind=rk)
+      V = real(j-1, kind=rk)/real(NumPoints(2,4)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(5._rk*Theta+Pi/4._rk) + 0.1_rk*sin(3._rk*Theta))
       RMax = 0.4_rk + 2_rk * RMin
@@ -135,9 +135,9 @@ program Blobs
   ! Outer edge boundaries on background grid
   BoundaryMasks(1) = ovk_field_logical_(Carts(1), .false.)
   BoundaryMasks(1)%values(:,1,1) = .true.
-  BoundaryMasks(1)%values(:,nPoints(2,1),1) = .true.
+  BoundaryMasks(1)%values(:,NumPoints(2,1),1) = .true.
   BoundaryMasks(1)%values(1,:,1) = .true.
-  BoundaryMasks(1)%values(nPoints(1,1),:,1) = .true.
+  BoundaryMasks(1)%values(NumPoints(1,1),:,1) = .true.
 
   ! Inner radial boundary on blob #1
   BoundaryMasks(2) = ovk_field_logical_(Carts(2), .false.)
@@ -170,7 +170,7 @@ program Blobs
   !   1 => normal point
   !   0 => hole
   !  -N => receives from grid N
-  call ovkP3DCreate(GridFile, "grid.xyz", nGrids=4, Carts=Carts, WithIBlank=.true.)
+  call ovkP3DCreate(GridFile, "grid.xyz", NumGrids=4, Carts=Carts, WithIBlank=.true.)
   do m = 1, 4
     IBlank = ovk_field_int_(Carts(m), 1)
     call ovkDonorGridIDToIBlank(InterpData(m), IBlank, Multiplier=-1)

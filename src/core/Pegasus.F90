@@ -115,13 +115,13 @@ contains
     logical :: IncludeIBlank_
     integer :: d, i, j, k, m, n, o
     integer(lk) :: l
-    integer :: nGrids
-    integer :: nDims
+    integer :: NumGrids
+    integer :: NumDims
     integer, dimension(MAX_ND) :: Point
-    integer, dimension(:), allocatable :: nDonors, nReceivers
-    integer :: nDonorsMax, nReceiversMax
-    integer, dimension(:), allocatable :: nInterpStencil
-    integer :: nInterpStencilMax
+    integer, dimension(:), allocatable :: NumDonors, NumReceivers
+    integer :: MaxDonors, MaxReceivers
+    integer, dimension(:), allocatable :: StencilSize
+    integer :: MaxStencilSize
     integer :: Offset
     integer, dimension(:), allocatable :: NextReceiver
     integer, dimension(:), allocatable :: NextDonor
@@ -135,8 +135,8 @@ contains
       return
     end if
 
-    nDims = Grids(1)%cart%nd
-    nGrids = size(Grids)
+    NumDims = Grids(1)%cart%nd
+    NumGrids = size(Grids)
 
     if (present(IncludeIBlank)) then
       IncludeIBlank_ = IncludeIBlank
@@ -150,113 +150,113 @@ contains
       stop 1
     end if
 
-    allocate(nDonors(nGrids))
-    allocate(nReceivers(nGrids))
+    allocate(NumDonors(NumGrids))
+    allocate(NumReceivers(NumGrids))
 
-    nDonors = 0
-    nReceivers = 0
+    NumDonors = 0
+    NumReceivers = 0
 
-    do m = 1, nGrids
+    do m = 1, NumGrids
       do k = ExportCarts(m)%is(3), ExportCarts(m)%ie(3)
         do j = ExportCarts(m)%is(2), ExportCarts(m)%ie(2)
           do i = ExportCarts(m)%is(1), ExportCarts(m)%ie(1)
             Point = [i,j,k]
-            Point(:nDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
+            Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
             if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
               n = InterpData(m)%donor_grid_ids%values(Point(1),Point(2),Point(3))
-              nReceivers(m) = nReceivers(m) + 1
-              nDonors(n) = nDonors(n) + 1
+              NumReceivers(m) = NumReceivers(m) + 1
+              NumDonors(n) = NumDonors(n) + 1
             end if
           end do
         end do
       end do
     end do
 
-    nDonorsMax = maxval(nDonors)
-    nReceiversMax = maxval(nReceivers)
+    MaxDonors = maxval(NumDonors)
+    MaxReceivers = maxval(NumReceivers)
 
-    allocate(nInterpStencil(nGrids))
+    allocate(StencilSize(NumGrids))
 
-    nInterpStencil = [(size(InterpData(m)%coefs,1),m=1,nGrids)]
-    nInterpStencilMax = maxval(nInterpStencil)
+    StencilSize = [(size(InterpData(m)%coefs,1),m=1,NumGrids)]
+    MaxStencilSize = maxval(StencilSize)
 
-    allocate(InterpCoefs(nInterpStencilMax,MAX_ND))
+    allocate(InterpCoefs(MaxStencilSize,MAX_ND))
 
-    allocate(PegasusData%ieng(nGrids))
-    allocate(PegasusData%jeng(nGrids))
-    allocate(PegasusData%keng(nGrids))
-    allocate(PegasusData%iisptr(nGrids))
-    allocate(PegasusData%iieptr(nGrids))
-    allocate(PegasusData%ibpnts(nGrids))
-    allocate(PegasusData%iipnts(nGrids))
-    allocate(PegasusData%ibct(nReceiversMax,nGrids))
-    allocate(PegasusData%iit(nDonorsMax,nGrids))
-    allocate(PegasusData%jit(nDonorsMax,nGrids))
-    allocate(PegasusData%kit(nDonorsMax,nGrids))
-    allocate(PegasusData%dxit(nDonorsMax,nGrids))
-    allocate(PegasusData%dyit(nDonorsMax,nGrids))
-    allocate(PegasusData%dzit(nDonorsMax,nGrids))
-    allocate(PegasusData%ibt(nReceiversMax,nGrids))
-    allocate(PegasusData%jbt(nReceiversMax,nGrids))
-    allocate(PegasusData%kbt(nReceiversMax,nGrids))
-    allocate(PegasusData%nit(nDonorsMax,nGrids))
-    allocate(PegasusData%njt(nDonorsMax,nGrids))
-    allocate(PegasusData%nkt(nDonorsMax,nGrids))
-    allocate(PegasusData%coeffit(nDonorsMax,nInterpStencilMax,MAX_ND,nGrids))
+    allocate(PegasusData%ieng(NumGrids))
+    allocate(PegasusData%jeng(NumGrids))
+    allocate(PegasusData%keng(NumGrids))
+    allocate(PegasusData%iisptr(NumGrids))
+    allocate(PegasusData%iieptr(NumGrids))
+    allocate(PegasusData%ibpnts(NumGrids))
+    allocate(PegasusData%iipnts(NumGrids))
+    allocate(PegasusData%ibct(MaxReceivers,NumGrids))
+    allocate(PegasusData%iit(MaxDonors,NumGrids))
+    allocate(PegasusData%jit(MaxDonors,NumGrids))
+    allocate(PegasusData%kit(MaxDonors,NumGrids))
+    allocate(PegasusData%dxit(MaxDonors,NumGrids))
+    allocate(PegasusData%dyit(MaxDonors,NumGrids))
+    allocate(PegasusData%dzit(MaxDonors,NumGrids))
+    allocate(PegasusData%ibt(MaxReceivers,NumGrids))
+    allocate(PegasusData%jbt(MaxReceivers,NumGrids))
+    allocate(PegasusData%kbt(MaxReceivers,NumGrids))
+    allocate(PegasusData%nit(MaxDonors,NumGrids))
+    allocate(PegasusData%njt(MaxDonors,NumGrids))
+    allocate(PegasusData%nkt(MaxDonors,NumGrids))
+    allocate(PegasusData%coeffit(MaxDonors,MaxStencilSize,MAX_ND,NumGrids))
 
-    PegasusData%ngrd = nGrids
+    PegasusData%ngrd = NumGrids
 
-    do m = 1, nGrids
+    do m = 1, NumGrids
       PegasusData%ieng(m) = ExportCarts(m)%ie(1)-ExportCarts(m)%is(1)+1
       PegasusData%jeng(m) = ExportCarts(m)%ie(2)-ExportCarts(m)%is(2)+1
       PegasusData%keng(m) = ExportCarts(m)%ie(3)-ExportCarts(m)%is(3)+1
     end do
 
-    PegasusData%ipall = sum([(nDonors(m),m=1,nGrids)])
-    PegasusData%igall = int(maxval([(ovkCartCount(ExportCarts(m)),m=1,nGrids)]))
+    PegasusData%ipall = sum([(NumDonors(m),m=1,NumGrids)])
+    PegasusData%igall = int(maxval([(ovkCartCount(ExportCarts(m)),m=1,NumGrids)]))
 
-    PegasusData%ipip = nDonorsMax
-    PegasusData%ipbp = nReceiversMax
+    PegasusData%ipip = MaxDonors
+    PegasusData%ipbp = MaxReceivers
 
     Offset = 0
-    do m = 1, nGrids
+    do m = 1, NumGrids
       PegasusData%iisptr(m) = Offset + 1
-      PegasusData%iieptr(m) = Offset + nDonors(m)
-      Offset = Offset + nDonors(m)
+      PegasusData%iieptr(m) = Offset + NumDonors(m)
+      Offset = Offset + NumDonors(m)
     end do
 
-    PegasusData%ibpnts = nReceivers
-    PegasusData%iipnts = nDonors
+    PegasusData%ibpnts = NumReceivers
+    PegasusData%iipnts = NumDonors
 
-    allocate(NextReceiver(nGrids))
-    allocate(NextDonor(nGrids))
+    allocate(NextReceiver(NumGrids))
+    allocate(NextDonor(NumGrids))
     NextReceiver = 1
     NextDonor = 1
 
-    do m = 1, nGrids
+    do m = 1, NumGrids
       do k = ExportCarts(m)%is(3), ExportCarts(m)%ie(3)
         do j = ExportCarts(m)%is(2), ExportCarts(m)%ie(2)
           do i = ExportCarts(m)%is(1), ExportCarts(m)%ie(1)
             Point = [i,j,k]
-            Point(:nDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
+            Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
             if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
               n = InterpData(m)%donor_grid_ids%values(Point(1),Point(2),Point(3))
-              do d = 1, nDims
+              do d = 1, NumDims
                 DonorCell(d) = InterpData(m)%donor_cells(d)%values(Point(1),Point(2),Point(3))
                 DonorCellCoords(d) = InterpData(m)%donor_cell_coords(d)%values(Point(1),Point(2), &
                   Point(3))
               end do
-              DonorCell(nDims+1:) = 1
-              DonorCellCoords(nDims+1:) = 0._rk
+              DonorCell(NumDims+1:) = 1
+              DonorCellCoords(NumDims+1:) = 0._rk
               InterpScheme = InterpData(m)%schemes%values(Point(1),Point(2),Point(3))
-              do d = 1, nDims
-                do o = 1, nInterpStencil(m)
+              do d = 1, NumDims
+                do o = 1, StencilSize(m)
                   InterpCoefs(o,d) = InterpData(m)%coefs(o,d)%values(Point(1),Point(2),Point(3))
                 end do
               end do
-              InterpCoefs(nInterpStencil(m)+1:,:nDims) = 0._rk
-              InterpCoefs(1,nDims+1:) = 1._rk
-              InterpCoefs(2:,nDims+1:) = 0._rk
+              InterpCoefs(StencilSize(m)+1:,:NumDims) = 0._rk
+              InterpCoefs(1,NumDims+1:) = 1._rk
+              InterpCoefs(2:,NumDims+1:) = 0._rk
               PegasusData%ibct(NextReceiver(m),m) = PegasusData%iisptr(n) + NextDonor(n) - 1
               PegasusData%iit(NextDonor(n),n) = DonorCell(1)
               PegasusData%jit(NextDonor(n),n) = DonorCell(2)
@@ -270,11 +270,11 @@ contains
               if (InterpScheme == OVK_INTERP_LINEAR) then
                 PegasusData%nit(NextDonor(n),n) = 2
                 PegasusData%njt(NextDonor(n),n) = 2
-                PegasusData%nkt(NextDonor(n),n) = merge(2, 1, nDims == MAX_ND)
+                PegasusData%nkt(NextDonor(n),n) = merge(2, 1, NumDims == MAX_ND)
               else if (InterpScheme == OVK_INTERP_CUBIC) then
                 PegasusData%nit(NextDonor(n),n) = 4
                 PegasusData%njt(NextDonor(n),n) = 4
-                PegasusData%nkt(NextDonor(n),n) = merge(4, 1, nDims == MAX_ND)
+                PegasusData%nkt(NextDonor(n),n) = merge(4, 1, NumDims == MAX_ND)
               end if
               PegasusData%coeffit(NextDonor(n),:,:,n) = InterpCoefs
               NextReceiver(m) = NextReceiver(m) + 1
@@ -286,15 +286,15 @@ contains
     end do
 
     if (IncludeIBlank_) then
-      allocate(PegasusData%iblank(maxval([(ovkCartCount(ExportCarts(m)),m=1,nGrids)]),nGrids))
+      allocate(PegasusData%iblank(maxval([(ovkCartCount(ExportCarts(m)),m=1,NumGrids)]),NumGrids))
       PegasusData%iblank = 1
-      do m = 1, nGrids
+      do m = 1, NumGrids
         l = 1_lk
         do k = ExportCarts(m)%is(3), ExportCarts(m)%ie(3)
           do j = ExportCarts(m)%is(2), ExportCarts(m)%ie(2)
             do i = ExportCarts(m)%is(1), ExportCarts(m)%ie(1)
               Point = [i,j,k]
-              Point(:nDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
+              Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
               if (.not. HoleMasks(m)%values(Point(1),Point(2),Point(3)) .and. .not. &
                 InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
                 PegasusData%iblank(l,m) = 1
@@ -351,8 +351,8 @@ contains
     integer :: i, j, p
     integer(lk) :: l
     integer :: Error_
-    integer(lk), dimension(3) :: nPoints
-    integer(lk) :: nPointsTotal
+    integer(lk), dimension(3) :: NumPoints
+    integer(lk) :: NumPointsTotal
 
     integer, parameter :: HOUnit = 4510695
     integer, parameter :: XUnit = 4510696
@@ -385,11 +385,11 @@ contains
         (PegasusData%kbt(j,i),j=1,PegasusData%ibpnts(i)), &
         (PegasusData%ibct(j,i),j=1,PegasusData%ibpnts(i))
       if (allocated(PegasusData%iblank)) then
-        nPoints(1) = int(PegasusData%ieng(i),kind=lk)
-        nPoints(2) = int(PegasusData%jeng(i),kind=lk)
-        nPoints(3) = int(PegasusData%keng(i),kind=lk)
-        nPointsTotal = product(nPoints)
-        write (HOUnit) (PegasusData%iblank(l,i),l=1_lk,nPointsTotal)
+        NumPoints(1) = int(PegasusData%ieng(i),kind=lk)
+        NumPoints(2) = int(PegasusData%jeng(i),kind=lk)
+        NumPoints(3) = int(PegasusData%keng(i),kind=lk)
+        NumPointsTotal = product(NumPoints)
+        write (HOUnit) (PegasusData%iblank(l,i),l=1_lk,NumPointsTotal)
       end if
     end do
     close(HOUnit)
@@ -444,8 +444,8 @@ contains
 
     integer :: i, j, p
     integer(lk) :: l
-    integer(lk), dimension(3) :: nPoints
-    integer(lk) :: nPointsTotal
+    integer(lk), dimension(3) :: NumPoints
+    integer(lk) :: NumPointsTotal
 
     write (*, '(a,i0)') "ngrd = ", PegasusData%ngrd
     write (*, '(a,i0)') "ipall = ", PegasusData%ipall
@@ -496,11 +496,11 @@ contains
       if (allocated(PegasusData%iblank)) then
         write (*, '(a)') ""
         write (*, '(a)') "iblank = "
-        nPoints(1) = int(PegasusData%ieng(i),kind=lk)
-        nPoints(2) = int(PegasusData%jeng(i),kind=lk)
-        nPoints(3) = int(PegasusData%keng(i),kind=lk)
-        nPointsTotal = product(nPoints)
-        do l = 1_lk, nPointsTotal
+        NumPoints(1) = int(PegasusData%ieng(i),kind=lk)
+        NumPoints(2) = int(PegasusData%jeng(i),kind=lk)
+        NumPoints(3) = int(PegasusData%keng(i),kind=lk)
+        NumPointsTotal = product(NumPoints)
+        do l = 1_lk, NumPointsTotal
           write (*, '(i9)') PegasusData%iblank(l,i)
         end do
       end if

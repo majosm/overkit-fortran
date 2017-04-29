@@ -57,20 +57,20 @@ module ovkGrid
 
 contains
 
-  function ovk_grid_Default(nDims) result(Grid)
+  function ovk_grid_Default(NumDims) result(Grid)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_grid) :: Grid
 
-    Grid%cart = ovk_cart_(nDims)
-    Grid%cell_cart = ovk_cart_(nDims)
+    Grid%cart = ovk_cart_(NumDims)
+    Grid%cell_cart = ovk_cart_(NumDims)
     Grid%periodic_length = 0._rk
     Grid%grid_type = OVK_GRID_TYPE_CURVILINEAR
     Grid%id = 0
-    Grid%bounds = ovk_bbox_(nDims)
-    Grid%grid_mask = ovk_field_logical_(nDims)
-    Grid%boundary_mask = ovk_field_logical_(nDims)
-    Grid%cell_sizes = ovk_field_real_(nDims)
+    Grid%bounds = ovk_bbox_(NumDims)
+    Grid%grid_mask = ovk_field_logical_(NumDims)
+    Grid%boundary_mask = ovk_field_logical_(NumDims)
+    Grid%cell_sizes = ovk_field_real_(NumDims)
 
   end function ovk_grid_Default
 
@@ -403,7 +403,7 @@ contains
 
     integer :: i, j, k
     integer, dimension(MAX_ND) :: NeighborCellLower, NeighborCellUpper
-    integer :: nCells
+    integer :: NumCells
     logical :: AwayFromBoundary
     integer, dimension(MAX_ND) :: NeighborCell
 
@@ -413,7 +413,7 @@ contains
     NeighborCellUpper(Grid%cart%nd+1:) = 1
 
     AvgCellSize = 0._rk
-    nCells = 0
+    NumCells = 0
 
     AwayFromBoundary = ovkCartContains(Grid%cell_cart, NeighborCellLower) .and. &
       ovkCartContains(Grid%cell_cart, NeighborCellUpper)
@@ -425,7 +425,7 @@ contains
             NeighborCell = [i,j,k]
             AvgCellSize = AvgCellSize + Grid%cell_sizes%values(NeighborCell(1),NeighborCell(2), &
               NeighborCell(3))
-            nCells = nCells + 1
+            NumCells = NumCells + 1
           end do
         end do
       end do
@@ -438,14 +438,14 @@ contains
             if (ovkCartContains(Grid%cell_cart, NeighborCell)) then
               AvgCellSize = AvgCellSize + Grid%cell_sizes%values(NeighborCell(1),NeighborCell(2), &
                 NeighborCell(3))
-              nCells = nCells + 1
+              NumCells = NumCells + 1
             end if
           end do
         end do
       end do
     end if
 
-    AvgCellSize = AvgCellSize/real(nCells, kind=rk)
+    AvgCellSize = AvgCellSize/real(NumCells, kind=rk)
 
   end function ovkAvgCellSizeAroundPoint
 

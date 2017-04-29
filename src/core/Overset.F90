@@ -53,18 +53,18 @@ contains
     real(rk), dimension(:,:), allocatable :: OverlapTolerance_
     integer :: i, j, k, l, m, n, p, q, r
     integer :: ClockInitial, ClockFinal, ClockRate
-    character(len=STRING_LENGTH) :: nPointsTotalString
+    character(len=STRING_LENGTH) :: NumPointsTotalString
     character(len=STRING_LENGTH) :: iSString, iEString, jSString, jEString, kSString, kEString
     type(ovk_bbox) :: Bounds
     type(ovk_bbox), dimension(:), allocatable :: OverlapBounds
     integer :: PaddingMax, PaddingSum
     real(rk) :: PaddingFrac
     integer :: Padding1, Padding2
-    integer(lk) :: nReceivers
-    integer(lk) :: nOuterReceivers, nInnerReceivers
-    integer(lk) :: nInvalidatedDonors, nInvalidatedDonors1, nInvalidatedDonors2
-    integer(lk) :: nOrphans
-    integer(lk) :: nRemovedPoints
+    integer(lk) :: NumReceivers
+    integer(lk) :: NumOuterReceivers, NumInnerReceivers
+    integer(lk) :: NumInvalidatedDonors, NumInvalidatedDonors1, NumInvalidatedDonors2
+    integer(lk) :: NumOrphans
+    integer(lk) :: NumRemovedPoints
     type(ovk_donor_accel) :: DonorAccel
     type(ovk_donors), dimension(:,:), allocatable :: PairwiseDonors
     type(ovk_donors), dimension(:), allocatable :: Donors
@@ -176,10 +176,10 @@ contains
       write (*, '(a)') "Grid info:"
       write (*, '(3a)') "* Dimension: ", trim(IntToString(Grids(1)%cart%nd)), "D"
       write (*, '(2a)') "* Number of grids: ", trim(IntToString(size(Grids)))
-      nPointsTotalString = LargeIntToString(sum([(ovkCartCount(Grids(m)%cart),m=1,size(Grids))]))
-      write (*, '(2a)') "* Total number of grid points: ", trim(nPointsTotalString)
+      NumPointsTotalString = LargeIntToString(sum([(ovkCartCount(Grids(m)%cart),m=1,size(Grids))]))
+      write (*, '(2a)') "* Total number of grid points: ", trim(NumPointsTotalString)
       do m = 1, size(Grids)
-        nPointsTotalString = LargeIntToString(ovkCartCount(Grids(m)%cart))
+        NumPointsTotalString = LargeIntToString(ovkCartCount(Grids(m)%cart))
         iSString = IntToString(Grids(m)%cart%is(1))
         iEString = IntToString(Grids(m)%cart%ie(1))
         jSString = IntToString(Grids(m)%cart%is(2))
@@ -187,7 +187,7 @@ contains
         kSString = IntToString(Grids(m)%cart%is(3))
         kEString = IntToString(Grids(m)%cart%ie(3))
         write (*, '(3a)', advance="no") "* Grid ", trim(IntToString(Grids(m)%id)), ": "
-        write (*, '(2a)', advance="no") trim(nPointsTotalString), " points "
+        write (*, '(2a)', advance="no") trim(NumPointsTotalString), " points "
         select case (Grids(m)%cart%nd)
         case (2)
           write (*, '(9a)', advance="no") "(i=", trim(iSString), ":", trim(iEString), &
@@ -245,8 +245,8 @@ contains
           call ovkFindDonors(Grids(m), Grids(n), DonorAccel, PairwiseDonors(m,n), &
             OverlapTolerance=OverlapTolerance_(m,n))
           if (OVK_VERBOSE) then
-            nReceivers = ovkCountMask(PairwiseDonors(m,n)%valid_mask)
-            write (*, '(7a)') "* ", trim(LargeIntToString(nReceivers)), &
+            NumReceivers = ovkCountMask(PairwiseDonors(m,n)%valid_mask)
+            write (*, '(7a)') "* ", trim(LargeIntToString(NumReceivers)), &
               " candidate donors from grid ", trim(IntToString(m)), " to grid ", &
               trim(IntToString(n)), " found."
           end if
@@ -314,15 +314,15 @@ contains
           HoleMasks(n)%values = HoleMasks(n)%values .or. HoleCutMask%values
         end if
         if (OVK_VERBOSE) then
-          nRemovedPoints = ovkCountMask(HoleCutMask)
+          NumRemovedPoints = ovkCountMask(HoleCutMask)
         end if
       else
         if (OVK_VERBOSE) then
-          nRemovedPoints = 0_lk
+          NumRemovedPoints = 0_lk
         end if
       end if
       if (OVK_VERBOSE) then
-        write (*, '(5a)') "* ", trim(LargeIntToString(nRemovedPoints)), &
+        write (*, '(5a)') "* ", trim(LargeIntToString(NumRemovedPoints)), &
           " points removed from grid ", trim(IntToString(n)), "."
       end if
     end do
@@ -342,11 +342,11 @@ contains
       call ovkPartitionReceivers(Grids(n), PairwiseDonors(:,n), OuterReceiverMasks(n), &
         InnerReceiverMasks(n), FringeSize_(n))
       if (OVK_VERBOSE) then
-        nOuterReceivers = ovkCountMask(OuterReceiverMasks(n))
-        nInnerReceivers = ovkCountMask(InnerReceiverMasks(n))
+        NumOuterReceivers = ovkCountMask(OuterReceiverMasks(n))
+        NumInnerReceivers = ovkCountMask(InnerReceiverMasks(n))
         write (*, '(7a)') "* Partitioned receivers on grid ", trim(IntToString(n)), " into ", &
-          trim(LargeIntToString(nOuterReceivers)), " near-edge points and ", &
-          trim(LargeIntToString(nInnerReceivers)), " interior points."
+          trim(LargeIntToString(NumOuterReceivers)), " near-edge points and ", &
+          trim(LargeIntToString(NumInnerReceivers)), " interior points."
       end if
     end do
 
@@ -366,8 +366,8 @@ contains
           PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
             .not. CoarseToFineMask%values
           if (OVK_VERBOSE) then
-            nInvalidatedDonors = ovkCountMask(CoarseToFineMask)
-            write (*, '(7a)') "* ", trim(LargeIntToString(nInvalidatedDonors)), &
+            NumInvalidatedDonors = ovkCountMask(CoarseToFineMask)
+            write (*, '(7a)') "* ", trim(LargeIntToString(NumInvalidatedDonors)), &
               " donors from grid ", trim(IntToString(m)), " to grid ", trim(IntToString(n)), &
               " invalidated."
           end if
@@ -429,8 +429,8 @@ contains
             PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
               .not. NearCrossoverMask2%values
             if (OVK_VERBOSE) then
-              nInvalidatedDonors1 = ovkCountMask(NearCrossoverMask1)
-              nInvalidatedDonors2 = ovkCountMask(NearCrossoverMask2)
+              NumInvalidatedDonors1 = ovkCountMask(NearCrossoverMask1)
+              NumInvalidatedDonors2 = ovkCountMask(NearCrossoverMask2)
             end if
             call ovkGenerateNearCrossoverMask(Grids(m), Grids(n), PairwiseDonors(n,m), &
               PairwiseDonors(m,n), FringePadding_(n,m), NearCrossoverMask1, &
@@ -443,20 +443,20 @@ contains
             PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
               .not. NearCrossoverMask2%values
             if (OVK_VERBOSE) then
-              nInvalidatedDonors1 = nInvalidatedDonors1 + ovkCountMask(NearCrossoverMask1)
-              nInvalidatedDonors2 = nInvalidatedDonors2 + ovkCountMask(NearCrossoverMask2)
+              NumInvalidatedDonors1 = NumInvalidatedDonors1 + ovkCountMask(NearCrossoverMask1)
+              NumInvalidatedDonors2 = NumInvalidatedDonors2 + ovkCountMask(NearCrossoverMask2)
             end if
           else
             if (OVK_VERBOSE) then
-              nInvalidatedDonors1 = 0
-              nInvalidatedDonors2 = 0
+              NumInvalidatedDonors1 = 0
+              NumInvalidatedDonors2 = 0
             end if
           end if
           if (OVK_VERBOSE) then
-            write (*, '(7a)') "* ", trim(LargeIntToString(nInvalidatedDonors1)), &
+            write (*, '(7a)') "* ", trim(LargeIntToString(NumInvalidatedDonors1)), &
               " donor/receiver pairs from grid ", trim(IntToString(n)), " to ", &
               trim(IntToString(m)), " invalidated."
-            write (*, '(7a)') "* ", trim(LargeIntToString(nInvalidatedDonors2)), &
+            write (*, '(7a)') "* ", trim(LargeIntToString(NumInvalidatedDonors2)), &
               " donor/receiver pairs from grid ", trim(IntToString(m)), " to ", &
               trim(IntToString(n)), " invalidated."
           end if
@@ -489,8 +489,8 @@ contains
     do m = 1, size(Grids)
       call ovkMergeDonors(PairwiseDonors(:,m), Donors(m))
       if (OVK_VERBOSE) then
-        nReceivers = ovkCountMask(Donors(m)%valid_mask)
-        write (*, '(5a)') "* ", trim(LargeIntToString(nReceivers)), &
+        NumReceivers = ovkCountMask(Donors(m)%valid_mask)
+        write (*, '(5a)') "* ", trim(LargeIntToString(NumReceivers)), &
           " receiver points on grid ", trim(IntToString(m)), "."
       end if
     end do
@@ -526,8 +526,8 @@ contains
           HoleMasks(n)%values = HoleMasks(n)%values .or. OverlapOptimizationMask%values
         end if
         if (OVK_VERBOSE) then
-          nRemovedPoints = ovkCountMask(OverlapOptimizationMask)
-          write (*, '(5a)') "* ", trim(LargeIntToString(nRemovedPoints)), &
+          NumRemovedPoints = ovkCountMask(OverlapOptimizationMask)
+          write (*, '(5a)') "* ", trim(LargeIntToString(NumRemovedPoints)), &
             " points removed from grid ", trim(IntToString(n)), "."
         end if
       end if
@@ -692,8 +692,8 @@ contains
             end do
           end do
         end do
-        nOrphans = ovkCountMask(OrphanMask)
-        write (*, '(5a)') "* ", trim(LargeIntToString(nOrphans)), &
+        NumOrphans = ovkCountMask(OrphanMask)
+        write (*, '(5a)') "* ", trim(LargeIntToString(NumOrphans)), &
           " orphan points found on grid ", trim(IntToString(m)), "."
       end if
     end do

@@ -96,20 +96,20 @@ contains
     character(len=STRING_LENGTH) :: NString
 
     integer :: i, j
-    integer :: nDigits
-    integer :: nBeforeComma
+    integer :: NumDigits
+    integer :: NumBeforeComma
     character(len=STRING_LENGTH) :: UnformattedNString
 
     write (UnformattedNString, '(i0)') N
 
-    nDigits = len_trim(UnformattedNString)
-    nBeforeComma = modulo(nDigits-1, 3) + 1
+    NumDigits = len_trim(UnformattedNString)
+    NumBeforeComma = modulo(NumDigits-1, 3) + 1
 
-    NString(:nBeforeComma) = UnformattedNString(:nBeforeComma)
+    NString(:NumBeforeComma) = UnformattedNString(:NumBeforeComma)
 
-    j = nBeforeComma + 1
-    do i = nBeforeComma + 1, nDigits
-      if (modulo(i-nBeforeComma-1, 3) == 0) then
+    j = NumBeforeComma + 1
+    do i = NumBeforeComma + 1, NumDigits
+      if (modulo(i-NumBeforeComma-1, 3) == 0) then
         NString(j:j) = ','
         j = j + 1
       end if

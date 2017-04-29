@@ -14,9 +14,9 @@ program BoxInBox
   character(len=256) :: Description
   type(t_cmd_opt), dimension(3) :: Options
   integer :: N
-  integer :: nDims
+  integer :: NumDims
   character(len=32) :: InterpSchemeString
-  integer, dimension(MAX_ND,2) :: nPoints
+  integer, dimension(MAX_ND,2) :: NumPoints
   real(rk), dimension(MAX_ND,2) :: Length
   type(ovk_cart), dimension(2) :: Carts
   type(ovk_field_real), dimension(:,:), allocatable :: XYZ
@@ -46,9 +46,9 @@ program BoxInBox
 
   call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
 
-  call GetOptionValue(Options(1), nDims, 2)
-  if (nDims /= 2 .and. nDims /= 3) then
-    write (ERROR_UNIT, '(3a)') "ERROR: Invalid grid dimension ", nDims, "."
+  call GetOptionValue(Options(1), NumDims, 2)
+  if (NumDims /= 2 .and. NumDims /= 3) then
+    write (ERROR_UNIT, '(3a)') "ERROR: Invalid grid dimension ", NumDims, "."
     stop 1
   end if
 
@@ -66,29 +66,29 @@ program BoxInBox
     stop 1
   end select
 
-  nPoints = 1
-  nPoints(:nDims,1) = N
-  nPoints(:nDims,2) = N
+  NumPoints = 1
+  NumPoints(:NumDims,1) = N
+  NumPoints(:NumDims,2) = N
 
   Length = 0._rk
-  Length(:nDims,1) = 2._rk
-  Length(:nDims,2) = 1.25_rk
+  Length(:NumDims,1) = 2._rk
+  Length(:NumDims,2) = 1.25_rk
 
   ! Specify the grids' structural properties (dimension, size, periodicity, etc.)
-  Carts(1) = ovk_cart_(nDims, nPoints(:nDims,1))
-  Carts(2) = ovk_cart_(nDims, nPoints(:nDims,2))
+  Carts(1) = ovk_cart_(NumDims, NumPoints(:NumDims,1))
+  Carts(2) = ovk_cart_(NumDims, NumPoints(:NumDims,2))
 
-  allocate(XYZ(nDims,2))
+  allocate(XYZ(NumDims,2))
 
   ! Create the coordinate arrays
   do m = 1, 2
     XYZ(:,m) = ovk_field_real_(Carts(m))
-    do k = 1, nPoints(3,m)
-      do j = 1, nPoints(2,m)
-        do i = 1, nPoints(1,m)
+    do k = 1, NumPoints(3,m)
+      do j = 1, NumPoints(2,m)
+        do i = 1, NumPoints(1,m)
           Point = [i,j,k]
-          do l = 1, nDims
-            U = real(Point(l)-1,kind=rk)/real(nPoints(l,m)-1,kind=rk)
+          do l = 1, NumDims
+            U = real(Point(l)-1,kind=rk)/real(NumPoints(l,m)-1,kind=rk)
             XYZ(l,m)%values(i,j,k) = Length(l,m) * (U-0.5_rk)
           end do
         end do
@@ -117,7 +117,7 @@ program BoxInBox
   !   1 => normal point
   !   0 => hole
   !  -N => receives from grid N
-  call ovkP3DCreate(GridFile, "grid.xyz", nGrids=2, Carts=Carts, WithIBlank=.true.)
+  call ovkP3DCreate(GridFile, "grid.xyz", NumGrids=2, Carts=Carts, WithIBlank=.true.)
   do m = 1, 2
     IBlank = ovk_field_int_(Carts(m), 1)
     call ovkDonorGridIDToIBlank(InterpData(m), IBlank, Multiplier=-1)

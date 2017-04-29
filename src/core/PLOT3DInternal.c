@@ -13,9 +13,9 @@ typedef int p3d_size_type;
 typedef long long int p3d_offset_type;
 
 static p3d_size_type fread_endian(p3d_endian_type Endian, void *Data, p3d_size_type ElementSize,
-  p3d_size_type nElements, FILE *In);
+  p3d_size_type NumElements, FILE *In);
 static p3d_size_type fwrite_endian(p3d_endian_type Endian, void *Data, p3d_size_type ElementSize, 
-  p3d_size_type nElements, FILE *Out);
+  p3d_size_type NumElements, FILE *Out);
 
 // Report the machine's endianness
 p3d_endian_type P3DInternalMachineEndian() {
@@ -31,15 +31,15 @@ p3d_endian_type P3DInternalMachineEndian() {
 }
 
 // Figure out a PLOT3D grid file's format
-void P3DInternalDetectGridFormat(char *FilePath, int *nDims, int *nGrids, int *WithIBlank,
+void P3DInternalDetectGridFormat(char *FilePath, int *NumDims, int *NumGrids, int *WithIBlank,
   p3d_endian_type *Endian, int *Error) {
 
   FILE *GridFile;
   char ErrorString[256];
   int i, m;
   p3d_size_type Record;
-  int *nPointsAll;
-  int *nPoints;
+  int *NumPointsAll;
+  int *NumPoints;
   p3d_size_type GridSize;
 
   *Error = 0;
@@ -62,23 +62,23 @@ void P3DInternalDetectGridFormat(char *FilePath, int *nDims, int *nGrids, int *W
 
   // Read the number of grids
   fread_endian(*Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
-  fread_endian(*Endian, nGrids, sizeof(int), 1, GridFile);
+  fread_endian(*Endian, NumGrids, sizeof(int), 1, GridFile);
   fread_endian(*Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
 
-  if (*nGrids != 0) {
+  if (*NumGrids != 0) {
 
     // The next record contains the number of points over all grids;
     // Use the first record indicator to figure out the grid dimension
     fread_endian(*Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
-    *nDims = Record/(sizeof(int)*(*nGrids));
+    *NumDims = Record/(sizeof(int)*(*NumGrids));
 
     // Read the number of points over all grids
-    nPointsAll = (int *)malloc(sizeof(int)*(*nGrids)*3);
-    for (m = 0; m < *nGrids; ++m) {
-      nPoints = nPointsAll + 3*m;
-      fread_endian(*Endian, nPoints, sizeof(int), *nDims, GridFile);
-      for (i = *nDims; i < 3; ++i) {
-        nPoints[i] = 1;
+    NumPointsAll = (int *)malloc(sizeof(int)*(*NumGrids)*3);
+    for (m = 0; m < *NumGrids; ++m) {
+      NumPoints = NumPointsAll + 3*m;
+      fread_endian(*Endian, NumPoints, sizeof(int), *NumDims, GridFile);
+      for (i = *NumDims; i < 3; ++i) {
+        NumPoints[i] = 1;
       }
     }
     fread_endian(*Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
@@ -86,16 +86,16 @@ void P3DInternalDetectGridFormat(char *FilePath, int *nDims, int *nGrids, int *W
     // The next record contains grid 1
     // Use the first record indicator to figure out whether the grid has IBlank or not
     fread_endian(*Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
-    GridSize = nPointsAll[0]*nPointsAll[1]*nPointsAll[2];
-    *WithIBlank = Record > sizeof(double)*(*nDims)*GridSize;
+    GridSize = NumPointsAll[0]*NumPointsAll[1]*NumPointsAll[2];
+    *WithIBlank = Record > sizeof(double)*(*NumDims)*GridSize;
 
-    free(nPointsAll);
+    free(NumPointsAll);
 
   } else {
 
     // Degenerate case, empty grid file -- just pick some values for the remaining
     // format parameters
-    *nDims = 3;
+    *NumDims = 3;
     *WithIBlank = 0;
     *Endian = P3DInternalMachineEndian();
 
@@ -106,8 +106,8 @@ void P3DInternalDetectGridFormat(char *FilePath, int *nDims, int *nGrids, int *W
 }
 
 // Read the size of a grid in a PLOT3D grid file
-void P3DInternalGetGridSize(char *FilePath, int nDims, p3d_endian_type Endian, int GridID,
-  int *nPoints, int *Error) {
+void P3DInternalGetGridSize(char *FilePath, int NumDims, p3d_endian_type Endian, int GridID,
+  int *NumPoints, int *Error) {
 
   FILE *GridFile;
   char ErrorString[256];
@@ -124,15 +124,15 @@ void P3DInternalGetGridSize(char *FilePath, int nDims, p3d_endian_type Endian, i
     return;
   }
 
-  // Skip past nGrids record and part of nPoints record that contains prior grids' sizes
+  // Skip past NumGrids record and part of NumPoints record that contains prior grids' sizes
   Offset = 2*sizeof(p3d_size_type) + sizeof(int);
-  Offset += sizeof(p3d_size_type) + sizeof(int) * GridID * nDims;
+  Offset += sizeof(p3d_size_type) + sizeof(int) * GridID * NumDims;
   fseek(GridFile, (long int)Offset, SEEK_SET);
 
   // Read the number of points for the current grid
-  fread_endian(Endian, nPoints, sizeof(int), nDims, GridFile);
-  for (i = nDims; i < 3; ++i) {
-    nPoints[i] = 1;
+  fread_endian(Endian, NumPoints, sizeof(int), NumDims, GridFile);
+  for (i = NumDims; i < 3; ++i) {
+    NumPoints[i] = 1;
   }
 
   fclose(GridFile);
@@ -140,12 +140,12 @@ void P3DInternalGetGridSize(char *FilePath, int nDims, p3d_endian_type Endian, i
 }
 
 // Report the offset of a grid record in a PLOT3D grid file
-p3d_offset_type P3DInternalGetGridOffset(int nDims, int nGrids, int *nPointsAll, int WithIBlank,
-  int GridID) {
+p3d_offset_type P3DInternalGetGridOffset(int NumDims, int NumGrids, int *NumPointsAll,
+  int WithIBlank, int GridID) {
 
   p3d_offset_type Offset;
   int m;
-  int *nPoints;
+  int *NumPoints;
   p3d_size_type GridSize;
 
   Offset = 0;
@@ -154,13 +154,13 @@ p3d_offset_type P3DInternalGetGridOffset(int nDims, int nGrids, int *nPointsAll,
   Offset += sizeof(int) + 2*sizeof(p3d_size_type);
 
   // Number of points over all grids record
-  Offset += sizeof(int)*nDims*nGrids + 2*sizeof(p3d_size_type);
+  Offset += sizeof(int)*NumDims*NumGrids + 2*sizeof(p3d_size_type);
 
   // Previous grid records
   for (m = 0; m < GridID; ++m) {
-    nPoints = nPointsAll + 3*m;
-    GridSize = nPoints[0]*nPoints[1]*nPoints[2];
-    Offset += sizeof(double)*nDims*GridSize;
+    NumPoints = NumPointsAll + 3*m;
+    GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
+    Offset += sizeof(double)*NumDims*GridSize;
     if (WithIBlank) {
       Offset += sizeof(int)*GridSize;
     }
@@ -172,17 +172,17 @@ p3d_offset_type P3DInternalGetGridOffset(int nDims, int nGrids, int *nPointsAll,
 }
 
 // Create a PLOT3D grid file, write the header, and pad the rest with zeros
-void P3DInternalCreateGridFile(char *FilePath, int nDims, int nGrids, int *nPointsAll,
+void P3DInternalCreateGridFile(char *FilePath, int NumDims, int NumGrids, int *NumPointsAll,
   int WithIBlank, int Endian, int *Error) {
 
   FILE *GridFile = NULL;
   char ErrorString[256];
   p3d_size_type Record;
   int m;
-  int *nPoints;
+  int *NumPoints;
   p3d_size_type GridSize;
   const char Zeros[4096] = { 0 };
-  p3d_size_type nBytes;
+  p3d_size_type NumBytes;
   int WriteSize;
 
   *Error = 0;
@@ -198,32 +198,32 @@ void P3DInternalCreateGridFile(char *FilePath, int nDims, int nGrids, int *nPoin
   // Write the number of grids
   Record = sizeof(int);
   fwrite_endian(Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
-  fwrite_endian(Endian, &nGrids, sizeof(int), 1, GridFile);
+  fwrite_endian(Endian, &NumGrids, sizeof(int), 1, GridFile);
   fwrite_endian(Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
 
   // Write the number of points over all grids
-  Record = sizeof(int)*nDims*nGrids;
+  Record = sizeof(int)*NumDims*NumGrids;
   fwrite_endian(Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
-  for (m = 0; m < nGrids; ++m) {
-    fwrite_endian(Endian, nPointsAll+3*m, sizeof(int), nDims, GridFile);
+  for (m = 0; m < NumGrids; ++m) {
+    fwrite_endian(Endian, NumPointsAll+3*m, sizeof(int), NumDims, GridFile);
   }
   fwrite_endian(Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
 
   // Pad the rest of the file with zeros
-  for (m = 0; m < nGrids; ++m) {
+  for (m = 0; m < NumGrids; ++m) {
 
-    nPoints = nPointsAll + 3*m;
-    GridSize = nPoints[0]*nPoints[1]*nPoints[2];
-    nBytes = sizeof(double)*nDims*GridSize;
+    NumPoints = NumPointsAll + 3*m;
+    GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
+    NumBytes = sizeof(double)*NumDims*GridSize;
     if (WithIBlank) {
-      nBytes += sizeof(int)*GridSize;
+      NumBytes += sizeof(int)*GridSize;
     }
-    nBytes += 2*sizeof(p3d_size_type);
+    NumBytes += 2*sizeof(p3d_size_type);
 
-    while (nBytes > 0) {
-      WriteSize = nBytes > 4096 ? 4096 : nBytes;
+    while (NumBytes > 0) {
+      WriteSize = NumBytes > 4096 ? 4096 : NumBytes;
       fwrite(Zeros, 1, WriteSize, GridFile);
-      nBytes -= WriteSize;
+      NumBytes -= WriteSize;
     }
 
   }
@@ -233,7 +233,7 @@ void P3DInternalCreateGridFile(char *FilePath, int nDims, int nGrids, int *nPoin
 }
 
 // Read a PLOT3D grid from a grid file
-void P3DInternalReadSingleGrid(char *FilePath, int nDims, int *nPoints, int WithIBlank,
+void P3DInternalReadSingleGrid(char *FilePath, int NumDims, int *NumPoints, int WithIBlank,
   p3d_endian_type Endian, p3d_offset_type Offset, double *X, double *Y, double *Z, int *IBlank,
   int *Error) {
 
@@ -256,10 +256,10 @@ void P3DInternalReadSingleGrid(char *FilePath, int nDims, int *nPoints, int With
   fseek(GridFile, (long int)(Offset + sizeof(p3d_size_type)), SEEK_SET);
 
   // Read the grid data
-  GridSize = nPoints[0]*nPoints[1]*nPoints[2];
+  GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
   fread_endian(Endian, X, sizeof(double), GridSize, GridFile);
   fread_endian(Endian, Y, sizeof(double), GridSize, GridFile);
-  if (nDims == 3) {
+  if (NumDims == 3) {
     fread_endian(Endian, Z, sizeof(double), GridSize, GridFile);
   }
   if (WithIBlank) {
@@ -271,25 +271,25 @@ void P3DInternalReadSingleGrid(char *FilePath, int nDims, int *nPoints, int With
 }
 
 // Can't easily pass null pointers from Fortran, so call these wrappers instead
-void P3DInternalReadSingleGrid2D(char *FilePath, int *nPoints, p3d_endian_type Endian,
+void P3DInternalReadSingleGrid2D(char *FilePath, int *NumPoints, p3d_endian_type Endian,
   p3d_offset_type Offset, double *X, double *Y, int *Error) {
-  P3DInternalReadSingleGrid(FilePath, 2, nPoints, 0, Endian, Offset, X, Y, NULL, NULL, Error);
+  P3DInternalReadSingleGrid(FilePath, 2, NumPoints, 0, Endian, Offset, X, Y, NULL, NULL, Error);
 }
-void P3DInternalReadSingleGrid2DWithIBlank(char *FilePath, int *nPoints,
+void P3DInternalReadSingleGrid2DWithIBlank(char *FilePath, int *NumPoints,
   p3d_endian_type Endian, p3d_offset_type Offset, double *X, double *Y, int *IBlank, int *Error) {
-  P3DInternalReadSingleGrid(FilePath, 2, nPoints, 1, Endian, Offset, X, Y, NULL, IBlank, Error);
+  P3DInternalReadSingleGrid(FilePath, 2, NumPoints, 1, Endian, Offset, X, Y, NULL, IBlank, Error);
 }
-void P3DInternalReadSingleGrid3D(char *FilePath, int *nPoints, p3d_endian_type Endian,
+void P3DInternalReadSingleGrid3D(char *FilePath, int *NumPoints, p3d_endian_type Endian,
   p3d_offset_type Offset, double *X, double *Y, double *Z, int *Error) {
-  P3DInternalReadSingleGrid(FilePath, 3, nPoints, 0, Endian, Offset, X, Y, Z, NULL, Error);
+  P3DInternalReadSingleGrid(FilePath, 3, NumPoints, 0, Endian, Offset, X, Y, Z, NULL, Error);
 }
-void P3DInternalReadSingleGrid3DWithIBlank(char *FilePath, int *nPoints, p3d_endian_type Endian,
+void P3DInternalReadSingleGrid3DWithIBlank(char *FilePath, int *NumPoints, p3d_endian_type Endian,
   p3d_offset_type Offset, double *X, double *Y, double *Z, int *IBlank, int *Error) {
-  P3DInternalReadSingleGrid(FilePath, 3, nPoints, 1, Endian, Offset, X, Y, Z, IBlank, Error);
+  P3DInternalReadSingleGrid(FilePath, 3, NumPoints, 1, Endian, Offset, X, Y, Z, IBlank, Error);
 }
 
 // Write a PLOT3D grid to a grid file
-void P3DInternalWriteSingleGrid(char *FilePath, int nDims, int *nPoints, int WithIBlank,
+void P3DInternalWriteSingleGrid(char *FilePath, int NumDims, int *NumPoints, int WithIBlank,
   p3d_endian_type Endian, p3d_offset_type Offset, double *X, double *Y, double *Z, int *IBlank,
   int *Error) {
 
@@ -313,12 +313,12 @@ void P3DInternalWriteSingleGrid(char *FilePath, int nDims, int *nPoints, int Wit
   fseek(GridFile, (long int)Offset, SEEK_SET);
 
   // Write the grid data
-  GridSize = nPoints[0]*nPoints[1]*nPoints[2];
-  Record = sizeof(double)*nDims*GridSize + sizeof(int)*GridSize;
+  GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
+  Record = sizeof(double)*NumDims*GridSize + sizeof(int)*GridSize;
   fwrite_endian(Endian, &Record, sizeof(p3d_size_type), 1, GridFile);
   fwrite_endian(Endian, X, sizeof(double), GridSize, GridFile);
   fwrite_endian(Endian, Y, sizeof(double), GridSize, GridFile);
-  if (nDims == 3) {
+  if (NumDims == 3) {
     fwrite_endian(Endian, Z, sizeof(double), GridSize, GridFile);
   }
   if (WithIBlank == 1) {
@@ -331,30 +331,30 @@ void P3DInternalWriteSingleGrid(char *FilePath, int nDims, int *nPoints, int Wit
 }
 
 // Can't easily pass null pointers from Fortran, so call these wrappers instead
-void P3DInternalWriteSingleGrid2D(char *FilePath, int *nPoints, p3d_endian_type Endian,
+void P3DInternalWriteSingleGrid2D(char *FilePath, int *NumPoints, p3d_endian_type Endian,
   p3d_offset_type Offset, double *X, double *Y, int *Error) {
-  P3DInternalWriteSingleGrid(FilePath, 2, nPoints, 0, Endian, Offset, X, Y, NULL, NULL, Error);
+  P3DInternalWriteSingleGrid(FilePath, 2, NumPoints, 0, Endian, Offset, X, Y, NULL, NULL, Error);
 }
-void P3DInternalWriteSingleGrid2DWithIBlank(char *FilePath, int *nPoints,
+void P3DInternalWriteSingleGrid2DWithIBlank(char *FilePath, int *NumPoints,
   p3d_endian_type Endian, p3d_offset_type Offset, double *X, double *Y, int *IBlank, int *Error) {
-  P3DInternalWriteSingleGrid(FilePath, 2, nPoints, 1, Endian, Offset, X, Y, NULL, IBlank, Error);
+  P3DInternalWriteSingleGrid(FilePath, 2, NumPoints, 1, Endian, Offset, X, Y, NULL, IBlank, Error);
 }
-void P3DInternalWriteSingleGrid3D(char *FilePath, int *nPoints, p3d_endian_type Endian,
+void P3DInternalWriteSingleGrid3D(char *FilePath, int *NumPoints, p3d_endian_type Endian,
   p3d_offset_type Offset, double *X, double *Y, double *Z, int *Error) {
-  P3DInternalWriteSingleGrid(FilePath, 3, nPoints, 0, Endian, Offset, X, Y, Z, NULL, Error);
+  P3DInternalWriteSingleGrid(FilePath, 3, NumPoints, 0, Endian, Offset, X, Y, Z, NULL, Error);
 }
-void P3DInternalWriteSingleGrid3DWithIBlank(char *FilePath, int *nPoints, p3d_endian_type Endian,
+void P3DInternalWriteSingleGrid3DWithIBlank(char *FilePath, int *NumPoints, p3d_endian_type Endian,
   p3d_offset_type Offset, double *X, double *Y, double *Z, int *IBlank, int *Error) {
-  P3DInternalWriteSingleGrid(FilePath, 3, nPoints, 1, Endian, Offset, X, Y, Z, IBlank, Error);
+  P3DInternalWriteSingleGrid(FilePath, 3, NumPoints, 1, Endian, Offset, X, Y, Z, IBlank, Error);
 }
 
-static void SwapEndian(void *Data, p3d_size_type ElementSize, p3d_size_type nElements,
+static void SwapEndian(void *Data, p3d_size_type ElementSize, p3d_size_type NumElements,
   void *SwappedData) {
 
   int i, j;
   char *A, *B;
 
-  for (i = 0; i < nElements; ++i) {
+  for (i = 0; i < NumElements; ++i) {
     A = (char *)Data + i*ElementSize;
     B = (char *)SwappedData + i*ElementSize;
     for (j = 0; j < ElementSize; ++j) {
@@ -366,7 +366,7 @@ static void SwapEndian(void *Data, p3d_size_type ElementSize, p3d_size_type nEle
 
 // Read data, possibly with an endianness that is different from the machine's
 static p3d_size_type fread_endian(p3d_endian_type Endian, void *Data, p3d_size_type ElementSize,
-  p3d_size_type nElements, FILE *In) {
+  p3d_size_type NumElements, FILE *In) {
 
   int DifferentEndian;
   void *DataToRead;
@@ -375,15 +375,15 @@ static p3d_size_type fread_endian(p3d_endian_type Endian, void *Data, p3d_size_t
   DifferentEndian = Endian != P3DInternalMachineEndian();
 
   if (DifferentEndian) {
-    DataToRead = malloc(ElementSize * nElements);
+    DataToRead = malloc(ElementSize * NumElements);
   } else {
     DataToRead = Data;
   }
 
-  Result = fread(DataToRead, ElementSize, nElements, In);
+  Result = fread(DataToRead, ElementSize, NumElements, In);
 
   if (DifferentEndian) {
-    SwapEndian(DataToRead, ElementSize, nElements, Data);
+    SwapEndian(DataToRead, ElementSize, NumElements, Data);
     free(DataToRead);
   }
 
@@ -393,7 +393,7 @@ static p3d_size_type fread_endian(p3d_endian_type Endian, void *Data, p3d_size_t
 
 // Write data, possibly with an endianness that is different from the machine's
 static p3d_size_type fwrite_endian(p3d_endian_type Endian, void *Data, p3d_size_type ElementSize, 
-  p3d_size_type nElements, FILE *Out) {
+  p3d_size_type NumElements, FILE *Out) {
 
   int DifferentEndian;
   void *DataToWrite;
@@ -402,13 +402,13 @@ static p3d_size_type fwrite_endian(p3d_endian_type Endian, void *Data, p3d_size_
   DifferentEndian = Endian != P3DInternalMachineEndian();
 
   if (DifferentEndian) {
-    DataToWrite = malloc(ElementSize * nElements);
-    SwapEndian(Data, ElementSize, nElements, DataToWrite);
+    DataToWrite = malloc(ElementSize * NumElements);
+    SwapEndian(Data, ElementSize, NumElements, DataToWrite);
   } else {
     DataToWrite = Data;
   }
 
-  Result = fwrite(DataToWrite, ElementSize, nElements, Out);
+  Result = fwrite(DataToWrite, ElementSize, NumElements, Out);
 
   if (DifferentEndian) {
     free(DataToWrite);

@@ -43,16 +43,16 @@ module ovkInterp
 
 contains
 
-  pure function ovk_interp_Default(nDims) result(InterpData)
+  pure function ovk_interp_Default(NumDims) result(InterpData)
 
-    integer, intent(in) :: nDims
+    integer, intent(in) :: NumDims
     type(ovk_interp) :: InterpData
 
-    InterpData%cart = ovk_cart_(nDims)
+    InterpData%cart = ovk_cart_(NumDims)
     InterpData%ncoefs = 0
-    InterpData%valid_mask = ovk_field_logical_(nDims)
-    InterpData%donor_grid_ids = ovk_field_int_(nDims)
-    InterpData%schemes = ovk_field_int_(nDims)
+    InterpData%valid_mask = ovk_field_logical_(NumDims)
+    InterpData%donor_grid_ids = ovk_field_int_(NumDims)
+    InterpData%schemes = ovk_field_int_(NumDims)
 
   end function ovk_interp_Default
 
