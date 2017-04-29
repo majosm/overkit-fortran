@@ -19,8 +19,10 @@ endif()
 #===============
 
 project(Overkit Fortran C)
-set(Overkit_MAJOR_VERSION 0)
-set(Overkit_MINOR_VERSION 1)
+set(Overkit_VERSION_MAJOR 0)
+set(Overkit_VERSION_MINOR 1)
+set(Overkit_VERSION_PATCH 0)
+set(Overkit_VERSION ${Overkit_VERSION_MAJOR}.${Overkit_VERSION_MINOR}.${Overkit_VERSION_PATCH})
 
 # Module stuff
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/config/modules")
@@ -136,3 +138,34 @@ endif()
 add_subdirectory(examples)
 add_subdirectory(src)
 add_subdirectory(tests)
+
+#==============
+# Installation
+#==============
+
+include(CMakePackageConfigHelpers)
+
+write_basic_package_version_file("${CMAKE_BINARY_DIR}/OverkitConfigVersion.cmake"
+  VERSION ${Overkit_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+export(EXPORT OverkitTargets
+  FILE "${CMAKE_BINARY_DIR}/OverkitTargets.cmake"
+)
+
+configure_file(config/OverkitConfig.cmake
+  "${CMAKE_BINARY_DIR}/OverkitConfig.cmake"
+  COPYONLY
+)
+
+install(
+  FILES
+    "${CMAKE_BINARY_DIR}/OverkitConfig.cmake"
+    "${CMAKE_BINARY_DIR}/OverkitConfigVersion.cmake"
+  DESTINATION lib/Overkit/CMake
+)
+
+install(EXPORT OverkitTargets
+  DESTINATION lib/Overkit/CMake
+)
