@@ -5,7 +5,7 @@
 # CMake requirements
 #====================
 
-cmake_minimum_required(VERSION 2.8.10)
+cmake_minimum_required(VERSION 2.8.12)
 
 if(${CMAKE_VERSION} VERSION_GREATER 3.4.1)
   include(CheckFortranCompilerFlag)
@@ -29,6 +29,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/config/modules")
 set(Fortran_ENABLED TRUE)
 set(C_ENABLED TRUE)
 set(CXX_ENABLED FALSE)
+
+# OS X RPATH for dynamic libraries
+set(CMAKE_MACOSX_RPATH TRUE)
 
 # Forbid in-source builds
 if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
