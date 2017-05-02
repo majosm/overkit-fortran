@@ -52,8 +52,8 @@ if(TESTS)
     include_directories("${PFUNIT_INCLUDE_DIR}" "${PFUNIT_MODULE_DIR}")
 
     # Find Overkit module file
-    include_directories("${CMAKE_BINARY_DIR}/src/core")
-    include_directories("${CMAKE_BINARY_DIR}/src/support")
+    include_directories("${CMAKE_BINARY_DIR}/src/core/mod")
+    include_directories("${CMAKE_BINARY_DIR}/src/support/mod")
 
     # Find testSuites.inc file
     include_directories("${CMAKE_CURRENT_BINARY_DIR}")

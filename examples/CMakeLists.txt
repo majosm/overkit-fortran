@@ -7,9 +7,10 @@
 
 if(EXAMPLES)
 
-include_directories("${CMAKE_BINARY_DIR}/src/core")
-include_directories("${CMAKE_BINARY_DIR}/src/support")
-link_libraries(overkit overkit-support)
+# Link to overkit and overkit-support
+include_directories("${CMAKE_BINARY_DIR}/src/core/mod")
+include_directories("${CMAKE_BINARY_DIR}/src/support/mod")
+link_libraries(overkit-support overkit)
 
 add_executable(BoxInBox BoxInBox.F90)
 add_executable(Blobs Blobs.F90)

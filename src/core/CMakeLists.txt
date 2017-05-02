@@ -30,6 +30,11 @@ add_library(overkit ${OVERKIT_SOURCES})
 # Compiler flags
 #================
 
+# Place compiled modules in a subdirectory
+set_property(TARGET overkit PROPERTY Fortran_MODULE_DIRECTORY
+  "${CMAKE_CURRENT_BINARY_DIR}/mod")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/mod")
+
 # Define OVERKIT_DEBUG flag in debug & coverage build types
 set_property(TARGET overkit APPEND PROPERTY COMPILE_DEFINITIONS
   $<$<OR:$<CONFIG:Debug>,$<CONFIG:Coverage>>:OVERKIT_DEBUG>
@@ -58,7 +63,7 @@ install(TARGETS overkit
   INCLUDES DESTINATION include
 )
 
-# Install module
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/overkit.mod"
+# Install module files
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mod/"
   DESTINATION include
 )
