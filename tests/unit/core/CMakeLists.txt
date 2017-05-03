@@ -65,7 +65,8 @@ if(TESTS)
 
   else()
 
-    message(WARNING "Could not find pFUnit. Disabling unit tests.")
+    message(WARNING "Could not find pFUnit. Unit tests will not be built.")
+    set(GLOBAL_WARNING_FLAG TRUE CACHE INTERNAL "")
 
   endif()
 

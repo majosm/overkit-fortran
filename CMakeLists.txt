@@ -1,6 +1,12 @@
 # Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 # License: MIT (http://opensource.org/licenses/MIT)
 
+#================
+# Initialization
+#================
+
+set(GLOBAL_WARNING_FLAG FALSE CACHE INTERNAL "")
+
 #====================
 # CMake requirements
 #====================
@@ -74,6 +80,11 @@ endif()
 option(VERBOSE "Enable runtime status output" ON)
 option(TESTS "Enable tests" OFF)
 option(EXAMPLES "Build examples" OFF)
+option (BUILD_SHARED_LIBS "" OFF)
+
+if(NOT DEFINED BUILD_SHARED_LIBS)
+  set(BUILD_SHARED_LIBS FALSE)
+endif()
 
 #======================
 # Extra compiler flags
@@ -94,15 +105,15 @@ if(${CMAKE_Fortran_COMPILER_ID} MATCHES "GNU")
     if(CMAKE_C_COMPILER_VERSION VERSION_GREATER 4.7)
       set(SUPPORTS_FSTACKARRAYS TRUE CACHE INTERNAL "")
     else()
-      message(WARNING "GNU Fortran compiler version doesn't support -fstack-arrays flag. Performance may be degraded.")
       set(SUPPORTS_FSTACKARRAYS FALSE CACHE INTERNAL "")
     endif()
   endif()
-else()
-  set(SUPPORTS_FSTACKARRAYS FALSE CACHE INTERNAL "")
-endif()
-if(SUPPORTS_FSTACKARRAYS)
-  set(EXTRA_Fortran_FLAGS "${EXTRA_Fortran_FLAGS} -fstack-arrays")
+  if(SUPPORTS_FSTACKARRAYS)
+    set(EXTRA_Fortran_FLAGS "${EXTRA_Fortran_FLAGS} -fstack-arrays")
+  else()
+    message(WARNING "GNU Fortran compiler version doesn't support -fstack-arrays flag. Performance may be degraded.")
+    set(GLOBAL_WARNING_FLAG TRUE CACHE INTERNAL "")
+  endif()
 endif()
 
 # Intel sometimes allocates large arrays on the stack; this flag prevents
@@ -176,3 +187,26 @@ install(
 install(EXPORT OverkitTargets
   DESTINATION lib/Overkit/CMake
 )
+
+#=============================
+# Write configuration summary
+#=============================
+
+message(STATUS "")
+message(STATUS "=====================")
+message(STATUS "Configuration Summary")
+message(STATUS "=====================")
+message(STATUS "")
+message(STATUS "Build type:         ${CMAKE_BUILD_TYPE}")
+message(STATUS "Fortran compiler:   ${CMAKE_Fortran_COMPILER}")
+message(STATUS "C compiler:         ${CMAKE_C_COMPILER}")
+message(STATUS "Shared libraries:   ${BUILD_SHARED_LIBS}")
+message(STATUS "Install prefix:     ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "Verbose:            ${VERBOSE}")
+message(STATUS "Examples:           ${EXAMPLES}")
+message(STATUS "Tests:              ${TESTS}")
+message(STATUS "")
+if(GLOBAL_WARNING_FLAG)
+  message(STATUS "**** Warnings were produced. See details above. **** ")
+  message(STATUS "")
+endif()
