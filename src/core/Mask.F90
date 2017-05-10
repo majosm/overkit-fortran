@@ -13,6 +13,8 @@ module ovkMask
   ! API
   public :: ovkFindMaskEdge
   public :: ovkGrowMask
+  public :: ovkConnectedComponents
+  public :: ovkFillMask
   public :: ovkGenerateExteriorMask
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
@@ -185,6 +187,196 @@ contains
     end do
 
   end subroutine ovkGrowMask
+
+  subroutine ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    type(ovk_field_logical), intent(in) :: Mask
+    integer, intent(out) :: NumComponents
+    type(ovk_field_int), intent(out) :: ComponentLabels
+
+    integer :: i, j, k, m, n, o
+    type(ovk_cart) :: Cart
+    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
+    logical :: AwayFromBoundary
+    integer, dimension(MAX_ND) :: Neighbor
+    integer :: Label, NeighborLabel
+    integer, dimension(:), allocatable :: ReducedComponentLabel
+
+    Cart = Mask%cart
+
+    NumComponents = 0
+    ComponentLabels = ovk_field_int_(Cart, 0)
+
+    do k = Cart%is(3), Cart%ie(3)
+      do j = Cart%is(2), Cart%ie(2)
+        do i = Cart%is(1), Cart%ie(1)
+          if (Mask%values(i,j,k)) then
+            Point = [i,j,k]
+            NeighborLower(:Cart%nd) = Point(:Cart%nd)-1
+            NeighborLower(Cart%nd+1:) = Point(Cart%nd+1:)
+            NeighborUpper(:Cart%nd) = Point(:Cart%nd)+1
+            NeighborUpper(Cart%nd+1:) = Point(Cart%nd+1:)
+            AwayFromBoundary = ovkCartContains(Cart, NeighborLower) .and. &
+              ovkCartContains(Cart, NeighborUpper)
+            if (AwayFromBoundary) then
+          L1: do o = NeighborLower(3), NeighborUpper(3)
+                do n = NeighborLower(2), NeighborUpper(2)
+                  do m = NeighborLower(1), NeighborUpper(1)
+                    Neighbor = [m,n,o]
+                    NeighborLabel = ComponentLabels%values(Neighbor(1),Neighbor(2),Neighbor(3))
+                    if (NeighborLabel > 0) then
+                      ComponentLabels%values(i,j,k) = NeighborLabel
+                      exit L1
+                    end if
+                  end do
+                end do
+              end do L1
+            else
+          L2: do o = NeighborLower(3), NeighborUpper(3)
+                do n = NeighborLower(2), NeighborUpper(2)
+                  do m = NeighborLower(1), NeighborUpper(1)
+                    Neighbor = [m,n,o]
+                    Neighbor(:Cart%nd) = ovkCartPeriodicAdjust(Cart, Neighbor)
+                    if (ovkCartContains(Cart, Neighbor)) then
+                      NeighborLabel = ComponentLabels%values(Neighbor(1),Neighbor(2),Neighbor(3))
+                      ComponentLabels%values(i,j,k) = NeighborLabel
+                      exit L2
+                    end if
+                  end do
+                end do
+              end do L2
+            end if
+            if (ComponentLabels%values(i,j,k) == 0) then
+              NumComponents = NumComponents + 1
+              ComponentLabels%values(i,j,k) = NumComponents
+            end if
+          end if
+        end do
+      end do
+    end do
+
+    allocate(ReducedComponentLabel(NumComponents))
+
+    do i = 1, NumComponents
+      ReducedComponentLabel(i) = i
+    end do
+
+    do k = Cart%is(3), Cart%ie(3)
+      do j = Cart%is(2), Cart%ie(2)
+        do i = Cart%is(1), Cart%ie(1)
+          if (Mask%values(i,j,k)) then
+            Point = [i,j,k]
+            Label = ComponentLabels%values(i,j,k)
+            NeighborLower(:Cart%nd) = Point(:Cart%nd)-1
+            NeighborLower(Cart%nd+1:) = Point(Cart%nd+1:)
+            NeighborUpper(:Cart%nd) = Point(:Cart%nd)+1
+            NeighborUpper(Cart%nd+1:) = Point(Cart%nd+1:)
+            AwayFromBoundary = ovkCartContains(Cart, NeighborLower) .and. &
+              ovkCartContains(Cart, NeighborUpper)
+            if (AwayFromBoundary) then
+              do o = NeighborLower(3), NeighborUpper(3)
+                do n = NeighborLower(2), NeighborUpper(2)
+                  do m = NeighborLower(1), NeighborUpper(1)
+                    Neighbor = [m,n,o]
+                    NeighborLabel = ComponentLabels%values(Neighbor(1),Neighbor(2),Neighbor(3))
+                    if (NeighborLabel > 0) then
+                      ReducedComponentLabel(Label) = min(ReducedComponentLabel(Label), &
+                        ReducedComponentLabel(NeighborLabel))
+                    end if
+                  end do
+                end do
+              end do
+            else
+              do o = NeighborLower(3), NeighborUpper(3)
+                do n = NeighborLower(2), NeighborUpper(2)
+                  do m = NeighborLower(1), NeighborUpper(1)
+                    Neighbor = [m,n,o]
+                    Neighbor(:Cart%nd) = ovkCartPeriodicAdjust(Cart, Neighbor)
+                    if (ovkCartContains(Cart, Neighbor)) then
+                      NeighborLabel = ComponentLabels%values(Neighbor(1),Neighbor(2),Neighbor(3))
+                      if (NeighborLabel > 0) then
+                        ReducedComponentLabel(Label) = min(ReducedComponentLabel(Label), &
+                          ReducedComponentLabel(NeighborLabel))
+                      end if
+                    end if
+                  end do
+                end do
+              end do
+            end if
+          end if
+        end do
+      end do
+    end do
+
+    do i = 1, NumComponents
+      j = i
+      do while (ReducedComponentLabel(j) /= j)
+        j = ReducedComponentLabel(j)
+      end do
+      ReducedComponentLabel(i) = j
+    end do
+
+    do k = Cart%is(3), Cart%ie(3)
+      do j = Cart%is(2), Cart%ie(2)
+        do i = Cart%is(1), Cart%ie(1)
+          Label = ComponentLabels%values(i,j,k)
+          if (Label > 0) then
+            ComponentLabels%values(i,j,k) = ReducedComponentLabel(Label)
+          end if
+        end do
+      end do
+    end do
+
+    NumComponents = maxval(ReducedComponentLabel)
+
+  end subroutine ovkConnectedComponents
+
+  subroutine ovkFillMask(Mask, BarrierMask)
+
+    type(ovk_field_logical), intent(inout) :: Mask
+    type(ovk_field_logical), intent(in) :: BarrierMask
+
+    integer :: i, j, k
+    type(ovk_field_logical) :: NonBarrierMask
+    integer :: NumComponents
+    type(ovk_field_int) :: ComponentLabels
+    logical, dimension(:), allocatable :: IsFillComponent
+    integer :: Label
+
+    NonBarrierMask = ovk_field_logical_(Mask%cart)
+    NonBarrierMask%values = .not. BarrierMask%values
+
+    call ovkConnectedComponents(NonBarrierMask, NumComponents, ComponentLabels)
+
+    allocate(IsFillComponent(NumComponents))
+    IsFillComponent = .false.
+
+    do k = Mask%cart%is(3), Mask%cart%ie(3)
+      do j = Mask%cart%is(2), Mask%cart%ie(2)
+        do i = Mask%cart%is(1), Mask%cart%ie(1)
+          if (Mask%values(i,j,k) .and. .not. BarrierMask%values(i,j,k)) then
+            Label = ComponentLabels%values(i,j,k)
+            IsFillComponent(Label) = .true.
+          end if
+        end do
+      end do
+    end do
+
+    do k = Mask%cart%is(3), Mask%cart%ie(3)
+      do j = Mask%cart%is(2), Mask%cart%ie(2)
+        do i = Mask%cart%is(1), Mask%cart%ie(1)
+          if (.not. BarrierMask%values(i,j,k)) then
+            Label = ComponentLabels%values(i,j,k)
+            if (IsFillComponent(Label)) then
+              Mask%values(i,j,k) = .true.
+            end if
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine ovkFillMask
 
   subroutine ovkGenerateExteriorMask(Mask, ExteriorMask, EdgeMask)
 

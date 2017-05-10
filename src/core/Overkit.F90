@@ -169,6 +169,8 @@ module Overkit
   ! ovkMask
   public :: ovkFindMaskEdge
   public :: ovkGrowMask
+  public :: ovkConnectedComponents
+  public :: ovkFillMask
   public :: ovkGenerateExteriorMask
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
