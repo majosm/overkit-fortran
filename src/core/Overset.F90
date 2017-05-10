@@ -740,7 +740,6 @@ contains
     type(ovk_field_logical) :: GridOuterEdgeMask
     type(ovk_field_logical) :: OverlapMask
     type(ovk_field_logical) :: OverlapOuterEdgeMask
-    type(ovk_field_logical) :: BoundaryOuterEdgeMask
     type(ovk_field_logical) :: NonBoundaryMask
     type(ovk_field_logical) :: NonBoundaryOuterEdgeMask
 
@@ -749,11 +748,9 @@ contains
     NonBoundaryMask = ovk_field_logical_(Grid%cart)
     NonBoundaryMask%values = .not. Grid%boundary_mask%values
 
-    call ovkFindMaskEdge(Grid%boundary_mask, OVK_EDGE_TYPE_OUTER, BoundaryOuterEdgeMask)
     call ovkFindMaskEdge(NonBoundaryMask, OVK_EDGE_TYPE_OUTER, NonBoundaryOuterEdgeMask)
 
-    GridOuterEdgeMask%values = GridOuterEdgeMask%values .and. .not. &
-      (BoundaryOuterEdgeMask%values .and. .not. NonBoundaryOuterEdgeMask%values)
+    GridOuterEdgeMask%values = GridOuterEdgeMask%values .and. NonBoundaryOuterEdgeMask%values
 
     call ovkGenerateOverlapMask(CandidateDonors, OverlapMask)
     call ovkFindMaskEdge(OverlapMask, OVK_EDGE_TYPE_OUTER, OverlapOuterEdgeMask)
