@@ -29,7 +29,6 @@ program Blobs
   integer, dimension(4) :: FringeSize
   integer, dimension(4) :: InterpScheme
   type(ovk_interp), dimension(4) :: InterpData
-  type(ovk_field_logical), dimension(4) :: HoleMasks
   type(ovk_field_int) :: IBlank
   type(ovk_p3d_grid_file) :: GridFile
   type(ovk_pegasus) :: PegasusData
@@ -162,8 +161,7 @@ program Blobs
   InterpScheme = OVK_INTERP_LINEAR
 
   ! Perform overset assembly; results are stored in InterpData
-  call ovkAssembleOverset(Grids, InterpData, FringeSize=FringeSize, InterpScheme=InterpScheme, &
-    HoleMasks=HoleMasks)
+  call ovkAssembleOverset(Grids, InterpData, FringeSize=FringeSize, InterpScheme=InterpScheme)
 
   ! Write PLOT3D grid file
   ! IBlank values are set as follows:
@@ -172,9 +170,9 @@ program Blobs
   !  -N => receives from grid N
   call ovkP3DCreate(GridFile, "grid.xyz", NumGrids=4, Carts=Carts, WithIBlank=.true.)
   do m = 1, 4
-    IBlank = ovk_field_int_(Carts(m), 1)
+    IBlank = ovk_field_int_(Carts(m))
+    call ovkMaskToIBlank(Grids(m)%grid_mask, IBlank, TrueValue=1, FalseValue=0)
     call ovkDonorGridIDToIBlank(InterpData(m), IBlank, Multiplier=-1)
-    call ovkMaskToIBlank(HoleMasks(m), IBlank, TrueValue=0)
     call ovkP3DWrite(GridFile, m, Grids(m)%xyz, IBlank)
   end do
   call ovkP3DClose(GridFile)

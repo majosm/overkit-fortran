@@ -35,7 +35,6 @@ program Bump
   integer, dimension(2) :: InterpScheme
   real(rk), dimension(2,2) :: OverlapTolerance
   type(ovk_interp), dimension(2) :: InterpData
-  type(ovk_field_logical), dimension(2) :: HoleMasks
   type(ovk_field_int) :: IBlank
   type(ovk_p3d_grid_file) :: GridFile
   type(ovk_pegasus) :: PegasusData
@@ -181,7 +180,7 @@ program Bump
 
   ! Perform overset assembly; results are stored in InterpData
   call ovkAssembleOverset(Grids, InterpData, FringeSize=FringeSize, FringePadding=FringePadding, &
-    InterpScheme=InterpScheme, OverlapTolerance=OverlapTolerance, HoleMasks=HoleMasks)
+    InterpScheme=InterpScheme, OverlapTolerance=OverlapTolerance)
 
   ! Write PLOT3D grid file
   ! IBlank values are set as follows:
@@ -190,9 +189,9 @@ program Bump
   !  -N => receives from grid N
   call ovkP3DCreate(GridFile, "grid.xyz", NumGrids=2, Carts=Carts, WithIBlank=.true.)
   do m = 1, 2
-    IBlank = ovk_field_int_(Carts(m), 1)
+    IBlank = ovk_field_int_(Carts(m))
+    call ovkMaskToIBlank(Grids(m)%grid_mask, IBlank, TrueValue=1, FalseValue=0)
     call ovkDonorGridIDToIBlank(InterpData(m), IBlank, Multiplier=-1)
-    call ovkMaskToIBlank(HoleMasks(m), IBlank, TrueValue=0)
     call ovkP3DWrite(GridFile, m, Grids(m)%xyz, IBlank)
   end do
   call ovkP3DClose(GridFile)
