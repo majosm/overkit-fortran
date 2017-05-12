@@ -25,6 +25,7 @@ module ovkGrid
   public :: ovkAvgCellSizeAroundPoint
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
+  public :: ovkExportCoords
   public :: OVK_GRID_TYPE_CARTESIAN
   public :: OVK_GRID_TYPE_CARTESIAN_ROTATED
   public :: OVK_GRID_TYPE_RECTILINEAR
@@ -54,6 +55,11 @@ module ovkGrid
   integer, parameter :: OVK_GRID_TYPE_RECTILINEAR = 3
   integer, parameter :: OVK_GRID_TYPE_RECTILINEAR_ROTATED = 4
   integer, parameter :: OVK_GRID_TYPE_CURVILINEAR = 5
+
+  interface ovkExportCoords
+    module procedure ovkExportCoords_Rank2
+    module procedure ovkExportCoords_Rank3
+  end interface ovkExportCoords
 
 contains
 
@@ -491,5 +497,99 @@ contains
     ExtendedCoords = Coords + PositiveAdjustment - NegativeAdjustment
 
   end function ovkPeriodicExtend
+
+  subroutine ovkExportCoords_Rank2(Coords, ExportCart, ExportedCoords, PeriodicLength)
+
+    type(ovk_field_real), dimension(:), intent(in) :: Coords
+    type(ovk_cart), intent(in) :: ExportCart
+    real(rk), dimension(:,:,:), intent(out) :: ExportedCoords
+    real(rk), dimension(ExportCart%nd), intent(in), optional :: PeriodicLength
+
+    real(rk), dimension(ExportCart%nd) :: PeriodicLength_
+    integer :: i, j, d, p, q
+    type(ovk_cart) :: Cart
+    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_ND) :: AdjustedPoint
+    real(rk), dimension(ExportCart%nd) :: PrincipalCoords
+
+    if (present(PeriodicLength)) then
+      PeriodicLength_ = PeriodicLength
+    else
+      PeriodicLength_ = 0._rk
+    end if
+
+    Cart = Coords(1)%cart
+
+    do j = ExportCart%is(2), ExportCart%ie(2)
+      do i = ExportCart%is(1), ExportCart%ie(1)
+        Point = [i,j,1]
+        p = i-ExportCart%is(1)+1
+        q = j-ExportCart%is(2)+1
+        if (.not. ovkCartContains(Cart, Point)) then
+          AdjustedPoint(:Cart%nd) = ovkCartPeriodicAdjust(Cart, Point)
+          AdjustedPoint(Cart%nd+1:) = 1
+          do d = 1, Cart%nd
+            PrincipalCoords(d) = Coords(d)%values(AdjustedPoint(1),AdjustedPoint(2), &
+              AdjustedPoint(3))
+          end do
+          ExportedCoords(p,q,:) = ovkPeriodicExtend(Cart, PeriodicLength_, Point, PrincipalCoords)
+        else
+          do d = 1, Cart%nd
+            ExportedCoords(p,q,d) = Coords(d)%values(Point(1),Point(2),Point(3))
+          end do
+        end if
+      end do
+    end do
+
+  end subroutine ovkExportCoords_Rank2
+
+  subroutine ovkExportCoords_Rank3(Coords, ExportCart, ExportedCoords, PeriodicLength)
+
+    type(ovk_field_real), dimension(:), intent(in) :: Coords
+    type(ovk_cart), intent(in) :: ExportCart
+    real(rk), dimension(:,:,:,:), intent(out) :: ExportedCoords
+    real(rk), dimension(ExportCart%nd), intent(in), optional :: PeriodicLength
+
+    real(rk), dimension(ExportCart%nd) :: PeriodicLength_
+    integer :: i, j, k, d, p, q, r
+    type(ovk_cart) :: Cart
+    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_ND) :: AdjustedPoint
+    real(rk), dimension(ExportCart%nd) :: PrincipalCoords
+
+    if (present(PeriodicLength)) then
+      PeriodicLength_ = PeriodicLength
+    else
+      PeriodicLength_ = 0._rk
+    end if
+
+    Cart = Coords(1)%cart
+
+    do k = ExportCart%is(3), ExportCart%ie(3)
+      do j = ExportCart%is(2), ExportCart%ie(2)
+        do i = ExportCart%is(1), ExportCart%ie(1)
+          Point = [i,j,k]
+          p = i-ExportCart%is(1)+1
+          q = j-ExportCart%is(2)+1
+          r = k-ExportCart%is(3)+1
+          if (.not. ovkCartContains(Cart, Point)) then
+            AdjustedPoint(:Cart%nd) = ovkCartPeriodicAdjust(Cart, Point)
+            AdjustedPoint(Cart%nd+1:) = 1
+            do d = 1, Cart%nd
+              PrincipalCoords(d) = Coords(d)%values(AdjustedPoint(1),AdjustedPoint(2), &
+                AdjustedPoint(3))
+            end do
+            ExportedCoords(p,q,r,:) = ovkPeriodicExtend(Cart, PeriodicLength_, Point, &
+              PrincipalCoords)
+          else
+            do d = 1, Cart%nd
+              ExportedCoords(p,q,r,d) = Coords(d)%values(Point(1),Point(2),Point(3))
+            end do
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine ovkExportCoords_Rank3
 
 end module ovkGrid

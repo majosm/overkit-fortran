@@ -142,6 +142,7 @@ module Overkit
   public :: ovkAvgCellSizeAroundPoint
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
+  public :: ovkExportCoords
   public :: OVK_GRID_TYPE_CARTESIAN
   public :: OVK_GRID_TYPE_CARTESIAN_ROTATED
   public :: OVK_GRID_TYPE_RECTILINEAR
