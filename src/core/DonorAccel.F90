@@ -608,14 +608,10 @@ contains
     integer, dimension(Grid%cart%nd) :: DonorCell
 
     integer(lk) :: l, m
-    integer, dimension(MAX_ND) :: Bin
+    integer, dimension(Grid%cart%nd) :: Bin
     integer(lk) :: BinStart, BinEnd
     logical :: LeafNode
     integer, dimension(Grid%cart%nd) :: CandidateCell
-    real(rk), dimension(Grid%cart%nd) :: CellCoords
-    real(rk) :: AmountOutside
-    real(rk) :: ClosestAmountOutside
-    integer, dimension(Grid%cart%nd) :: ClosestCell
 
     DonorCell = Grid%cell_cart%is(:Grid%cell_cart%nd) - 1
 
@@ -631,10 +627,9 @@ contains
 
     else
 
-      Bin(:Grid%cart%nd) = ovkHashGridBin(Node%hash_grid, Coords)
-      Bin(Grid%cart%nd+1:) = 1
+      Bin = ovkHashGridBin(Node%hash_grid, Coords)
 
-      if (all(Bin > 0)) then
+      if (ovkCartContains(Node%hash_grid%cart, Bin)) then
 
         l = ovkCartTupleToIndex(Node%hash_grid%cart, Bin)
         BinStart = Node%hash_grid%bin_start(l)
@@ -642,31 +637,11 @@ contains
 
         do m = BinStart, BinEnd
           CandidateCell = ovkCartIndexToTuple(Grid%cell_cart, Node%hash_grid%bin_contents(m))
-          if (ovkOverlapsCell(Grid, CandidateCell, Coords)) then
+          if (ovkOverlapsCell(Grid, CandidateCell, Coords, OverlapTolerance=OverlapTolerance)) then
             DonorCell = CandidateCell
             return
           end if
         end do
-
-        ClosestAmountOutside = huge(0._rk)
-        ClosestCell = Grid%cell_cart%is(:Grid%cell_cart%nd) - 1
-
-        do m = BinStart, BinEnd
-          CandidateCell = ovkCartIndexToTuple(Grid%cell_cart, Node%hash_grid%bin_contents(m))
-          CellCoords = ovkCoordsInCell(Grid, CandidateCell, Coords)
-          AmountOutside = sqrt(sum(merge(merge(0._rk, -CellCoords, CellCoords >= 0._rk), &
-            CellCoords - 1._rk, CellCoords <= 1._rk)**2))
-          if (AmountOutside < ClosestAmountOutside) then
-            ClosestAmountOutside = AmountOutside
-            ClosestCell = CandidateCell
-          end if
-        end do
-
-        if (ovkCartContains(Grid%cell_cart, ClosestCell) .and. ClosestAmountOutside <= &
-          OverlapTolerance) then
-          DonorCell = ClosestCell
-          return
-        end if
 
       end if
 

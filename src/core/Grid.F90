@@ -299,15 +299,25 @@ contains
 
   end subroutine ovkGetCellVertexData
 
-  function ovkOverlapsCell(Grid, Cell, Coords) result(Overlaps)
+  function ovkOverlapsCell(Grid, Cell, Coords, OverlapTolerance) result(Overlaps)
 
     type(ovk_grid), intent(in) :: Grid
     integer, dimension(Grid%cart%nd), intent(in) :: Cell
     real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
+    real(rk), intent(in), optional :: OverlapTolerance
     logical :: Overlaps
 
+    real(rk) :: OverlapTolerance_
+    integer :: i
     real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
     logical, dimension(2**Grid%cart%nd) :: VertexGridMaskValues
+    real(rk), dimension(Grid%cart%nd) :: Centroid
+
+    if (present(OverlapTolerance)) then
+      OverlapTolerance_ = OverlapTolerance
+    else
+      OverlapTolerance_ = 0._rk
+    end if
 
     call ovkGetCellVertexData(Grid, Cell, VertexCoords=VertexCoords, &
       VertexGridMaskValues=VertexGridMaskValues)
@@ -315,6 +325,13 @@ contains
     if (.not. all(VertexGridMaskValues)) then
       Overlaps = .false.
       return
+    end if
+
+    if (OverlapTolerance_ > 0._rk) then
+      Centroid = sum(VertexCoords,dim=2)/2._rk**Grid%cart%nd
+      do i = 1, 2**Grid%cart%nd
+        VertexCoords(:,i) = Centroid + (1._rk+OverlapTolerance_) * (VertexCoords(:,i)-Centroid)
+      end do
     end if
 
     select case (Grid%cart%nd)
