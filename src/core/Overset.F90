@@ -316,14 +316,18 @@ contains
         Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. &
           ExteriorMask%values
         do m = 1, size(Grids)
-          PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
-            .not. ExteriorMask%values
+          if (AllowOverlap_(m,n)) then
+            PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
+              .not. ExteriorMask%values
+          end if
         end do
         do m = 1, size(Grids)
-          call ovkGenerateReceiverMask(Grids(m), Grids(n), PairwiseDonors(n,m), ReceiverMask, &
-            DonorSubset=ExteriorMask)
-          PairwiseDonors(n,m)%valid_mask%values = PairwiseDonors(n,m)%valid_mask%values .and. &
-            .not. ReceiverMask%values
+          if (AllowOverlap_(n,m)) then
+            call ovkGenerateReceiverMask(Grids(m), Grids(n), PairwiseDonors(n,m), ReceiverMask, &
+              DonorSubset=ExteriorMask)
+            PairwiseDonors(n,m)%valid_mask%values = PairwiseDonors(n,m)%valid_mask%values .and. &
+              .not. ReceiverMask%values
+          end if
         end do
         if (present(HoleMasks)) then
           HoleMasks(n)%values = HoleMasks(n)%values .or. ExteriorMask%values
