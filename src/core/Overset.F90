@@ -26,7 +26,7 @@ contains
 
   subroutine ovkAssembleOverset(Grids, InterpData, FringeSize, InterpScheme, AllowOverlap, &
     AllowBoundaryHoleCutting, AllowOverlapHoleCutting, AllowInterpolation, DisjointFringes, &
-    FringePadding, OverlapTolerance, HoleMasks, OrphanMasks)
+    FringePadding, OverlapTolerance, HoleMasks, OrphanMasks, DebugMasks)
 
     type(ovk_grid), dimension(:), intent(inout) :: Grids
     type(ovk_interp), dimension(size(Grids)), intent(out) :: InterpData
@@ -41,6 +41,7 @@ contains
     real(rk), dimension(size(Grids),size(Grids)), intent(in), optional :: OverlapTolerance
     type(ovk_field_logical), dimension(size(Grids)), intent(out), optional :: HoleMasks
     type(ovk_field_logical), dimension(size(Grids)), intent(out), optional :: OrphanMasks
+    type(ovk_field_logical), dimension(:,:), intent(out), optional :: DebugMasks
 
     integer, dimension(:), allocatable :: FringeSize_
     integer, dimension(:), allocatable :: InterpScheme_
@@ -198,6 +199,14 @@ contains
             trim(kEString), ")"
         end select
         write (*, '(a)') ""
+      end do
+    end if
+
+    if (present(DebugMasks)) then
+      do n = 1, size(Grids)
+        do m = 1, size(DebugMasks,1)
+          DebugMasks(m,n) = ovk_field_logical_(Grids(n)%cart, .false.)
+        end do
       end do
     end if
 
