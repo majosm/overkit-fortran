@@ -290,7 +290,9 @@ contains
               i = i + 1
             end do
             EdgeMask2 = Grids(m)%boundary_mask
-            call ovkGrowMask(EdgeMask2, i)
+            do j = 1, i
+              call ovkGrowMask(EdgeMask2, 1)
+            end do
             call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), ReceiverMask, &
               DonorSubset=EdgeMask2)
             call ovkGrowMask(ReceiverMask, 1)
