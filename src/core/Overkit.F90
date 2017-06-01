@@ -171,7 +171,6 @@ module Overkit
   public :: ovkGrowMask
   public :: ovkConnectedComponents
   public :: ovkFillMask
-  public :: ovkGenerateExteriorMask
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
   public :: ovkMaskToIBlank
