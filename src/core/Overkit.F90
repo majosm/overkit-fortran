@@ -165,14 +165,13 @@ module Overkit
   public :: ovkDestroyInterpData
   public :: ovkGenerateInterpData
   public :: ovkDonorGridIDToIBlank
-  public :: OVK_INTERP_LINEAR
-  public :: OVK_INTERP_CUBIC
 
   ! ovkMask
   public :: ovkFindMaskEdge
   public :: ovkGrowMask
   public :: ovkConnectedComponents
   public :: ovkFillMask
+  public :: ovkDistanceField
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
   public :: ovkMaskToIBlank

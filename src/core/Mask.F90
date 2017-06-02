@@ -15,6 +15,7 @@ module ovkMask
   public :: ovkGrowMask
   public :: ovkConnectedComponents
   public :: ovkFillMask
+  public :: ovkDistanceField
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
   public :: ovkMaskToIBlank
@@ -376,6 +377,59 @@ contains
     end do
 
   end subroutine ovkFillMask
+
+  subroutine ovkDistanceField(Mask, MaxDistance, Distances)
+
+    type(ovk_field_logical), intent(in) :: Mask
+    integer, intent(in) :: MaxDistance
+    type(ovk_field_int), intent(out) :: Distances
+
+    integer :: i, j, k, d
+    type(ovk_field_logical) :: CoverMask
+    type(ovk_field_logical) :: PrevCoverMask
+
+    ! Doing this the inefficient way for now -- will eventually need to use a better algorithm
+
+    Distances = ovk_field_int_(Mask%cart)
+
+    call ovkFindMaskEdge(Mask, OVK_EDGE_TYPE_INNER, CoverMask)
+
+    do k = Mask%cart%is(3), Mask%cart%ie(3)
+      do j = Mask%cart%is(2), Mask%cart%ie(2)
+        do i = Mask%cart%is(1), Mask%cart%ie(1)
+          if (Mask%values(i,j,k)) then
+            if (CoverMask%values(i,j,k)) then
+              Distances%values(i,j,k) = 0
+            else
+              Distances%values(i,j,k) = -MaxDistance
+            end if
+          else
+            Distances%values(i,j,k) = MaxDistance
+          end if
+        end do
+      end do
+    end do
+
+    PrevCoverMask = ovk_field_logical_(Mask%cart)
+    do d = 1, MaxDistance-1
+      PrevCoverMask%values = CoverMask%values
+      call ovkGrowMask(CoverMask, 1)
+      do k = Mask%cart%is(3), Mask%cart%ie(3)
+        do j = Mask%cart%is(2), Mask%cart%ie(2)
+          do i = Mask%cart%is(1), Mask%cart%ie(1)
+            if (CoverMask%values(i,j,k) .and. .not. PrevCoverMask%values(i,j,k)) then
+              if (Mask%values(i,j,k)) then
+                Distances%values(i,j,k) = -d
+              else
+                Distances%values(i,j,k) = d
+              end if
+            end if
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine ovkDistanceField
 
   subroutine ovkGenerateNearEdgeMask(Mask, EdgeType, EdgeDistance, NearEdgeMask)
 
