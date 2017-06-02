@@ -123,12 +123,13 @@ module Overkit
   public :: ovk_rk
   public :: ovk_lk
   public :: ovk_bk
+  public :: ovkCaseID
   public :: OVK_DEBUG
   public :: OVK_VERBOSE
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
-  public :: ovkCaseID
+  public :: OVK_INTERP_LINEAR, OVK_INTERP_CUBIC
 
   ! ovkGrid
   public :: ovk_grid

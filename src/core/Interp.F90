@@ -19,8 +19,6 @@ module ovkInterp
   public :: ovkDestroyInterpData
   public :: ovkDonorGridIDToIBlank
   public :: ovkGenerateInterpData
-  public :: OVK_INTERP_LINEAR
-  public :: OVK_INTERP_CUBIC
 
   type ovk_interp
     type(ovk_cart) :: cart
@@ -37,9 +35,6 @@ module ovkInterp
   interface ovk_interp_
     module procedure ovk_interp_Default
   end interface ovk_interp_
-
-  integer, parameter :: OVK_INTERP_LINEAR = 1
-  integer, parameter :: OVK_INTERP_CUBIC = 2
 
 contains
 

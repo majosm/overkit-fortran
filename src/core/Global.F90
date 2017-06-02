@@ -15,12 +15,13 @@ module ovkGlobal
   public :: ovk_rk
   public :: ovk_lk
   public :: ovk_bk
+  public :: ovkCaseID
   public :: OVK_DEBUG
   public :: OVK_VERBOSE
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
-  public :: ovkCaseID
+  public :: OVK_INTERP_LINEAR, OVK_INTERP_CUBIC
 
   ! Internal
   public :: rk
@@ -38,6 +39,8 @@ module ovkGlobal
   integer, parameter :: ovk_rk = selected_real_kind(15, 307)
   integer, parameter :: ovk_lk = selected_int_kind(18)
   integer, parameter :: ovk_bk = selected_int_kind(1)
+
+  character(len=256) :: ovkCaseID = ""
 
 #ifdef OVERKIT_DEBUG
   logical, parameter :: OVK_DEBUG = .true.
@@ -60,7 +63,8 @@ module ovkGlobal
   integer, parameter :: OVK_LITTLE_ENDIAN = 1
   integer, parameter :: OVK_BIG_ENDIAN = 2
 
-  character(len=256) :: ovkCaseID = ""
+  integer, parameter :: OVK_INTERP_LINEAR = 1
+  integer, parameter :: OVK_INTERP_CUBIC = 2
 
 #ifndef f2003
   integer, parameter :: INPUT_UNIT = 5
