@@ -124,7 +124,7 @@ contains
     real(rk), dimension(ReceiverGrid%cart%nd) :: ReceiverCoords
     logical :: ValidReceiverPoint
     real(rk), dimension(DonorGrid%cart%nd) :: DonorCellCoords
-    real(rk) :: DonorCellSize, ReceiverCellSize
+    real(rk) :: DonorResolution, ReceiverResolution
 
     call ovkMakeDonors(Donors, ReceiverGrid%cart)
     Donors%valid_mask%values = .false.
@@ -163,9 +163,9 @@ contains
                 do l = 1, DonorGrid%cart%nd
                   Donors%cell_coords(l)%values(i,j,k) = DonorCellCoords(l)
                 end do
-                DonorCellSize = ovkCellSize(DonorGrid, DonorCell)
-                ReceiverCellSize = ovkAvgCellSizeAroundPoint(ReceiverGrid, ReceiverPoint)
-                Donors%cell_diff_params%values(i,j,k) = log(DonorCellSize/ReceiverCellSize)/ &
+                DonorResolution = ovkGridResolution(DonorGrid, DonorCell, DonorCellCoords)
+                ReceiverResolution = ReceiverGrid%resolution%values(i,j,k)
+                Donors%cell_diff_params%values(i,j,k) = log(DonorResolution/ReceiverResolution)/ &
                   (log(2._rk) * real(ReceiverGrid%cart%nd,kind=rk))
               end if
             end if

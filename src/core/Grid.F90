@@ -21,8 +21,7 @@ module ovkGrid
   public :: ovkGetCellVertexData
   public :: ovkOverlapsCell
   public :: ovkCoordsInCell
-  public :: ovkCellSize
-  public :: ovkAvgCellSizeAroundPoint
+  public :: ovkGridResolution
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
   public :: ovkExportCoords
@@ -41,8 +40,9 @@ module ovkGrid
     type(ovk_bbox) :: bounds
     type(ovk_field_real), dimension(:), allocatable :: xyz
     type(ovk_field_logical) :: grid_mask
+    type(ovk_field_logical) :: cell_grid_mask
     type(ovk_field_logical) :: boundary_mask
-    type(ovk_field_real) :: cell_sizes
+    type(ovk_field_real) :: resolution
   end type ovk_grid
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -75,8 +75,9 @@ contains
     Grid%id = 0
     Grid%bounds = ovk_bbox_(NumDims)
     Grid%grid_mask = ovk_field_logical_(NumDims)
+    Grid%cell_grid_mask = ovk_field_logical_(NumDims)
     Grid%boundary_mask = ovk_field_logical_(NumDims)
-    Grid%cell_sizes = ovk_field_real_(NumDims)
+    Grid%resolution = ovk_field_real_(NumDims)
 
   end function ovk_grid_Default
 
@@ -93,12 +94,20 @@ contains
     real(rk), dimension(MAX_ND) :: PeriodicLength_
     integer :: GridType_
     integer :: dir, idir, jdir
-    integer :: i, j, k, l
+    integer :: i, j, k, l, m, n, o
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
     real(rk), dimension(Cart%nd) :: PeriodicCoords
+    type(ovk_field_real) :: CellSizes
     integer, dimension(MAX_ND) :: Cell
     real(rk), dimension(Cart%nd,2**Cart%nd) :: VertexCoords
     logical, dimension(2**Cart%nd) :: VertexGridMaskValues
+    integer, dimension(MAX_ND) :: VertexLower, VertexUpper
+    integer, dimension(MAX_ND) :: Vertex
+    integer, dimension(MAX_ND) :: NeighborCellLower, NeighborCellUpper
+    integer, dimension(MAX_ND) :: Neighbor
+    real(rk) :: AvgCellSize
+    integer :: NumCells
+    logical :: AwayFromEdge
 
     if (present(PeriodicLength)) then
       PeriodicLength_(:Cart%nd) = PeriodicLength
@@ -169,8 +178,47 @@ contains
         Grid%grid_mask%values = GridMask%values(Grid%cart%is(1):Grid%cart%ie(1), &
           Grid%cart%is(2):Grid%cart%ie(2),Grid%cart%is(3):Grid%cart%ie(3))
       end if
+      Grid%cell_grid_mask = ovk_field_logical_(Grid%cell_cart)
+      do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
+        do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
+          do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
+            VertexLower = [i,j,k]
+            VertexUpper(:Grid%cart%nd) = VertexLower(:Grid%Cart%nd) + 1
+            VertexUpper(Grid%cart%nd+1:) = 1
+            AwayFromEdge = ovkCartContains(Grid%cart, VertexUpper)
+            if (AwayFromEdge) then
+              Grid%cell_grid_mask%values(i,j,k) = .true.
+          L1: do o = VertexLower(3), VertexUpper(3)
+                do n = VertexLower(2), VertexUpper(2)
+                  do m = VertexLower(1), VertexUpper(1)
+                    if (.not. Grid%grid_mask%values(m,n,o)) then
+                      Grid%cell_grid_mask%values(i,j,k) = .false.
+                      exit L1
+                    end if
+                  end do
+                end do
+              end do L1
+            else
+              Grid%cell_grid_mask%values(i,j,k) = .true.
+          L2: do o = VertexLower(3), VertexUpper(3)
+                do n = VertexLower(2), VertexUpper(2)
+                  do m = VertexLower(1), VertexUpper(1)
+                    Vertex = [m,n,o]
+                    Vertex(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
+                    if (.not. Grid%grid_mask%values(Vertex(1),Vertex(2),Vertex(3))) then
+                      Grid%cell_grid_mask%values(i,j,k) = .false.
+                      exit L2
+                    end if
+                  end do
+                end do
+              end do L2
+            end if
+          end do
+        end do
+      end do
     else
       Grid%grid_mask = ovk_field_logical_(Grid%cart, .true.)
+      Grid%cell_grid_mask = ovk_field_logical_(Grid%cell_cart, .true.)
     end if
 
     if (present(BoundaryMask)) then
@@ -185,7 +233,7 @@ contains
       Grid%boundary_mask = ovk_field_logical_(Grid%cart, .false.)
     end if
 
-    Grid%cell_sizes = ovk_field_real_(Grid%cell_cart)
+    CellSizes = ovk_field_real_(Grid%cell_cart)
 
     do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
@@ -198,21 +246,70 @@ contains
             case (2)
               select case (Grid%grid_type)
               case (OVK_GRID_TYPE_CARTESIAN,OVK_GRID_TYPE_RECTILINEAR)
-                Grid%cell_sizes%values(i,j,k) = ovkRectangleSize(VertexCoords)
+                CellSizes%values(i,j,k) = ovkRectangleSize(VertexCoords)
               case (OVK_GRID_TYPE_CURVILINEAR)
-                Grid%cell_sizes%values(i,j,k) = ovkQuadSize(VertexCoords)
+                CellSizes%values(i,j,k) = ovkQuadSize(VertexCoords)
               end select
             case (3)
               select case (Grid%grid_type)
               case (OVK_GRID_TYPE_CARTESIAN,OVK_GRID_TYPE_RECTILINEAR)
-                Grid%cell_sizes%values(i,j,k) = ovkCuboidSize(VertexCoords)
+                CellSizes%values(i,j,k) = ovkCuboidSize(VertexCoords)
               case (OVK_GRID_TYPE_CURVILINEAR)
-                Grid%cell_sizes%values(i,j,k) = ovkHexahedronSize(VertexCoords)
+                CellSizes%values(i,j,k) = ovkHexahedronSize(VertexCoords)
               end select
             end select
           else
-            Grid%cell_sizes%values(i,j,k) = 0._rk
+            CellSizes%values(i,j,k) = 0._rk
           end if
+        end do
+      end do
+    end do
+
+    ! Compute the grid resolution at each point by averaging the sizes of neighboring cells
+    Grid%resolution = ovk_field_real_(Grid%cart)
+
+    do k = Grid%cart%is(3), Grid%cart%ie(3)
+      do j = Grid%cart%is(2), Grid%cart%ie(2)
+        do i = Grid%cart%is(1), Grid%cart%ie(1)
+          Point = [i,j,k]
+          NeighborCellLower(:Grid%cart%nd) = Point(:Grid%cart%nd)-1
+          NeighborCellLower(Grid%cart%nd+1:) = 1
+          NeighborCellUpper(:Grid%cart%nd) = Point(:Grid%cart%nd)
+          NeighborCellUpper(Grid%cart%nd+1:) = 1
+          AvgCellSize = 0._rk
+          NumCells = 0
+          AwayFromEdge = ovkCartContains(Grid%cell_cart, NeighborCellLower) .and. &
+            ovkCartContains(Grid%cell_cart, NeighborCellUpper)
+          if (AwayFromEdge) then
+            do o = NeighborCellLower(3), NeighborCellUpper(3)
+              do n = NeighborCellLower(2), NeighborCellUpper(2)
+                do m = NeighborCellLower(1), NeighborCellUpper(1)
+                  if (Grid%cell_grid_mask%values(m,n,o)) then
+                    AvgCellSize = AvgCellSize + CellSizes%values(m,n,o)
+                    NumCells = NumCells + 1
+                  end if
+                end do
+              end do
+            end do
+          else
+            do o = NeighborCellLower(3), NeighborCellUpper(3)
+              do n = NeighborCellLower(2), NeighborCellUpper(2)
+                do m = NeighborCellLower(1), NeighborCellUpper(1)
+                  Neighbor = [m,n,o]
+                  Neighbor(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cell_cart, Neighbor)
+                  if (ovkCartContains(Grid%cell_cart, Neighbor)) then
+                    if (Grid%cell_grid_mask%values(Neighbor(1),Neighbor(2),Neighbor(3))) then
+                      AvgCellSize = AvgCellSize + CellSizes%values(Neighbor(1),Neighbor(2), &
+                        Neighbor(3))
+                      NumCells = NumCells + 1
+                    end if
+                  end if
+                end do
+              end do
+            end do
+          end if
+          AvgCellSize = AvgCellSize/real(max(NumCells,1), kind=rk)
+          Grid%resolution%values(i,j,k) = AvgCellSize
         end do
       end do
     end do
@@ -226,8 +323,9 @@ contains
     deallocate(Grid%xyz)
 
     Grid%grid_mask = ovk_field_logical_(Grid%cart%nd)
+    Grid%cell_grid_mask = ovk_field_logical_(Grid%cart%nd)
     Grid%boundary_mask = ovk_field_logical_(Grid%cart%nd)
-    Grid%cell_sizes = ovk_field_real_(Grid%cart%nd)
+    Grid%resolution = ovk_field_real_(Grid%cart%nd)
 
   end subroutine ovkDestroyGrid
 
@@ -403,74 +501,71 @@ contains
 
   end function ovkCoordsInCell
 
-  function ovkCellSize(Grid, Cell) result(CellSize)
+  function ovkGridResolution(Grid, Cell, CoordsInCell) result(Resolution)
 
     type(ovk_grid), intent(in) :: Grid
     integer, dimension(Grid%cart%nd), intent(in) :: Cell
-    real(rk) :: CellSize
+    real(rk), dimension(Grid%cart%nd), intent(in) :: CoordsInCell
+    real(rk) :: Resolution
 
     integer, dimension(MAX_ND) :: PaddedCell
+    integer :: i, j, k
+    real(rk), dimension(MAX_ND,0:1) :: InterpBasis
+    integer, dimension(MAX_ND) :: CellLower, CellUpper
+    logical :: AwayFromEdge
+    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_ND) :: BasisIndex
 
     PaddedCell(:Grid%cart%nd) = Cell
     PaddedCell(Grid%cart%nd+1:) = 1
 
-    CellSize = Grid%cell_sizes%values(PaddedCell(1),PaddedCell(2),PaddedCell(3))
+    InterpBasis(1,:) = ovkInterpBasisLinear(CoordsInCell(1))
+    InterpBasis(2,:) = ovkInterpBasisLinear(CoordsInCell(2))
+    if (Grid%cart%nd == 3) then
+      InterpBasis(3,:) = ovkInterpBasisLinear(CoordsInCell(3))
+    else
+      InterpBasis(3,:) = ovkInterpBasisLinear(0._rk)
+    end if
 
-  end function ovkCellSize
+    CellLower(:Grid%cart%nd) = Cell
+    CellLower(Grid%cart%nd+1:) = 1
+    CellUpper(:Grid%cart%nd) = Cell+1
+    CellUpper(Grid%cart%nd+1:) = 1
 
-  function ovkAvgCellSizeAroundPoint(Grid, Point) result(AvgCellSize)
+    Resolution = 0._rk
 
-    type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Point
-    real(rk) :: AvgCellSize
+    AwayFromEdge = ovkCartContains(Grid%cart, CellUpper)
 
-    integer :: i, j, k
-    integer, dimension(MAX_ND) :: NeighborCellLower, NeighborCellUpper
-    integer :: NumCells
-    logical :: AwayFromBoundary
-    integer, dimension(MAX_ND) :: NeighborCell
-
-    NeighborCellLower(:Grid%cart%nd) = Point-1
-    NeighborCellLower(Grid%cart%nd+1:) = 1
-    NeighborCellUpper(:Grid%cart%nd) = Point
-    NeighborCellUpper(Grid%cart%nd+1:) = 1
-
-    AvgCellSize = 0._rk
-    NumCells = 0
-
-    AwayFromBoundary = ovkCartContains(Grid%cell_cart, NeighborCellLower) .and. &
-      ovkCartContains(Grid%cell_cart, NeighborCellUpper)
-
-    if (AwayFromBoundary) then
-      do k = NeighborCellLower(3), NeighborCellUpper(3)
-        do j = NeighborCellLower(2), NeighborCellUpper(2)
-          do i = NeighborCellLower(1), NeighborCellUpper(1)
-            NeighborCell = [i,j,k]
-            AvgCellSize = AvgCellSize + Grid%cell_sizes%values(NeighborCell(1),NeighborCell(2), &
-              NeighborCell(3))
-            NumCells = NumCells + 1
+    if (AwayFromEdge) then
+      do k = CellLower(3), CellUpper(3)
+        do j = CellLower(2), CellUpper(2)
+          do i = CellLower(1), CellUpper(1)
+            Point = [i,j,k]
+            BasisIndex(:Grid%cart%nd) = Point(:Grid%cart%nd) - CellLower(:Grid%cart%nd)
+            BasisIndex(Grid%cart%nd+1:) = 0
+            Resolution = Resolution + Grid%resolution%values(i,j,k) * &
+              InterpBasis(1,BasisIndex(1)) * InterpBasis(2,BasisIndex(2)) * &
+              InterpBasis(3,BasisIndex(3))
           end do
         end do
       end do
     else
-      do k = NeighborCellLower(3), NeighborCellUpper(3)
-        do j = NeighborCellLower(2), NeighborCellUpper(2)
-          do i = NeighborCellLower(1), NeighborCellUpper(1)
-            NeighborCell = [i,j,k]
-            NeighborCell(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cell_cart, NeighborCell)
-            if (ovkCartContains(Grid%cell_cart, NeighborCell)) then
-              AvgCellSize = AvgCellSize + Grid%cell_sizes%values(NeighborCell(1),NeighborCell(2), &
-                NeighborCell(3))
-              NumCells = NumCells + 1
-            end if
+      do k = CellLower(3), CellUpper(3)
+        do j = CellLower(2), CellUpper(2)
+          do i = CellLower(1), CellUpper(1)
+            Point = [i,j,k]
+            BasisIndex(:Grid%cart%nd) = Point(:Grid%cart%nd) - CellLower(:Grid%cart%nd)
+            BasisIndex(Grid%cart%nd+1:) = 0
+            Point(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Point)
+            Resolution = Resolution + Grid%resolution%values(Point(1),Point(2),Point(3)) * &
+              InterpBasis(1,BasisIndex(1)) * InterpBasis(2,BasisIndex(2)) * &
+              InterpBasis(3,BasisIndex(3))
           end do
         end do
       end do
     end if
 
-    AvgCellSize = AvgCellSize/real(NumCells, kind=rk)
-
-  end function ovkAvgCellSizeAroundPoint
+  end function ovkGridResolution
 
   subroutine ovkGenerateBBOverlapMask(Grid, Bounds, BBOverlapMask)
 

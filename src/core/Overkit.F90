@@ -139,8 +139,7 @@ module Overkit
   public :: ovkGetCellVertexData
   public :: ovkOverlapsCell
   public :: ovkCoordsInCell
-  public :: ovkCellSize
-  public :: ovkAvgCellSizeAroundPoint
+  public :: ovkGridResolution
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
   public :: ovkExportCoords
