@@ -338,7 +338,7 @@ contains
 
     integer :: i, j, k, l, m
     integer, dimension(MAX_ND) :: VertexLower, VertexUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Vertex
     integer, dimension(MAX_ND) :: AdjustedVertex
     real(rk), dimension(Grid%cart%nd) :: PrincipalCoords
@@ -348,10 +348,10 @@ contains
     VertexUpper(:Grid%cart%nd) = Cell+1
     VertexUpper(Grid%cart%nd+1:) = 1
 
-    AwayFromBoundary = ovkCartContains(Grid%cart, VertexLower) .and. &
+    AwayFromEdge = ovkCartContains(Grid%cart, VertexLower) .and. &
       ovkCartContains(Grid%cart, VertexUpper)
 
-    if (AwayFromBoundary) then
+    if (AwayFromEdge) then
       l = 1
       do k = VertexLower(3), VertexUpper(3)
         do j = VertexLower(2), VertexUpper(2)

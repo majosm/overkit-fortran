@@ -310,7 +310,7 @@ contains
     logical :: IncludePoint
     integer, dimension(MAX_ND) :: DonorCellLower
     integer, dimension(MAX_ND) :: DonorCellUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Vertex
 
     ReceiverMask = ovk_field_logical_(ReceiverGrid%cart, .false.)
@@ -333,9 +333,9 @@ contains
               end do
               DonorCellLower(DonorGrid%cart%nd+1:) = 1
               DonorCellUpper(DonorGrid%cart%nd+1:) = 1
-              AwayFromBoundary = ovkCartContains(DonorGrid%cart, DonorCellLower) .and. &
+              AwayFromEdge = ovkCartContains(DonorGrid%cart, DonorCellLower) .and. &
                 ovkCartContains(DonorGrid%cart, DonorCellUpper)
-              if (AwayFromBoundary) then
+              if (AwayFromEdge) then
                 do o = DonorCellLower(3), DonorCellUpper(3)
                   do n = DonorCellLower(2), DonorCellUpper(2)
                     do m = DonorCellLower(1), DonorCellUpper(1)
@@ -385,7 +385,7 @@ contains
     logical :: IncludePoint
     integer, dimension(MAX_ND) :: DonorCellLower
     integer, dimension(MAX_ND) :: DonorCellUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Vertex
 
     DonorMask = ovk_field_logical_(DonorGrid%cart, .false.)
@@ -407,9 +407,9 @@ contains
             end do
             DonorCellLower(DonorGrid%cart%nd+1:) = 1
             DonorCellUpper(DonorGrid%cart%nd+1:) = 1
-            AwayFromBoundary = ovkCartContains(DonorGrid%cart, DonorCellLower) .and. &
+            AwayFromEdge = ovkCartContains(DonorGrid%cart, DonorCellLower) .and. &
               ovkCartContains(DonorGrid%cart, DonorCellUpper)
-            if (AwayFromBoundary) then
+            if (AwayFromEdge) then
               do o = DonorCellLower(3), DonorCellUpper(3)
                 do n = DonorCellLower(2), DonorCellUpper(2)
                   do m = DonorCellLower(1), DonorCellUpper(1)

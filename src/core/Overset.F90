@@ -91,7 +91,7 @@ contains
     integer, dimension(MAX_ND) :: ReceiverPoint
     integer, dimension(MAX_ND) :: DonorCell
     integer, dimension(MAX_ND) :: NeighborCellLower, NeighborCellUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: NeighborCell
     integer, dimension(MAX_ND) :: DonorCellShift
     integer :: BestCellQuality
@@ -610,9 +610,9 @@ contains
                   NeighborCellLower(Grids(m)%cart%nd+1:) = DonorCell(Grids(m)%cart%nd+1:)
                   NeighborCellUpper(:Grids(m)%cart%nd) = DonorCell(:Grids(m)%cart%nd)+1
                   NeighborCellUpper(Grids(m)%cart%nd+1:) = DonorCell(Grids(m)%cart%nd+1:)
-                  AwayFromBoundary = ovkCartContains(Grids(m)%cell_cart, NeighborCellLower) .and. &
+                  AwayFromEdge = ovkCartContains(Grids(m)%cell_cart, NeighborCellLower) .and. &
                     ovkCartContains(Grids(m)%cell_cart, NeighborCellUpper)
-                  if (AwayFromBoundary) then
+                  if (AwayFromEdge) then
                     do r = NeighborCellLower(3), NeighborCellUpper(3)
                       do q = NeighborCellLower(2), NeighborCellUpper(2)
                         do p = NeighborCellLower(1), NeighborCellUpper(1)
@@ -856,7 +856,7 @@ contains
     integer :: i, j, k, m, n, o
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Neighbor
 
     NeighborCounts = ovk_field_int_(Mask%cart, 0)
@@ -869,9 +869,9 @@ contains
           NeighborLower(Mask%cart%nd+1:) = Point(Mask%cart%nd+1:)
           NeighborUpper(:Mask%cart%nd) = Point(:Mask%cart%nd)+1
           NeighborUpper(Mask%cart%nd+1:) = Point(Mask%cart%nd+1:)
-          AwayFromBoundary = ovkCartContains(Mask%cart, NeighborLower) .and. &
+          AwayFromEdge = ovkCartContains(Mask%cart, NeighborLower) .and. &
             ovkCartContains(Mask%cart, NeighborUpper)
-          if (AwayFromBoundary) then
+          if (AwayFromEdge) then
             do o = NeighborLower(3), NeighborUpper(3)
               do n = NeighborLower(2), NeighborUpper(2)
                 do m = NeighborLower(1), NeighborUpper(1)
@@ -914,7 +914,7 @@ contains
     real(rk), dimension(DonorGrid%cart%nd), intent(out) :: ExpandedDonorCellCoords
 
     integer, dimension(MAX_ND) :: ExpandedDonorLower, ExpandedDonorUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer :: i, j
     integer, dimension(MAX_ND) :: Vertex
     integer, dimension(MAX_ND) :: AdjustedVertex
@@ -928,12 +928,12 @@ contains
     ExpandedDonorUpper(:DonorGrid%cart%nd) = DonorCell+2
     ExpandedDonorUpper(DonorGrid%cart%nd+1:) = 1
 
-    AwayFromBoundary = ovkCartContains(DonorGrid%cart, ExpandedDonorLower) .and. &
+    AwayFromEdge = ovkCartContains(DonorGrid%cart, ExpandedDonorLower) .and. &
       ovkCartContains(DonorGrid%cart, ExpandedDonorUpper)
 
     ExpandedDonorCell = ovkCartPeriodicAdjust(DonorGrid%cell_cart, ExpandedDonorLower)
 
-    if (AwayFromBoundary) then
+    if (AwayFromEdge) then
       do i = 1, 4**DonorGrid%cart%nd
         Vertex = ExpandedDonorLower + [(modulo((i-1)/4**j,4),j=0,MAX_ND-1)]
         do j = 1, DonorGrid%cart%nd

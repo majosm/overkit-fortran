@@ -42,7 +42,7 @@ contains
     integer, dimension(MAX_ND) :: Point
     logical :: Value
     integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Neighbor
     logical :: NeighborValue
 
@@ -80,9 +80,9 @@ contains
             NeighborLower(Cart%nd+1:) = Point(Cart%nd+1:)
             NeighborUpper(:Cart%nd) = Point(:Cart%nd)+1
             NeighborUpper(Cart%nd+1:) = Point(Cart%nd+1:)
-            AwayFromBoundary = ovkCartContains(Cart, NeighborLower) .and. &
+            AwayFromEdge = ovkCartContains(Cart, NeighborLower) .and. &
               ovkCartContains(Cart, NeighborUpper)
-            if (AwayFromBoundary) then
+            if (AwayFromEdge) then
           L1: do o = NeighborLower(3), NeighborUpper(3)
                 do n = NeighborLower(2), NeighborUpper(2)
                   do m = NeighborLower(1), NeighborUpper(1)
@@ -134,7 +134,7 @@ contains
     type(ovk_field_logical) :: EdgeMask
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: FillLower, FillUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: FillPoint
 
     if (Amount == 0) return
@@ -157,9 +157,9 @@ contains
             FillLower(Cart%nd+1:) = Point(Cart%nd+1:)
             FillUpper(:Cart%nd) = Point(:Cart%nd)+FillDistance
             FillUpper(Cart%nd+1:) = Point(Cart%nd+1:)
-            AwayFromBoundary = ovkCartContains(Cart, FillLower) .and. &
+            AwayFromEdge = ovkCartContains(Cart, FillLower) .and. &
               ovkCartContains(Cart, FillUpper)
-            if (AwayFromBoundary) then
+            if (AwayFromEdge) then
               do o = FillLower(3), FillUpper(3)
                 do n = FillLower(2), FillUpper(2)
                   do m = FillLower(1), FillUpper(1)
@@ -198,7 +198,7 @@ contains
     type(ovk_cart) :: Cart
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
-    logical :: AwayFromBoundary
+    logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Neighbor
     integer :: Label, NeighborLabel
     integer, dimension(:), allocatable :: ReducedComponentLabel
@@ -217,9 +217,9 @@ contains
             NeighborLower(Cart%nd+1:) = Point(Cart%nd+1:)
             NeighborUpper(:Cart%nd) = Point(:Cart%nd)+1
             NeighborUpper(Cart%nd+1:) = Point(Cart%nd+1:)
-            AwayFromBoundary = ovkCartContains(Cart, NeighborLower) .and. &
+            AwayFromEdge = ovkCartContains(Cart, NeighborLower) .and. &
               ovkCartContains(Cart, NeighborUpper)
-            if (AwayFromBoundary) then
+            if (AwayFromEdge) then
           L1: do o = NeighborLower(3), NeighborUpper(3)
                 do n = NeighborLower(2), NeighborUpper(2)
                   do m = NeighborLower(1), NeighborUpper(1)
@@ -272,9 +272,9 @@ contains
             NeighborLower(Cart%nd+1:) = Point(Cart%nd+1:)
             NeighborUpper(:Cart%nd) = Point(:Cart%nd)+1
             NeighborUpper(Cart%nd+1:) = Point(Cart%nd+1:)
-            AwayFromBoundary = ovkCartContains(Cart, NeighborLower) .and. &
+            AwayFromEdge = ovkCartContains(Cart, NeighborLower) .and. &
               ovkCartContains(Cart, NeighborUpper)
-            if (AwayFromBoundary) then
+            if (AwayFromEdge) then
               do o = NeighborLower(3), NeighborUpper(3)
                 do n = NeighborLower(2), NeighborUpper(2)
                   do m = NeighborLower(1), NeighborUpper(1)
