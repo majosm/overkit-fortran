@@ -3,7 +3,9 @@
 
 module ovkPegasus
 
+  use ovkAssembler
   use ovkCart
+  use ovkDomain
   use ovkGlobal
   use ovkField
   use ovkGrid
@@ -102,19 +104,18 @@ contains
 
   end function ovk_pegasus_Default
 
-  subroutine ovkMakePegasusData(Grids, InterpData, ExportCarts, PegasusData, IncludeIBlank, &
-    HoleMasks)
+  subroutine ovkMakePegasusData(PegasusData, Assembler, IncludeIBlank, HoleMasks)
 
-    type(ovk_grid), dimension(:), intent(in) :: Grids
-    type(ovk_cart), dimension(:), intent(in) :: ExportCarts
-    type(ovk_interp), dimension(:), intent(in) :: InterpData
     type(ovk_pegasus), intent(out) :: PegasusData
+    type(ovk_assembler), intent(in) :: Assembler
     logical, intent(in), optional :: IncludeIBlank
     type(ovk_field_logical), dimension(:), intent(in), optional :: HoleMasks
 
     logical :: IncludeIBlank_
     integer :: d, i, j, k, m, n, o
     integer(lk) :: l
+    type(ovk_grid), dimension(:), pointer :: Grids
+    type(ovk_interp), dimension(:), pointer :: InterpData
     integer :: NumGrids
     integer :: NumDims
     integer, dimension(MAX_ND) :: Point
@@ -130,14 +131,6 @@ contains
     integer :: InterpScheme
     real(rk), dimension(:,:), allocatable :: InterpCoefs
 
-    if (size(Grids) == 0) then
-      PegasusData = ovk_pegasus_()
-      return
-    end if
-
-    NumDims = Grids(1)%cart%nd
-    NumGrids = size(Grids)
-
     if (present(IncludeIBlank)) then
       IncludeIBlank_ = IncludeIBlank
     else
@@ -150,6 +143,17 @@ contains
       stop 1
     end if
 
+    Grids => Assembler%domain%grids
+    InterpData => Assembler%interp_data
+
+    if (size(Grids) == 0) then
+      PegasusData = ovk_pegasus_()
+      return
+    end if
+
+    NumDims = Grids(1)%cart%nd
+    NumGrids = size(Grids)
+
     allocate(NumDonors(NumGrids))
     allocate(NumReceivers(NumGrids))
 
@@ -157,9 +161,9 @@ contains
     NumReceivers = 0
 
     do m = 1, NumGrids
-      do k = ExportCarts(m)%is(3), ExportCarts(m)%ie(3)
-        do j = ExportCarts(m)%is(2), ExportCarts(m)%ie(2)
-          do i = ExportCarts(m)%is(1), ExportCarts(m)%ie(1)
+      do k = 1, Grids(m)%properties%npoints(3)
+        do j = 1, Grids(m)%properties%npoints(2)
+          do i = 1, Grids(m)%properties%npoints(1)
             Point = [i,j,k]
             Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
             if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
@@ -207,13 +211,13 @@ contains
     PegasusData%ngrd = NumGrids
 
     do m = 1, NumGrids
-      PegasusData%ieng(m) = ExportCarts(m)%ie(1)-ExportCarts(m)%is(1)+1
-      PegasusData%jeng(m) = ExportCarts(m)%ie(2)-ExportCarts(m)%is(2)+1
-      PegasusData%keng(m) = ExportCarts(m)%ie(3)-ExportCarts(m)%is(3)+1
+      PegasusData%ieng(m) = Grids(m)%properties%npoints(1)
+      PegasusData%jeng(m) = Grids(m)%properties%npoints(2)
+      PegasusData%keng(m) = Grids(m)%properties%npoints(3)
     end do
 
     PegasusData%ipall = sum([(NumDonors(m),m=1,NumGrids)])
-    PegasusData%igall = int(maxval([(ovkCartCount(ExportCarts(m)),m=1,NumGrids)]))
+    PegasusData%igall = maxval([(product(Grids(m)%properties%npoints),m=1,NumGrids)])
 
     PegasusData%ipip = MaxDonors
     PegasusData%ipbp = MaxReceivers
@@ -234,9 +238,9 @@ contains
     NextDonor = 1
 
     do m = 1, NumGrids
-      do k = ExportCarts(m)%is(3), ExportCarts(m)%ie(3)
-        do j = ExportCarts(m)%is(2), ExportCarts(m)%ie(2)
-          do i = ExportCarts(m)%is(1), ExportCarts(m)%ie(1)
+      do k = 1, Grids(m)%properties%npoints(3)
+        do j = 1, Grids(m)%properties%npoints(2)
+          do i = 1, Grids(m)%properties%npoints(1)
             Point = [i,j,k]
             Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
             if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
@@ -286,13 +290,13 @@ contains
     end do
 
     if (IncludeIBlank_) then
-      allocate(PegasusData%iblank(maxval([(ovkCartCount(ExportCarts(m)),m=1,NumGrids)]),NumGrids))
+      allocate(PegasusData%iblank(PegasusData%igall,NumGrids))
       PegasusData%iblank = 1
       do m = 1, NumGrids
         l = 1_lk
-        do k = ExportCarts(m)%is(3), ExportCarts(m)%ie(3)
-          do j = ExportCarts(m)%is(2), ExportCarts(m)%ie(2)
-            do i = ExportCarts(m)%is(1), ExportCarts(m)%ie(1)
+        do k = 1, Grids(m)%properties%npoints(3)
+          do j = 1, Grids(m)%properties%npoints(2)
+            do i = 1, Grids(m)%properties%npoints(1)
               Point = [i,j,k]
               Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
               if (.not. HoleMasks(m)%values(Point(1),Point(2),Point(3)) .and. .not. &

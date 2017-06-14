@@ -8,7 +8,7 @@ program Bump
   use ovsGlobal
   implicit none
 
-  integer :: i, j, k, l, m
+  integer :: i, j, k, d, m
   character(len=256), dimension(:), allocatable :: RawArguments
   character(len=256) :: Usage
   character(len=256) :: Description
@@ -16,28 +16,28 @@ program Bump
   integer :: N
   integer :: NumDims
   character(len=32) :: InterpSchemeString
-  integer, dimension(MAX_ND,2) :: NumPoints
+  integer :: InterpScheme
+  integer, dimension(MAX_ND) :: NumPointsBackground
+  integer, dimension(MAX_ND) :: NumPointsBump
   real(rk), dimension(MAX_ND) :: Length
-  type(ovk_cart), dimension(2) :: Carts
-  type(ovk_field_real), dimension(:,:), allocatable :: XYZ
+  type(ovk_assembler) :: Assembler
+  type(ovk_assembler_properties), pointer :: AssemblerProperties
+  type(ovk_assembler_graph), pointer :: Graph
+  type(ovk_domain), pointer :: Domain
+  type(ovk_grid), pointer :: Grid
+  real(rk), dimension(:,:,:,:), allocatable :: XYZ
+  type(ovk_field_real), pointer :: Coords
+  type(ovk_field_logical), pointer :: BoundaryMask
   integer, dimension(MAX_ND) :: Point
   real(rk) :: U
-  real(rk), dimension(MAX_ND) :: Coords
   real(rk) :: R
   real(rk) :: BumpHeight
   real(rk) :: MinHeight, MaxHeight
-  real(rk) :: Offset
-  integer, dimension(2) :: GridType
-  type(ovk_field_logical), dimension(2) :: BoundaryMasks
-  type(ovk_grid), dimension(2) :: Grids
-  integer, dimension(2) :: FringeSize
-  integer, dimension(2,2) :: FringePadding
-  integer, dimension(2) :: InterpScheme
-  real(rk), dimension(2,2) :: OverlapTolerance
-  type(ovk_interp), dimension(2) :: InterpData
+  real(rk) :: Shift
+  integer, dimension(MAX_ND,2) :: NumPointsAll
+  type(ovk_plot3d_grid_file) :: GridFile
+  type(ovk_interp), pointer :: InterpData
   type(ovk_field_int) :: IBlank
-  type(ovk_p3d_grid_file) :: GridFile
-  type(ovk_pegasus) :: PegasusData
 
   allocate(RawArguments(command_argument_count()))
   do i = 1, size(RawArguments)
@@ -74,130 +74,189 @@ program Bump
     stop 1
   end select
 
-  NumPoints = 1
-  NumPoints(:NumDims-1,1) = N
-  NumPoints(NumDims,1) = N/2
-  NumPoints(:NumDims-1,2) = N
-  NumPoints(NumDims,2) = (3*N)/4
+  NumPointsBackground(:NumDims-1) = N
+  NumPointsBackground(NumDims) = N/2
+  NumPointsBackground(NumDims+1:) = 1
+
+  NumPointsBump(:NumDims-1) = N
+  NumPointsBump(NumDims) = (3*N)/4
+  NumPointsBump(NumDims+1:) = 1
 
   Length(:NumDims-1) = 2._rk
   Length(NumDims) = 1._rk
 
-  ! Specify the grids' structural properties (dimension, size, periodicity, etc.)
-  Carts(1) = ovk_cart_(NumDims, NumPoints(:NumDims,1))
-  Carts(2) = ovk_cart_(NumDims, NumPoints(:NumDims,2))
+  ! Initialize the problem
+  call ovkCreateAssembler(Assembler, NumDims=NumDims, NumGrids=2)
 
-  allocate(XYZ(NumDims,2))
+  ! Enable verbose command line output
+  call ovkEditAssemblerProperties(Assembler, AssemblerProperties)
+  call ovkSetAssemblerPropertyVerbose(AssemblerProperties, .true.)
+  call ovkReleaseAssemblerProperties(Assembler, AssemblerProperties)
 
-  ! Create the coordinate arrays
-  do m = 1, 2
-    XYZ(:,m) = ovk_field_real_(Carts(m))
-  end do
+  ! Indicate which grids can intersect, cut, communicate, etc.
+  call ovkEditAssemblerGraph(Assembler, Graph)
+  call ovkSetAssemblerGraphOverlap(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerGraphOverlapTolerance(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0.1_rk)
+  call ovkSetAssemblerGraphBoundaryHoleCutting(Graph, 2, 1, .true.)
+  call ovkSetAssemblerGraphOverlapHoleCutting(Graph, 2, 1, .true.)
+  call ovkSetAssemblerGraphConnectionType(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
+  call ovkSetAssemblerGraphDisjointConnection(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerGraphInterpScheme(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, InterpScheme)
+  call ovkSetAssemblerGraphFringeSize(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblerGraphFringePadding(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkReleaseAssemblerGraph(Assembler, Graph)
 
-  ! Grid 1 is the Cartesian background grid
-  do k = 1, NumPoints(3,1)
-    do j = 1, NumPoints(2,1)
-      do i = 1, NumPoints(1,1)
+  ! Set up the domain
+  call ovkEditAssemblerDomain(Assembler, Domain)
+
+  !=================
+  ! Background grid
+  !=================
+
+  ! Initialize grid data structure for background grid
+  ! Set geometry type as a hint for potential performance improvements
+  call ovkCreateDomainGrid(Domain, 1, NumPoints=NumPointsBackground, &
+    GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+  call ovkEditDomainGrid(Domain, 1, Grid)
+
+  ! Generate coordinates for background grid
+  allocate(XYZ(NumPointsBackground(1),NumPointsBackground(2),NumPointsBackground(3),NumDims))
+  do k = 1, NumPointsBackground(3)
+    do j = 1, NumPointsBackground(2)
+      do i = 1, NumPointsBackground(1)
         Point = [i,j,k]
-        do l = 1, NumDims-1
-          U = real(Point(l)-1,kind=rk)/real(NumPoints(l,1)-1,kind=rk)
-          XYZ(l,1)%values(i,j,k) = Length(l) * (U-0.5_rk)
+        do d = 1, NumDims-1
+          U = real(Point(d)-1,kind=rk)/real(NumPointsBackground(d)-1,kind=rk)
+          XYZ(i,j,k,d) = Length(d) * (U-0.5_rk)
         end do
-        U = real(Point(NumDims)-1,kind=rk)/real(NumPoints(NumDims,1)-1,kind=rk)
-        XYZ(NumDims,1)%values(i,j,k) = Length(NumDims) * U
+          U = real(Point(NumDims)-1,kind=rk)/real(NumPointsBackground(NumDims)-1,kind=rk)
+          XYZ(i,j,k,NumDims) = Length(NumDims) * U
       end do
     end do
   end do
 
-  ! Grid 2 represents the bump
-  do k = 1, NumPoints(3,2)
-    do j = 1, NumPoints(2,2)
-      do i = 1, NumPoints(1,2)
+  ! Feed them to Overkit
+  do d = 1, NumDims
+    call ovkEditGridCoords(Grid, d, Coords)
+    Coords%values = XYZ(:,:,:,d)
+    call ovkReleaseGridCoords(Grid, Coords)
+  end do
+
+  ! Lower edge boundary on background grid (other boundaries don't need to be specified as they will
+  ! not influence fringe placement or hole cutting)
+  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
+  do k = 1, NumPointsBackground(3)
+    do j = 1, NumPointsBackground(2)
+      do i = 1, NumPointsBackground(1)
         Point = [i,j,k]
-        do l = 1, NumDims-1
-          U = real(Point(l)-1,kind=rk)/real(NumPoints(l,2)-1,kind=rk)
-          Coords(l) = 0.65_rk*Length(l) * (U-0.5_rk)
+        R = sqrt(sum(XYZ(i,j,k,:NumDims-1)**2))
+        if (R >= 0.5_rk .and. Point(NumDims) == 1) then
+          BoundaryMask%values(i,j,k) = .true.
+        end if
+      end do
+    end do
+  end do
+  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
+
+  deallocate(XYZ)
+
+  call ovkReleaseDomainGrid(Domain, Grid)
+
+  !===========
+  ! Bump grid
+  !===========
+
+  ! Initialize grid data structure for bump grid
+  call ovkCreateDomainGrid(Domain, 2, NumPoints=NumPointsBump)
+  call ovkEditDomainGrid(Domain, 2, Grid)
+
+  ! Generate coordinates for bump grid
+  allocate(XYZ(NumPointsBump(1),NumPointsBump(2),NumPointsBump(3),NumDims))
+  do k = 1, NumPointsBump(3)
+    do j = 1, NumPointsBump(2)
+      do i = 1, NumPointsBump(1)
+        Point = [i,j,k]
+        do d = 1, NumDims-1
+          U = real(Point(d)-1,kind=rk)/real(NumPointsBump(d)-1,kind=rk)
+          XYZ(i,j,k,d) = 0.65_rk*Length(d) * (U-0.5_rk)
         end do
-        R = sqrt(sum(Coords(:NumDims-1)**2))
+        R = sqrt(sum(XYZ(i,j,k,:NumDims-1)**2))
         if (R <= 0.499_rk) then
           BumpHeight = 0.25_rk*exp(1._rk-1._rk/(1._rk-(2._rk*R)**2))
         else
           BumpHeight = 0._rk
         end if
-        U = real(Point(NumDims)-1,kind=rk)/real(NumPoints(NumDims,2)-1,kind=rk)
+        U = real(Point(NumDims)-1,kind=rk)/real(NumPointsBump(NumDims)-1,kind=rk)
         MinHeight = BumpHeight
         MaxHeight = 0.5_rk * Length(NumDims)
-        Offset = BumpHeight-0.1_rk
-        Coords(NumDims) = (MinHeight-Offset)*((MaxHeight-Offset)/(MinHeight-Offset))**U + Offset
-        do l = 1, NumDims
-          XYZ(l,2)%values(i,j,k) = Coords(l)
-        end do
+        Shift = BumpHeight-0.1_rk
+        XYZ(i,j,k,NumDims) = (MinHeight-Shift)*((MaxHeight-Shift)/(MinHeight-Shift))**U + Shift
       end do
     end do
   end do
 
-  ! Information about grid type helps optimize performance
-  GridType(1) = OVK_GRID_TYPE_CARTESIAN
-  GridType(2) = OVK_GRID_TYPE_CURVILINEAR
-
-  ! Lower edge boundary on background grid (other boundaries don't need to be specified as there
-  ! is no overlap there)
-  BoundaryMasks(1) = ovk_field_logical_(Carts(1), .false.)
-  do k = 1, NumPoints(3,1)
-    do j = 1, NumPoints(2,1)
-      do i = 1, NumPoints(1,1)
-        Point = [i,j,k]
-        do l = 1, NumDims
-          Coords(l) = XYZ(l,1)%values(i,j,k)
-        end do
-        R = sqrt(sum(Coords(:NumDims-1)**2))
-        if (R >= 0.5_rk .and. Point(NumDims) == 1) then
-          BoundaryMasks(1)%values(i,j,k) = .true.
-        end if
-      end do
-    end do
+  ! Feed them to Overkit
+  do d = 1, NumDims
+    call ovkEditGridCoords(Grid, d, Coords)
+    Coords%values = XYZ(:,:,:,d)
+    call ovkReleaseGridCoords(Grid, Coords)
   end do
 
   ! Lower edge boundary on bump grid
-  BoundaryMasks(2) = ovk_field_logical_(Carts(2), .false.)
+  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
   select case (NumDims)
   case (2)
-    BoundaryMasks(2)%values(:,1,1) = .true.
+    BoundaryMask%values(:,1,1) = .true.
   case (3)
-    BoundaryMasks(2)%values(:,:,1) = .true.
+    BoundaryMask%values(:,:,1) = .true.
   end select
+  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
 
-  ! Assemble the grid data structure
-  do m = 1, 2
-    call ovkMakeGrid(Grids(m), Carts(m), XYZ(:,m), GridType=GridType(m), &
-      BoundaryMask=BoundaryMasks(m))
-  end do
+  deallocate(XYZ)
 
-  ! Set parameters for overset assembly
-  FringeSize = 2
-  FringePadding = 2
-  OverlapTolerance = 0.1_rk
+  call ovkReleaseDomainGrid(Domain, Grid)
 
-  ! Perform overset assembly; results are stored in InterpData
-  call ovkAssembleOverset(Grids, InterpData, FringeSize=FringeSize, FringePadding=FringePadding, &
-    InterpScheme=InterpScheme, OverlapTolerance=OverlapTolerance)
+  call ovkReleaseAssemblerDomain(Assembler, Domain)
 
-  ! Write PLOT3D grid file
+  !==================
+  ! Overset assembly
+  !==================
+
+  ! Perform overset assembly
+  call ovkAssemble(Assembler)
+!   call ovkFindOverlap(Assembler)
+!   call ovkCutHoles(Assembler)
+!   call ovkConnectGrids(Assembler)
+
+  !========
+  ! Output
+  !========
+
+  NumPointsAll(:,1) = NumPointsBackground
+  NumPointsAll(:,2) = NumPointsBump
+
+  call ovkGetAssemblerDomain(Assembler, Domain)
+
+  ! Write a PLOT3D grid file with IBlank to visualize the result
+  call ovkCreateP3D(GridFile, "grid.xyz", NumDims=NumDims, NumGrids=2, NumPointsAll=NumPointsAll, &
+    WithIBlank=.true.)
+
   ! IBlank values are set as follows:
   !   1 => normal point
   !   0 => hole
   !  -N => receives from grid N
-  call ovkP3DCreate(GridFile, "grid.xyz", NumGrids=2, Carts=Carts, WithIBlank=.true.)
   do m = 1, 2
-    IBlank = ovk_field_int_(Carts(m))
-    call ovkMaskToIBlank(Grids(m)%grid_mask, IBlank, TrueValue=1, FalseValue=0)
-    call ovkDonorGridIDToIBlank(InterpData(m), IBlank, Multiplier=-1)
-    call ovkP3DWrite(GridFile, m, Grids(m)%xyz, IBlank)
+    call ovkGetDomainGrid(Domain, m, Grid)
+    call ovkGetAssemblerInterpData(Assembler, m, InterpData)
+    IBlank = ovk_field_int_(Grid%cart)
+    call ovkMaskToIBlank(Grid%grid_mask, IBlank, TrueValue=1, FalseValue=0)
+    call ovkDonorGridIDToIBlank(InterpData, IBlank, Multiplier=-1)
+    call ovkWriteP3D(GridFile, m, Grid%xyz, IBlank)
   end do
-  call ovkP3DClose(GridFile)
 
-  ! Write the interpolation data
-  call ovkMakePegasusData(Grids, InterpData, Carts, PegasusData)
-  call ovkWritePegasusData(PegasusData, "XINTOUT.HO.2D", "XINTOUT.X.2D")
+  ! Finalize the PLOT3D file
+  call ovkCloseP3D(GridFile)
+
+  call ovkDestroyAssembler(Assembler)
 
 end program Bump

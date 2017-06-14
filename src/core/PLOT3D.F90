@@ -12,50 +12,50 @@ module ovkPLOT3D
   private
 
   ! API
-  public :: ovk_p3d_grid_file
-  public :: ovk_p3d_grid_file_
+  public :: ovk_plot3d_grid_file
+  public :: ovk_plot3d_grid_file_
   public :: ovkP3DMachineEndian
-  public :: ovkP3DOpen
-  public :: ovkP3DCreate
-  public :: ovkP3DClose
-  public :: ovkP3DRead
-  public :: ovkP3DWrite
+  public :: ovkOpenP3D
+  public :: ovkCreateP3D
+  public :: ovkCloseP3D
+  public :: ovkReadP3D
+  public :: ovkWriteP3D
 
-  type ovk_p3d_grid_file
+  type ovk_plot3d_grid_file
     character(len=PATH_LENGTH) :: path
     integer :: nd
     integer :: ngrids
     integer, dimension(:,:), allocatable :: npoints
     logical :: with_iblank
     integer :: endian
-  end type ovk_p3d_grid_file
+  end type ovk_plot3d_grid_file
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
-  interface ovk_p3d_grid_file_
-    module procedure ovk_p3d_grid_file_Default
-  end interface ovk_p3d_grid_file_
+  interface ovk_plot3d_grid_file_
+    module procedure ovk_plot3d_grid_file_Default
+  end interface ovk_plot3d_grid_file_
 
-  interface ovkP3DOpen
-    module procedure ovkP3DOpen_Grid
-  end interface ovkP3DOpen
+  interface ovkOpenP3D
+    module procedure ovkOpenP3D_Grid
+  end interface ovkOpenP3D
 
-  interface ovkP3DCreate
-    module procedure ovkP3DCreate_Grid
-  end interface ovkP3DCreate
+  interface ovkCreateP3D
+    module procedure ovkCreateP3D_Grid
+  end interface ovkCreateP3D
 
-  interface ovkP3DClose
-    module procedure ovkP3DClose_Grid
-  end interface ovkP3DClose
+  interface ovkCloseP3D
+    module procedure ovkCloseP3D_Grid
+  end interface ovkCloseP3D
 
-  interface ovkP3DRead
-    module procedure ovkP3DRead_Grid
-    module procedure ovkP3DRead_Grid_IBlank
-  end interface ovkP3DRead
+  interface ovkReadP3D
+    module procedure ovkReadP3D_Grid
+    module procedure ovkReadP3D_Grid_IBlank
+  end interface ovkReadP3D
 
-  interface ovkP3DWrite
-    module procedure ovkP3DWrite_Grid
-    module procedure ovkP3DWrite_Grid_IBlank
-  end interface ovkP3DWrite
+  interface ovkWriteP3D
+    module procedure ovkWriteP3D_Grid
+    module procedure ovkWriteP3D_Grid_IBlank
+  end interface ovkWriteP3D
 
   integer, parameter :: ikoffset = c_long_long
 
@@ -219,9 +219,9 @@ module ovkPLOT3D
 
 contains
 
-  function ovk_p3d_grid_file_Default() result(GridFile)
+  function ovk_plot3d_grid_file_Default() result(GridFile)
 
-    type(ovk_p3d_grid_file) :: GridFile
+    type(ovk_plot3d_grid_file) :: GridFile
 
     GridFile%path = ""
     GridFile%nd = 2
@@ -229,7 +229,7 @@ contains
     GridFile%with_iblank = .false.
     GridFile%endian = P3DInternalMachineEndian()
 
-  end function ovk_p3d_grid_file_Default
+  end function ovk_plot3d_grid_file_Default
 
   function ovkP3DMachineEndian() result(Endian)
 
@@ -239,9 +239,9 @@ contains
 
   end function ovkP3DMachineEndian
 
-  subroutine ovkP3DOpen_Grid(GridFile, FilePath, Error)
+  subroutine ovkOpenP3D_Grid(GridFile, FilePath, Error)
 
-    type(ovk_p3d_grid_file), intent(out) :: GridFile
+    type(ovk_plot3d_grid_file), intent(out) :: GridFile
     character(len=*), intent(in) :: FilePath
     integer, intent(out), optional :: Error
 
@@ -282,19 +282,20 @@ contains
       end if
     end if
 
-  end subroutine ovkP3DOpen_Grid
+  end subroutine ovkOpenP3D_Grid
 
-  subroutine ovkP3DCreate_Grid(GridFile, FilePath, NumGrids, Carts, WithIBlank, Endian, Error)
+  subroutine ovkCreateP3D_Grid(GridFile, FilePath, NumDims, NumGrids, NumPointsAll, WithIBlank, &
+    Endian, Error)
 
-    type(ovk_p3d_grid_file), intent(out) :: GridFile
+    type(ovk_plot3d_grid_file), intent(out) :: GridFile
     character(len=*), intent(in) :: FilePath
+    integer, intent(in) :: NumDims
     integer, intent(in) :: NumGrids
-    type(ovk_cart), dimension(:), intent(in) :: Carts
+    integer, dimension(:,:), intent(in) :: NumPointsAll
     logical, intent(in), optional :: WithIBlank
     integer, intent(in), optional :: Endian
     integer, intent(out), optional :: Error
 
-    integer :: m
     integer :: Error_
 
     if (OVK_VERBOSE) then
@@ -303,27 +304,11 @@ contains
 
     GridFile%path = FilePath
     GridFile%ngrids = NumGrids
-
-    if (NumGrids > 0) then
-      GridFile%nd = Carts(1)%nd
-      if (OVK_DEBUG) then
-        do m = 2, NumGrids
-          if (Carts(m)%nd /= GridFile%nd) then
-            write (ERROR_UNIT, '(4a)') "ERROR: Detected mixed grid dimensions when attempting ", &
-              "to create PLOT3D file ", trim(GridFile%path), "."
-            stop 1
-          end if
-        end do
-      end if
-    else
-      GridFile%nd = 2
-    end if
+    GridFile%nd = NumDims
 
     allocate(GridFile%npoints(MAX_ND,NumGrids))
-    GridFile%npoints = 1
-    do m = 1, NumGrids
-      GridFile%npoints(:GridFile%nd,m) = ovkCartSize(Carts(m))
-    end do
+    GridFile%npoints(:NumDims,:) = NumPointsAll(:NumDims,:)
+    GridFile%npoints(NumDims+1:,:) = 1
 
     if (present(WithIBlank)) then
       GridFile%with_iblank = WithIBlank
@@ -355,27 +340,27 @@ contains
       end if
     end if
 
-  end subroutine ovkP3DCreate_Grid
+  end subroutine ovkCreateP3D_Grid
 
-  subroutine ovkP3DClose_Grid(GridFile)
+  subroutine ovkCloseP3D_Grid(GridFile)
 
-    type(ovk_p3d_grid_file), intent(inout) :: GridFile
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
 
     character(len=PATH_LENGTH) :: FilePath
 
     FilePath = GridFile%path
 
-    GridFile = ovk_p3d_grid_file_()
+    GridFile = ovk_plot3d_grid_file_()
 
     if (OVK_VERBOSE) then
       write (*, '(3a)') "Closed grid file ", trim(FilePath), "."
     end if
 
-  end subroutine ovkP3DClose_Grid
+  end subroutine ovkCloseP3D_Grid
 
-  subroutine ovkP3DRead_Grid(GridFile, GridID, XYZ, Error)
+  subroutine ovkReadP3D_Grid(GridFile, GridID, XYZ, Error)
 
-    type(ovk_p3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(in) :: GridFile
     integer, intent(in) :: GridID
     type(ovk_field_real), dimension(:), intent(in) :: XYZ
     integer, intent(out), optional :: Error
@@ -451,11 +436,11 @@ contains
       end if
     end if
 
-  end subroutine ovkP3DRead_Grid
+  end subroutine ovkReadP3D_Grid
 
-  subroutine ovkP3DRead_Grid_IBlank(GridFile, GridID, XYZ, IBlank, Error)
+  subroutine ovkReadP3D_Grid_IBlank(GridFile, GridID, XYZ, IBlank, Error)
 
-    type(ovk_p3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(in) :: GridFile
     integer, intent(in) :: GridID
     type(ovk_field_real), dimension(:), intent(in) :: XYZ
     type(ovk_field_int), intent(in) :: IBlank
@@ -517,11 +502,11 @@ contains
       end if
     end if
 
-  end subroutine ovkP3DRead_Grid_IBlank
+  end subroutine ovkReadP3D_Grid_IBlank
 
-  subroutine ovkP3DWrite_Grid(GridFile, GridID, XYZ, Error)
+  subroutine ovkWriteP3D_Grid(GridFile, GridID, XYZ, Error)
 
-    type(ovk_p3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(in) :: GridFile
     integer, intent(in) :: GridID
     type(ovk_field_real), dimension(:), intent(in) :: XYZ
     integer, intent(out), optional :: Error
@@ -645,11 +630,11 @@ contains
       end if
     end if
 
-  end subroutine ovkP3DWrite_Grid
+  end subroutine ovkWriteP3D_Grid
 
-  subroutine ovkP3DWrite_Grid_IBlank(GridFile, GridID, XYZ, IBlank, Error)
+  subroutine ovkWriteP3D_Grid_IBlank(GridFile, GridID, XYZ, IBlank, Error)
 
-    type(ovk_p3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(in) :: GridFile
     integer, intent(in) :: GridID
     type(ovk_field_real), dimension(:), intent(in) :: XYZ
     type(ovk_field_int), intent(in) :: IBlank
@@ -755,7 +740,7 @@ contains
       end if
     end if
 
-  end subroutine ovkP3DWrite_Grid_IBlank
+  end subroutine ovkWriteP3D_Grid_IBlank
 
   pure function NullTerminate(String) result(NullTerminatedString)
 
@@ -768,7 +753,7 @@ contains
 
   subroutine PrintGridFileInfo(GridFile)
 
-    type(ovk_p3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(in) :: GridFile
 
     integer(lk) :: NumPointsTotal
     character(len=STRING_LENGTH) :: NumPointsTotalString

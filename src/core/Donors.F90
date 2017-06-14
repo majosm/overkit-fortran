@@ -49,16 +49,15 @@ module ovkDonors
 
 contains
 
-  pure function ovk_donors_Default(NumDims) result(Donors)
+  pure function ovk_donors_Default() result(Donors)
 
-    integer, intent(in) :: NumDims
     type(ovk_donors) :: Donors
 
-    Donors%cart = ovk_cart_(NumDims)
-    Donors%valid_mask = ovk_field_logical_(NumDims)
-    Donors%grid_ids = ovk_field_int_(NumDims)
-    Donors%cell_extents = ovk_field_int_(NumDims)
-    Donors%cell_diff_params = ovk_field_real_(NumDims)
+    Donors%cart = ovk_cart_(2)
+    Donors%valid_mask = ovk_field_logical_(2)
+    Donors%grid_ids = ovk_field_int_(2)
+    Donors%cell_extents = ovk_field_int_(2)
+    Donors%cell_diff_params = ovk_field_real_(2)
 
   end function ovk_donors_Default
 
@@ -94,16 +93,16 @@ contains
 
     type(ovk_donors), intent(inout) :: Donors
 
-    Donors%valid_mask = ovk_field_logical_(Donors%cart%nd)
-    Donors%grid_ids = ovk_field_int_(Donors%cart%nd)
+    Donors%valid_mask = ovk_field_logical_(2)
+    Donors%grid_ids = ovk_field_int_(2)
 
-    deallocate(Donors%cells)
+    if (allocated(Donors%cells)) deallocate(Donors%cells)
 
-    Donors%cell_extents = ovk_field_int_(Donors%cart%nd)
+    Donors%cell_extents = ovk_field_int_(2)
 
-    deallocate(Donors%cell_coords)
+    if (allocated(Donors%cell_coords)) deallocate(Donors%cell_coords)
 
-    Donors%cell_diff_params = ovk_field_real_(Donors%cart%nd)
+    Donors%cell_diff_params = ovk_field_real_(2)
 
   end subroutine ovkDestroyDonors
 
@@ -154,7 +153,7 @@ contains
                 OverlapTolerance=OverlapTolerance)
               if (ovkCartContains(DonorGrid%cell_cart, DonorCell)) then
                 Donors%valid_mask%values(i,j,k) = .true.
-                Donors%grid_ids%values(i,j,k) = DonorGrid%id
+                Donors%grid_ids%values(i,j,k) = DonorGrid%properties%id
                 do l = 1, DonorGrid%cart%nd
                   Donors%cells(l)%values(i,j,k) = DonorCell(l)
                 end do
@@ -324,7 +323,7 @@ contains
             IncludePoint = .true.
           end if
           if (IncludePoint .and. Donors%valid_mask%values(i,j,k)) then
-            if (Donors%grid_ids%values(i,j,k) /= DonorGrid%id) cycle
+            if (Donors%grid_ids%values(i,j,k) /= DonorGrid%properties%id) cycle
             if (present(DonorSubset)) then
               do l = 1, DonorGrid%cart%nd
                 DonorCellLower(l) = Donors%cells(l)%values(i,j,k)
@@ -399,7 +398,7 @@ contains
             IncludePoint = .true.
           end if
           if (IncludePoint .and. Donors%valid_mask%values(i,j,k)) then
-            if (Donors%grid_ids%values(i,j,k) /= DonorGrid%id) cycle
+            if (Donors%grid_ids%values(i,j,k) /= DonorGrid%properties%id) cycle
             do l = 1, DonorGrid%cart%nd
               DonorCellLower(l) = Donors%cells(l)%values(i,j,k)
               DonorCellUpper(l) = Donors%cells(l)%values(i,j,k) + &
@@ -492,7 +491,7 @@ contains
             if (Donors%valid_mask%values(i,j,k)) then
               CoarseToFineMask%values(i,j,k) = Donors%cell_diff_params%values(i,j,k) > 0._rk &
                 .or. (Donors%cell_diff_params%values(i,j,k) == 0._rk .and. &
-                Donors%grid_ids%values(i,j,k) < Grid%id)
+                Donors%grid_ids%values(i,j,k) < Grid%properties%id)
             end if
           end if
         end do

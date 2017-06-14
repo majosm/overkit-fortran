@@ -38,16 +38,15 @@ module ovkInterp
 
 contains
 
-  pure function ovk_interp_Default(NumDims) result(InterpData)
+  pure function ovk_interp_Default() result(InterpData)
 
-    integer, intent(in) :: NumDims
     type(ovk_interp) :: InterpData
 
-    InterpData%cart = ovk_cart_(NumDims)
+    InterpData%cart = ovk_cart_(2)
     InterpData%ncoefs = 0
-    InterpData%valid_mask = ovk_field_logical_(NumDims)
-    InterpData%donor_grid_ids = ovk_field_int_(NumDims)
-    InterpData%schemes = ovk_field_int_(NumDims)
+    InterpData%valid_mask = ovk_field_logical_(2)
+    InterpData%donor_grid_ids = ovk_field_int_(2)
+    InterpData%schemes = ovk_field_int_(2)
 
   end function ovk_interp_Default
 
@@ -100,15 +99,15 @@ contains
 
     type(ovk_interp), intent(inout) :: InterpData
 
-    InterpData%valid_mask = ovk_field_logical_(InterpData%cart%nd)
-    InterpData%donor_grid_ids = ovk_field_int_(InterpData%cart%nd)
+    InterpData%valid_mask = ovk_field_logical_(2)
+    InterpData%donor_grid_ids = ovk_field_int_(2)
 
-    deallocate(InterpData%donor_cells)
-    deallocate(InterpData%donor_cell_coords)
+    if (allocated(InterpData%donor_cells)) deallocate(InterpData%donor_cells)
+    if (allocated(InterpData%donor_cell_coords)) deallocate(InterpData%donor_cell_coords)
 
-    InterpData%schemes = ovk_field_int_(InterpData%cart%nd)
+    InterpData%schemes = ovk_field_int_(2)
 
-    deallocate(InterpData%coefs)
+    if (allocated(InterpData%coefs)) deallocate(InterpData%coefs)
 
   end subroutine ovkDestroyInterpData
 

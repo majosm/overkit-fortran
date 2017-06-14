@@ -14,24 +14,25 @@ program Blobs
   character(len=256) :: Description
   type(t_cmd_opt), dimension(1) :: Options
   integer :: N
-  integer, dimension(MAX_ND,4) :: NumPoints
-  type(ovk_cart), dimension(4) :: Carts
-  type(ovk_field_real), dimension(2,4) :: XYZ
-  real(rk) :: U, V
+  integer, dimension(2) :: NumPointsBackground
+  integer, dimension(2) :: NumPointsBlob
   real(rk), dimension(2) :: Length
+  real(rk) :: SeparationScale
+  type(ovk_assembler) :: Assembler
+  type(ovk_assembler_properties), pointer :: AssemblerProperties
+  type(ovk_assembler_graph), pointer :: Graph
+  type(ovk_domain), pointer :: Domain
+  type(ovk_grid), pointer :: Grid
+  type(ovk_field_real), pointer :: X, Y
+  type(ovk_field_logical), pointer :: BoundaryMask
+  real(rk) :: U, V
   real(rk) :: RMin, RMax
   real(rk) :: Radius
   real(rk) :: Theta
-  real(rk) :: SeparationScale
-  integer, dimension(4) :: GridType
-  type(ovk_field_logical), dimension(4) :: BoundaryMasks
-  type(ovk_grid), dimension(4) :: Grids
-  integer, dimension(4) :: FringeSize
-  integer, dimension(4) :: InterpScheme
-  type(ovk_interp), dimension(4) :: InterpData
+  integer, dimension(2,4) :: NumPointsAll
+  type(ovk_plot3d_grid_file) :: GridFile
+  type(ovk_interp), pointer :: InterpData
   type(ovk_field_int) :: IBlank
-  type(ovk_p3d_grid_file) :: GridFile
-  type(ovk_pegasus) :: PegasusData
 
   allocate(RawArguments(command_argument_count()))
   do i = 1, size(RawArguments)
@@ -48,137 +49,209 @@ program Blobs
 
   call GetOptionValue(Options(1), N, 81)
 
-  NumPoints = 1
-  NumPoints(:2,1) = N
-  NumPoints(1,2) = N
-  NumPoints(2,2) = 2*N
-  NumPoints(1,3) = N
-  NumPoints(2,3) = 2*N
-  NumPoints(1,4) = N
-  NumPoints(2,4) = 2*N
+  NumPointsBackground = [N,N]
+  NumPointsBlob = [N,2*N]
 
   Length = 2._rk
-
-  ! Specify the grids' structural properties (dimension, size, periodicity, etc.)
-  Carts(1) = ovk_cart_(2, NumPoints(:,1))
-  Carts(2) = ovk_cart_(2, NumPoints(:,2), [.false.,.true.], OVK_OVERLAP_PERIODIC)
-  Carts(3) = ovk_cart_(2, NumPoints(:,3), [.false.,.true.], OVK_OVERLAP_PERIODIC)
-  Carts(4) = ovk_cart_(2, NumPoints(:,4), [.false.,.true.], OVK_OVERLAP_PERIODIC)
-
-  ! Create the coordinate arrays
-  XYZ(:,1) = ovk_field_real_(Carts(1))
-  XYZ(:,2) = ovk_field_real_(Carts(2))
-  XYZ(:,3) = ovk_field_real_(Carts(3))
-  XYZ(:,4) = ovk_field_real_(Carts(4))
-
-  ! Grid 1 is the Cartesian background grid
-  do j = 1, NumPoints(2,1)
-    do i = 1, NumPoints(1,1)
-      U = real(i-1,kind=rk)/real(NumPoints(1,1)-1,kind=rk)
-      V = real(j-1,kind=rk)/real(NumPoints(2,1)-1,kind=rk)
-      XYZ(1,1)%values(i,j,1) = Length(1) * (U-0.5_rk)
-      XYZ(2,1)%values(i,j,1) = Length(2) * (V-0.5_rk)
-    end do
-  end do
-
   SeparationScale = 0.8_rk
 
-  ! Grid 2 wraps around a blob
-  do j = 1, NumPoints(2,2)-1
-    do i = 1, NumPoints(1,2)
-      U = real(i-1, kind=rk)/real(NumPoints(1,2)-1, kind=rk)
-      V = real(j-1, kind=rk)/real(NumPoints(2,2)-1, kind=rk)
+  ! Initialize the problem
+  call ovkCreateAssembler(Assembler, NumDims=2, NumGrids=4)
+
+  ! Enable verbose command line output
+  call ovkEditAssemblerProperties(Assembler, AssemblerProperties)
+  call ovkSetAssemblerPropertyVerbose(AssemblerProperties, .true.)
+  call ovkReleaseAssemblerProperties(Assembler, AssemblerProperties)
+
+  ! Indicate which grids can intersect, cut, communicate, etc.
+  call ovkEditAssemblerGraph(Assembler, Graph)
+  call ovkSetAssemblerGraphOverlap(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerGraphOverlapTolerance(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0._rk)
+  call ovkSetAssemblerGraphBoundaryHoleCutting(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerGraphOverlapHoleCutting(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerGraphConnectionType(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
+  call ovkSetAssemblerGraphDisjointConnection(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerGraphInterpScheme(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_LINEAR)
+  call ovkSetAssemblerGraphFringeSize(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkReleaseAssemblerGraph(Assembler, Graph)
+
+  ! Set up the domain
+  call ovkEditAssemblerDomain(Assembler, Domain)
+
+  !=================
+  ! Background grid
+  !=================
+
+  ! Initialize grid data structure for background grid
+  ! Set geometry type as a hint for potential performance improvements
+  call ovkCreateDomainGrid(Domain, 1, NumPoints=NumPointsBackground, &
+    GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+  call ovkEditDomainGrid(Domain, 1, Grid)
+
+  ! Generate coordinates for background grid
+  call ovkEditGridCoords(Grid, 1, X)
+  call ovkEditGridCoords(Grid, 2, Y)
+  do j = 1, NumPointsBackground(2)
+    do i = 1, NumPointsBackground(1)
+      U = real(i-1,kind=rk)/real(NumPointsBackground(1)-1,kind=rk)
+      V = real(j-1,kind=rk)/real(NumPointsBackground(2)-1,kind=rk)
+      X%values(i,j,1) = Length(1) * (U-0.5_rk)
+      Y%values(i,j,1) = Length(2) * (V-0.5_rk)
+    end do
+  end do
+  call ovkReleaseGridCoords(Grid, X)
+  call ovkReleaseGridCoords(Grid, Y)
+
+  ! Outer edge boundaries on background grid
+  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
+  BoundaryMask%values(1:NumPointsBackground(1),1,1) = .true.
+  BoundaryMask%values(1:NumPointsBackground(1),NumPointsBackground(2),1) = .true.
+  BoundaryMask%values(1,1:NumPointsBackground(2),1) = .true.
+  BoundaryMask%values(NumPointsBackground(1),1:NumPointsBackground(2),1) = .true.
+  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
+
+  call ovkReleaseDomainGrid(Domain, Grid)
+
+  !============
+  ! Blob grids
+  !============
+
+  ! Initialize grid data structure for blob #1
+  ! Periodic in the angular direction, with the last set of points being equal to the first
+  call ovkCreateDomainGrid(Domain, 2, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+  call ovkEditDomainGrid(Domain, 2, Grid)
+
+  ! Generate coordinates for blob #1
+  call ovkEditGridCoords(Grid, 1, X)
+  call ovkEditGridCoords(Grid, 2, Y)
+  do j = 1, NumPointsBlob(2)-1
+    do i = 1, NumPointsBlob(1)
+      U = real(i-1, kind=rk)/real(NumPointsBlob(1)-1, kind=rk)
+      V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(3._rk*Theta) + 0.1_rk*sin(2._rk*Theta+Pi/4._rk))
       RMax = 0.3_rk + 2._rk * RMin
       Radius = RMin * (RMax/RMin)**U
-      XYZ(1,2)%values(i,j,1) = -0.5_rk*SeparationScale + Radius * cos(Theta)
-      XYZ(2,2)%values(i,j,1) = -0.2_rk*SeparationScale + Radius * sin(Theta)
+      X%values(i,j,1) = -0.5_rk*SeparationScale + Radius * cos(Theta)
+      Y%values(i,j,1) = -0.2_rk*SeparationScale + Radius * sin(Theta)
     end do
   end do
+  call ovkReleaseGridCoords(Grid, X)
+  call ovkReleaseGridCoords(Grid, Y)
 
-  ! Grid 3 wraps around another blob
-  do j = 1, NumPoints(2,3)-1
-    do i = 1, NumPoints(1,3)
-      U = real(i-1, kind=rk)/real(NumPoints(1,3)-1, kind=rk)
-      V = real(j-1, kind=rk)/real(NumPoints(2,3)-1, kind=rk)
+  ! Inner radial boundary on blob #1
+  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
+  BoundaryMask%values(1,1:NumPointsBlob(2)-1,1) = .true.
+  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
+
+  call ovkReleaseDomainGrid(Domain, Grid)
+
+  ! Initialize grid data structures for blob #2
+  ! Periodic in the angular direction, with the last set of points being equal to the first
+  call ovkCreateDomainGrid(Domain, 3, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+  call ovkEditDomainGrid(Domain, 3, Grid)
+
+  ! Generate coordinates for blob #2
+  call ovkEditGridCoords(Grid, 1, X)
+  call ovkEditGridCoords(Grid, 2, Y)
+  do j = 1, NumPointsBlob(2)-1
+    do i = 1, NumPointsBlob(1)
+      U = real(i-1, kind=rk)/real(NumPointsBlob(1)-1, kind=rk)
+      V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(4._rk*Theta+Pi/4._rk) + 0.1_rk*sin(2._rk*Theta))
       RMax = 0.4_rk + 2_rk * RMin
       Radius = RMin * (RMax/RMin)**U
-      XYZ(1,3)%values(i,j,1) = -0.1_rk*SeparationScale + Radius * cos(Theta)
-      XYZ(2,3)%values(i,j,1) = 0.35_rk*SeparationScale + Radius * sin(Theta)
+      X%values(i,j,1) = -0.1_rk*SeparationScale + Radius * cos(Theta)
+      Y%values(i,j,1) = 0.35_rk*SeparationScale + Radius * sin(Theta)
     end do
   end do
+  call ovkReleaseGridCoords(Grid, X)
+  call ovkReleaseGridCoords(Grid, Y)
 
-  ! Grid 4 wraps around yet another blob
-  do j = 1, NumPoints(2,4)-1
-    do i = 1, NumPoints(1,4)
-      U = real(i-1, kind=rk)/real(NumPoints(1,4)-1, kind=rk)
-      V = real(j-1, kind=rk)/real(NumPoints(2,4)-1, kind=rk)
+  ! Inner radial boundary on blob #2
+  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
+  BoundaryMask%values(1,1:NumPointsBlob(2)-1,1) = .true.
+  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
+
+  call ovkReleaseDomainGrid(Domain, Grid)
+
+  ! Initialize grid data structures for blob #3
+  ! Periodic in the angular direction, with the last set of points being equal to the first
+  call ovkCreateDomainGrid(Domain, 4, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+  call ovkEditDomainGrid(Domain, 4, Grid)
+
+  ! Generate coordinates for blob #3
+  call ovkEditGridCoords(Grid, 1, X)
+  call ovkEditGridCoords(Grid, 2, Y)
+  do j = 1, NumPointsBlob(2)-1
+    do i = 1, NumPointsBlob(1)
+      U = real(i-1, kind=rk)/real(NumPointsBlob(1)-1, kind=rk)
+      V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(5._rk*Theta+Pi/4._rk) + 0.1_rk*sin(3._rk*Theta))
       RMax = 0.4_rk + 2_rk * RMin
       Radius = RMin * (RMax/RMin)**U
-      XYZ(1,4)%values(i,j,1) = 0.3_rk*SeparationScale + Radius * cos(Theta)
-      XYZ(2,4)%values(i,j,1) = -0.3_rk*SeparationScale + Radius * sin(Theta)
+      X%values(i,j,1) = 0.3_rk*SeparationScale + Radius * cos(Theta)
+      Y%values(i,j,1) = -0.3_rk*SeparationScale + Radius * sin(Theta)
     end do
   end do
-
-  ! Information about grid type helps optimize performance
-  GridType(1) = OVK_GRID_TYPE_CARTESIAN
-  GridType(2) = OVK_GRID_TYPE_CURVILINEAR
-  GridType(3) = OVK_GRID_TYPE_CURVILINEAR
-  GridType(4) = OVK_GRID_TYPE_CURVILINEAR
-
-  ! Outer edge boundaries on background grid
-  BoundaryMasks(1) = ovk_field_logical_(Carts(1), .false.)
-  BoundaryMasks(1)%values(:,1,1) = .true.
-  BoundaryMasks(1)%values(:,NumPoints(2,1),1) = .true.
-  BoundaryMasks(1)%values(1,:,1) = .true.
-  BoundaryMasks(1)%values(NumPoints(1,1),:,1) = .true.
-
-  ! Inner radial boundary on blob #1
-  BoundaryMasks(2) = ovk_field_logical_(Carts(2), .false.)
-  BoundaryMasks(2)%values(1,:,1) = .true.
-
-  ! Inner radial boundary on blob #2
-  BoundaryMasks(3) = ovk_field_logical_(Carts(3), .false.)
-  BoundaryMasks(3)%values(1,:,1) = .true.
+  call ovkReleaseGridCoords(Grid, X)
+  call ovkReleaseGridCoords(Grid, Y)
 
   ! Inner radial boundary on blob #3
-  BoundaryMasks(4) = ovk_field_logical_(Carts(4), .false.)
-  BoundaryMasks(4)%values(1,:,1) = .true.
+  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
+  BoundaryMask%values(1,1:NumPointsBlob(2)-1,1) = .true.
+  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
 
-  ! Assemble the grid data structure
-  do m = 1, 4
-    call ovkMakeGrid(Grids(m), Carts(m), XYZ(:,m), GridType=GridType(m), &
-      BoundaryMask=BoundaryMasks(m))
-  end do
+  call ovkReleaseDomainGrid(Domain, Grid)
 
-  ! Set parameters for overset assembly
-  FringeSize = 2
-  InterpScheme = OVK_INTERP_LINEAR
+  call ovkReleaseAssemblerDomain(Assembler, Domain)
 
-  ! Perform overset assembly; results are stored in InterpData
-  call ovkAssembleOverset(Grids, InterpData, FringeSize=FringeSize, InterpScheme=InterpScheme)
+  !==================
+  ! Overset assembly
+  !==================
 
-  ! Write PLOT3D grid file
+  ! Perform overset assembly
+  call ovkAssemble(Assembler)
+!   call ovkFindOverlap(Assembler)
+!   call ovkCutHoles(Assembler)
+!   call ovkConnectGrids(Assembler)
+
+  !========
+  ! Output
+  !========
+
+  NumPointsAll(:,1) = NumPointsBackground
+  NumPointsAll(:,2) = NumPointsBlob
+  NumPointsAll(:,3) = NumPointsBlob
+  NumPointsAll(:,4) = NumPointsBlob
+
+  call ovkGetAssemblerDomain(Assembler, Domain)
+
+  ! Write a PLOT3D grid file with IBlank to visualize the result
+  call ovkCreateP3D(GridFile, "grid.xyz", NumDims=2, NumGrids=4, NumPointsAll=NumPointsAll, &
+    WithIBlank=.true.)
+
   ! IBlank values are set as follows:
   !   1 => normal point
   !   0 => hole
   !  -N => receives from grid N
-  call ovkP3DCreate(GridFile, "grid.xyz", NumGrids=4, Carts=Carts, WithIBlank=.true.)
   do m = 1, 4
-    IBlank = ovk_field_int_(Carts(m))
-    call ovkMaskToIBlank(Grids(m)%grid_mask, IBlank, TrueValue=1, FalseValue=0)
-    call ovkDonorGridIDToIBlank(InterpData(m), IBlank, Multiplier=-1)
-    call ovkP3DWrite(GridFile, m, Grids(m)%xyz, IBlank)
+    call ovkGetDomainGrid(Domain, m, Grid)
+    call ovkGetAssemblerInterpData(Assembler, m, InterpData)
+    IBlank = ovk_field_int_(Grid%cart)
+    call ovkMaskToIBlank(Grid%grid_mask, IBlank, TrueValue=1, FalseValue=0)
+    call ovkDonorGridIDToIBlank(InterpData, IBlank, Multiplier=-1)
+    call ovkWriteP3D(GridFile, m, Grid%xyz, IBlank)
   end do
-  call ovkP3DClose(GridFile)
 
-  ! Write the interpolation data
-  call ovkMakePegasusData(Grids, InterpData, Carts, PegasusData)
-  call ovkWritePegasusData(PegasusData, "XINTOUT.HO.2D", "XINTOUT.X.2D")
+  ! Finalize the PLOT3D file
+  call ovkCloseP3D(GridFile)
+
+  call ovkDestroyAssembler(Assembler)
 
 end program Blobs

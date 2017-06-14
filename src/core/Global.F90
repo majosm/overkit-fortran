@@ -21,6 +21,8 @@ module ovkGlobal
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
+  public :: OVK_ALL_GRIDS
+  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_FRINGE, OVK_CONNECTION_FULL_GRID
   public :: OVK_INTERP_LINEAR, OVK_INTERP_CUBIC
 
   ! Internal
@@ -62,6 +64,12 @@ module ovkGlobal
 
   integer, parameter :: OVK_LITTLE_ENDIAN = 1
   integer, parameter :: OVK_BIG_ENDIAN = 2
+
+  integer, parameter :: OVK_ALL_GRIDS = -1
+
+  integer, parameter :: OVK_CONNECTION_NONE = 0
+  integer, parameter :: OVK_CONNECTION_FRINGE = 1
+  integer, parameter :: OVK_CONNECTION_FULL_GRID = 2
 
   integer, parameter :: OVK_INTERP_LINEAR = 1
   integer, parameter :: OVK_INTERP_CUBIC = 2

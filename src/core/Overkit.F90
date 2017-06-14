@@ -3,8 +3,10 @@
 
 module Overkit
 
+  use ovkAssembler
   use ovkBoundingBox
   use ovkCart
+  use ovkDomain
   use ovkDonorAccel
   use ovkDonors
   use ovkField
@@ -24,6 +26,58 @@ module Overkit
   ! General
   public :: operator (==)
   public :: operator (/=)
+
+  ! ovkAssembler
+  public :: ovk_assembler
+  public :: ovk_assembler_
+  public :: ovk_assembler_properties
+  public :: ovk_assembler_properties_
+  public :: ovk_assembler_graph
+  public :: ovk_assembler_graph_
+  public :: ovkCreateAssembler
+  public :: ovkDestroyAssembler
+  public :: ovkGetAssemblerProperties
+  public :: ovkEditAssemblerProperties
+  public :: ovkReleaseAssemblerProperties
+  public :: ovkGetAssemblerGraph
+  public :: ovkEditAssemblerGraph
+  public :: ovkReleaseAssemblerGraph
+  public :: ovkResetAssemblerGraph
+  public :: ovkGetAssemblerDomain
+  public :: ovkEditAssemblerDomain
+  public :: ovkReleaseAssemblerDomain
+!   public :: ovkGetAssemblerOverlap
+!   public :: ovkEditAssemblerOverlap
+!   public :: ovkReleaseAssemblerOverlap
+!   public :: ovkGetAssemblerConnectivity
+!   public :: ovkEditAssemblerConnectivity
+!   public :: ovkReleaseAssemblerConnectivity
+  public :: ovkGetAssemblerInterpData
+!   public :: ovkIntersectGrids
+!   public :: ovkCutHoles
+!   public :: ovkGenerateConnectivity
+  public :: ovkGetAssemblerPropertyDimension
+  public :: ovkGetAssemblerPropertyGridCount
+  public :: ovkGetAssemblerPropertyVerbose
+  public :: ovkSetAssemblerPropertyVerbose
+  public :: ovkGetAssemblerGraphOverlap
+  public :: ovkSetAssemblerGraphOverlap
+  public :: ovkGetAssemblerGraphOverlapTolerance
+  public :: ovkSetAssemblerGraphOverlapTolerance
+  public :: ovkGetAssemblerGraphBoundaryHoleCutting
+  public :: ovkSetAssemblerGraphBoundaryHoleCutting
+  public :: ovkGetAssemblerGraphOverlapHoleCutting
+  public :: ovkSetAssemblerGraphOverlapHoleCutting
+  public :: ovkGetAssemblerGraphConnectionType
+  public :: ovkSetAssemblerGraphConnectionType
+  public :: ovkGetAssemblerGraphDisjointConnection
+  public :: ovkSetAssemblerGraphDisjointConnection
+  public :: ovkGetAssemblerGraphInterpScheme
+  public :: ovkSetAssemblerGraphInterpScheme
+  public :: ovkGetAssemblerGraphFringeSize
+  public :: ovkSetAssemblerGraphFringeSize
+  public :: ovkGetAssemblerGraphFringePadding
+  public :: ovkSetAssemblerGraphFringePadding
 
   ! ovkBoundingBox
   public :: ovk_bbox
@@ -55,6 +109,27 @@ module Overkit
   public :: ovkCartIsCompatible
   public :: ovkCartConvertPeriodicStorage
   public :: ovkCartPointToCell
+
+  ! ovkDomain
+  public :: ovk_domain
+  public :: ovk_domain_
+  public :: ovk_domain_properties
+  public :: ovk_domain_properties_
+  public :: ovkCreateDomain
+  public :: ovkDestroyDomain
+  public :: ovkUpdateDomain
+  public :: ovkGetDomainProperties
+  public :: ovkEditDomainProperties
+  public :: ovkReleaseDomainProperties
+  public :: ovkCreateDomainGrid
+  public :: ovkDestroyDomainGrid
+  public :: ovkGetDomainGrid
+  public :: ovkEditDomainGrid
+  public :: ovkReleaseDomainGrid
+  public :: ovkGetDomainPropertyDimension
+  public :: ovkGetDomainPropertyGridCount
+  public :: ovkGetDomainPropertyVerbose
+  public :: ovkSetDomainPropertyVerbose
 
   ! ovkDonorAccel
   public :: ovk_donor_accel
@@ -131,13 +206,30 @@ module Overkit
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
+  public :: OVK_ALL_GRIDS
+  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_FRINGE, OVK_CONNECTION_FULL_GRID
   public :: OVK_INTERP_LINEAR, OVK_INTERP_CUBIC
 
   ! ovkGrid
   public :: ovk_grid
   public :: ovk_grid_
-  public :: ovkMakeGrid
+  public :: ovk_grid_properties
+  public :: ovk_grid_properties_
+  public :: ovkCreateGrid
   public :: ovkDestroyGrid
+  public :: ovkUpdateGrid
+  public :: ovkGetGridProperties
+  public :: ovkEditGridProperties
+  public :: ovkReleaseGridProperties
+  public :: ovkGetGridCoords
+  public :: ovkEditGridCoords
+  public :: ovkReleaseGridCoords
+  public :: ovkGetGridMask
+  public :: ovkEditGridMask
+  public :: ovkReleaseGridMask
+  public :: ovkGetGridBoundaryMask
+  public :: ovkEditGridBoundaryMask
+  public :: ovkReleaseGridBoundaryMask
   public :: ovkGetCellVertexData
   public :: ovkOverlapsCell
   public :: ovkCoordsInCell
@@ -145,11 +237,20 @@ module Overkit
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
   public :: ovkExportCoords
-  public :: OVK_GRID_TYPE_CARTESIAN
-  public :: OVK_GRID_TYPE_CARTESIAN_ROTATED
-  public :: OVK_GRID_TYPE_RECTILINEAR
-  public :: OVK_GRID_TYPE_RECTILINEAR_ROTATED
-  public :: OVK_GRID_TYPE_CURVILINEAR
+  public :: ovkGetGridPropertyID
+  public :: ovkGetGridPropertyDimension
+  public :: ovkGetGridPropertySize
+  public :: ovkGetGridPropertyPeriodicity
+  public :: ovkGetGridPropertyPeriodicStorage
+  public :: ovkGetGridPropertyPeriodicLength
+  public :: ovkGetGridPropertyGeometryType
+  public :: ovkGetGridPropertyVerbose
+  public :: ovkSetGridPropertyVerbose
+  public :: OVK_GRID_GEOMETRY_CARTESIAN
+  public :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED
+  public :: OVK_GRID_GEOMETRY_RECTILINEAR
+  public :: OVK_GRID_GEOMETRY_RECTILINEAR_ROTATED
+  public :: OVK_GRID_GEOMETRY_CURVILINEAR
 
   ! ovkHashGrid
   public :: ovk_hash_grid
@@ -180,7 +281,7 @@ module Overkit
   public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
 
   ! ovkOverset
-  public :: ovkAssembleOverset
+  public :: ovkAssemble
   public :: ovkPartitionReceivers
   public :: ovkGenerateOverlapOptimizationMask
 
@@ -193,13 +294,13 @@ module Overkit
   public :: ovkPrintPegasusData
 
   ! ovkPLOT3D
-  public :: ovk_p3d_grid_file
-  public :: ovk_p3d_grid_file_
+  public :: ovk_plot3d_grid_file
+  public :: ovk_plot3d_grid_file_
   public :: ovkP3DMachineEndian
-  public :: ovkP3DOpen
-  public :: ovkP3DCreate
-  public :: ovkP3DClose
-  public :: ovkP3DRead
-  public :: ovkP3DWrite
+  public :: ovkOpenP3D
+  public :: ovkCreateP3D
+  public :: ovkCloseP3D
+  public :: ovkReadP3D
+  public :: ovkWriteP3D
 
 end module Overkit
