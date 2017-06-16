@@ -27,9 +27,10 @@ module ovkOverset
 
 contains
 
-  subroutine ovkAssemble(Assembler)
+  subroutine ovkAssemble(Assembler, DebugFields)
 
     type(ovk_assembler), intent(inout) :: Assembler
+    type(ovk_field_int), dimension(:), intent(out), optional :: DebugFields
 
     integer :: i, j, k, l, m, n, p, q, r
     integer :: ClockInitial, ClockFinal, ClockRate
@@ -181,13 +182,11 @@ contains
       end do
     end if
 
-!     if (present(DebugMasks)) then
-!       do n = 1, NumGrids
-!         do m = 1, size(DebugMasks,1)
-!           DebugMasks(m,n) = ovk_field_logical_(Grids(n)%cart, .false.)
-!         end do
-!       end do
-!     end if
+    if (present(DebugFields)) then
+      do m = 1, NumGrids
+        DebugFields(m) = ovk_field_int_(Grids(m)%cart, 0)
+      end do
+    end if
 
     if (OVK_VERBOSE) then
       write (*, '(a)') "Searching for candidate donor/receiver pairs..."
