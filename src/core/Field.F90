@@ -151,7 +151,7 @@ contains
     type(ovk_cart), intent(in) :: Cart
     type(ovk_field_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -163,7 +163,7 @@ contains
     type(ovk_cart), intent(in) :: Cart
     type(ovk_field_large_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -175,7 +175,7 @@ contains
     type(ovk_cart), intent(in) :: Cart
     type(ovk_field_real) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -187,7 +187,7 @@ contains
     type(ovk_cart), intent(in) :: Cart
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -200,7 +200,7 @@ contains
     integer, intent(in) :: Value
     type(ovk_field_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -215,7 +215,7 @@ contains
     integer(lk), intent(in) :: Value
     type(ovk_field_large_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -230,7 +230,7 @@ contains
     real(rk), intent(in) :: Value
     type(ovk_field_real) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -245,7 +245,7 @@ contains
     logical, intent(in) :: Value
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -260,7 +260,7 @@ contains
     logical(bk), intent(in) :: Value
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -275,7 +275,7 @@ contains
     integer, dimension(:,:), intent(in) :: Values
     type(ovk_field_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -291,7 +291,7 @@ contains
     integer(lk), dimension(:,:), intent(in) :: Values
     type(ovk_field_large_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -307,7 +307,7 @@ contains
     real(rk), dimension(:,:), intent(in) :: Values
     type(ovk_field_real) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -323,7 +323,7 @@ contains
     logical, dimension(:,:), intent(in) :: Values
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -339,7 +339,7 @@ contains
     logical(bk), dimension(:,:), intent(in) :: Values
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -355,7 +355,7 @@ contains
     integer, dimension(:,:,:), intent(in) :: Values
     type(ovk_field_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -371,7 +371,7 @@ contains
     integer(lk), dimension(:,:,:), intent(in) :: Values
     type(ovk_field_large_int) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -387,7 +387,7 @@ contains
     real(rk), dimension(:,:,:), intent(in) :: Values
     type(ovk_field_real) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -403,7 +403,7 @@ contains
     logical, dimension(:,:,:), intent(in) :: Values
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))
@@ -419,7 +419,7 @@ contains
     logical(bk), dimension(:,:,:), intent(in) :: Values
     type(ovk_field_logical) :: Field
 
-    Field%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Field%cart = Cart
 
     allocate(Field%values(Field%cart%is(1):Field%cart%ie(1),Field%cart%is(2):Field%cart%ie(2), &
       Field%cart%is(3):Field%cart%ie(3)))

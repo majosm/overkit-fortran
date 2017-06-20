@@ -199,6 +199,7 @@ contains
 
     Grid%cart = ovk_cart_(NumDims, NumPoints, Periodic_, PeriodicStorage_)
     Grid%cart = ovkCartConvertPeriodicStorage(Grid%cart, OVK_NO_OVERLAP_PERIODIC)
+
     Grid%cell_cart = ovkCartPointToCell(Grid%cart)
 
     allocate(Grid%xyz(NumDims))

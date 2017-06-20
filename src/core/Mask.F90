@@ -46,6 +46,13 @@ contains
     integer, dimension(MAX_ND) :: Neighbor
     logical :: NeighborValue
 
+    if (OVK_DEBUG) then
+      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
     if (present(BoundaryValue)) then
       BoundaryValue_ = BoundaryValue
     else
@@ -137,6 +144,13 @@ contains
     logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: FillPoint
 
+    if (OVK_DEBUG) then
+      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
     if (Amount == 0) return
 
     FillDistance = abs(Amount)
@@ -202,6 +216,13 @@ contains
     integer, dimension(MAX_ND) :: Neighbor
     integer :: Label, NeighborLabel
     integer, dimension(:), allocatable :: ReducedComponentLabel
+
+    if (OVK_DEBUG) then
+      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
 
     Cart = Mask%cart
 
@@ -344,6 +365,13 @@ contains
     logical, dimension(:), allocatable :: IsFillComponent
     integer :: Label
 
+    if (OVK_DEBUG) then
+      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
     NonBarrierMask = ovk_field_logical_(Mask%cart)
     NonBarrierMask%values = .not. BarrierMask%values
 
@@ -387,6 +415,13 @@ contains
     integer :: i, j, k, d
     type(ovk_field_logical) :: CoverMask
     type(ovk_field_logical) :: PrevCoverMask
+
+    if (OVK_DEBUG) then
+      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
 
     ! Doing this the inefficient way for now -- will eventually need to use a better algorithm
 
@@ -439,6 +474,13 @@ contains
     type(ovk_field_logical), intent(out) :: NearEdgeMask
 
     type(ovk_field_logical) :: EdgeMask
+
+    if (OVK_DEBUG) then
+      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
 
     call ovkFindMaskEdge(Mask, EdgeType, EdgeMask)
     call ovkGrowMask(EdgeMask, EdgeDistance)
@@ -499,6 +541,13 @@ contains
     integer :: Slice
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: AdjustedPoint
+
+    if (OVK_DEBUG) then
+      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
 
     if (present(StartIndex)) then
       StartIndex_(:Mask%cart%nd) = StartIndex
