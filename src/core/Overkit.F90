@@ -44,6 +44,7 @@ module Overkit
   ! ovkCart
   public :: ovk_cart
   public :: ovk_cart_
+  public :: ovkCartIsEmpty
   public :: ovkCartSize
   public :: ovkCartCount
   public :: ovkCartTupleToIndex

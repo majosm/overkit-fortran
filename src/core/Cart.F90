@@ -13,6 +13,7 @@ module ovkCart
   public :: ovk_cart_
   public :: operator (==)
   public :: operator (/=)
+  public :: ovkCartIsEmpty
   public :: ovkCartSize
   public :: ovkCartCount
   public :: ovkCartTupleToIndex
@@ -193,6 +194,15 @@ contains
     NotEqual = .not. ovk_cart_Equal(LeftCart, RightCart)
 
   end function ovk_cart_NotEqual
+
+  pure function ovkCartIsEmpty(Cart) result(CartIsEmpty)
+
+    type(ovk_cart), intent(in) :: Cart
+    logical :: CartIsEmpty
+
+    CartIsEmpty = any(Cart%ie(:Cart%nd) < Cart%is(:Cart%nd))
+
+  end function ovkCartIsEmpty
 
   pure function ovkCartSize(Cart) result(NumPoints)
 
