@@ -23,7 +23,7 @@ module ovkCart
   public :: ovkCartClamp
   public :: ovkCartIsCompatible
   public :: ovkCartConvertPeriodicStorage
-  public :: ovkCartConvertPointToCell
+  public :: ovkCartPointToCell
 
   type ovk_cart
     integer :: nd
@@ -329,7 +329,7 @@ contains
 
   end function ovkCartConvertPeriodicStorage
 
-  pure function ovkCartConvertPointToCell(Cart) result(CellCart)
+  pure function ovkCartPointToCell(Cart) result(CellCart)
 
     type(ovk_cart), intent(in) :: Cart
     type(ovk_cart) :: CellCart
@@ -344,6 +344,6 @@ contains
 
     CellCart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
 
-  end function ovkCartConvertPointToCell
+  end function ovkCartPointToCell
 
 end module ovkCart

@@ -123,7 +123,7 @@ contains
     end if
 
     Grid%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
-    Grid%cell_cart = ovkCartConvertPointToCell(Grid%cart)
+    Grid%cell_cart = ovkCartPointToCell(Grid%cart)
     Grid%periodic_length = PeriodicLength_
     Grid%grid_type = GridType_
     Grid%id = 0

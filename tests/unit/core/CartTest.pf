@@ -1023,7 +1023,7 @@ subroutine ovkCartTest_convert_periodic_storage_3d(this)
 end subroutine ovkCartTest_convert_periodic_storage_3d
 
 @Test
-subroutine ovkCartTest_convert_point_to_cell_2d(this)
+subroutine ovkCartTest_point_to_cell_2d(this)
 
   use pFUnit_mod
   use Overkit
@@ -1036,7 +1036,7 @@ subroutine ovkCartTest_convert_point_to_cell_2d(this)
 
   ! Non-periodic
   Cart1 = ovk_cart_(2, [1,2], [3,4])
-  Cart2 = ovkCartConvertPointToCell(Cart1)
+  Cart2 = ovkCartPointToCell(Cart1)
   @AssertEqual(2, Cart2%nd)
   @AssertEqual([1,2,1], Cart2%is)
   @AssertEqual([2,3,1], Cart2%ie)
@@ -1045,7 +1045,7 @@ subroutine ovkCartTest_convert_point_to_cell_2d(this)
 
   ! Periodic, no overlap
   Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
-  Cart2 = ovkCartConvertPointToCell(Cart1)
+  Cart2 = ovkCartPointToCell(Cart1)
   @AssertEqual(2, Cart2%nd)
   @AssertEqual([1,2,1], Cart2%is)
   @AssertEqual([3,4,1], Cart2%ie)
@@ -1054,17 +1054,17 @@ subroutine ovkCartTest_convert_point_to_cell_2d(this)
 
   ! Periodic, overlap
   Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
-  Cart2 = ovkCartConvertPointToCell(Cart1)
+  Cart2 = ovkCartPointToCell(Cart1)
   @AssertEqual(2, Cart2%nd)
   @AssertEqual([1,2,1], Cart2%is)
   @AssertEqual([3,4,1], Cart2%ie)
   @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
   @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
 
-end subroutine ovkCartTest_convert_point_to_cell_2d
+end subroutine ovkCartTest_point_to_cell_2d
 
 @Test
-subroutine ovkCartTest_convert_point_to_cell_3d(this)
+subroutine ovkCartTest_point_to_cell_3d(this)
 
   use pFUnit_mod
   use Overkit
@@ -1077,7 +1077,7 @@ subroutine ovkCartTest_convert_point_to_cell_3d(this)
 
   ! Non-periodic
   Cart1 = ovk_cart_(3, [1,2,3], [4,5,6])
-  Cart2 = ovkCartConvertPointToCell(Cart1)
+  Cart2 = ovkCartPointToCell(Cart1)
   @AssertEqual(3, Cart2%nd)
   @AssertEqual([1,2,3], Cart2%is)
   @AssertEqual([3,4,5], Cart2%ie)
@@ -1086,7 +1086,7 @@ subroutine ovkCartTest_convert_point_to_cell_3d(this)
 
   ! Periodic, no overlap
   Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
-  Cart2 = ovkCartConvertPointToCell(Cart1)
+  Cart2 = ovkCartPointToCell(Cart1)
   @AssertEqual(3, Cart2%nd)
   @AssertEqual([1,2,3], Cart2%is)
   @AssertEqual([4,5,6], Cart2%ie)
@@ -1095,11 +1095,11 @@ subroutine ovkCartTest_convert_point_to_cell_3d(this)
 
   ! Periodic, overlap
   Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
-  Cart2 = ovkCartConvertPointToCell(Cart1)
+  Cart2 = ovkCartPointToCell(Cart1)
   @AssertEqual(3, Cart2%nd)
   @AssertEqual([1,2,3], Cart2%is)
   @AssertEqual([4,5,6], Cart2%ie)
   @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
   @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
 
-end subroutine ovkCartTest_convert_point_to_cell_3d
+end subroutine ovkCartTest_point_to_cell_3d

@@ -54,7 +54,7 @@ module Overkit
   public :: ovkCartClamp
   public :: ovkCartIsCompatible
   public :: ovkCartConvertPeriodicStorage
-  public :: ovkCartConvertPointToCell
+  public :: ovkCartPointToCell
 
   ! ovkDonorAccel
   public :: ovk_donor_accel
