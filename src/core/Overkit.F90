@@ -52,6 +52,7 @@ module Overkit
   public :: ovkCartPeriodicAdjust
   public :: ovkCartContains
   public :: ovkCartClamp
+  public :: ovkCartIsCompatible
   public :: ovkCartConvertPeriodicStorage
   public :: ovkCartConvertPointToCell
 

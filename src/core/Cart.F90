@@ -21,6 +21,7 @@ module ovkCart
   public :: ovkCartPeriodicAdjust
   public :: ovkCartContains
   public :: ovkCartClamp
+  public :: ovkCartIsCompatible
   public :: ovkCartConvertPeriodicStorage
   public :: ovkCartConvertPointToCell
 
@@ -295,6 +296,19 @@ contains
     ClampedPoint = min(max(Point, Cart%is(:Cart%nd)), Cart%ie(:Cart%nd))
 
   end function ovkCartClamp
+
+  pure function ovkCartIsCompatible(Cart, OtherCart) result(CartIsCompatible)
+
+    type(ovk_cart), intent(in) :: Cart, OtherCart
+    logical :: CartIsCompatible
+
+    type(ovk_cart) :: ConvertedCart
+
+    ConvertedCart = ovkCartConvertPeriodicStorage(Cart, OtherCart%periodic_storage)
+
+    CartIsCompatible = ConvertedCart == OtherCart
+
+  end function ovkCartIsCompatible
 
   pure function ovkCartConvertPeriodicStorage(Cart, PeriodicStorage) result(ConvertedCart)
 
