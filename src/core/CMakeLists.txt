@@ -9,6 +9,7 @@ set(OVERKIT_SOURCES
   Assembler.F90
   BoundingBox.F90
   Cart.F90
+  Connectivity.F90
   Domain.F90
   DonorAccel.F90
   Donors.F90

@@ -36,8 +36,16 @@ program Bump
   real(rk) :: Shift
   integer, dimension(MAX_ND,2) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
+  type(ovk_connectivity), pointer :: Connectivity
   type(ovk_interp), pointer :: InterpData
+  type(ovk_cart) :: Cart
+  type(ovk_cart) :: CartOverlap
+  type(ovk_field_logical), pointer :: GridMask
+  type(ovk_field_logical), pointer :: ReceiverMask
+  type(ovk_field_int), pointer :: DonorGridIDs
+  type(ovk_field_real) :: XOverlap, YOverlap, ZOverlap
   type(ovk_field_int) :: IBlank
+  type(ovk_field_int) :: IBlankOverlap
 
   allocate(RawArguments(command_argument_count()))
   do i = 1, size(RawArguments)
@@ -236,22 +244,60 @@ program Bump
   NumPointsAll(:,2) = NumPointsBump
 
   call ovkGetAssemblerDomain(Assembler, Domain)
+  call ovkGetAssemblerConnectivity(Assembler, Connectivity)
 
   ! Write a PLOT3D grid file with IBlank to visualize the result
   call ovkCreateP3D(GridFile, "grid.xyz", NumDims=NumDims, NumGrids=2, NumPointsAll=NumPointsAll, &
     WithIBlank=.true.)
 
-  ! IBlank values are set as follows:
-  !   1 => normal point
-  !   0 => hole
-  !  -N => receives from grid N
   do m = 1, 2
+
     call ovkGetDomainGrid(Domain, m, Grid)
-    call ovkGetAssemblerInterpData(Assembler, m, InterpData)
-    IBlank = ovk_field_int_(Grid%cart)
-    call ovkMaskToIBlank(Grid%grid_mask, IBlank, TrueValue=1, FalseValue=0)
-    call ovkDonorGridIDToIBlank(InterpData, IBlank, Multiplier=-1)
-    call ovkWriteP3D(GridFile, m, Grid%xyz, IBlank)
+    call ovkGetConnectivityInterpData(Connectivity, m, InterpData)
+
+    ! At the moment Overkit converts everything to no-overlap periodic internally, so
+    ! we will need to convert back
+    call ovkGetGridCart(Grid, Cart)
+    CartOverlap = ovkCartConvertPeriodicStorage(Cart, OVK_OVERLAP_PERIODIC)
+
+    call ovkExportGridCoords(Grid, 1, CartOverlap, XOverlap)
+    call ovkExportGridCoords(Grid, 2, CartOverlap, YOverlap)
+    if (NumDims == 3) then
+      call ovkExportGridCoords(Grid, 3, CartOverlap, ZOverlap)
+    end if
+
+    call ovkGetGridMask(Grid, GridMask)
+    call ovkGetInterpDataReceiverMask(InterpData, ReceiverMask)
+    call ovkGetInterpDataDonorGridIDs(InterpData, DonorGridIDs)
+
+    ! IBlank values are set as follows:
+    !   1 => normal point
+    !   0 => hole
+    !  -N => receives from grid N
+    IBlank = ovk_field_int_(Cart)
+    do k = Cart%is(3), Cart%ie(3)
+      do j = Cart%is(2), Cart%ie(2)
+        do i = Cart%is(1), Cart%ie(1)
+          if (GridMask%values(i,j,k)) then
+            if (ReceiverMask%values(i,j,k)) then
+              IBlank%values(i,j,k) = -DonorGridIDs%values(i,j,k)
+            else
+              IBlank%values(i,j,k) = 1
+            end if
+          else
+            IBlank%values(i,j,k) = 0
+          end if
+        end do
+      end do
+    end do
+    call ovkExportField(IBlank, CartOverlap, IBlankOverlap)
+
+    if (NumDims == 2) then
+      call ovkWriteP3D(GridFile, m, XOverlap, YOverlap, IBlankOverlap)
+    else
+      call ovkWriteP3D(GridFile, m, XOverlap, YOverlap, ZOverlap, IBlankOverlap)
+    end if
+
   end do
 
   ! Finalize the PLOT3D file

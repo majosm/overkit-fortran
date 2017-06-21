@@ -22,6 +22,7 @@ module ovkDomain
   public :: ovkReleaseDomainProperties
   public :: ovkCreateDomainGrid
   public :: ovkDestroyDomainGrid
+  public :: ovkResetDomainGrid
   public :: ovkGetDomainGrid
   public :: ovkEditDomainGrid
   public :: ovkReleaseDomainGrid
@@ -44,6 +45,7 @@ module ovkDomain
     logical, dimension(:), allocatable :: grid_exists
     logical :: editing_properties
     logical, dimension(:), allocatable :: editing_grid
+    logical, dimension(:), allocatable :: changed_grid
   end type ovk_domain
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -104,6 +106,9 @@ contains
     allocate(Domain%editing_grid(NumGrids))
     Domain%editing_grid = .false.
 
+    allocate(Domain%changed_grid(NumGrids))
+    Domain%changed_grid = .false.
+
   end subroutine ovkCreateDomain
 
   subroutine ovkDestroyDomain(Domain)
@@ -116,12 +121,15 @@ contains
 
     if (associated(Domain%grids)) then
       do m = 1, size(Domain%grids)
-        call ovkDestroyGrid(Domain%grids(m))
+        if (Domain%grid_exists(m)) then
+          call ovkDestroyGrid(Domain%grids(m))
+        end if
       end do
       deallocate(Domain%grids)
     end if
 
     if (allocated(Domain%editing_grid)) deallocate(Domain%editing_grid)
+    if (allocated(Domain%changed_grid)) deallocate(Domain%changed_grid)
 
   end subroutine ovkDestroyDomain
 
@@ -146,7 +154,7 @@ contains
 
     else
 
-      ! Nothing here at the moment
+      Domain%changed_grid = .false.
 
     end if
 
@@ -236,6 +244,7 @@ contains
       GeometryType=GeometryType, Verbose=Domain%properties%verbose)
 
     Domain%grid_exists(GridID) = .true.
+    Domain%changed_grid(GridID) = .true.
 
   end subroutine ovkCreateDomainGrid
 
@@ -247,8 +256,19 @@ contains
     call ovkDestroyGrid(Domain%grids(GridID))
 
     Domain%grid_exists(GridID) = .false.
+    Domain%changed_grid(GridID) = .true.
 
   end subroutine ovkDestroyDomainGrid
+
+  subroutine ovkResetDomainGrid(Domain, GridID)
+
+    type(ovk_domain), intent(inout) :: Domain
+    integer, intent(in) :: GridID
+
+    call ovkResetGrid(Domain%grids(GridID))
+    Domain%changed_grid(GridID) = .true.
+
+  end subroutine ovkResetDomainGrid
 
   subroutine ovkGetDomainGrid(Domain, GridID, Grid)
 
@@ -333,6 +353,7 @@ contains
 
     nullify(Grid)
     Domain%editing_grid(GridID) = .false.
+    Domain%changed_grid(GridID) = .true.
 
   end subroutine ovkReleaseDomainGrid
 

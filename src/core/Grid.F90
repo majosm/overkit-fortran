@@ -20,10 +20,12 @@ module ovkGrid
   public :: ovk_grid_properties_
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
+  public :: ovkResetGrid
   public :: ovkUpdateGrid
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties
   public :: ovkReleaseGridProperties
+  public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
   public :: ovkReleaseGridCoords
@@ -238,6 +240,26 @@ contains
 
   end subroutine ovkDestroyGrid
 
+  subroutine ovkResetGrid(Grid)
+
+    type(ovk_grid), intent(inout) :: Grid
+
+    integer :: d
+
+    do d = 1, Grid%cart%nd
+      Grid%xyz(d)%values = 0._rk
+    end do
+
+    Grid%bounds = ovk_bbox_(Grid%cart%nd)
+
+    Grid%grid_mask%values = .true.
+    Grid%boundary_mask%values = .false.
+
+    Grid%cell_grid_mask%values = .true.
+    Grid%resolution%values = 0._rk
+
+  end subroutine ovkResetGrid
+
   subroutine ovkUpdateGrid(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
@@ -253,7 +275,7 @@ contains
     if (CannotUpdate) then
 
       if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot update domain; still being edited."
+        write (ERROR_UNIT, '(a)') "ERROR: Cannot update grid; still being edited."
         stop 1
       end if
 
@@ -336,6 +358,15 @@ contains
     Grid%editing_properties = .false.
 
   end subroutine ovkReleaseGridProperties
+
+  subroutine ovkGetGridCart(Grid, Cart)
+
+    type(ovk_grid), intent(in) :: Grid
+    type(ovk_cart), intent(out) :: Cart
+
+    Cart = Grid%cart
+
+  end subroutine ovkGetGridCart
 
   subroutine ovkGetGridCoords(Grid, DimIndex, Coords)
 

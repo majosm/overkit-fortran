@@ -6,6 +6,7 @@ module ovkOverset
   use ovkAssembler
   use ovkBoundingBox
   use ovkCart
+  use ovkConnectivity
   use ovkDomain
   use ovkDonorAccel
   use ovkDonors
@@ -70,6 +71,8 @@ contains
     type(ovk_field_logical) :: ReceiverMask
     type(ovk_field_logical) :: OrphanMask
     type(ovk_donors), dimension(:), pointer :: Donors
+    type(ovk_connectivity), pointer :: Connectivity
+    integer :: StencilSize
     type(ovk_interp), dimension(:), pointer :: InterpData
 
     type(ovk_field_logical), dimension(:), allocatable :: ValidCellMasks
@@ -702,14 +705,30 @@ contains
       write (*, '(a)') "Generating interpolation data..."
     end if
 
-    InterpData => Assembler%interp_data
+    call ovkEditAssemblerConnectivity(Assembler, Connectivity)
 
     do n = 1, NumGrids
-      call ovkGenerateInterpData(Donors(n), InterpData(n), InterpScheme=InterpScheme(n))
+      StencilSize = 2
+      do m = 1, NumGrids
+        if (Assembler%graph%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
+          Assembler%graph%interp_scheme(m,n) == OVK_INTERP_CUBIC) then
+          StencilSize = 4
+          exit
+        end if
+      end do
+      call ovkCreateConnectivityInterpData(Connectivity, n, Grids(n), StencilSize)
+    end do
+
+    InterpData => Connectivity%interp_data
+
+    do n = 1, NumGrids
+      call ovkFillInterpData(InterpData(n), Donors(n), InterpScheme=InterpScheme(n))
       if (OVK_VERBOSE) then
         write (*, '(3a)') "* Generated interpolation data for grid ", trim(IntToString(n)), "."
       end if
     end do
+
+    call ovkReleaseAssemblerConnectivity(Assembler, Connectivity)
 
     if (OVK_VERBOSE) then
       write (*, '(a)') "Finished generating interpolation data."

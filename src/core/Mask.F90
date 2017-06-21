@@ -18,7 +18,6 @@ module ovkMask
   public :: ovkDistanceField
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
-  public :: ovkMaskToIBlank
   public :: ovkPrintMask
   public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
 
@@ -510,23 +509,6 @@ contains
     end do
 
   end function ovkCountMask
-
-  subroutine ovkMaskToIBlank(Mask, IBlank, TrueValue, FalseValue)
-
-    type(ovk_field_logical), intent(in) :: Mask
-    type(ovk_field_int), intent(inout) :: IBlank
-    integer, intent(in), optional :: TrueValue
-    integer, intent(in), optional :: FalseValue
-
-    if (present(TrueValue)) then
-      IBlank%values = merge(TrueValue, IBlank%values, Mask%values)
-    end if
-
-    if (present(FalseValue)) then
-      IBlank%values = merge(IBlank%values, FalseValue, Mask%values)
-    end if
-
-  end subroutine ovkMaskToIBlank
 
   subroutine ovkPrintMask(Mask, StartIndex, EndIndex)
 

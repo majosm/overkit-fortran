@@ -48,13 +48,17 @@ module ovkPLOT3D
   end interface ovkCloseP3D
 
   interface ovkReadP3D
-    module procedure ovkReadP3D_Grid
-    module procedure ovkReadP3D_Grid_IBlank
+    module procedure ovkReadP3D_Grid_2D
+    module procedure ovkReadP3D_Grid_3D
+    module procedure ovkReadP3D_Grid_IBlank_2D
+    module procedure ovkReadP3D_Grid_IBlank_3D
   end interface ovkReadP3D
 
   interface ovkWriteP3D
-    module procedure ovkWriteP3D_Grid
-    module procedure ovkWriteP3D_Grid_IBlank
+    module procedure ovkWriteP3D_Grid_2D
+    module procedure ovkWriteP3D_Grid_3D
+    module procedure ovkWriteP3D_Grid_IBlank_2D
+    module procedure ovkWriteP3D_Grid_IBlank_3D
   end interface ovkWriteP3D
 
   integer, parameter :: ikoffset = c_long_long
@@ -358,14 +362,14 @@ contains
 
   end subroutine ovkCloseP3D_Grid
 
-  subroutine ovkReadP3D_Grid(GridFile, GridID, XYZ, Error)
+  subroutine ovkReadP3D_Grid_2D(GridFile, GridID, X, Y, Error)
 
-    type(ovk_plot3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
     integer, intent(in) :: GridID
-    type(ovk_field_real), dimension(:), intent(in) :: XYZ
+    type(ovk_field_real), intent(inout) :: X
+    type(ovk_field_real), intent(inout) :: Y
     integer, intent(out), optional :: Error
 
-    integer :: i
     integer :: Error_
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
@@ -375,52 +379,44 @@ contains
     end if
 
     if (OVK_DEBUG) then
-      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
-        write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid ID in read from ", &
-          trim(GridFile%path), "."
+      if (GridFile%nd /= 2) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
         stop 1
       end if
-      do i = 1, GridFile%nd
-        if (XYZ(i)%cart%nd /= GridFile%nd) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid dimension in read from ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
-        if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in read from ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
-      end do
+      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
+        stop 1
+      end if
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if (any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
     end if
 
     Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, &
       merge(1,0,GridFile%with_iblank), GridID-1)
 
     if (GridFile%with_iblank) then
-      IBlank = ovk_field_int_(XYZ(1)%cart)
+      IBlank = ovk_field_int_(X%cart)
+      call P3DInternalReadSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, &
+        IBlank%values, Error_)
+    else
+      call P3DInternalReadSingleGrid2D(NullTerminate(GridFile%path), GridFile%npoints(:,GridID), &
+        GridFile%endian, Offset, X%values, Y%values, Error_)
     end if
-
-    select case (GridFile%nd)
-    case (2)
-      if (GridFile%with_iblank) then
-        call P3DInternalReadSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-          IBlank%values, Error_)
-      else
-        call P3DInternalReadSingleGrid2D(NullTerminate(GridFile%path), GridFile%npoints(:,GridID), &
-          GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, Error_)
-      end if
-    case (3)
-      if (GridFile%with_iblank) then
-        call P3DInternalReadSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-          XYZ(3)%values, IBlank%values, Error_)
-      else
-        call P3DInternalReadSingleGrid3D(NullTerminate(GridFile%path), GridFile%npoints(:,GridID), &
-          GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, XYZ(3)%values, Error_)
-      end if
-    end select
     if (Error_ /= 0) goto 999
 
     if (OVK_VERBOSE) then
@@ -436,17 +432,98 @@ contains
       end if
     end if
 
-  end subroutine ovkReadP3D_Grid
+  end subroutine ovkReadP3D_Grid_2D
 
-  subroutine ovkReadP3D_Grid_IBlank(GridFile, GridID, XYZ, IBlank, Error)
+  subroutine ovkReadP3D_Grid_3D(GridFile, GridID, X, Y, Z, Error)
 
-    type(ovk_plot3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
     integer, intent(in) :: GridID
-    type(ovk_field_real), dimension(:), intent(in) :: XYZ
-    type(ovk_field_int), intent(in) :: IBlank
+    type(ovk_field_real), intent(inout) :: X
+    type(ovk_field_real), intent(inout) :: Y
+    type(ovk_field_real), intent(inout) :: Z
     integer, intent(out), optional :: Error
 
-    integer :: i
+    integer :: Error_
+    type(ovk_field_int) :: IBlank
+    integer(ikoffset) :: Offset
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
+    end if
+
+    if (OVK_DEBUG) then
+      if (GridFile%nd /= 3) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
+        stop 1
+      end if
+      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
+        stop 1
+      end if
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Z%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if(any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Z%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect size."
+        stop 1
+      end if
+    end if
+
+    Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, &
+      merge(1,0,GridFile%with_iblank), GridID-1)
+
+    if (GridFile%with_iblank) then
+      IBlank = ovk_field_int_(X%cart)
+      call P3DInternalReadSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, &
+        Z%values, IBlank%values, Error_)
+    else
+      call P3DInternalReadSingleGrid3D(NullTerminate(GridFile%path), GridFile%npoints(:,GridID), &
+        GridFile%endian, Offset, X%values, Y%values, Z%values, Error_)
+    end if
+    if (Error_ /= 0) goto 999
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
+    end if
+
+999 if (Error_ /= 0) then
+      if (present(Error)) then
+        Error = Error_
+        return
+      else
+        stop IO_ERROR
+      end if
+    end if
+
+  end subroutine ovkReadP3D_Grid_3D
+
+  subroutine ovkReadP3D_Grid_IBlank_2D(GridFile, GridID, X, Y, IBlank, Error)
+
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
+    integer, intent(in) :: GridID
+    type(ovk_field_real), intent(inout) :: X
+    type(ovk_field_real), intent(inout) :: Y
+    type(ovk_field_int), intent(inout) :: IBlank
+    integer, intent(out), optional :: Error
+
     integer :: Error_
     integer(ikoffset) :: Offset
 
@@ -455,38 +532,50 @@ contains
     end if
 
     if (OVK_DEBUG) then
-      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
-        write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid ID in read from ", &
-          trim(GridFile%path), "."
+      if (GridFile%nd /= 2) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
         stop 1
       end if
-      do i = 1, GridFile%nd
-        if (XYZ(i)%cart%nd /= GridFile%nd) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid dimension in read from ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
-        if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in read from ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
-      end do
+      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
+        stop 1
+      end if
+      if (.not. GridFile%with_iblank) then
+        write (ERROR_UNIT, '(a)') "ERROR: File does not contain IBlank."
+        stop 1
+      end if
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (IBlank%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect dimension."
+        stop 1
+      end if
+      if(any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(IBlank%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect size."
+        stop 1
+      end if
     end if
 
     Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, &
       merge(1,0,GridFile%with_iblank), GridID-1)
 
-    select case (GridFile%nd)
-    case (2)
-      call P3DInternalReadSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-        IBlank%values, Error_)
-    case (3)
-      call P3DInternalReadSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-        XYZ(3)%values, IBlank%values, Error_)
-    end select
+    call P3DInternalReadSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
+      GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, &
+      IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
     if (OVK_VERBOSE) then
@@ -502,119 +591,149 @@ contains
       end if
     end if
 
-  end subroutine ovkReadP3D_Grid_IBlank
+  end subroutine ovkReadP3D_Grid_IBlank_2D
 
-  subroutine ovkWriteP3D_Grid(GridFile, GridID, XYZ, Error)
+  subroutine ovkReadP3D_Grid_IBlank_3D(GridFile, GridID, X, Y, Z, IBlank, Error)
 
-    type(ovk_plot3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
     integer, intent(in) :: GridID
-    type(ovk_field_real), dimension(:), intent(in) :: XYZ
+    type(ovk_field_real), intent(inout) :: X
+    type(ovk_field_real), intent(inout) :: Y
+    type(ovk_field_real), intent(inout) :: Z
+    type(ovk_field_int), intent(inout) :: IBlank
     integer, intent(out), optional :: Error
 
-    integer :: i
     integer :: Error_
-!     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
-    type(ovk_cart) :: ExportCart
-    real(rk), dimension(:,:,:,:), allocatable :: XYZCopy
-    integer, dimension(:,:,:), allocatable :: IBlankCopy
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
+    end if
+
+    if (OVK_DEBUG) then
+      if (GridFile%nd /= 3) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
+        stop 1
+      end if
+      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
+        stop 1
+      end if
+      if (.not. GridFile%with_iblank) then
+        write (ERROR_UNIT, '(a)') "ERROR: File does not contain IBlank."
+        stop 1
+      end if
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Z%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (IBlank%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect dimension."
+        stop 1
+      end if
+      if(any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Z%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(IBlank%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect size."
+        stop 1
+      end if
+    end if
+
+    Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, &
+      merge(1,0,GridFile%with_iblank), GridID-1)
+
+    call P3DInternalReadSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
+      GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, &
+      Z%values, IBlank%values, Error_)
+    if (Error_ /= 0) goto 999
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
+    end if
+
+999 if (Error_ /= 0) then
+      if (present(Error)) then
+        Error = Error_
+        return
+      else
+        stop IO_ERROR
+      end if
+    end if
+
+  end subroutine ovkReadP3D_Grid_IBlank_3D
+
+  subroutine ovkWriteP3D_Grid_2D(GridFile, GridID, X, Y, Error)
+
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
+    integer, intent(in) :: GridID
+    type(ovk_field_real), intent(in) :: X
+    type(ovk_field_real), intent(in) :: Y
+    integer, intent(out), optional :: Error
+
+    integer :: Error_
+    type(ovk_field_int) :: IBlank
+    integer(ikoffset) :: Offset
 
     if (OVK_VERBOSE) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
+      if (GridFile%nd /= 2) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
+        stop 1
+      end if
       if (GridID <= 0 .or. GridID > GridFile%ngrids) then
-        write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid ID in write to ", &
-          trim(GridFile%path), "."
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
         stop 1
       end if
-      if (.not. GridFile%with_iblank) then
-        write (ERROR_UNIT, '(3a)') "ERROR: Attempted to write IBlank data to ", &
-          trim(GridFile%path), " which is not formatted for IBlank."
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
         stop 1
       end if
-      do i = 1, GridFile%nd
-        if (XYZ(i)%cart%nd /= GridFile%nd) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid dimension in write to ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
-!         if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-!           write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
-!             trim(GridFile%path), "."
-!           stop 1
-!         end if
-      end do
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if(any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
     end if
 
     Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, 1, GridID-1)
 
-!     if (GridFile%with_iblank) then
-!       IBlank = ovk_field_int_(XYZ(1)%cart, 1)
-!     end if
-
-    allocate(XYZCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
-      GridFile%npoints(3,GridID),GridFile%nd))
-
-    if (any(XYZ(1)%cart%periodic .and. (GridFile%npoints(:,GridID) /= &
-      XYZ(1)%cart%ie-XYZ(1)%cart%is+1))) then
-      select case (XYZ(1)%cart%periodic_storage)
-      case (OVK_OVERLAP_PERIODIC)
-        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
-          OVK_NO_OVERLAP_PERIODIC)
-      case (OVK_NO_OVERLAP_PERIODIC)
-        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
-          OVK_OVERLAP_PERIODIC)
-      end select
-      do i = 1, GridFile%nd
-        call ovkExportField(XYZ(i), ExportCart, XYZCopy(:,:,:,i))
-      end do
-    else
-      do i = 1, GridFile%nd
-        XYZCopy(:,:,:,i) = XYZ(i)%values
-      end do
-    end if
-
     if (GridFile%with_iblank) then
-      allocate(IBlankCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
-        GridFile%npoints(3,GridID)))
-      IBlankCopy = 1
+      IBlank = ovk_field_int_(X%cart, 1)
+      call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, &
+        IBlank%values, Error_)
+    else
+      call P3DInternalWriteSingleGrid2D(NullTerminate(GridFile%path), &
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, Error_)
     end if
-
-    select case (GridFile%nd)
-    case (2)
-      if (GridFile%with_iblank) then
-!         call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-!           IBlank%values, Error_)
-        call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
-          XYZCopy(:,:,:,2), IBlankCopy, Error_)
-      else
-!         call P3DInternalWriteSingleGrid2D(NullTerminate(GridFile%path), &
-!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, Error_)
-        call P3DInternalWriteSingleGrid2D(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
-          XYZCopy(:,:,:,2), Error_)
-      end if
-    case (3)
-      if (GridFile%with_iblank) then
-!         call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-!           XYZ(3)%values, IBlank%values, Error_)
-        call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
-          XYZCopy(:,:,:,2), XYZCopy(:,:,:,3), IBlankCopy, Error_)
-      else
-!         call P3DInternalWriteSingleGrid3D(NullTerminate(GridFile%path), &
-!           GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-!           XYZ(3)%values, Error_)
-        call P3DInternalWriteSingleGrid3D(NullTerminate(GridFile%path), &
-          GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
-          XYZCopy(:,:,:,2), XYZCopy(:,:,:,3), Error_)
-      end if
-    end select
     if (Error_ /= 0) goto 999
 
     if (OVK_VERBOSE) then
@@ -630,101 +749,148 @@ contains
       end if
     end if
 
-  end subroutine ovkWriteP3D_Grid
+  end subroutine ovkWriteP3D_Grid_2D
 
-  subroutine ovkWriteP3D_Grid_IBlank(GridFile, GridID, XYZ, IBlank, Error)
+  subroutine ovkWriteP3D_Grid_3D(GridFile, GridID, X, Y, Z, Error)
 
-    type(ovk_plot3d_grid_file), intent(in) :: GridFile
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
     integer, intent(in) :: GridID
-    type(ovk_field_real), dimension(:), intent(in) :: XYZ
+    type(ovk_field_real), intent(in) :: X
+    type(ovk_field_real), intent(in) :: Y
+    type(ovk_field_real), intent(in) :: Z
+    integer, intent(out), optional :: Error
+
+    integer :: Error_
+    type(ovk_field_int) :: IBlank
+    integer(ikoffset) :: Offset
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
+    end if
+
+    if (OVK_DEBUG) then
+      if (GridFile%nd /= 3) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
+        stop 1
+      end if
+      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
+        stop 1
+      end if
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Z%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if(any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Z%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect size."
+        stop 1
+      end if
+    end if
+
+    Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, 1, GridID-1)
+
+    if (GridFile%with_iblank) then
+      IBlank = ovk_field_int_(X%cart, 1)
+      call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, Z%values, &
+        IBlank%values, Error_)
+    else
+      call P3DInternalWriteSingleGrid3D(NullTerminate(GridFile%path), &
+        GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, Z%values, Error_)
+    end if
+    if (Error_ /= 0) goto 999
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
+    end if
+
+999 if (Error_ /= 0) then
+      if (present(Error)) then
+        Error = Error_
+        return
+      else
+        stop IO_ERROR
+      end if
+    end if
+
+  end subroutine ovkWriteP3D_Grid_3D
+
+  subroutine ovkWriteP3D_Grid_IBlank_2D(GridFile, GridID, X, Y, IBlank, Error)
+
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
+    integer, intent(in) :: GridID
+    type(ovk_field_real), intent(in) :: X
+    type(ovk_field_real), intent(in) :: Y
     type(ovk_field_int), intent(in) :: IBlank
     integer, intent(out), optional :: Error
 
-    integer :: i
     integer :: Error_
     integer(ikoffset) :: Offset
-    type(ovk_cart) :: ExportCart
-    real(rk), dimension(:,:,:,:), allocatable :: XYZCopy
-    integer, dimension(:,:,:), allocatable :: IBlankCopy
 
     if (OVK_VERBOSE) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
+      if (GridFile%nd /= 2) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
+        stop 1
+      end if
       if (GridID <= 0 .or. GridID > GridFile%ngrids) then
-        write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid ID in write to ", &
-          trim(GridFile%path), "."
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
         stop 1
       end if
       if (.not. GridFile%with_iblank) then
-        write (ERROR_UNIT, '(3a)') "ERROR: Attempted to write IBlank data to ", &
-          trim(GridFile%path), " which is not formatted for IBlank."
+        write (ERROR_UNIT, '(a)') "ERROR: File is not formatted for IBlank."
         stop 1
       end if
-      do i = 1, GridFile%nd
-        if (XYZ(i)%cart%nd /= GridFile%nd) then
-          write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid dimension in write to ", &
-            trim(GridFile%path), "."
-          stop 1
-        end if
-!         if(any(ovkCartSize(XYZ(i)%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-!           write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
-!             trim(GridFile%path), "."
-!           stop 1
-!         end if
-      end do
-!       if(any(ovkCartSize(IBlank%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
-!         write (ERROR_UNIT, '(3a)') "ERROR: Incorrect grid size in write to ", &
-!           trim(GridFile%path), "."
-!         stop 1
-!       end if
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (IBlank%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect dimension."
+        stop 1
+      end if
+      if(any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(IBlank%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect size."
+        stop 1
+      end if
     end if
 
     Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, 1, GridID-1)
 
-    allocate(XYZCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
-      GridFile%npoints(3,GridID),GridFile%nd))
-    allocate(IBlankCopy(GridFile%npoints(1,GridID),GridFile%npoints(2,GridID), &
-      GridFile%npoints(3,GridID)))
-
-    if (any(XYZ(1)%cart%periodic .and. (GridFile%npoints(:,GridID) /= &
-      XYZ(1)%cart%ie-XYZ(1)%cart%is+1))) then
-      select case (XYZ(1)%cart%periodic_storage)
-      case (OVK_OVERLAP_PERIODIC)
-        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
-          OVK_NO_OVERLAP_PERIODIC)
-      case (OVK_NO_OVERLAP_PERIODIC)
-        ExportCart = ovk_cart_(GridFile%nd, GridFile%npoints(:,GridID), XYZ(1)%cart%periodic, &
-          OVK_OVERLAP_PERIODIC)
-      end select
-      do i = 1, GridFile%nd
-        call ovkExportField(XYZ(i), ExportCart, XYZCopy(:,:,:,i))
-      end do
-      call ovkExportField(IBlank, ExportCart, IBlankCopy)
-    else
-      do i = 1, GridFile%nd
-        XYZCopy(:,:,:,i) = XYZ(i)%values
-      end do
-      IBlankCopy = IBlank%values
-    end if
-
-    select case (GridFile%nd)
-    case (2)
-!       call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-!         GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-!         IBlank%values, Error_)
-      call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
-        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
-        XYZCopy(:,:,:,2), IBlankCopy, Error_)
-    case (3)
-!       call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-!         GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZ(1)%values, XYZ(2)%values, &
-!         XYZ(3)%values, IBlank%values, Error_)
-      call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
-        GridFile%npoints(:,GridID), GridFile%endian, Offset, XYZCopy(:,:,:,1), &
-        XYZCopy(:,:,:,2), XYZCopy(:,:,:,3), IBlankCopy, Error_)
-    end select
+    call P3DInternalWriteSingleGrid2DWithIBlank(NullTerminate(GridFile%path), &
+      GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, &
+      IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
     if (OVK_VERBOSE) then
@@ -740,7 +906,93 @@ contains
       end if
     end if
 
-  end subroutine ovkWriteP3D_Grid_IBlank
+  end subroutine ovkWriteP3D_Grid_IBlank_2D
+
+  subroutine ovkWriteP3D_Grid_IBlank_3D(GridFile, GridID, X, Y, Z, IBlank, Error)
+
+    type(ovk_plot3d_grid_file), intent(inout) :: GridFile
+    integer, intent(in) :: GridID
+    type(ovk_field_real), intent(in) :: X
+    type(ovk_field_real), intent(in) :: Y
+    type(ovk_field_real), intent(in) :: Z
+    type(ovk_field_int), intent(in) :: IBlank
+    integer, intent(out), optional :: Error
+
+    integer :: Error_
+    integer(ikoffset) :: Offset
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
+    end if
+
+    if (OVK_DEBUG) then
+      if (GridFile%nd /= 3) then
+        write (ERROR_UNIT, '(a)') "ERROR: Incorrect number of coordinate fields specified."
+        stop 1
+      end if
+      if (GridID <= 0 .or. GridID > GridFile%ngrids) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
+        stop 1
+      end if
+      if (.not. GridFile%with_iblank) then
+        write (ERROR_UNIT, '(a)') "ERROR: File is not formatted for IBlank."
+        stop 1
+      end if
+      if (X%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Y%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (Z%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect dimension."
+        stop 1
+      end if
+      if (IBlank%cart%nd /= GridFile%nd) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect dimension."
+        stop 1
+      end if
+      if(any(ovkCartSize(X%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: X coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Y%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Y coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(Z%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: Z coordinate field has incorrect size."
+        stop 1
+      end if
+      if(any(ovkCartSize(IBlank%cart) /= GridFile%npoints(:GridFile%nd,GridID))) then
+        write (ERROR_UNIT, '(a)') "ERROR: IBlank field has incorrect size."
+        stop 1
+      end if
+    end if
+
+    Offset = P3DInternalGetGridOffset(GridFile%nd, GridFile%ngrids, GridFile%npoints, 1, GridID-1)
+
+    call P3DInternalWriteSingleGrid3DWithIBlank(NullTerminate(GridFile%path), &
+      GridFile%npoints(:,GridID), GridFile%endian, Offset, X%values, Y%values, &
+      Z%values, IBlank%values, Error_)
+    if (Error_ /= 0) goto 999
+
+    if (OVK_VERBOSE) then
+      write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
+    end if
+
+999 if (Error_ /= 0) then
+      if (present(Error)) then
+        Error = Error_
+        return
+      else
+        stop IO_ERROR
+      end if
+    end if
+
+  end subroutine ovkWriteP3D_Grid_IBlank_3D
 
   pure function NullTerminate(String) result(NullTerminatedString)
 

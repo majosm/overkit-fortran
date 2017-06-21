@@ -6,6 +6,7 @@ module Overkit
   use ovkAssembler
   use ovkBoundingBox
   use ovkCart
+  use ovkConnectivity
   use ovkDomain
   use ovkDonorAccel
   use ovkDonors
@@ -49,13 +50,9 @@ module Overkit
 !   public :: ovkGetAssemblerOverlap
 !   public :: ovkEditAssemblerOverlap
 !   public :: ovkReleaseAssemblerOverlap
-!   public :: ovkGetAssemblerConnectivity
-!   public :: ovkEditAssemblerConnectivity
-!   public :: ovkReleaseAssemblerConnectivity
-  public :: ovkGetAssemblerInterpData
-!   public :: ovkIntersectGrids
-!   public :: ovkCutHoles
-!   public :: ovkGenerateConnectivity
+  public :: ovkGetAssemblerConnectivity
+  public :: ovkEditAssemblerConnectivity
+  public :: ovkReleaseAssemblerConnectivity
   public :: ovkGetAssemblerPropertyDimension
   public :: ovkGetAssemblerPropertyGridCount
   public :: ovkGetAssemblerPropertyVerbose
@@ -110,6 +107,37 @@ module Overkit
   public :: ovkCartConvertPeriodicStorage
   public :: ovkCartPointToCell
 
+  ! ovkConnectivity
+  public :: ovk_connectivity
+  public :: ovk_connectivity_
+  public :: ovk_connectivity_properties
+  public :: ovk_connectivity_properties_
+  public :: ovkCreateConnectivity
+  public :: ovkDestroyConnectivity
+  public :: ovkUpdateConnectivity
+  public :: ovkGetConnectivityProperties
+  public :: ovkEditConnectivityProperties
+  public :: ovkReleaseConnectivityProperties
+  public :: ovkCreateConnectivityInterpData
+  public :: ovkDestroyConnectivityInterpData
+  public :: ovkGetConnectivityInterpData
+!   public :: ovkCreateConnectivityDonors
+!   public :: ovkDestroyConnectivityDonors
+!   public :: ovkResetConnectivityDonors
+!   public :: ovkGetConnectivityDonors
+!   public :: ovkEditConnectivityDonors
+!   public :: ovkReleaseConnectivityDonors
+!   public :: ovkCreateConnectivityReceivers
+!   public :: ovkDestroyConnectivityReceivers
+!   public :: ovkResetConnectivityReceivers
+!   public :: ovkGetConnectivityReceivers
+!   public :: ovkEditConnectivityReceivers
+!   public :: ovkReleaseConnectivityReceivers
+  public :: ovkGetConnectivityPropertyDimension
+  public :: ovkGetConnectivityPropertyGridCount
+  public :: ovkGetConnectivityPropertyVerbose
+  public :: ovkSetConnectivityPropertyVerbose
+
   ! ovkDomain
   public :: ovk_domain
   public :: ovk_domain_
@@ -123,6 +151,7 @@ module Overkit
   public :: ovkReleaseDomainProperties
   public :: ovkCreateDomainGrid
   public :: ovkDestroyDomainGrid
+  public :: ovkResetDomainGrid
   public :: ovkGetDomainGrid
   public :: ovkEditDomainGrid
   public :: ovkReleaseDomainGrid
@@ -150,8 +179,6 @@ module Overkit
   public :: ovkGenerateReceiverMask
   public :: ovkGenerateDonorMask
   public :: ovkGenerateOverlapMask
-  public :: ovkGenerateCoarseToFineMask
-  public :: ovkGenerateNearCrossoverMask
   public :: ovkGenerateOrphanMask
 
   ! ovkField
@@ -217,10 +244,12 @@ module Overkit
   public :: ovk_grid_properties_
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
+  public :: ovkResetGrid
   public :: ovkUpdateGrid
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties
   public :: ovkReleaseGridProperties
+  public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
   public :: ovkReleaseGridCoords
@@ -236,7 +265,7 @@ module Overkit
   public :: ovkGridResolution
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
-  public :: ovkExportCoords
+  public :: ovkExportGridCoords
   public :: ovkGetGridPropertyID
   public :: ovkGetGridPropertyDimension
   public :: ovkGetGridPropertySize
@@ -263,10 +292,20 @@ module Overkit
   ! ovkInterp
   public :: ovk_interp
   public :: ovk_interp_
-  public :: ovkMakeInterpData
+  public :: ovk_interp_properties
+  public :: ovk_interp_properties_
+  public :: ovkCreateInterpData
   public :: ovkDestroyInterpData
-  public :: ovkGenerateInterpData
-  public :: ovkDonorGridIDToIBlank
+  public :: ovkUpdateInterpData
+  public :: ovkFillInterpData
+  public :: ovkGetInterpDataReceiverMask
+  public :: ovkGetInterpDataDonorGridIDs
+  public :: ovkGetInterpDataDonorCells
+  public :: ovkGetInterpDataDonorCellCoords
+  public :: ovkGetInterpDataSchemes
+  public :: ovkGetInterpDataCoefs
+  public :: ovkGetInterpDataPropertyVerbose
+  public :: ovkSetInterpDataPropertyVerbose
 
   ! ovkMask
   public :: ovkFindMaskEdge
@@ -276,7 +315,6 @@ module Overkit
   public :: ovkDistanceField
   public :: ovkGenerateNearEdgeMask
   public :: ovkCountMask
-  public :: ovkMaskToIBlank
   public :: ovkPrintMask
   public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
 

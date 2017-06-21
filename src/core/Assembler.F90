@@ -5,6 +5,7 @@ module ovkAssembler
 
   use ovkBoundingBox
   use ovkCart
+  use ovkConnectivity
   use ovkDonors
   use ovkDomain
   use ovkField
@@ -39,10 +40,9 @@ module ovkAssembler
 !   public :: ovkGetAssemblerOverlap
 !   public :: ovkEditAssemblerOverlap
 !   public :: ovkReleaseAssemblerOverlap
-!   public :: ovkGetAssemblerConnectivity
-!   public :: ovkEditAssemblerConnectivity
-!   public :: ovkReleaseAssemblerConnectivity
-  public :: ovkGetAssemblerInterpData
+  public :: ovkGetAssemblerConnectivity
+  public :: ovkEditAssemblerConnectivity
+  public :: ovkReleaseAssemblerConnectivity
   public :: ovkGetAssemblerPropertyDimension
   public :: ovkGetAssemblerPropertyGridCount
   public :: ovkGetAssemblerPropertyVerbose
@@ -93,14 +93,13 @@ module ovkAssembler
     type(ovk_assembler_graph) :: prev_graph
     type(ovk_domain), pointer :: domain
 !     type(ovk_overlap), pointer :: overlap
-!     type(ovk_connectivity), pointer :: connectivity
+    type(ovk_connectivity), pointer :: connectivity
     type(ovk_donors), dimension(:), pointer :: donors
-    type(ovk_interp), dimension(:), pointer :: interp_data
     logical :: editing_properties
     logical :: editing_graph
     logical :: editing_domain
 !     logical :: editing_overlap
-!     logical :: editing_connectivity
+    logical :: editing_connectivity
   end type ovk_assembler
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -131,11 +130,12 @@ contains
     nullify(Assembler%domain)
 !     nullify(Assembler%overlap)
     nullify(Assembler%donors)
-!     nullify(Assembler%receivers)
-    nullify(Assembler%interp_data)
+    nullify(Assembler%connectivity)
     Assembler%editing_properties = .false.
     Assembler%editing_graph = .false.
     Assembler%editing_domain = .false.
+!     Assembler%editing_overlap = .false.
+    Assembler%editing_connectivity = .false.
 
   end function ovk_assembler_Default
 
@@ -162,24 +162,21 @@ contains
     call ovkCreateDomain(Assembler%domain, NumDims, NumGrids, Verbose=.false.)
 
 !     allocate(Assembler%overlap)
-!     Assembler%overlap = ovk_overlap_()
+!     call ovkCreateOverlap(Assembler%overlap, NumDims, NumGrids, Verbose=.false.)
 
     allocate(Assembler%donors(NumGrids))
     do m = 1, NumGrids
       Assembler%donors(m) = ovk_donors_()
     end do
 
-!     allocate(Assembler%connectivity)
-!     Assembler%connectivity = ovk_connectivity_()
-
-    allocate(Assembler%interp_data(NumGrids))
-    do m = 1, NumGrids
-      Assembler%interp_data(m) = ovk_interp_()
-    end do
+    allocate(Assembler%connectivity)
+    call ovkCreateConnectivity(Assembler%connectivity, NumDims, NumGrids, Verbose=.false.)
 
     Assembler%editing_properties = .false.
     Assembler%editing_graph = .false.
     Assembler%editing_domain = .false.
+!     Assembler%editing_overlap = .false.
+    Assembler%editing_connectivity = .false.
 
   end subroutine ovkCreateAssembler
 
@@ -200,13 +197,8 @@ contains
     end if
 
 !     if (associated(Assembler%overlap)) then
-!       call DestroyOverlap(Assembler%overlap)
+!       call ovkDestroyOverlap(Assembler%overlap)
 !       deallocate(Assembler%overlap)
-!     end if
-
-!     if (associated(Assembler%connectivity)) then
-!       call DestroyConnectivity(Assembler%connectivity)
-!       deallocate(Assembler%connectivity)
 !     end if
 
     if (associated(Assembler%donors)) then
@@ -216,11 +208,9 @@ contains
       deallocate(Assembler%donors)
     end if
 
-    if (associated(Assembler%interp_data)) then
-      do m = 1, size(Assembler%interp_data)
-        call ovkDestroyInterpData(Assembler%interp_data(m))
-      end do
-      deallocate(Assembler%interp_data)
+    if (associated(Assembler%connectivity)) then
+      call ovkDestroyConnectivity(Assembler%connectivity)
+      deallocate(Assembler%connectivity)
     end if
 
   end subroutine ovkDestroyAssembler
@@ -243,17 +233,21 @@ contains
 
     CannotEdit = &
       Assembler%editing_graph .or. &
-      Assembler%editing_domain
+      Assembler%editing_domain .or. &
+      Assembler%editing_connectivity
 
     if (CannotEdit) then
 
       if (OVK_DEBUG) then
         if (Assembler%editing_graph) then
           write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler properties while editing ", &
-            "assembly graph."
-        else
+            "assembler graph."
+        else if (Assembler%editing_domain) then
           write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler properties while editing ", &
             "domain."
+        else
+          write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler properties while editing ", &
+            "connectivity."
         end if
         stop 1
       end if
@@ -276,6 +270,7 @@ contains
 
     integer :: NumGrids
     type(ovk_domain_properties), pointer :: DomainProperties
+    type(ovk_connectivity_properties), pointer :: ConnectivityProperties
 
     if (.not. associated(Properties, Assembler%properties)) return
     if (.not. Assembler%editing_properties) then
@@ -292,9 +287,9 @@ contains
 !     call ovkEditOverlapProperties(Assembler%overlap, OverlapProperties)
 !     call ovkSetOverlapPropertyVerbose(OverlapProperties, Assembler%properties%verbose)
 !     call ovkReleaseOverlapProperties(Assembler%overlap, OverlapProperties)
-!     call ovkEditConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
-!     call ovkSetConnectivityPropertyVerbose(ConnectivityProperties, Assembler%properties%verbose)
-!     call ovkReleaseConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
+    call ovkEditConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
+    call ovkSetConnectivityPropertyVerbose(ConnectivityProperties, Assembler%properties%verbose)
+    call ovkReleaseConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
 
     nullify(Properties)
     Assembler%editing_properties = .false.
@@ -319,16 +314,19 @@ contains
 
     CannotEdit = &
       Assembler%editing_properties .or. &
-      Assembler%editing_domain
+      Assembler%editing_domain .or. &
+      Assembler%editing_connectivity
 
     if (CannotEdit) then
 
       if (OVK_DEBUG) then
         if (Assembler%editing_properties) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembly graph while editing assembler ", &
+          write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler graph while editing assembler ", &
             "properties."
+        else if (Assembler%editing_domain) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembler graph while editing domain."
         else
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembly graph while editing domain."
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembler graph while editing connectivity."
         end if
         stop 1
       end if
@@ -371,7 +369,7 @@ contains
 
       do m = 1, NumGrids
         if (ovkCartCount(Assembler%domain%grids(m)%cart) > 0) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Dynamically updating assembly graph is not yet ", &
+          write (ERROR_UNIT, '(2a)') "ERROR: Dynamically updating assembler graph is not yet ", &
             "supported; must be set before grids are created."
           stop 1
         end if
@@ -491,15 +489,18 @@ contains
 
     CannotEdit = &
       Assembler%editing_properties .or. &
-      Assembler%editing_graph
+      Assembler%editing_graph .or. &
+      Assembler%editing_connectivity
 
     if (CannotEdit) then
 
       if (OVK_DEBUG) then
         if (Assembler%editing_properties) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing assembler properties."
+        else if (Assembler%editing_graph) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing assembler graph."
         else
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing assembly graph."
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing connectivity."
         end if
         stop 1
       end if
@@ -522,6 +523,7 @@ contains
 
     integer :: m, n
     integer :: NumGrids
+    logical, dimension(:), allocatable :: ChangedGrid
     type(ovk_bbox) :: Bounds
 
     if (.not. associated(Domain, Assembler%domain)) return
@@ -530,19 +532,31 @@ contains
       return
     end if
 
+    NumGrids = Assembler%properties%ngrids
+
+    allocate(ChangedGrid(NumGrids))
+    ChangedGrid = Domain%changed_grid
+
     call ovkUpdateDomain(Assembler%domain)
 
-    NumGrids = Assembler%properties%ngrids
+!     do n = 1, NumGrids
+!       if (ChangedGrid(n)) then
+!         call ovkResetConnectivityDonors(Connectivity, GridID)
+!         call ovkResetConnectivityReceivers(Connectivity, GridID)
+!       end if
+!     end do
 
     do n = 1, NumGrids
       do m = 1, NumGrids
-        if (Assembler%graph%overlap(m,n)) then
-          Bounds = ovkBBIntersect(Domain%grids(m)%bounds, Domain%grids(n)%bounds)
-          if (ovkBBIsEmpty(Bounds)) then
-            Assembler%graph%overlap(m,n) = .false.
-            Assembler%graph%boundary_hole_cutting(m,n) = .false.
-            Assembler%graph%overlap_hole_cutting(m,n) = .false.
-            Assembler%graph%connection_type(m,n) = OVK_CONNECTION_NONE
+        if (ChangedGrid(m) .or. ChangedGrid(n)) then
+          if (Assembler%graph%overlap(m,n)) then
+            Bounds = ovkBBIntersect(Domain%grids(m)%bounds, Domain%grids(n)%bounds)
+            if (ovkBBIsEmpty(Bounds)) then
+              Assembler%graph%overlap(m,n) = .false.
+              Assembler%graph%boundary_hole_cutting(m,n) = .false.
+              Assembler%graph%overlap_hole_cutting(m,n) = .false.
+              Assembler%graph%connection_type(m,n) = OVK_CONNECTION_NONE
+            end if
           end if
         end if
       end do
@@ -553,15 +567,66 @@ contains
 
   end subroutine ovkReleaseAssemblerDomain
 
-  subroutine ovkGetAssemblerInterpData(Assembler, GridID, InterpData)
+  subroutine ovkGetAssemblerConnectivity(Assembler, Connectivity)
 
     type(ovk_assembler), intent(in) :: Assembler
-    integer, intent(in) :: GridID
-    type(ovk_interp), pointer, intent(out) :: InterpData
+    type(ovk_connectivity), pointer, intent(out) :: Connectivity
 
-    InterpData => Assembler%interp_data(GridID)
+    Connectivity => Assembler%connectivity
 
-  end subroutine ovkGetAssemblerInterpData
+  end subroutine ovkGetAssemblerConnectivity
+
+  subroutine ovkEditAssemblerConnectivity(Assembler, Connectivity)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+    type(ovk_connectivity), pointer, intent(out) :: Connectivity
+
+    logical :: CannotEdit
+
+    CannotEdit = Assembler%editing_properties .or. Assembler%editing_graph .or. &
+      Assembler%editing_domain
+
+    if (CannotEdit) then
+
+      if (OVK_DEBUG) then
+        if (Assembler%editing_properties) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing assembler properties."
+        else if (Assembler%editing_graph) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing assembler graph."
+        else
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing domain."
+        end if
+        stop 1
+      end if
+
+      nullify(Connectivity)
+
+    else
+
+      Connectivity => Assembler%connectivity
+      Assembler%editing_connectivity = .true.
+
+    end if
+
+  end subroutine ovkEditAssemblerConnectivity
+
+  subroutine ovkReleaseAssemblerConnectivity(Assembler, Connectivity)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+    type(ovk_connectivity), pointer, intent(inout) :: Connectivity
+
+    if (.not. associated(Connectivity, Assembler%connectivity)) return
+    if (.not. Assembler%editing_connectivity) then
+      nullify(Connectivity)
+      return
+    end if
+
+    call ovkUpdateConnectivity(Assembler%connectivity)
+
+    nullify(Connectivity)
+    Assembler%editing_connectivity = .false.
+
+  end subroutine ovkReleaseAssemblerConnectivity
 
   function ovk_assembler_properties_Default() result(Properties)
 

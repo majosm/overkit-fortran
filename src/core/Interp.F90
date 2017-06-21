@@ -5,9 +5,10 @@ module ovkInterp
 
   use ovkCart
   use ovkDonors
+  use ovkField
   use ovkGeometry
   use ovkGlobal
-  use ovkField
+  use ovkGrid
   implicit none
 
   private
@@ -15,20 +16,43 @@ module ovkInterp
   ! API
   public :: ovk_interp
   public :: ovk_interp_
-  public :: ovkMakeInterpData
+  public :: ovk_interp_properties
+  public :: ovk_interp_properties_
+  public :: ovkCreateInterpData
   public :: ovkDestroyInterpData
-  public :: ovkDonorGridIDToIBlank
-  public :: ovkGenerateInterpData
+  public :: ovkUpdateInterpData
+  public :: ovkFillInterpData
+  public :: ovkGetInterpDataReceiverMask
+  public :: ovkGetInterpDataDonorGridIDs
+  public :: ovkGetInterpDataDonorCells
+  public :: ovkGetInterpDataDonorCellCoords
+  public :: ovkGetInterpDataSchemes
+  public :: ovkGetInterpDataCoefs
+  public :: ovkGetInterpDataPropertyVerbose
+  public :: ovkSetInterpDataPropertyVerbose
+
+  type ovk_interp_properties
+    ! Read-only
+    integer :: id
+    integer :: nd
+    integer, dimension(MAX_ND) :: npoints
+    logical, dimension(MAX_ND) :: periodic
+    integer :: periodic_storage
+    integer :: stencil_size
+    ! Read/write
+    logical :: verbose
+  end type ovk_interp_properties
 
   type ovk_interp
+    type(ovk_interp_properties), pointer :: properties
     type(ovk_cart) :: cart
-    integer :: ncoefs
-    type(ovk_field_logical) :: valid_mask
-    type(ovk_field_int) :: donor_grid_ids
-    type(ovk_field_int), dimension(:), allocatable :: donor_cells
-    type(ovk_field_real), dimension(:), allocatable :: donor_cell_coords
-    type(ovk_field_int) :: schemes
-    type(ovk_field_real), dimension(:,:), allocatable :: coefs
+    type(ovk_field_logical), pointer :: valid_mask
+    type(ovk_field_int), pointer :: donor_grid_ids
+    type(ovk_field_int), dimension(:), pointer :: donor_cells
+    type(ovk_field_real), dimension(:), pointer :: donor_cell_coords
+    type(ovk_field_int), pointer :: schemes
+    type(ovk_field_real), dimension(:,:), pointer :: coefs
+    logical :: editing_properties
   end type ovk_interp
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -36,124 +60,135 @@ module ovkInterp
     module procedure ovk_interp_Default
   end interface ovk_interp_
 
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface ovk_interp_properties_
+    module procedure ovk_interp_properties_Default
+  end interface ovk_interp_properties_
+
 contains
 
   pure function ovk_interp_Default() result(InterpData)
 
     type(ovk_interp) :: InterpData
 
+    nullify(InterpData%properties)
     InterpData%cart = ovk_cart_(2)
-    InterpData%ncoefs = 0
-    InterpData%valid_mask = ovk_field_logical_(2)
-    InterpData%donor_grid_ids = ovk_field_int_(2)
-    InterpData%schemes = ovk_field_int_(2)
+    nullify(InterpData%valid_mask)
+    nullify(InterpData%donor_grid_ids)
+    nullify(InterpData%donor_cells)
+    nullify(InterpData%donor_cell_coords)
+    nullify(InterpData%schemes)
+    nullify(InterpData%coefs)
+    InterpData%editing_properties = .false.
 
   end function ovk_interp_Default
 
-  subroutine ovkMakeInterpData(InterpData, Cart, InterpScheme)
+  subroutine ovkCreateInterpData(InterpData, Grid, StencilSize, Verbose)
 
     type(ovk_interp), intent(out) :: InterpData
-    type(ovk_cart), intent(in) :: Cart
-    integer, intent(in), optional :: InterpScheme
+    type(ovk_grid), intent(in) :: Grid
+    integer, intent(in) :: StencilSize
+    logical, intent(in), optional :: Verbose
 
-    integer :: i, j
+    logical :: Verbose_
+    integer :: d, l
 
-    InterpData%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
-
-    if (present(InterpScheme)) then
-      select case (InterpScheme)
-      case (OVK_INTERP_LINEAR)
-        InterpData%ncoefs = 2
-      case (OVK_INTERP_CUBIC)
-        InterpData%ncoefs = 4
-      end select
+    if (present(Verbose)) then
+      Verbose_ = Verbose
     else
-      InterpData%ncoefs = 2
+      Verbose_ = .false.
     end if
 
-    InterpData%valid_mask = ovk_field_logical_(InterpData%cart)
-    InterpData%donor_grid_ids = ovk_field_int_(InterpData%cart)
+    allocate(InterpData%properties)
+    InterpData%properties = ovk_interp_properties_()
+    InterpData%properties%id = Grid%properties%id
+    InterpData%properties%nd = Grid%properties%nd
+    InterpData%properties%npoints = Grid%properties%npoints
+    InterpData%properties%periodic = Grid%properties%periodic
+    InterpData%properties%periodic_storage = Grid%properties%periodic_storage
+    InterpData%properties%stencil_size = StencilSize
+    InterpData%properties%verbose = Verbose_
+
+    InterpData%cart = Grid%cart
+
+    allocate(InterpData%valid_mask)
+    InterpData%valid_mask = ovk_field_logical_(InterpData%cart, .false.)
+
+    allocate(InterpData%donor_grid_ids)
+    InterpData%donor_grid_ids = ovk_field_int_(InterpData%cart, 0)
 
     allocate(InterpData%donor_cells(InterpData%cart%nd))
-    do i = 1, InterpData%cart%nd
-      InterpData%donor_cells(i) = ovk_field_int_(InterpData%cart)
+    do d = 1, InterpData%cart%nd
+      InterpData%donor_cells(d) = ovk_field_int_(InterpData%cart, 0)
     end do
 
     allocate(InterpData%donor_cell_coords(InterpData%cart%nd))
-    do i = 1, InterpData%cart%nd
-      InterpData%donor_cell_coords(i) = ovk_field_real_(InterpData%cart)
+    do d = 1, InterpData%cart%nd
+      InterpData%donor_cell_coords(d) = ovk_field_real_(InterpData%cart, 0._rk)
     end do
 
-    InterpData%schemes = ovk_field_int_(InterpData%cart)
+    allocate(InterpData%schemes)
+    InterpData%schemes = ovk_field_int_(InterpData%cart, OVK_INTERP_LINEAR)
 
-    allocate(InterpData%coefs(InterpData%ncoefs,InterpData%cart%nd))
-    do j = 1, InterpData%cart%nd
-      do i = 1, InterpData%ncoefs
-        InterpData%coefs(i,j) = ovk_field_real_(InterpData%cart)
+    allocate(InterpData%coefs(StencilSize,InterpData%cart%nd))
+    do d = 1, InterpData%cart%nd
+      do l = 1, StencilSize
+        InterpData%coefs(l,d) = ovk_field_real_(InterpData%cart, 0._rk)
       end do
     end do
 
-  end subroutine ovkMakeInterpData
+    InterpData%editing_properties = .false.
+
+  end subroutine ovkCreateInterpData
 
   subroutine ovkDestroyInterpData(InterpData)
 
     type(ovk_interp), intent(inout) :: InterpData
 
-    InterpData%valid_mask = ovk_field_logical_(2)
-    InterpData%donor_grid_ids = ovk_field_int_(2)
+    if (associated(InterpData%properties)) deallocate(InterpData%properties)
 
-    if (allocated(InterpData%donor_cells)) deallocate(InterpData%donor_cells)
-    if (allocated(InterpData%donor_cell_coords)) deallocate(InterpData%donor_cell_coords)
-
-    InterpData%schemes = ovk_field_int_(2)
-
-    if (allocated(InterpData%coefs)) deallocate(InterpData%coefs)
+    if (associated(InterpData%valid_mask)) deallocate(InterpData%valid_mask)
+    if (associated(InterpData%donor_grid_ids)) deallocate(InterpData%donor_grid_ids)
+    if (associated(InterpData%donor_cells)) deallocate(InterpData%donor_cells)
+    if (associated(InterpData%donor_cell_coords)) deallocate(InterpData%donor_cell_coords)
+    if (associated(InterpData%schemes)) deallocate(InterpData%schemes)
+    if (associated(InterpData%coefs)) deallocate(InterpData%coefs)
 
   end subroutine ovkDestroyInterpData
 
-  subroutine ovkDonorGridIDToIBlank(InterpData, IBlank, Multiplier, Offset)
+  subroutine ovkUpdateInterpData(InterpData)
 
-    type(ovk_interp), intent(in) :: InterpData
-    type(ovk_field_int), intent(inout) :: IBlank
-    integer, intent(in), optional :: Multiplier
-    integer, intent(in), optional :: Offset
+    type(ovk_interp), intent(inout) :: InterpData
 
-    integer :: i, j, k
-    integer :: Multiplier_
-    integer :: Offset_
+    logical :: CannotUpdate
 
-    if (present(Multiplier)) then
-      Multiplier_ = Multiplier
+    CannotUpdate = InterpData%editing_properties
+
+    if (CannotUpdate) then
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Cannot update interpolation data; still being edited."
+        stop 1
+      end if
+
+      return
+
     else
-      Multiplier_ = 1
+
+      ! Nothing here at the moment
+
     end if
 
-    if (present(Offset)) then
-      Offset_ = Offset
-    else
-      Offset_ = 0
-    end if
+  end subroutine ovkUpdateInterpData
 
-    do k = InterpData%cart%is(3), InterpData%cart%ie(3)
-      do j = InterpData%cart%is(2), InterpData%cart%ie(2)
-        do i = InterpData%cart%is(1), InterpData%cart%ie(1)
-          if (InterpData%valid_mask%values(i,j,k)) then
-            IBlank%values(i,j,k) = Multiplier_ * InterpData%donor_grid_ids%values(i,j,k) + Offset_
-          end if
-        end do
-      end do
-    end do
+  subroutine ovkFillInterpData(InterpData, Donors, InterpScheme)
 
-  end subroutine ovkDonorGridIDToIBlank
-
-  subroutine ovkGenerateInterpData(Donors, InterpData, InterpScheme)
-
+    type(ovk_interp), intent(inout) :: InterpData
     type(ovk_donors), intent(in) :: Donors
-    type(ovk_interp), intent(out) :: InterpData
     integer, intent(in), optional :: InterpScheme
 
     integer :: InterpScheme_
-    integer :: i, j, k, l, m
+    integer :: i, j, k, d, l
     real(rk), dimension(4) :: Basis
 
     if (present(InterpScheme)) then
@@ -162,7 +197,6 @@ contains
       InterpScheme_ = OVK_INTERP_LINEAR
     end if
 
-    call ovkMakeInterpData(InterpData, Donors%cart, InterpScheme=InterpScheme)
     InterpData%valid_mask%values = .false.
 
     select case (InterpScheme_)
@@ -173,15 +207,15 @@ contains
             if (Donors%valid_mask%values(i,j,k)) then
               InterpData%valid_mask%values(i,j,k) = .true.
               InterpData%donor_grid_ids%values(i,j,k) = Donors%grid_ids%values(i,j,k)
-              do l = 1, InterpData%cart%nd
-                InterpData%donor_cells(l)%values(i,j,k) = Donors%cells(l)%values(i,j,k)
-                InterpData%donor_cell_coords(l)%values(i,j,k) = Donors%cell_coords(l)%values(i,j,k)
+              do d = 1, InterpData%cart%nd
+                InterpData%donor_cells(d)%values(i,j,k) = Donors%cells(d)%values(i,j,k)
+                InterpData%donor_cell_coords(d)%values(i,j,k) = Donors%cell_coords(d)%values(i,j,k)
               end do
               InterpData%schemes%values(i,j,k) = OVK_INTERP_LINEAR
-              do l = 1, InterpData%cart%nd
-                Basis(:2) = ovkInterpBasisLinear(Donors%cell_coords(l)%values(i,j,k))
-                do m = 1, 2
-                  InterpData%coefs(m,l)%values(i,j,k) = Basis(m)
+              do d = 1, InterpData%cart%nd
+                Basis(:2) = ovkInterpBasisLinear(Donors%cell_coords(d)%values(i,j,k))
+                do l = 1, 2
+                  InterpData%coefs(l,d)%values(i,j,k) = Basis(l)
                 end do
               end do
             end if
@@ -195,27 +229,27 @@ contains
             if (Donors%valid_mask%values(i,j,k)) then
               InterpData%valid_mask%values(i,j,k) = .true.
               InterpData%donor_grid_ids%values(i,j,k) = Donors%grid_ids%values(i,j,k)
-              do l = 1, Donors%cart%nd
-                InterpData%donor_cells(l)%values(i,j,k) = Donors%cells(l)%values(i,j,k)
-                InterpData%donor_cell_coords(l)%values(i,j,k) = Donors%cell_coords(l)%values(i,j,k)
+              do d = 1, Donors%cart%nd
+                InterpData%donor_cells(d)%values(i,j,k) = Donors%cells(d)%values(i,j,k)
+                InterpData%donor_cell_coords(d)%values(i,j,k) = Donors%cell_coords(d)%values(i,j,k)
               end do
               if (Donors%cell_extents%values(i,j,k) == 4) then
                 InterpData%schemes%values(i,j,k) = OVK_INTERP_CUBIC
-                do l = 1, InterpData%cart%nd
-                  Basis = ovkInterpBasisCubic(Donors%cell_coords(l)%values(i,j,k))
-                  do m = 1, 4
-                    InterpData%coefs(m,l)%values(i,j,k) = Basis(m)
+                do d = 1, InterpData%cart%nd
+                  Basis = ovkInterpBasisCubic(Donors%cell_coords(d)%values(i,j,k))
+                  do l = 1, 4
+                    InterpData%coefs(l,d)%values(i,j,k) = Basis(l)
                   end do
                 end do
               else if (Donors%cell_extents%values(i,j,k) == 2) then
                 InterpData%schemes%values(i,j,k) = OVK_INTERP_LINEAR
-                do l = 1, InterpData%cart%nd
-                  Basis(:2) = ovkInterpBasisLinear(Donors%cell_coords(l)%values(i,j,k))
-                  do m = 1, 2
-                    InterpData%coefs(m,l)%values(i,j,k) = Basis(m)
+                do d = 1, InterpData%cart%nd
+                  Basis(:2) = ovkInterpBasisLinear(Donors%cell_coords(d)%values(i,j,k))
+                  do l = 1, 2
+                    InterpData%coefs(l,d)%values(i,j,k) = Basis(l)
                   end do
-                  do m = 3, 4
-                    InterpData%coefs(m,l)%values(i,j,k) = 0._rk
+                  do l = 3, 4
+                    InterpData%coefs(l,d)%values(i,j,k) = 0._rk
                   end do
                 end do
               end if
@@ -228,6 +262,92 @@ contains
       stop 1
     end select
 
-  end subroutine ovkGenerateInterpData
+  end subroutine ovkFillInterpData
+
+  subroutine ovkGetInterpDataReceiverMask(InterpData, ReceiverMask)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_field_logical), pointer, intent(out) :: ReceiverMask
+
+    ReceiverMask => InterpData%valid_mask
+
+  end subroutine ovkGetInterpDataReceiverMask
+
+  subroutine ovkGetInterpDataDonorGridIDs(InterpData, DonorGridIDs)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_field_int), pointer, intent(out) :: DonorGridIDs
+
+    DonorGridIDs => InterpData%donor_grid_ids
+
+  end subroutine ovkGetInterpDataDonorGridIDs
+
+  subroutine ovkGetInterpDataDonorCells(InterpData, DonorCells)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_field_int), dimension(:), pointer, intent(out) :: DonorCells
+
+    DonorCells => InterpData%donor_cells
+
+  end subroutine ovkGetInterpDataDonorCells
+
+  subroutine ovkGetInterpDataDonorCellCoords(InterpData, DonorCellCoords)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_field_real), dimension(:), pointer, intent(out) :: DonorCellCoords
+
+    DonorCellCoords => InterpData%donor_cell_coords
+
+  end subroutine ovkGetInterpDataDonorCellCoords
+
+  subroutine ovkGetInterpDataSchemes(InterpData, InterpSchemes)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_field_int), pointer, intent(out) :: InterpSchemes
+
+    InterpSchemes => InterpData%schemes
+
+  end subroutine ovkGetInterpDataSchemes
+
+  subroutine ovkGetInterpDataCoefs(InterpData, InterpCoefs)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_field_real), dimension(:,:), pointer, intent(out) :: InterpCoefs
+
+    InterpCoefs => InterpData%coefs
+
+  end subroutine ovkGetInterpDataCoefs
+
+  function ovk_interp_properties_Default() result(Properties)
+
+    type(ovk_interp_properties) :: Properties
+
+    Properties%id = 0
+    Properties%nd = 2
+    Properties%npoints = [0,0,1]
+    Properties%periodic = .false.
+    Properties%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Properties%stencil_size = 2
+    Properties%verbose = .false.
+
+  end function ovk_interp_properties_Default
+
+  subroutine ovkGetInterpDataPropertyVerbose(Properties, Verbose)
+
+    type(ovk_interp_properties), intent(in) :: Properties
+    logical, intent(out) :: Verbose
+
+    Verbose = Properties%verbose
+
+  end subroutine ovkGetInterpDataPropertyVerbose
+
+  subroutine ovkSetInterpDataPropertyVerbose(Properties, Verbose)
+
+    type(ovk_interp_properties), intent(inout) :: Properties
+    logical, intent(in) :: Verbose
+
+    Properties%verbose = Verbose
+
+  end subroutine ovkSetInterpDataPropertyVerbose
 
 end module ovkInterp

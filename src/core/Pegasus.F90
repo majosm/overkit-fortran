@@ -3,12 +3,10 @@
 
 module ovkPegasus
 
-  use ovkAssembler
   use ovkCart
-  use ovkDomain
+  use ovkConnectivity
   use ovkGlobal
   use ovkField
-  use ovkGrid
   use ovkInterp
   implicit none
 
@@ -104,24 +102,22 @@ contains
 
   end function ovk_pegasus_Default
 
-  subroutine ovkMakePegasusData(PegasusData, Assembler, IncludeIBlank, HoleMasks)
+  subroutine ovkMakePegasusData(PegasusData, Connectivity, IncludeIBlank, HoleMasks)
 
     type(ovk_pegasus), intent(out) :: PegasusData
-    type(ovk_assembler), intent(in) :: Assembler
+    type(ovk_connectivity), intent(in) :: Connectivity
     logical, intent(in), optional :: IncludeIBlank
     type(ovk_field_logical), dimension(:), intent(in), optional :: HoleMasks
 
     logical :: IncludeIBlank_
     integer :: d, i, j, k, m, n, o
     integer(lk) :: l
-    type(ovk_grid), dimension(:), pointer :: Grids
     type(ovk_interp), dimension(:), pointer :: InterpData
     integer :: NumGrids
     integer :: NumDims
     integer, dimension(MAX_ND) :: Point
     integer, dimension(:), allocatable :: NumDonors, NumReceivers
     integer :: MaxDonors, MaxReceivers
-    integer, dimension(:), allocatable :: StencilSize
     integer :: MaxStencilSize
     integer :: Offset
     integer, dimension(:), allocatable :: NextReceiver
@@ -143,16 +139,15 @@ contains
       stop 1
     end if
 
-    Grids => Assembler%domain%grids
-    InterpData => Assembler%interp_data
+    NumDims = Connectivity%properties%nd
+    NumGrids = Connectivity%properties%ngrids
 
-    if (size(Grids) == 0) then
+    if (NumGrids == 0) then
       PegasusData = ovk_pegasus_()
       return
     end if
 
-    NumDims = Grids(1)%cart%nd
-    NumGrids = size(Grids)
+    InterpData => Connectivity%interp_data
 
     allocate(NumDonors(NumGrids))
     allocate(NumReceivers(NumGrids))
@@ -161,11 +156,11 @@ contains
     NumReceivers = 0
 
     do m = 1, NumGrids
-      do k = 1, Grids(m)%properties%npoints(3)
-        do j = 1, Grids(m)%properties%npoints(2)
-          do i = 1, Grids(m)%properties%npoints(1)
+      do k = 1, InterpData(m)%properties%npoints(3)
+        do j = 1, InterpData(m)%properties%npoints(2)
+          do i = 1, InterpData(m)%properties%npoints(1)
             Point = [i,j,k]
-            Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
+            Point(:NumDims) = ovkCartPeriodicAdjust(InterpData(m)%cart, Point)
             if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
               n = InterpData(m)%donor_grid_ids%values(Point(1),Point(2),Point(3))
               NumReceivers(m) = NumReceivers(m) + 1
@@ -179,10 +174,10 @@ contains
     MaxDonors = maxval(NumDonors)
     MaxReceivers = maxval(NumReceivers)
 
-    allocate(StencilSize(NumGrids))
-
-    StencilSize = [(size(InterpData(m)%coefs,1),m=1,NumGrids)]
-    MaxStencilSize = maxval(StencilSize)
+    MaxStencilSize = 0
+    do m = 1, NumGrids
+      MaxStencilSize = max(MaxStencilSize, InterpData(m)%properties%stencil_size)
+    end do
 
     allocate(InterpCoefs(MaxStencilSize,MAX_ND))
 
@@ -211,13 +206,13 @@ contains
     PegasusData%ngrd = NumGrids
 
     do m = 1, NumGrids
-      PegasusData%ieng(m) = Grids(m)%properties%npoints(1)
-      PegasusData%jeng(m) = Grids(m)%properties%npoints(2)
-      PegasusData%keng(m) = Grids(m)%properties%npoints(3)
+      PegasusData%ieng(m) = InterpData(m)%properties%npoints(1)
+      PegasusData%jeng(m) = InterpData(m)%properties%npoints(2)
+      PegasusData%keng(m) = InterpData(m)%properties%npoints(3)
     end do
 
     PegasusData%ipall = sum([(NumDonors(m),m=1,NumGrids)])
-    PegasusData%igall = maxval([(product(Grids(m)%properties%npoints),m=1,NumGrids)])
+    PegasusData%igall = maxval([(product(InterpData(m)%properties%npoints),m=1,NumGrids)])
 
     PegasusData%ipip = MaxDonors
     PegasusData%ipbp = MaxReceivers
@@ -238,11 +233,11 @@ contains
     NextDonor = 1
 
     do m = 1, NumGrids
-      do k = 1, Grids(m)%properties%npoints(3)
-        do j = 1, Grids(m)%properties%npoints(2)
-          do i = 1, Grids(m)%properties%npoints(1)
+      do k = 1, InterpData(m)%properties%npoints(3)
+        do j = 1, InterpData(m)%properties%npoints(2)
+          do i = 1, InterpData(m)%properties%npoints(1)
             Point = [i,j,k]
-            Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
+            Point(:NumDims) = ovkCartPeriodicAdjust(InterpData(m)%cart, Point)
             if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
               n = InterpData(m)%donor_grid_ids%values(Point(1),Point(2),Point(3))
               do d = 1, NumDims
@@ -254,11 +249,11 @@ contains
               DonorCellCoords(NumDims+1:) = 0._rk
               InterpScheme = InterpData(m)%schemes%values(Point(1),Point(2),Point(3))
               do d = 1, NumDims
-                do o = 1, StencilSize(m)
+                do o = 1, InterpData(m)%properties%stencil_size
                   InterpCoefs(o,d) = InterpData(m)%coefs(o,d)%values(Point(1),Point(2),Point(3))
                 end do
               end do
-              InterpCoefs(StencilSize(m)+1:,:NumDims) = 0._rk
+              InterpCoefs(InterpData(m)%properties%stencil_size+1:,:NumDims) = 0._rk
               InterpCoefs(1,NumDims+1:) = 1._rk
               InterpCoefs(2:,NumDims+1:) = 0._rk
               PegasusData%ibct(NextReceiver(m),m) = PegasusData%iisptr(n) + NextDonor(n) - 1
@@ -294,11 +289,11 @@ contains
       PegasusData%iblank = 1
       do m = 1, NumGrids
         l = 1_lk
-        do k = 1, Grids(m)%properties%npoints(3)
-          do j = 1, Grids(m)%properties%npoints(2)
-            do i = 1, Grids(m)%properties%npoints(1)
+        do k = 1, InterpData(m)%properties%npoints(3)
+          do j = 1, InterpData(m)%properties%npoints(2)
+            do i = 1, InterpData(m)%properties%npoints(1)
               Point = [i,j,k]
-              Point(:NumDims) = ovkCartPeriodicAdjust(Grids(m)%cart, Point)
+              Point(:NumDims) = ovkCartPeriodicAdjust(InterpData(m)%cart, Point)
               if (.not. HoleMasks(m)%values(Point(1),Point(2),Point(3)) .and. .not. &
                 InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
                 PegasusData%iblank(l,m) = 1
@@ -318,30 +313,28 @@ contains
 
     type(ovk_pegasus), intent(inout) :: PegasusData
 
-    deallocate(PegasusData%ieng)
-    deallocate(PegasusData%jeng)
-    deallocate(PegasusData%keng)
-    deallocate(PegasusData%iisptr)
-    deallocate(PegasusData%iieptr)
-    deallocate(PegasusData%ibpnts)
-    deallocate(PegasusData%iipnts)
-    deallocate(PegasusData%ibct)
-    deallocate(PegasusData%iit)
-    deallocate(PegasusData%jit)
-    deallocate(PegasusData%kit)
-    deallocate(PegasusData%dxit)
-    deallocate(PegasusData%dyit)
-    deallocate(PegasusData%dzit)
-    deallocate(PegasusData%ibt)
-    deallocate(PegasusData%jbt)
-    deallocate(PegasusData%kbt)
-    deallocate(PegasusData%nit)
-    deallocate(PegasusData%njt)
-    deallocate(PegasusData%nkt)
-    deallocate(PegasusData%coeffit)
-    if (allocated(PegasusData%iblank)) then
-      deallocate(PegasusData%iblank)
-    end if
+    if (allocated(PegasusData%ieng)) deallocate(PegasusData%ieng)
+    if (allocated(PegasusData%jeng)) deallocate(PegasusData%jeng)
+    if (allocated(PegasusData%keng)) deallocate(PegasusData%keng)
+    if (allocated(PegasusData%iisptr)) deallocate(PegasusData%iisptr)
+    if (allocated(PegasusData%iieptr)) deallocate(PegasusData%iieptr)
+    if (allocated(PegasusData%ibpnts)) deallocate(PegasusData%ibpnts)
+    if (allocated(PegasusData%iipnts)) deallocate(PegasusData%iipnts)
+    if (allocated(PegasusData%ibct)) deallocate(PegasusData%ibct)
+    if (allocated(PegasusData%iit)) deallocate(PegasusData%iit)
+    if (allocated(PegasusData%jit)) deallocate(PegasusData%jit)
+    if (allocated(PegasusData%kit)) deallocate(PegasusData%kit)
+    if (allocated(PegasusData%dxit)) deallocate(PegasusData%dxit)
+    if (allocated(PegasusData%dyit)) deallocate(PegasusData%dyit)
+    if (allocated(PegasusData%dzit)) deallocate(PegasusData%dzit)
+    if (allocated(PegasusData%ibt)) deallocate(PegasusData%ibt)
+    if (allocated(PegasusData%jbt)) deallocate(PegasusData%jbt)
+    if (allocated(PegasusData%kbt)) deallocate(PegasusData%kbt)
+    if (allocated(PegasusData%nit)) deallocate(PegasusData%nit)
+    if (allocated(PegasusData%njt)) deallocate(PegasusData%njt)
+    if (allocated(PegasusData%nkt)) deallocate(PegasusData%nkt)
+    if (allocated(PegasusData%coeffit)) deallocate(PegasusData%coeffit)
+    if (allocated(PegasusData%iblank)) deallocate(PegasusData%iblank)
 
   end subroutine ovkDestroyPegasusData
 
