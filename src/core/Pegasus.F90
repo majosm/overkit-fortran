@@ -102,14 +102,14 @@ contains
 
   end function ovk_pegasus_Default
 
-  subroutine ovkMakePegasusData(PegasusData, Connectivity, IncludeIBlank, HoleMasks)
+  subroutine ovkMakePegasusData(PegasusData, Connectivity, WriteIBlank, HoleMasks)
 
     type(ovk_pegasus), intent(out) :: PegasusData
     type(ovk_connectivity), intent(in) :: Connectivity
-    logical, intent(in), optional :: IncludeIBlank
+    logical, intent(in), optional :: WriteIBlank
     type(ovk_field_logical), dimension(:), intent(in), optional :: HoleMasks
 
-    logical :: IncludeIBlank_
+    logical :: WriteIBlank_
     integer :: d, i, j, k, m, n, o
     integer(lk) :: l
     type(ovk_interp), dimension(:), pointer :: InterpData
@@ -127,13 +127,13 @@ contains
     integer :: InterpScheme
     real(rk), dimension(:,:), allocatable :: InterpCoefs
 
-    if (present(IncludeIBlank)) then
-      IncludeIBlank_ = IncludeIBlank
+    if (present(WriteIBlank)) then
+      WriteIBlank_ = WriteIBlank
     else
-      IncludeIBlank_ = .false.
+      WriteIBlank_ = .false.
     end if
 
-    if (IncludeIBlank_ .and. .not. present(HoleMasks)) then
+    if (WriteIBlank_ .and. .not. present(HoleMasks)) then
       write (ERROR_UNIT, '(2a)') "ERROR: Cannot construct IBlank in Pegasus data structure ", &
         "without hole masks."
       stop 1
@@ -284,7 +284,7 @@ contains
       end do
     end do
 
-    if (IncludeIBlank_) then
+    if (WriteIBlank_) then
       allocate(PegasusData%iblank(PegasusData%igall,NumGrids))
       PegasusData%iblank = 1
       do m = 1, NumGrids
