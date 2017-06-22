@@ -99,6 +99,19 @@ contains
       write (*, '(a)') "Overset grid assembly started..."
     end if
 
+    if (OVK_DEBUG) then
+      if ( &
+        Assembler%editing_properties .or. &
+        Assembler%editing_graph .or. &
+        Assembler%editing_domain .or. &
+  !       Assembler%editing_overlap .or. &
+        Assembler%editing_connectivity &
+      ) then
+        write (ERROR_UNIT, '(a)') "Cannot perform assembly; assembler is still being edited."
+        stop 1
+      end if
+    end if
+
     NumDims = Assembler%properties%nd
     NumGrids = Assembler%properties%ngrids
     Grids => Assembler%domain%grids
