@@ -118,8 +118,8 @@ contains
     nullify(Grid%xyz)
     nullify(Grid%grid_mask)
     nullify(Grid%boundary_mask)
-    Grid%cell_grid_mask = ovk_field_logical_(2)
-    Grid%resolution = ovk_field_real_(2)
+    Grid%cell_grid_mask = ovk_field_logical_()
+    Grid%resolution = ovk_field_real_()
     Grid%editing_properties = .false.
     Grid%editing_xyz = .false.
     Grid%editing_grid_mask = .false.
@@ -235,8 +235,8 @@ contains
     if (associated(Grid%grid_mask)) deallocate(Grid%grid_mask)
     if (associated(Grid%boundary_mask)) deallocate(Grid%boundary_mask)
 
-    Grid%cell_grid_mask = ovk_field_logical_(2)
-    Grid%resolution = ovk_field_real_(2)
+    Grid%cell_grid_mask = ovk_field_logical_()
+    Grid%resolution = ovk_field_real_()
 
   end subroutine ovkDestroyGrid
 

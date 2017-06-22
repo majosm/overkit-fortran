@@ -54,10 +54,10 @@ contains
     type(ovk_donors) :: Donors
 
     Donors%cart = ovk_cart_(2)
-    Donors%valid_mask = ovk_field_logical_(2)
-    Donors%grid_ids = ovk_field_int_(2)
-    Donors%cell_extents = ovk_field_int_(2)
-    Donors%cell_diff_params = ovk_field_real_(2)
+    Donors%valid_mask = ovk_field_logical_()
+    Donors%grid_ids = ovk_field_int_()
+    Donors%cell_extents = ovk_field_int_()
+    Donors%cell_diff_params = ovk_field_real_()
 
   end function ovk_donors_Default
 
@@ -93,16 +93,16 @@ contains
 
     type(ovk_donors), intent(inout) :: Donors
 
-    Donors%valid_mask = ovk_field_logical_(2)
-    Donors%grid_ids = ovk_field_int_(2)
+    Donors%valid_mask = ovk_field_logical_()
+    Donors%grid_ids = ovk_field_int_()
 
     if (allocated(Donors%cells)) deallocate(Donors%cells)
 
-    Donors%cell_extents = ovk_field_int_(2)
+    Donors%cell_extents = ovk_field_int_()
 
     if (allocated(Donors%cell_coords)) deallocate(Donors%cell_coords)
 
-    Donors%cell_diff_params = ovk_field_real_(2)
+    Donors%cell_diff_params = ovk_field_real_()
 
   end subroutine ovkDestroyDonors
 
