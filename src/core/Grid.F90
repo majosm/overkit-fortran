@@ -35,6 +35,9 @@ module ovkGrid
   public :: ovkGetGridBoundaryMask
   public :: ovkEditGridBoundaryMask
   public :: ovkReleaseGridBoundaryMask
+  public :: ovkGetGridInternalBoundaryMask
+  public :: ovkEditGridInternalBoundaryMask
+  public :: ovkReleaseGridInternalBoundaryMask
   public :: ovkGetCellVertexData
   public :: ovkOverlapsCell
   public :: ovkCoordsInCell
@@ -77,6 +80,7 @@ module ovkGrid
     type(ovk_field_real), dimension(:), pointer :: xyz
     type(ovk_field_logical), pointer :: grid_mask
     type(ovk_field_logical), pointer :: boundary_mask
+    type(ovk_field_logical), pointer :: internal_boundary_mask
     type(ovk_bbox) :: bounds
     type(ovk_field_logical) :: cell_grid_mask
     type(ovk_field_real) :: resolution
@@ -84,9 +88,11 @@ module ovkGrid
     logical, dimension(MAX_ND) :: editing_xyz
     logical :: editing_grid_mask
     logical :: editing_boundary_mask
+    logical :: editing_internal_boundary_mask
     logical, dimension(MAX_ND) :: changed_xyz
     logical :: changed_grid_mask
     logical :: changed_boundary_mask
+    logical :: changed_internal_boundary_mask
   end type ovk_grid
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -118,15 +124,18 @@ contains
     nullify(Grid%xyz)
     nullify(Grid%grid_mask)
     nullify(Grid%boundary_mask)
+    nullify(Grid%internal_boundary_mask)
     Grid%cell_grid_mask = ovk_field_logical_()
     Grid%resolution = ovk_field_real_()
     Grid%editing_properties = .false.
     Grid%editing_xyz = .false.
     Grid%editing_grid_mask = .false.
     Grid%editing_boundary_mask = .false.
+    Grid%editing_internal_boundary_mask = .false.
     Grid%changed_xyz = .false.
     Grid%changed_grid_mask = .false.
     Grid%changed_boundary_mask = .false.
+    Grid%changed_internal_boundary_mask = .false.
 
   end function ovk_grid_Default
 
@@ -212,6 +221,9 @@ contains
     allocate(Grid%boundary_mask)
     Grid%boundary_mask = ovk_field_logical_(Grid%cart, .false.)
 
+    allocate(Grid%internal_boundary_mask)
+    Grid%internal_boundary_mask = ovk_field_logical_(Grid%cart, .false.)
+
     Grid%cell_grid_mask = ovk_field_logical_(Grid%cell_cart, .true.)
     Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
 
@@ -219,9 +231,11 @@ contains
     Grid%editing_xyz = .false.
     Grid%editing_grid_mask = .false.
     Grid%editing_boundary_mask = .false.
+    Grid%editing_internal_boundary_mask = .false.
     Grid%changed_xyz = .false.
     Grid%changed_grid_mask = .false.
     Grid%changed_boundary_mask = .false.
+    Grid%changed_internal_boundary_mask = .false.
 
   end subroutine ovkCreateGrid
 
@@ -234,6 +248,7 @@ contains
     if (associated(Grid%xyz)) deallocate(Grid%xyz)
     if (associated(Grid%grid_mask)) deallocate(Grid%grid_mask)
     if (associated(Grid%boundary_mask)) deallocate(Grid%boundary_mask)
+    if (associated(Grid%internal_boundary_mask)) deallocate(Grid%internal_boundary_mask)
 
     Grid%cell_grid_mask = ovk_field_logical_()
     Grid%resolution = ovk_field_real_()
@@ -254,6 +269,7 @@ contains
 
     Grid%grid_mask%values = .true.
     Grid%boundary_mask%values = .false.
+    Grid%internal_boundary_mask%values = .false.
 
     Grid%cell_grid_mask%values = .true.
     Grid%resolution%values = 0._rk
@@ -270,7 +286,8 @@ contains
       Grid%editing_properties .or. &
       any(Grid%editing_xyz) .or. &
       Grid%editing_grid_mask .or. &
-      Grid%editing_boundary_mask
+      Grid%editing_boundary_mask .or. &
+      Grid%editing_internal_boundary_mask
 
     if (CannotUpdate) then
 
@@ -291,6 +308,7 @@ contains
       Grid%changed_xyz = .false.
       Grid%changed_grid_mask = .false.
       Grid%changed_boundary_mask = .false.
+      Grid%changed_internal_boundary_mask = .false.
 
     end if
 
@@ -315,7 +333,8 @@ contains
     CannotEdit = &
       any(Grid%editing_xyz) .or. &
       Grid%editing_grid_mask .or. &
-      Grid%editing_boundary_mask
+      Grid%editing_boundary_mask .or. &
+      Grid%editing_internal_boundary_mask
 
     if (CannotEdit) then
 
@@ -324,8 +343,10 @@ contains
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing coordinates."
         else if (Grid%editing_grid_mask) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing grid mask."
-        else
+        else if (Grid%editing_boundary_mask) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing boundary mask."
+        else
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing internal boundary mask."
         end if
         stop 1
       end if
@@ -548,6 +569,62 @@ contains
     Grid%changed_boundary_mask = .true.
 
   end subroutine ovkReleaseGridBoundaryMask
+
+  subroutine ovkGetGridInternalBoundaryMask(Grid, InternalBoundaryMask)
+
+    type(ovk_grid), intent(in) :: Grid
+    type(ovk_field_logical), pointer, intent(out) :: InternalBoundaryMask
+
+    InternalBoundaryMask => Grid%internal_boundary_mask
+
+  end subroutine ovkGetGridInternalBoundaryMask
+
+  subroutine ovkEditGridInternalBoundaryMask(Grid, InternalBoundaryMask)
+
+    type(ovk_grid), intent(inout) :: Grid
+    type(ovk_field_logical), pointer, intent(out) :: InternalBoundaryMask
+
+    logical :: CannotEdit
+
+    CannotEdit = &
+      Grid%editing_properties
+
+    if (CannotEdit) then
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid boundary mask while editing properties."
+        stop 1
+      end if
+
+      nullify(InternalBoundaryMask)
+
+    else
+
+      InternalBoundaryMask => Grid%internal_boundary_mask
+      Grid%editing_internal_boundary_mask = .true.
+
+    end if
+
+  end subroutine ovkEditGridInternalBoundaryMask
+
+  subroutine ovkReleaseGridInternalBoundaryMask(Grid, InternalBoundaryMask)
+
+    type(ovk_grid), intent(inout) :: Grid
+    type(ovk_field_logical), pointer, intent(inout) :: InternalBoundaryMask
+
+    if (.not. associated(InternalBoundaryMask, Grid%internal_boundary_mask)) return
+    if (.not. Grid%editing_internal_boundary_mask) then
+      nullify(InternalBoundaryMask)
+      return
+    end if
+
+    ! Nothing here at the moment
+
+    nullify(InternalBoundaryMask)
+    Grid%editing_internal_boundary_mask = .false.
+    Grid%changed_internal_boundary_mask = .true.
+
+  end subroutine ovkReleaseGridInternalBoundaryMask
 
   subroutine UpdateBounds(Grid)
 

@@ -259,6 +259,9 @@ module Overkit
   public :: ovkGetGridBoundaryMask
   public :: ovkEditGridBoundaryMask
   public :: ovkReleaseGridBoundaryMask
+  public :: ovkGetGridInternalBoundaryMask
+  public :: ovkEditGridInternalBoundaryMask
+  public :: ovkReleaseGridInternalBoundaryMask
   public :: ovkGetCellVertexData
   public :: ovkOverlapsCell
   public :: ovkCoordsInCell
