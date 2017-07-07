@@ -41,6 +41,7 @@ module ovkDonors
     type(ovk_field_int) :: cell_extents
     type(ovk_field_real), dimension(:), allocatable :: cell_coords
     type(ovk_field_real) :: res_diff
+    type(ovk_field_int) :: edge_dist
   end type ovk_donors
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -59,6 +60,7 @@ contains
     Donors%grid_ids = ovk_field_int_()
     Donors%cell_extents = ovk_field_int_()
     Donors%res_diff = ovk_field_real_()
+    Donors%edge_dist = ovk_field_int_()
 
   end function ovk_donors_Default
 
@@ -87,6 +89,7 @@ contains
     end do
 
     Donors%res_diff = ovk_field_real_(Donors%cart)
+    Donors%edge_dist = ovk_field_int_(Donors%cart)
 
   end subroutine ovkMakeDonors
 
@@ -104,6 +107,7 @@ contains
     if (allocated(Donors%cell_coords)) deallocate(Donors%cell_coords)
 
     Donors%res_diff = ovk_field_real_()
+    Donors%edge_dist = ovk_field_int_()
 
   end subroutine ovkDestroyDonors
 
@@ -119,7 +123,7 @@ contains
     integer :: i, j, k, l
     type(ovk_bbox) :: Bounds
     logical :: IncludePoint
-    integer, dimension(DonorGrid%cart%nd) :: DonorCell
+    integer, dimension(MAX_ND) :: DonorCell
     integer, dimension(MAX_ND) :: ReceiverPoint
     real(rk), dimension(ReceiverGrid%cart%nd) :: ReceiverCoords
     logical :: ValidReceiverPoint
@@ -150,8 +154,9 @@ contains
             end do
             ValidReceiverPoint = ReceiverGrid%grid_mask%values(i,j,k)
             if (ValidReceiverPoint .and. ovkBBContainsPoint(Bounds, ReceiverCoords)) then
-              DonorCell = ovkFindDonorCell(DonorGrid, DonorAccel, ReceiverCoords, &
-                OverlapTolerance=OverlapTolerance)
+              DonorCell(:DonorGrid%cart%nd) = ovkFindDonorCell(DonorGrid, DonorAccel, &
+                ReceiverCoords, OverlapTolerance=OverlapTolerance)
+              DonorCell(DonorGrid%cart%nd+1:) = 1
               if (ovkCartContains(DonorGrid%cell_cart, DonorCell)) then
                 Donors%valid_mask%values(i,j,k) = .true.
                 Donors%grid_ids%values(i,j,k) = DonorGrid%properties%id
@@ -167,6 +172,8 @@ contains
                 ReceiverResolution = ReceiverGrid%resolution%values(i,j,k)
                 Donors%res_diff%values(i,j,k) = log(DonorResolution/ReceiverResolution)/ &
                   (log(2._rk) * real(ReceiverGrid%cart%nd,kind=rk))
+                Donors%edge_dist%values(i,j,k) = DonorGrid%cell_edge_dist%values(DonorCell(1), &
+                  DonorCell(2),DonorCell(3))
               end if
             end if
           end if
@@ -256,6 +263,8 @@ contains
               end do
               MergedDonors%res_diff%values(i,j,k) = &
                 CandidateDonors(m)%res_diff%values(i,j,k)
+              MergedDonors%edge_dist%values(i,j,k) = &
+                CandidateDonors(m)%edge_dist%values(i,j,k)
               exit
             end if
           end do
