@@ -25,6 +25,7 @@ module ovkDonors
   public :: ovkMergeDonors
   public :: ovkPrintDonors
   public :: ovkGenerateReceiverMask
+  public :: ovkGenerateReceiverMaskAll
   public :: ovkGenerateDonorMask
   public :: ovkGenerateOverlapMask
   public :: ovkGenerateCoarseToFineMask
@@ -295,8 +296,8 @@ contains
 
   end subroutine ovkPrintDonors
 
-  subroutine ovkGenerateReceiverMask(ReceiverGrid, DonorGrid, Donors, ReceiverMask, ReceiverSubset, &
-    DonorSubset)
+  subroutine ovkGenerateReceiverMask(ReceiverGrid, DonorGrid, Donors, ReceiverMask, &
+    ReceiverSubset, DonorSubset)
 
     type(ovk_grid), intent(in) :: ReceiverGrid
     type(ovk_grid), intent(in) :: DonorGrid
@@ -369,6 +370,82 @@ contains
     end do
 
   end subroutine ovkGenerateReceiverMask
+
+  subroutine ovkGenerateReceiverMaskAll(ReceiverGrid, DonorGrid, Donors, ReceiverMask, &
+    ReceiverSubset, DonorSubset)
+
+    type(ovk_grid), intent(in) :: ReceiverGrid
+    type(ovk_grid), intent(in) :: DonorGrid
+    type(ovk_donors), intent(in) :: Donors
+    type(ovk_field_logical), intent(out) :: ReceiverMask
+    type(ovk_field_logical), intent(in), optional :: ReceiverSubset
+    type(ovk_field_logical), intent(in), optional :: DonorSubset
+
+    integer :: i, j, k, l, m, n, o
+    logical :: IncludePoint
+    integer, dimension(MAX_ND) :: DonorCellLower
+    integer, dimension(MAX_ND) :: DonorCellUpper
+    logical :: AwayFromEdge
+    integer, dimension(MAX_ND) :: Vertex
+
+    ReceiverMask = ovk_field_logical_(ReceiverGrid%cart, .false.)
+
+    do k = ReceiverGrid%cart%is(3), ReceiverGrid%cart%ie(3)
+      do j = ReceiverGrid%cart%is(2), ReceiverGrid%cart%ie(2)
+        do i = ReceiverGrid%cart%is(1), ReceiverGrid%cart%ie(1)
+          if (present(ReceiverSubset)) then
+            IncludePoint = ReceiverSubset%values(i,j,k)
+          else
+            IncludePoint = .true.
+          end if
+          if (IncludePoint .and. Donors%valid_mask%values(i,j,k)) then
+            if (Donors%grid_ids%values(i,j,k) /= DonorGrid%properties%id) cycle
+            if (present(DonorSubset)) then
+              do l = 1, DonorGrid%cart%nd
+                DonorCellLower(l) = Donors%cells(l)%values(i,j,k)
+                DonorCellUpper(l) = Donors%cells(l)%values(i,j,k) + &
+                  Donors%cell_extents%values(i,j,k)-1
+              end do
+              DonorCellLower(DonorGrid%cart%nd+1:) = 1
+              DonorCellUpper(DonorGrid%cart%nd+1:) = 1
+              AwayFromEdge = ovkCartContains(DonorGrid%cart, DonorCellLower) .and. &
+                ovkCartContains(DonorGrid%cart, DonorCellUpper)
+              ReceiverMask%values(i,j,k) = .true.
+              if (AwayFromEdge) then
+                do o = DonorCellLower(3), DonorCellUpper(3)
+                  do n = DonorCellLower(2), DonorCellUpper(2)
+                    do m = DonorCellLower(1), DonorCellUpper(1)
+                      Vertex = [m,n,o]
+                      if (.not. DonorSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
+                        ReceiverMask%values(i,j,k) = .false.
+                        exit
+                      end if
+                    end do
+                  end do
+                end do
+              else
+                do o = DonorCellLower(3), DonorCellUpper(3)
+                  do n = DonorCellLower(2), DonorCellUpper(2)
+                    do m = DonorCellLower(1), DonorCellUpper(1)
+                      Vertex = [m,n,o]
+                      Vertex(:DonorGrid%cart%nd) = ovkCartPeriodicAdjust(DonorGrid%cart, Vertex)
+                      if (.not. DonorSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
+                        ReceiverMask%values(i,j,k) = .false.
+                        exit
+                      end if
+                    end do
+                  end do
+                end do
+              end if
+            else
+              ReceiverMask%values(i,j,k) = .true.
+            end if
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine ovkGenerateReceiverMaskAll
 
   subroutine ovkGenerateDonorMask(DonorGrid, ReceiverGrid, Donors, DonorMask, DonorSubset, &
     ReceiverSubset)

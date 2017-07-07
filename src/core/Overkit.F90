@@ -177,6 +177,7 @@ module Overkit
   public :: ovkMergeDonors
   public :: ovkPrintDonors
   public :: ovkGenerateReceiverMask
+  public :: ovkGenerateReceiverMaskAll
   public :: ovkGenerateDonorMask
   public :: ovkGenerateOverlapMask
   public :: ovkGenerateOrphanMask
