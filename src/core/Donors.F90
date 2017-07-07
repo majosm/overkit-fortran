@@ -40,7 +40,7 @@ module ovkDonors
     type(ovk_field_int), dimension(:), allocatable :: cells
     type(ovk_field_int) :: cell_extents
     type(ovk_field_real), dimension(:), allocatable :: cell_coords
-    type(ovk_field_real) :: cell_diff_params
+    type(ovk_field_real) :: res_diff
   end type ovk_donors
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -58,7 +58,7 @@ contains
     Donors%valid_mask = ovk_field_logical_()
     Donors%grid_ids = ovk_field_int_()
     Donors%cell_extents = ovk_field_int_()
-    Donors%cell_diff_params = ovk_field_real_()
+    Donors%res_diff = ovk_field_real_()
 
   end function ovk_donors_Default
 
@@ -86,7 +86,7 @@ contains
       Donors%cell_coords(i) = ovk_field_real_(Donors%cart)
     end do
 
-    Donors%cell_diff_params = ovk_field_real_(Donors%cart)
+    Donors%res_diff = ovk_field_real_(Donors%cart)
 
   end subroutine ovkMakeDonors
 
@@ -103,7 +103,7 @@ contains
 
     if (allocated(Donors%cell_coords)) deallocate(Donors%cell_coords)
 
-    Donors%cell_diff_params = ovk_field_real_()
+    Donors%res_diff = ovk_field_real_()
 
   end subroutine ovkDestroyDonors
 
@@ -165,7 +165,7 @@ contains
                 end do
                 DonorResolution = ovkGridResolution(DonorGrid, DonorCell, DonorCellCoords)
                 ReceiverResolution = ReceiverGrid%resolution%values(i,j,k)
-                Donors%cell_diff_params%values(i,j,k) = log(DonorResolution/ReceiverResolution)/ &
+                Donors%res_diff%values(i,j,k) = log(DonorResolution/ReceiverResolution)/ &
                   (log(2._rk) * real(ReceiverGrid%cart%nd,kind=rk))
               end if
             end if
@@ -204,7 +204,7 @@ contains
             BestGrid = 0
             do m = 1, size(CandidateDonors)
               if (CandidateDonors(m)%valid_mask%values(i,j,k)) then
-                CandidateCellDiff = CandidateDonors(m)%cell_diff_params%values(i,j,k)
+                CandidateCellDiff = CandidateDonors(m)%res_diff%values(i,j,k)
                 if (CandidateCellDiff < BestCellDiff) then
                   if (BestGrid /= 0) then
                     CandidateDonors(BestGrid)%valid_mask%values(i,j,k) = .false.
@@ -254,8 +254,8 @@ contains
                 MergedDonors%cell_coords(l)%values(i,j,k) = &
                   CandidateDonors(m)%cell_coords(l)%values(i,j,k)
               end do
-              MergedDonors%cell_diff_params%values(i,j,k) = &
-                CandidateDonors(m)%cell_diff_params%values(i,j,k)
+              MergedDonors%res_diff%values(i,j,k) = &
+                CandidateDonors(m)%res_diff%values(i,j,k)
               exit
             end if
           end do
@@ -566,8 +566,8 @@ contains
           end if
           if (IncludePoint) then
             if (Donors%valid_mask%values(i,j,k)) then
-              CoarseToFineMask%values(i,j,k) = Donors%cell_diff_params%values(i,j,k) > 0._rk &
-                .or. (Donors%cell_diff_params%values(i,j,k) == 0._rk .and. &
+              CoarseToFineMask%values(i,j,k) = Donors%res_diff%values(i,j,k) > 0._rk &
+                .or. (Donors%res_diff%values(i,j,k) == 0._rk .and. &
                 Donors%grid_ids%values(i,j,k) < Grid%properties%id)
             end if
           end if
