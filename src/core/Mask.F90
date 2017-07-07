@@ -496,15 +496,19 @@ contains
 
   end subroutine ovkDistanceField
 
-  subroutine ovkGenerateNearEdgeMask(Mask, EdgeType, OuterValue, EdgeDistance, NearEdgeMask)
+  subroutine ovkGenerateNearEdgeMask(Mask, EdgeDistance, OuterValue, NearEdgeMask, IgnoredEdges)
 
     type(ovk_field_logical), intent(in) :: Mask
-    integer, intent(in) :: EdgeType
-    integer, intent(in) :: OuterValue
     integer, intent(in) :: EdgeDistance
+    integer, intent(in) :: OuterValue
     type(ovk_field_logical), intent(out) :: NearEdgeMask
+    type(ovk_field_logical), intent(in), optional :: IgnoredEdges
 
     type(ovk_field_logical) :: EdgeMask
+    type(ovk_field_logical) :: NonSubsetMask
+    type(ovk_field_logical) :: NonSubsetEdgeMask
+    type(ovk_field_logical) :: SubsetMask
+    type(ovk_field_logical) :: SubsetEdgeMask
 
     if (OVK_DEBUG) then
       if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
@@ -513,11 +517,27 @@ contains
       end if
     end if
 
-    call ovkFindMaskEdge(Mask, EdgeType, OuterValue, EdgeMask)
+    call ovkFindMaskEdge(Mask, OVK_EDGE_TYPE_OUTER, OuterValue, EdgeMask)
+
+    if (present(IgnoredEdges)) then
+
+      NonSubsetMask = IgnoredEdges
+      call ovkFindMaskEdge(NonSubsetMask, OVK_EDGE_TYPE_OUTER, OuterValue, NonSubsetEdgeMask)
+
+      SubsetMask = ovk_field_logical_(Mask%cart)
+      SubsetMask%values = Mask%values .and. .not. NonSubsetMask%values
+
+      call ovkFindMaskEdge(SubsetMask, OVK_EDGE_TYPE_OUTER, OuterValue, SubsetEdgeMask)
+
+      EdgeMask%values = EdgeMask%values .and. .not. (NonSubsetEdgeMask%values .and. .not. &
+        SubsetEdgeMask%values)
+
+    end if
+
     call ovkGrowMask(EdgeMask, EdgeDistance)
 
     NearEdgeMask = ovk_field_logical_(Mask%cart)
-    NearEdgeMask%values = EdgeMask%values(Mask%cart%is(1):Mask%cart%ie(1), &
+    NearEdgeMask%values = Mask%values .and. EdgeMask%values(Mask%cart%is(1):Mask%cart%ie(1), &
       Mask%cart%is(2):Mask%cart%ie(2),Mask%cart%is(3):Mask%cart%ie(3))
 
   end subroutine ovkGenerateNearEdgeMask
