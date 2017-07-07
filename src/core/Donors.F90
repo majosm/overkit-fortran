@@ -29,7 +29,6 @@ module ovkDonors
   public :: ovkGenerateDonorMask
   public :: ovkGenerateOverlapMask
   public :: ovkGenerateCoarseToFineMask
-  public :: ovkGenerateCyclicReceiverMask
   public :: ovkGenerateNearCrossoverMask
   public :: ovkGenerateOrphanMask
 
@@ -585,24 +584,6 @@ contains
     end do
 
   end subroutine ovkGenerateCoarseToFineMask
-
-  subroutine ovkGenerateCyclicReceiverMask(ReceiverGrid, DonorGrid, Donors, ReverseDonors, &
-    CyclicReceiverMask, ReceiverSubset, DonorSubset)
-
-    type(ovk_grid), intent(in) :: ReceiverGrid, DonorGrid
-    type(ovk_donors), intent(in) :: Donors, ReverseDonors
-    type(ovk_field_logical), intent(out) :: CyclicReceiverMask
-    type(ovk_field_logical), intent(in), optional :: ReceiverSubset, DonorSubset
-
-    type(ovk_field_logical) :: ReverseReceiverMask
-
-    call ovkGenerateReceiverMask(DonorGrid, ReceiverGrid, ReverseDonors, ReverseReceiverMask, &
-      ReceiverSubset=DonorSubset, DonorSubset=ReceiverSubset)
-
-    call ovkGenerateReceiverMask(ReceiverGrid, DonorGrid, Donors, CyclicReceiverMask, &
-      DonorSubset=ReverseReceiverMask, ReceiverSubset=ReceiverSubset)
-
-  end subroutine ovkGenerateCyclicReceiverMask
 
   subroutine ovkGenerateNearCrossoverMask(Grid1, Grid2, Donors1, Donors2, Distance, &
     NearCrossoverMask, Subset1, Subset2)
