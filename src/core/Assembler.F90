@@ -356,6 +356,8 @@ contains
     integer :: InterpScheme
     integer :: FringeSize
     integer :: FringePadding
+    type(ovk_domain_properties), pointer :: DomainProperties
+    integer :: MaxEdgeDist, PrevMaxEdgeDist
 
     if (.not. associated(Graph, Assembler%graph)) return
     if (.not. Assembler%editing_graph) then
@@ -450,6 +452,16 @@ contains
           Assembler%graph%connection_type(m,n) = OVK_CONNECTION_NONE
         end if
       end do
+    end do
+
+    do n = 1, NumGrids
+      MaxEdgeDist = GetMaxEdgeDistance(Assembler%graph, n)
+      PrevMaxEdgeDist = GetMaxEdgeDistance(Assembler%prev_graph, n)
+      if (MaxEdgeDist /= PrevMaxEdgeDist) then
+        call ovkEditDomainProperties(Assembler%domain, DomainProperties)
+        call ovkSetDomainPropertyMaxEdgeDistance(DomainProperties, n, MaxEdgeDist)
+        call ovkReleaseDomainProperties(Assembler%domain, DomainProperties)
+      end if
     end do
 
     Assembler%prev_graph = Assembler%graph
@@ -1055,5 +1067,32 @@ contains
     end if
 
   end subroutine AssemblerGraphIndexRange
+
+  function GetMaxEdgeDistance(Graph, GridID) result(MaxEdgeDist)
+
+    type(ovk_assembler_graph), intent(in) :: Graph
+    integer, intent(in) :: GridID
+    integer :: MaxEdgeDist
+
+    integer :: m, n
+
+    n = GridID
+
+    MaxEdgeDist = 0
+
+    do m = 1, Graph%ngrids
+      if (Graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+        if (Graph%disjoint_connection(m,n)) then
+          MaxEdgeDist = max(MaxEdgeDist, Graph%fringe_size(m,n) + Graph%fringe_padding(m,n))
+        else
+          MaxEdgeDist = max(MaxEdgeDist, max(Graph%fringe_size(m,n), Graph%fringe_padding(m,n)))
+        end if
+      end if
+    end do
+
+    ! A little extra
+    MaxEdgeDist = MaxEdgeDist + 2
+
+  end function GetMaxEdgeDistance
 
 end module ovkAssembler

@@ -30,6 +30,12 @@ module ovkDomain
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
   public :: ovkSetDomainPropertyVerbose
+  public :: ovkGetDomainPropertyMaxEdgeDistance
+  public :: ovkSetDomainPropertyMaxEdgeDistance
+
+  type t_grid_properties
+    integer :: max_edge_dist
+  end type t_grid_properties
 
   type ovk_domain_properties
     ! Read-only
@@ -37,10 +43,12 @@ module ovkDomain
     integer :: ngrids
     ! Read/write
     logical :: verbose
+    type(t_grid_properties), dimension(:), allocatable :: grids
   end type ovk_domain_properties
 
   type ovk_domain
     type(ovk_domain_properties), pointer :: properties
+    type(ovk_domain_properties) :: prev_properties
     type(ovk_grid), dimension(:), pointer :: grids
     logical, dimension(:), allocatable :: grid_exists
     logical :: editing_properties
@@ -56,7 +64,13 @@ module ovkDomain
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_domain_properties_
     module procedure ovk_domain_properties_Default
+    module procedure ovk_domain_properties_Allocated
   end interface ovk_domain_properties_
+
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface t_grid_properties_
+    module procedure t_grid_properties_Default
+  end interface t_grid_properties_
 
 contains
 
@@ -65,6 +79,7 @@ contains
     type(ovk_domain) :: Domain
 
     nullify(Domain%properties)
+    Domain%prev_properties = ovk_domain_properties_(2)
     nullify(Domain%grids)
     Domain%editing_properties = .false.
 
@@ -87,11 +102,10 @@ contains
     end if
 
     allocate(Domain%properties)
-    Domain%properties = ovk_domain_properties_()
-
-    Domain%properties%nd = NumDims
-    Domain%properties%ngrids = NumGrids
+    Domain%properties = ovk_domain_properties_(NumDims, NumGrids)
     Domain%properties%verbose = Verbose_
+
+    Domain%prev_properties = Domain%properties
 
     allocate(Domain%grids(NumGrids))
     do m = 1, NumGrids
@@ -118,6 +132,7 @@ contains
     integer :: m
 
     if (associated(Domain%properties)) deallocate(Domain%properties)
+    Domain%prev_properties = ovk_domain_properties_(2)
 
     if (associated(Domain%grids)) then
       do m = 1, size(Domain%grids)
@@ -190,6 +205,10 @@ contains
 
     else
 
+      if (.not. Domain%editing_properties) then
+        Domain%prev_properties = Domain%properties
+      end if
+
       Properties => Domain%properties
       Domain%editing_properties = .true.
 
@@ -214,14 +233,32 @@ contains
 
     NumGrids = Domain%properties%ngrids
 
-    ! Propagate verbose flag to grids
+    ! Propagate property changes to grids
     do m = 1, NumGrids
+
       if (Domain%grid_exists(m)) then
+
         call ovkEditGridProperties(Domain%grids(m), GridProperties)
-        call ovkSetGridPropertyVerbose(GridProperties, Domain%properties%verbose)
+
+        ! Verbose
+        if (Domain%properties%verbose .neqv. Domain%prev_properties%verbose) then
+          call ovkSetGridPropertyVerbose(GridProperties, Domain%properties%verbose)
+        end if
+
+        ! Maximum edge distance
+        if (Domain%properties%grids(m)%max_edge_dist /= &
+          Domain%prev_properties%grids(m)%max_edge_dist) then
+          call ovkSetGridPropertyMaxEdgeDistance(GridProperties, &
+            Domain%properties%grids(m)%max_edge_dist)
+        end if
+
         call ovkReleaseGridProperties(Domain%grids(m), GridProperties)
+
       end if
+
     end do
+
+    Domain%prev_properties = Domain%properties
 
     nullify(Properties)
     Domain%editing_properties = .false.
@@ -239,9 +276,16 @@ contains
     real(rk), dimension(Domain%properties%nd), intent(in), optional :: PeriodicLength
     integer, intent(in), optional :: GeometryType
 
+    type(ovk_grid_properties), pointer :: GridProperties
+
     call ovkCreateGrid(Domain%grids(GridID), GridID, Domain%properties%nd, NumPoints, &
       Periodic=Periodic, PeriodicStorage=PeriodicStorage, PeriodicLength=PeriodicLength, &
       GeometryType=GeometryType, Verbose=Domain%properties%verbose)
+
+    call ovkEditGridProperties(Domain%grids(GridID), GridProperties)
+    call ovkSetGridPropertyMaxEdgeDistance(GridProperties, &
+      Domain%properties%grids(GridID)%max_edge_dist)
+    call ovkReleaseGridProperties(Domain%grids(GridID), GridProperties)
 
     Domain%grid_exists(GridID) = .true.
     Domain%changed_grid(GridID) = .true.
@@ -357,15 +401,43 @@ contains
 
   end subroutine ovkReleaseDomainGrid
 
-  function ovk_domain_properties_Default() result(Properties)
+  function ovk_domain_properties_Default(NumDims) result(Properties)
 
+    integer, intent(in) :: NumDims
     type(ovk_domain_properties) :: Properties
 
-    Properties%nd = 2
+    Properties%nd = NumDims
     Properties%ngrids = 0
     Properties%verbose = .false.
 
   end function ovk_domain_properties_Default
+
+  function ovk_domain_properties_Allocated(NumDims, NumGrids) result(Properties)
+
+    integer, intent(in) :: NumDims
+    integer, intent(in) :: NumGrids
+    type(ovk_domain_properties) :: Properties
+
+    integer :: m
+
+    Properties%nd = NumDims
+    Properties%ngrids = NumGrids
+    Properties%verbose = .false.
+    allocate(Properties%grids(NumGrids))
+    do m = 1, NumGrids
+      Properties%grids(m) = t_grid_properties_(NumDims)
+    end do
+
+  end function ovk_domain_properties_Allocated
+
+  function t_grid_properties_Default(NumDims) result(Properties)
+
+    integer, intent(in) :: NumDims
+    type(t_grid_properties) :: Properties
+
+    Properties%max_edge_dist = 1
+
+  end function t_grid_properties_Default
 
   subroutine ovkGetDomainPropertyDimension(Properties, NumDims)
 
@@ -402,5 +474,25 @@ contains
     Properties%verbose = Verbose
 
   end subroutine ovkSetDomainPropertyVerbose
+
+  subroutine ovkGetDomainPropertyMaxEdgeDistance(Properties, GridID, MaxEdgeDist)
+
+    type(ovk_domain_properties), intent(in) :: Properties
+    integer, intent(in) :: GridID
+    integer, intent(out) :: MaxEdgeDist
+
+    MaxEdgeDist = Properties%grids(GridID)%max_edge_dist
+
+  end subroutine ovkGetDomainPropertyMaxEdgeDistance
+
+  subroutine ovkSetDomainPropertyMaxEdgeDistance(Properties, GridID, MaxEdgeDist)
+
+    type(ovk_domain_properties), intent(inout) :: Properties
+    integer, intent(in) :: GridID
+    integer, intent(in) :: MaxEdgeDist
+
+    Properties%grids(GridID)%max_edge_dist = MaxEdgeDist
+
+  end subroutine ovkSetDomainPropertyMaxEdgeDistance
 
 end module ovkDomain

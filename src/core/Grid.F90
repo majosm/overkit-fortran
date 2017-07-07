@@ -54,6 +54,8 @@ module ovkGrid
   public :: ovkGetGridPropertyGeometryType
   public :: ovkGetGridPropertyVerbose
   public :: ovkSetGridPropertyVerbose
+  public :: ovkGetGridPropertyMaxEdgeDistance
+  public :: ovkSetGridPropertyMaxEdgeDistance
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
@@ -71,10 +73,12 @@ module ovkGrid
     integer :: geometry_type
     ! Read/write
     logical :: verbose
+    integer :: max_edge_dist
   end type ovk_grid_properties
 
   type ovk_grid
     type(ovk_grid_properties), pointer :: properties
+    type(ovk_grid_properties) :: prev_properties
     type(ovk_cart) :: cart
     type(ovk_cart) :: cell_cart
     type(ovk_field_real), dimension(:), pointer :: xyz
@@ -84,6 +88,8 @@ module ovkGrid
     type(ovk_bbox) :: bounds
     type(ovk_field_logical) :: cell_grid_mask
     type(ovk_field_real) :: resolution
+    type(ovk_field_int) :: edge_dist
+    type(ovk_field_int) :: cell_edge_dist
     logical :: editing_properties
     logical, dimension(MAX_ND) :: editing_xyz
     logical :: editing_grid_mask
@@ -118,6 +124,7 @@ contains
     type(ovk_grid) :: Grid
 
     nullify(Grid%properties)
+    Grid%prev_properties = ovk_grid_properties_(2)
     Grid%cart = ovk_cart_(2)
     Grid%cell_cart = ovk_cart_(2)
     Grid%bounds = ovk_bbox_(2)
@@ -127,6 +134,8 @@ contains
     nullify(Grid%internal_boundary_mask)
     Grid%cell_grid_mask = ovk_field_logical_()
     Grid%resolution = ovk_field_real_()
+    Grid%edge_dist = ovk_field_int_()
+    Grid%cell_edge_dist = ovk_field_int_()
     Grid%editing_properties = .false.
     Grid%editing_xyz = .false.
     Grid%editing_grid_mask = .false.
@@ -192,9 +201,8 @@ contains
     end if
 
     allocate(Grid%properties)
-    Grid%properties = ovk_grid_properties_()
+    Grid%properties = ovk_grid_properties_(NumDims)
     Grid%properties%id = ID
-    Grid%properties%nd = NumDims
     Grid%properties%npoints(:NumDims) = NumPoints
     Grid%properties%npoints(NumDims+1:) = 1
     Grid%properties%periodic = Periodic_
@@ -202,6 +210,9 @@ contains
     Grid%properties%periodic_length = PeriodicLength_
     Grid%properties%geometry_type = GeometryType_
     Grid%properties%verbose = Verbose_
+    Grid%properties%max_edge_dist = 1
+
+    Grid%prev_properties = Grid%properties
 
     Grid%cart = ovk_cart_(NumDims, NumPoints, Periodic_, PeriodicStorage_)
     Grid%cart = ovkCartConvertPeriodicStorage(Grid%cart, OVK_NO_OVERLAP_PERIODIC)
@@ -227,6 +238,10 @@ contains
     Grid%cell_grid_mask = ovk_field_logical_(Grid%cell_cart, .true.)
     Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
 
+    Grid%edge_dist = ovk_field_int_(Grid%cart)
+    Grid%cell_edge_dist = ovk_field_int_(Grid%cart)
+    call UpdateEdgeDistance(Grid)
+
     Grid%editing_properties = .false.
     Grid%editing_xyz = .false.
     Grid%editing_grid_mask = .false.
@@ -244,6 +259,7 @@ contains
     type(ovk_grid), intent(inout) :: Grid
 
     if (associated(Grid%properties)) deallocate(Grid%properties)
+    Grid%prev_properties = ovk_grid_properties_(2)
 
     if (associated(Grid%xyz)) deallocate(Grid%xyz)
     if (associated(Grid%grid_mask)) deallocate(Grid%grid_mask)
@@ -252,6 +268,8 @@ contains
 
     Grid%cell_grid_mask = ovk_field_logical_()
     Grid%resolution = ovk_field_real_()
+    Grid%edge_dist = ovk_field_int_()
+    Grid%cell_edge_dist = ovk_field_int_()
 
   end subroutine ovkDestroyGrid
 
@@ -273,6 +291,8 @@ contains
 
     Grid%cell_grid_mask%values = .true.
     Grid%resolution%values = 0._rk
+
+    call UpdateEdgeDistance(Grid)
 
   end subroutine ovkResetGrid
 
@@ -303,6 +323,10 @@ contains
       if (any(Grid%changed_xyz) .or. Grid%changed_grid_mask) then
         call UpdateBounds(Grid)
         call UpdateResolution(Grid)
+      end if
+
+      if (Grid%changed_grid_mask) then
+        call UpdateEdgeDistance(Grid)
       end if
 
       Grid%changed_xyz = .false.
@@ -355,6 +379,10 @@ contains
 
     else
 
+      if (.not. Grid%editing_properties) then
+        Grid%prev_properties = Grid%properties
+      end if
+
       Properties => Grid%properties
       Grid%editing_properties = .true.
 
@@ -373,7 +401,11 @@ contains
       return
     end if
 
-    ! Nothing here at the moment
+    if (Grid%properties%max_edge_dist /= Grid%prev_properties%max_edge_dist) then
+      call UpdateEdgeDistance(Grid)
+    end if
+
+    Grid%prev_properties = Grid%properties
 
     nullify(Properties)
     Grid%editing_properties = .false.
@@ -818,6 +850,19 @@ contains
 
   end subroutine UpdateResolution
 
+  subroutine UpdateEdgeDistance(Grid)
+
+    type(ovk_grid), intent(inout) :: Grid
+
+    call ovkDistanceField(Grid%grid_mask, Grid%properties%max_edge_dist, Grid%edge_dist)
+    call ovkDistanceField(Grid%cell_grid_mask, Grid%properties%max_edge_dist, Grid%cell_edge_dist)
+
+    ! Want the interior values to be positive
+    Grid%edge_dist%values = -Grid%edge_dist%values
+    Grid%cell_edge_dist%values = -Grid%cell_edge_dist%values
+
+  end subroutine UpdateEdgeDistance
+
   subroutine ovkGetCellVertexData(Grid, Cell, VertexCoords, VertexGridMaskValues)
 
     type(ovk_grid), intent(in) :: Grid
@@ -1144,18 +1189,21 @@ contains
 
   end subroutine ovkExportGridCoords
 
-  function ovk_grid_properties_Default() result(Properties)
+  function ovk_grid_properties_Default(NumDims) result(Properties)
 
+    integer, intent(in) :: NumDims
     type(ovk_grid_properties) :: Properties
 
     Properties%id = 0
-    Properties%nd = 2
-    Properties%npoints = [0,0,1]
+    Properties%nd = NumDims
+    Properties%npoints(:NumDims) = 0
+    Properties%npoints(NumDims+1:) = 1
     Properties%periodic = .false.
     Properties%periodic_storage = OVK_NO_OVERLAP_PERIODIC
     Properties%periodic_length = 0._rk
     Properties%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
     Properties%verbose = .false.
+    Properties%max_edge_dist = 1
 
   end function ovk_grid_properties_Default
 
@@ -1239,5 +1287,23 @@ contains
     Properties%verbose = Verbose
 
   end subroutine ovkSetGridPropertyVerbose
+
+  subroutine ovkGetGridPropertyMaxEdgeDistance(Properties, MaxEdgeDist)
+
+    type(ovk_grid_properties), intent(in) :: Properties
+    integer, intent(out) :: MaxEdgeDist
+
+    MaxEdgeDist = Properties%max_edge_dist
+
+  end subroutine ovkGetGridPropertyMaxEdgeDistance
+
+  subroutine ovkSetGridPropertyMaxEdgeDistance(Properties, MaxEdgeDist)
+
+    type(ovk_grid_properties), intent(inout) :: Properties
+    integer, intent(in) :: MaxEdgeDist
+
+    Properties%max_edge_dist = MaxEdgeDist
+
+  end subroutine ovkSetGridPropertyMaxEdgeDistance
 
 end module ovkGrid

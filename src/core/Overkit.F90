@@ -159,6 +159,8 @@ module Overkit
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
   public :: ovkSetDomainPropertyVerbose
+  public :: ovkGetDomainPropertyMaxEdgeDistance
+  public :: ovkSetDomainPropertyMaxEdgeDistance
 
   ! ovkDonorAccel
   public :: ovk_donor_accel
@@ -279,6 +281,8 @@ module Overkit
   public :: ovkGetGridPropertyGeometryType
   public :: ovkGetGridPropertyVerbose
   public :: ovkSetGridPropertyVerbose
+  public :: ovkGetGridPropertyMaxEdgeDistance
+  public :: ovkSetGridPropertyMaxEdgeDistance
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
