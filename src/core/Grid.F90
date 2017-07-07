@@ -854,8 +854,9 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    call ovkDistanceField(Grid%grid_mask, Grid%properties%max_edge_dist, Grid%edge_dist)
-    call ovkDistanceField(Grid%cell_grid_mask, Grid%properties%max_edge_dist, Grid%cell_edge_dist)
+    call ovkDistanceField(Grid%grid_mask, Grid%properties%max_edge_dist, OVK_FALSE, Grid%edge_dist)
+    call ovkDistanceField(Grid%cell_grid_mask, Grid%properties%max_edge_dist, OVK_FALSE, &
+      Grid%cell_edge_dist)
 
     ! Want the interior values to be positive
     Grid%edge_dist%values = -Grid%edge_dist%values

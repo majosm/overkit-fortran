@@ -18,7 +18,9 @@ module ovkGlobal
   public :: ovkCaseID
   public :: OVK_DEBUG
   public :: OVK_VERBOSE
+  public :: OVK_TRUE, OVK_FALSE
   public :: OVK_NO_ERROR, OVK_IO_ERROR
+  public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_ALL_GRIDS
@@ -56,8 +58,13 @@ module ovkGlobal
   logical, parameter :: OVK_VERBOSE = .false.
 #endif
 
+  integer, parameter :: OVK_TRUE = 1
+  integer, parameter :: OVK_FALSE = 0
+
   integer, parameter :: OVK_NO_ERROR = 0
   integer, parameter :: OVK_IO_ERROR = 1
+
+  integer, parameter :: OVK_MIRROR = 2
 
   integer, parameter :: OVK_NO_OVERLAP_PERIODIC = 1
   integer, parameter :: OVK_OVERLAP_PERIODIC = 2
