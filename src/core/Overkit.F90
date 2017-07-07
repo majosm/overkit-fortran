@@ -322,6 +322,7 @@ module Overkit
   public :: ovkFillMask
   public :: ovkDistanceField
   public :: ovkGenerateNearEdgeMask
+  public :: ovkGenerateThresholdMask
   public :: ovkCountMask
   public :: ovkPrintMask
   public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER

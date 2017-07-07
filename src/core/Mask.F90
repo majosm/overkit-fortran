@@ -17,6 +17,7 @@ module ovkMask
   public :: ovkFillMask
   public :: ovkDistanceField
   public :: ovkGenerateNearEdgeMask
+  public :: ovkGenerateThresholdMask
   public :: ovkCountMask
   public :: ovkPrintMask
   public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
@@ -489,6 +490,57 @@ contains
       Mask%cart%is(2):Mask%cart%ie(2),Mask%cart%is(3):Mask%cart%ie(3))
 
   end subroutine ovkGenerateNearEdgeMask
+
+  subroutine ovkGenerateThresholdMask(Field, ThresholdMask, Lower, Upper, Subset)
+
+    type(ovk_field_real), intent(in) :: Field
+    type(ovk_field_logical), intent(out) :: ThresholdMask
+    real(rk), intent(in), optional :: Lower, Upper
+    type(ovk_field_logical), intent(in), optional :: Subset
+
+    real(rk) :: Lower_, Upper_
+    integer :: i, j, k
+    logical :: IncludePoint
+    real(rk) :: Value
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(Lower)) then
+      Lower_ = Lower
+    else
+      Lower_ = -huge(0._rk)
+    end if
+
+    if (present(Upper)) then
+      Upper_ = Upper
+    else
+      Upper_ = huge(0._rk)
+    end if
+
+    ThresholdMask = ovk_field_logical_(Field%cart, .false.)
+
+    do k = Field%cart%is(3), Field%cart%ie(3)
+      do j = Field%cart%is(2), Field%cart%ie(2)
+        do i = Field%cart%is(1), Field%cart%ie(1)
+          if (present(Subset)) then
+            IncludePoint = Subset%values(i,j,k)
+          else
+            IncludePoint = .true.
+          end if
+          if (IncludePoint) then
+            Value = Field%values(i,j,k)
+            ThresholdMask%values(i,j,k) = Value >= Lower_ .and. Value <= Upper_
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine ovkGenerateThresholdMask
 
   function ovkCountMask(Mask) result(NumTrue)
 
