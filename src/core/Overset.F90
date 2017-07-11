@@ -259,8 +259,11 @@ contains
     end if
 
     do n = 1, NumGrids
+      if (OVK_VERBOSE) then
+        NumRemovedPoints = 0_lk
+      end if
       if (any(Assembler%graph%boundary_hole_cutting(:,n))) then
-        BoundaryMask = Grids(n)%boundary_mask
+        BoundaryMask = ovk_field_logical_(Grids(n)%cart, .false.)
         InteriorMask = ovk_field_logical_(Grids(n)%cart, .false.)
         do m = 1, NumGrids
           if (Assembler%graph%boundary_hole_cutting(m,n)) then
@@ -292,39 +295,38 @@ contains
               Grids(n)%cart%is(3):Grids(n)%cart%ie(3)) .and. PairwiseDonors(m,n)%valid_mask%values)
           end if
         end do
-        call ovkFillMask(InteriorMask, BoundaryMask)
-        InteriorMask%values = InteriorMask%values .or. BoundaryMask%values
-        call ovkFindMaskEdge(InteriorMask, OVK_EDGE_TYPE_INNER, OVK_FALSE, EdgeMask1)
-        BoundaryMask%values = BoundaryMask%values .and. EdgeMask1%values
-        call ovkFindMaskEdge(BoundaryMask, OVK_EDGE_TYPE_OUTER, OVK_FALSE, EdgeMask1)
-        ExteriorMask = ovk_field_logical_(Grids(n)%cart)
-        ExteriorMask%values = EdgeMask1%values(Grids(n)%cart%is(1):Grids(n)%cart%ie(1), &
-          Grids(n)%cart%is(2):Grids(n)%cart%ie(2),Grids(n)%cart%is(3):Grids(n)%cart%ie(3)) .and. &
-          .not. InteriorMask%values
-        call ovkFillMask(ExteriorMask, BoundaryMask)
-        Grids(n)%grid_mask%values = Grids(n)%grid_mask%values .and. .not. ExteriorMask%values
-        Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. &
-          ExteriorMask%values
-        do m = 1, NumGrids
-          if (Assembler%graph%overlap(m,n)) then
-            PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
-              .not. ExteriorMask%values
+        if (any(InteriorMask%values)) then
+          BoundaryMask%values = BoundaryMask%values .or. Grids(n)%boundary_mask%values
+          call ovkFillMask(InteriorMask, BoundaryMask)
+          InteriorMask%values = InteriorMask%values .or. BoundaryMask%values
+          call ovkFindMaskEdge(InteriorMask, OVK_EDGE_TYPE_INNER, OVK_FALSE, EdgeMask1)
+          BoundaryMask%values = BoundaryMask%values .and. EdgeMask1%values
+          call ovkFindMaskEdge(BoundaryMask, OVK_EDGE_TYPE_OUTER, OVK_FALSE, EdgeMask1)
+          ExteriorMask = ovk_field_logical_(Grids(n)%cart)
+          ExteriorMask%values = EdgeMask1%values(Grids(n)%cart%is(1):Grids(n)%cart%ie(1), &
+            Grids(n)%cart%is(2):Grids(n)%cart%ie(2),Grids(n)%cart%is(3):Grids(n)%cart%ie(3)) .and. &
+            .not. InteriorMask%values
+          call ovkFillMask(ExteriorMask, BoundaryMask)
+          Grids(n)%grid_mask%values = Grids(n)%grid_mask%values .and. .not. ExteriorMask%values
+          Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. &
+            ExteriorMask%values
+          do m = 1, NumGrids
+            if (Assembler%graph%overlap(m,n)) then
+              PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
+                .not. ExteriorMask%values
+            end if
+          end do
+          do m = 1, NumGrids
+            if (Assembler%graph%overlap(n,m)) then
+              call ovkGenerateReceiverMask(Grids(m), Grids(n), PairwiseDonors(n,m), ReceiverMask, &
+                DonorSubset=ExteriorMask)
+              PairwiseDonors(n,m)%valid_mask%values = PairwiseDonors(n,m)%valid_mask%values .and. &
+                .not. ReceiverMask%values
+            end if
+          end do
+          if (OVK_VERBOSE) then
+            NumRemovedPoints = ovkCountMask(ExteriorMask)
           end if
-        end do
-        do m = 1, NumGrids
-          if (Assembler%graph%overlap(n,m)) then
-            call ovkGenerateReceiverMask(Grids(m), Grids(n), PairwiseDonors(n,m), ReceiverMask, &
-              DonorSubset=ExteriorMask)
-            PairwiseDonors(n,m)%valid_mask%values = PairwiseDonors(n,m)%valid_mask%values .and. &
-              .not. ReceiverMask%values
-          end if
-        end do
-        if (OVK_VERBOSE) then
-          NumRemovedPoints = ovkCountMask(ExteriorMask)
-        end if
-      else
-        if (OVK_VERBOSE) then
-          NumRemovedPoints = 0_lk
         end if
       end if
       if (OVK_VERBOSE) then
