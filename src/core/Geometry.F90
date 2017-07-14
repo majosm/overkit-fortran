@@ -152,30 +152,27 @@ contains
     real(rk), parameter :: TOLERANCE = 1.e-10_rk
 
     integer :: i
-    integer, dimension(4,5), parameter :: Tetrahedra = reshape([1,2,3,5,4,3,2,8,6,5,8,2,7,8,5,3, &
-      2,3,5,8], [4,5])
+    integer, dimension(4,6), parameter :: Tetrahedra = reshape([1,2,3,5,2,3,5,6,3,5,6,7,2,3,6,4, &
+      3,6,4,7,4,7,6,8], [4,6])
     real(rk), dimension(3,3) :: Basis
     real(rk), dimension(3) :: RelativeCoords
     real(rk), dimension(3) :: LocalCoords
 
-    ! Decompose hexahedron into 5 tetrahedra (can skip the last one since it's on the interior)
+    ! Decompose hexahedron into 6 tetrahedra
 
-    do i = 1, 4
+    Overlaps = .false.
+
+    do i = 1, 6
       Basis(:,1) = VertexCoords(:,Tetrahedra(2,i)) - VertexCoords(:,Tetrahedra(1,i))
       Basis(:,2) = VertexCoords(:,Tetrahedra(3,i)) - VertexCoords(:,Tetrahedra(1,i))
       Basis(:,3) = VertexCoords(:,Tetrahedra(4,i)) - VertexCoords(:,Tetrahedra(1,i))
       RelativeCoords = Coords - VertexCoords(:,Tetrahedra(1,i))
       LocalCoords = Solve3D(Basis, RelativeCoords)
-      if (any(LocalCoords < -TOLERANCE)) then
-        Overlaps = .false.
-        return
-      else if (sum(LocalCoords) <= 1._rk+TOLERANCE) then
+      if (all(LocalCoords > -TOLERANCE) .and. sum(LocalCoords) <= 1._rk+TOLERANCE) then
         Overlaps = .true.
         return
       end if
     end do
-
-    Overlaps = .true.
 
   end function ovkOverlapsHexahedron
 
@@ -225,17 +222,17 @@ contains
     real(rk), dimension(3,8), intent(in) :: VertexCoords
     real(rk) :: HexahedronSize
 
-    integer, dimension(4,5), parameter :: Tetrahedra = reshape([1,2,3,5,4,3,2,8,6,5,8,2,7,8,5,3, &
-      2,3,5,8], [4,5])
+    integer, dimension(4,6), parameter :: Tetrahedra = reshape([1,2,3,5,2,3,5,6,3,5,6,7,2,3,6,4, &
+      3,6,4,7,4,7,6,8], [4,6])
     integer :: i
     real(rk), dimension(3,3) :: Basis
     real(rk) :: TetrahedronSize
 
-    ! Decompose hexahedron into 5 tetrahedra
+    ! Decompose hexahedron into 6 tetrahedra
 
     HexahedronSize = 0._rk
 
-    do i = 1, 5
+    do i = 1, 6
       Basis(:,1) = VertexCoords(:,Tetrahedra(2,i)) - VertexCoords(:,Tetrahedra(1,i))
       Basis(:,2) = VertexCoords(:,Tetrahedra(3,i)) - VertexCoords(:,Tetrahedra(1,i))
       Basis(:,3) = VertexCoords(:,Tetrahedra(4,i)) - VertexCoords(:,Tetrahedra(1,i))
