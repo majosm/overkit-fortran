@@ -153,17 +153,12 @@ program Bump
   ! Lower edge boundary on background grid (other boundaries don't need to be specified as they will
   ! not influence fringe placement or hole cutting)
   call ovkEditGridBoundaryMask(Grid, BoundaryMask)
-  do k = 1, NumPointsBackground(3)
-    do j = 1, NumPointsBackground(2)
-      do i = 1, NumPointsBackground(1)
-        Point = [i,j,k]
-        R = sqrt(sum(XYZ(i,j,k,:NumDims-1)**2))
-        if (R >= 0.5_rk .and. Point(NumDims) == 1) then
-          BoundaryMask%values(i,j,k) = .true.
-        end if
-      end do
-    end do
-  end do
+  select case (NumDims)
+  case (2)
+    BoundaryMask%values(:,1,1) = .true.
+  case (3)
+    BoundaryMask%values(:,:,1) = .true.
+  end select
   call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
 
   deallocate(XYZ)
