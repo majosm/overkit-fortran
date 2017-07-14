@@ -46,6 +46,7 @@ contains
     integer(lk) :: PointCount
     type(ovk_donor_accel) :: DonorAccel
     type(ovk_donors), dimension(:,:), allocatable :: PairwiseDonors
+    type(ovk_field_logical), dimension(:), allocatable :: OverlapMasks
     type(ovk_field_logical), dimension(:), allocatable :: CutMasks
     type(ovk_field_logical), dimension(:), allocatable :: FineMasks
     type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseFineMasks
@@ -261,8 +262,54 @@ contains
     deallocate(OverlapBounds)
     deallocate(MaxOverlapTolerance)
 
+    allocate(OverlapMasks(NumGrids))
+
+    do n = 1, NumGrids
+      OverlapMasks(n) = ovk_field_logical_(Grids(n)%cart, .false.)
+      do m = 1, NumGrids
+        if (Assembler%graph%overlap(m,n)) then
+          OverlapMasks(n)%values = OverlapMasks(n)%values .or. &
+            PairwiseDonors(m,n)%valid_mask%values
+        end if
+      end do
+    end do
+
     if (OVK_VERBOSE) then
       write (*, '(a)') "Finished searching for candidate donor/receiver pairs."
+    end if
+
+    if (OVK_VERBOSE) then
+      write (*, '(a)') "Inferring domain boundaries in non-overlapping regions..."
+    end if
+
+    call ovkEditAssemblerDomain(Assembler, EditDomain)
+
+    do n = 1, NumGrids
+      if (OVK_VERBOSE) then
+        PointCount = 0_lk
+      end if
+      if (Assembler%properties%infer_boundaries(n)) then
+        call ovkFindMaskEdge(Grids(n)%grid_mask, OVK_EDGE_TYPE_INNER, OVK_FALSE, EdgeMask1)
+        EdgeMask1%values = EdgeMask1%values .and. .not. OverlapMasks(n)%values
+        call ovkEditDomainGrid(EditDomain, n, EditGrid)
+        call ovkEditGridBoundaryMask(EditGrid, EditBoundaryMask)
+        EditBoundaryMask%values = EditBoundaryMask%values .or. EdgeMask1%values
+        call ovkReleaseGridBoundaryMask(EditGrid, EditBoundaryMask)
+        call ovkReleaseDomainGrid(EditDomain, EditGrid)
+        if (OVK_VERBOSE) then
+          PointCount = ovkCountMask(EdgeMask1)
+        end if
+      end if
+      if (OVK_VERBOSE) then
+        write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+          " points marked as boundaries on grid ", trim(IntToString(n)), "."
+      end if
+    end do
+
+    call ovkReleaseAssemblerDomain(Assembler, EditDomain)
+
+    if (OVK_VERBOSE) then
+      write (*, '(a)') "Finished inferring domain boundaries in non-overlapping regions."
     end if
 
     if (OVK_VERBOSE) then

@@ -59,6 +59,8 @@ module Overkit
   public :: ovkSetAssemblerPropertyVerbose
   public :: ovkGetAssemblerPropertyManualPadding
   public :: ovkSetAssemblerPropertyManualPadding
+  public :: ovkGetAssemblerPropertyInferBoundaries
+  public :: ovkSetAssemblerPropertyInferBoundaries
   public :: ovkGetAssemblerGraphOverlap
   public :: ovkSetAssemblerGraphOverlap
   public :: ovkGetAssemblerGraphOverlapTolerance

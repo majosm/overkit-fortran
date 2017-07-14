@@ -49,6 +49,8 @@ module ovkAssembler
   public :: ovkSetAssemblerPropertyVerbose
   public :: ovkGetAssemblerPropertyManualPadding
   public :: ovkSetAssemblerPropertyManualPadding
+  public :: ovkGetAssemblerPropertyInferBoundaries
+  public :: ovkSetAssemblerPropertyInferBoundaries
   public :: ovkGetAssemblerGraphOverlap
   public :: ovkSetAssemblerGraphOverlap
   public :: ovkGetAssemblerGraphOverlapTolerance
@@ -75,6 +77,7 @@ module ovkAssembler
     ! Read/write
     logical :: verbose
     logical :: manual_padding
+    logical, dimension(:), allocatable :: infer_boundaries
   end type ovk_assembler_properties
 
   type ovk_assembler_graph
@@ -113,6 +116,7 @@ module ovkAssembler
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_assembler_properties_
     module procedure ovk_assembler_properties_Default
+    module procedure ovk_assembler_properties_Allocated
   end interface ovk_assembler_properties_
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -159,10 +163,7 @@ contains
     end if
 
     allocate(Assembler%properties)
-    Assembler%properties = ovk_assembler_properties_()
-
-    Assembler%properties%nd = NumDims
-    Assembler%properties%ngrids = NumGrids
+    Assembler%properties = ovk_assembler_properties_(NumDims, NumGrids)
     Assembler%properties%verbose = Verbose_
 
     allocate(Assembler%graph)
@@ -663,6 +664,22 @@ contains
 
   end function ovk_assembler_properties_Default
 
+  function ovk_assembler_properties_Allocated(NumDims, NumGrids) result(Properties)
+
+    type(ovk_assembler_properties) :: Properties
+    integer, intent(in) :: NumDims
+    integer, intent(in) :: NumGrids
+
+    Properties%nd = NumDims
+    Properties%ngrids = NumGrids
+    Properties%verbose = .false.
+    Properties%manual_padding = .true.
+
+    allocate(Properties%infer_boundaries(NumGrids))
+    Properties%infer_boundaries = .false.
+
+  end function ovk_assembler_properties_Allocated
+
   subroutine ovkGetAssemblerPropertyDimension(Properties, NumDims)
 
     type(ovk_assembler_properties), intent(in) :: Properties
@@ -716,6 +733,33 @@ contains
     Properties%manual_padding = ManualPadding
 
   end subroutine ovkSetAssemblerPropertyManualPadding
+
+  subroutine ovkGetAssemblerPropertyInferBoundaries(Properties, GridID, InferBoundaries)
+
+    type(ovk_assembler_properties), intent(in) :: Properties
+    integer, intent(in) :: GridID
+    logical, intent(out) :: InferBoundaries
+
+    InferBoundaries = Properties%infer_boundaries(GridID)
+
+  end subroutine ovkGetAssemblerPropertyInferBoundaries
+
+  subroutine ovkSetAssemblerPropertyInferBoundaries(Properties, GridID, InferBoundaries)
+
+    type(ovk_assembler_properties), intent(inout) :: Properties
+    integer, intent(in) :: GridID
+    logical, intent(in) :: InferBoundaries
+
+    integer :: m
+    integer :: ms, me
+
+    call GridIDRange(Properties%ngrids, GridID, ms, me)
+
+    do m = ms, me
+      Properties%infer_boundaries(m) = InferBoundaries
+    end do
+
+  end subroutine ovkSetAssemblerPropertyInferBoundaries
 
   function ovk_assembler_graph_Default() result(Graph)
 
@@ -780,8 +824,8 @@ contains
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call AssemblerGraphIndexRange(Graph, OverlappingGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, OverlappedGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, OverlappingGridID, ms, me)
+    call GridIDRange(Graph%ngrids, OverlappedGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -819,8 +863,8 @@ contains
       end if
     end if
 
-    call AssemblerGraphIndexRange(Graph, OverlappingGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, OverlappedGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, OverlappingGridID, ms, me)
+    call GridIDRange(Graph%ngrids, OverlappedGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -851,8 +895,8 @@ contains
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call AssemblerGraphIndexRange(Graph, CuttingGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, CutGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, CuttingGridID, ms, me)
+    call GridIDRange(Graph%ngrids, CutGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -883,8 +927,8 @@ contains
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call AssemblerGraphIndexRange(Graph, CuttingGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, CutGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, CuttingGridID, ms, me)
+    call GridIDRange(Graph%ngrids, CutGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -925,8 +969,8 @@ contains
       end if
     end if
 
-    call AssemblerGraphIndexRange(Graph, DonorGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, ReceiverGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -957,8 +1001,8 @@ contains
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call AssemblerGraphIndexRange(Graph, DonorGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, ReceiverGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -998,8 +1042,8 @@ contains
       end if
     end if
 
-    call AssemblerGraphIndexRange(Graph, DonorGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, ReceiverGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -1035,8 +1079,8 @@ contains
       end if
     end if
 
-    call AssemblerGraphIndexRange(Graph, DonorGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, ReceiverGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -1072,8 +1116,8 @@ contains
       end if
     end if
 
-    call AssemblerGraphIndexRange(Graph, DonorGridID, ms, me)
-    call AssemblerGraphIndexRange(Graph, ReceiverGridID, ns, ne)
+    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
@@ -1083,21 +1127,21 @@ contains
 
   end subroutine ovkSetAssemblerGraphFringePadding
 
-  subroutine AssemblerGraphIndexRange(Graph, i, is, ie)
+  subroutine GridIDRange(NumGrids, GridID, StartID, EndID)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
-    integer, intent(in) :: i
-    integer, intent(out) :: is, ie
+    integer, intent(in) :: NumGrids
+    integer, intent(in) :: GridID
+    integer, intent(out) :: StartID, EndID
 
-    if (i == OVK_ALL_GRIDS) then
-      is = 1
-      ie = Graph%ngrids
+    if (GridID == OVK_ALL_GRIDS) then
+      StartID = 1
+      EndID = NumGrids
     else
-      is = i
-      ie = i
+      StartID = GridID
+      EndID = GridID
     end if
 
-  end subroutine AssemblerGraphIndexRange
+  end subroutine GridIDRange
 
   function GetMaxEdgeDistance(Graph, GridID) result(MaxEdgeDist)
 

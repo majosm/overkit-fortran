@@ -97,6 +97,11 @@ program Bump
   ! Initialize the problem
   call ovkCreateAssembler(Assembler, NumDims=NumDims, NumGrids=2, Verbose=.true.)
 
+  call ovkEditAssemblerProperties(Assembler, AssemblerProperties)
+  ! Automatically define boundaries in non-overlapping regions
+  call ovkSetAssemblerPropertyInferBoundaries(AssemblerProperties, OVK_ALL_GRIDS, .true.)
+  call ovkReleaseAssemblerProperties(Assembler, AssemblerProperties)
+
   ! Indicate which grids can intersect, cut, communicate, etc.
   call ovkEditAssemblerGraph(Assembler, Graph)
   call ovkSetAssemblerGraphOverlap(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
@@ -146,21 +151,13 @@ program Bump
     call ovkReleaseGridCoords(Grid, Coords)
   end do
 
-  ! Outer edge boundaries on background grid
+  ! Lower edge boundary on background grid
   call ovkEditGridBoundaryMask(Grid, BoundaryMask)
   select case (NumDims)
   case (2)
-    BoundaryMask%values(1,:,1) = .true.
-    BoundaryMask%values(NumPointsBackground(1),:,1) = .true.
     BoundaryMask%values(:,1,1) = .true.
-    BoundaryMask%values(:,NumPointsBackground(2),1) = .true.
   case (3)
-    BoundaryMask%values(1,:,:) = .true.
-    BoundaryMask%values(NumPointsBackground(1),:,:) = .true.
-    BoundaryMask%values(:,1,:) = .true.
-    BoundaryMask%values(:,NumPointsBackground(2),:) = .true.
     BoundaryMask%values(:,:,1) = .true.
-    BoundaryMask%values(:,:,NumPointsBackground(3)) = .true.
   end select
   call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
 
