@@ -23,17 +23,11 @@ module ovkAssembler
   public :: ovk_assembler_
   public :: ovk_assembler_properties
   public :: ovk_assembler_properties_
-  public :: ovk_assembler_graph
-  public :: ovk_assembler_graph_
   public :: ovkCreateAssembler
   public :: ovkDestroyAssembler
   public :: ovkGetAssemblerProperties
   public :: ovkEditAssemblerProperties
   public :: ovkReleaseAssemblerProperties
-  public :: ovkGetAssemblerGraph
-  public :: ovkEditAssemblerGraph
-  public :: ovkReleaseAssemblerGraph
-  public :: ovkResetAssemblerGraph
   public :: ovkGetAssemblerDomain
   public :: ovkEditAssemblerDomain
   public :: ovkReleaseAssemblerDomain
@@ -51,24 +45,24 @@ module ovkAssembler
   public :: ovkSetAssemblerPropertyManualPadding
   public :: ovkGetAssemblerPropertyInferBoundaries
   public :: ovkSetAssemblerPropertyInferBoundaries
-  public :: ovkGetAssemblerGraphOverlap
-  public :: ovkSetAssemblerGraphOverlap
-  public :: ovkGetAssemblerGraphOverlapTolerance
-  public :: ovkSetAssemblerGraphOverlapTolerance
-  public :: ovkGetAssemblerGraphBoundaryHoleCutting
-  public :: ovkSetAssemblerGraphBoundaryHoleCutting
-  public :: ovkGetAssemblerGraphOverlapHoleCutting
-  public :: ovkSetAssemblerGraphOverlapHoleCutting
-  public :: ovkGetAssemblerGraphConnectionType
-  public :: ovkSetAssemblerGraphConnectionType
-  public :: ovkGetAssemblerGraphDisjointConnection
-  public :: ovkSetAssemblerGraphDisjointConnection
-  public :: ovkGetAssemblerGraphInterpScheme
-  public :: ovkSetAssemblerGraphInterpScheme
-  public :: ovkGetAssemblerGraphFringeSize
-  public :: ovkSetAssemblerGraphFringeSize
-  public :: ovkGetAssemblerGraphFringePadding
-  public :: ovkSetAssemblerGraphFringePadding
+  public :: ovkGetAssemblerPropertyOverlap
+  public :: ovkSetAssemblerPropertyOverlap
+  public :: ovkGetAssemblerPropertyOverlapTolerance
+  public :: ovkSetAssemblerPropertyOverlapTolerance
+  public :: ovkGetAssemblerPropertyBoundaryHoleCutting
+  public :: ovkSetAssemblerPropertyBoundaryHoleCutting
+  public :: ovkGetAssemblerPropertyOverlapHoleCutting
+  public :: ovkSetAssemblerPropertyOverlapHoleCutting
+  public :: ovkGetAssemblerPropertyConnectionType
+  public :: ovkSetAssemblerPropertyConnectionType
+  public :: ovkGetAssemblerPropertyDisjointConnection
+  public :: ovkSetAssemblerPropertyDisjointConnection
+  public :: ovkGetAssemblerPropertyInterpScheme
+  public :: ovkSetAssemblerPropertyInterpScheme
+  public :: ovkGetAssemblerPropertyFringeSize
+  public :: ovkSetAssemblerPropertyFringeSize
+  public :: ovkGetAssemblerPropertyFringePadding
+  public :: ovkSetAssemblerPropertyFringePadding
 
   type ovk_assembler_properties
     ! Read-only
@@ -78,10 +72,6 @@ module ovkAssembler
     logical :: verbose
     logical :: manual_padding
     logical, dimension(:), allocatable :: infer_boundaries
-  end type ovk_assembler_properties
-
-  type ovk_assembler_graph
-    integer :: ngrids
     logical, dimension(:,:), allocatable :: overlap
     real(rk), dimension(:,:), allocatable :: overlap_tolerance
     logical, dimension(:,:), allocatable :: boundary_hole_cutting
@@ -91,18 +81,16 @@ module ovkAssembler
     integer, dimension(:,:), allocatable :: interp_scheme
     integer, dimension(:,:), allocatable :: fringe_size
     integer, dimension(:,:), allocatable :: fringe_padding
-  end type ovk_assembler_graph
+  end type ovk_assembler_properties
 
   type ovk_assembler
     type(ovk_assembler_properties), pointer :: properties
-    type(ovk_assembler_graph), pointer :: graph
-    type(ovk_assembler_graph) :: prev_graph
+    type(ovk_assembler_properties) :: prev_properties
     type(ovk_domain), pointer :: domain
 !     type(ovk_overlap), pointer :: overlap
     type(ovk_connectivity), pointer :: connectivity
     type(ovk_donors), dimension(:), pointer :: donors
     logical :: editing_properties
-    logical :: editing_graph
     logical :: editing_domain
 !     logical :: editing_overlap
     logical :: editing_connectivity
@@ -119,12 +107,6 @@ module ovkAssembler
     module procedure ovk_assembler_properties_Allocated
   end interface ovk_assembler_properties_
 
-  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
-  interface ovk_assembler_graph_
-    module procedure ovk_assembler_graph_Default
-    module procedure ovk_assembler_graph_Allocated
-  end interface ovk_assembler_graph_
-
 contains
 
   function ovk_assembler_Default() result(Assembler)
@@ -132,14 +114,12 @@ contains
     type(ovk_assembler) :: Assembler
 
     nullify(Assembler%properties)
-    nullify(Assembler%graph)
-    Assembler%prev_graph = ovk_assembler_graph_()
+    Assembler%prev_properties = ovk_assembler_properties_()
     nullify(Assembler%domain)
 !     nullify(Assembler%overlap)
     nullify(Assembler%donors)
     nullify(Assembler%connectivity)
     Assembler%editing_properties = .false.
-    Assembler%editing_graph = .false.
     Assembler%editing_domain = .false.
 !     Assembler%editing_overlap = .false.
     Assembler%editing_connectivity = .false.
@@ -166,10 +146,7 @@ contains
     Assembler%properties = ovk_assembler_properties_(NumDims, NumGrids)
     Assembler%properties%verbose = Verbose_
 
-    allocate(Assembler%graph)
-    Assembler%graph = ovk_assembler_graph_(NumGrids)
-
-    Assembler%prev_graph = Assembler%graph
+    Assembler%prev_properties = Assembler%properties
 
     allocate(Assembler%domain)
     call ovkCreateDomain(Assembler%domain, NumDims, NumGrids, Verbose=Verbose_)
@@ -186,7 +163,6 @@ contains
     call ovkCreateConnectivity(Assembler%connectivity, NumDims, NumGrids, Verbose=Verbose_)
 
     Assembler%editing_properties = .false.
-    Assembler%editing_graph = .false.
     Assembler%editing_domain = .false.
 !     Assembler%editing_overlap = .false.
     Assembler%editing_connectivity = .false.
@@ -200,9 +176,7 @@ contains
     integer :: m
 
     if (associated(Assembler%properties)) deallocate(Assembler%properties)
-
-    if (associated(Assembler%graph)) deallocate(Assembler%graph)
-    Assembler%prev_graph = ovk_assembler_graph_()
+    Assembler%prev_properties = ovk_assembler_properties_()
 
     if (associated(Assembler%domain)) then
       call ovkDestroyDomain(Assembler%domain)
@@ -245,17 +219,13 @@ contains
     logical :: CannotEdit
 
     CannotEdit = &
-      Assembler%editing_graph .or. &
       Assembler%editing_domain .or. &
       Assembler%editing_connectivity
 
     if (CannotEdit) then
 
       if (OVK_DEBUG) then
-        if (Assembler%editing_graph) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler properties while editing ", &
-            "assembler graph."
-        else if (Assembler%editing_domain) then
+        if (Assembler%editing_domain) then
           write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler properties while editing ", &
             "domain."
         else
@@ -269,6 +239,10 @@ contains
 
     else
 
+      if (.not. Assembler%editing_properties) then
+        Assembler%prev_properties = Assembler%properties
+      end if
+
       Properties => Assembler%properties
       Assembler%editing_properties = .true.
 
@@ -281,9 +255,14 @@ contains
     type(ovk_assembler), intent(inout) :: Assembler
     type(ovk_assembler_properties), pointer, intent(inout) :: Properties
 
+    integer :: m, n
     integer :: NumGrids
     type(ovk_domain_properties), pointer :: DomainProperties
     type(ovk_connectivity_properties), pointer :: ConnectivityProperties
+    integer :: InterpScheme
+    integer :: FringeSize
+!     integer :: FringePadding
+    integer :: MaxEdgeDist, PrevMaxEdgeDist
 
     if (.not. associated(Properties, Assembler%properties)) return
     if (.not. Assembler%editing_properties) then
@@ -292,6 +271,80 @@ contains
     end if
 
     NumGrids = Assembler%properties%ngrids
+
+    if (OVK_DEBUG) then
+
+      do m = 1, NumGrids
+        if (ovkCartCount(Assembler%domain%grids(m)%cart) > 0) then
+          write (ERROR_UNIT, '(2a)') "ERROR: Dynamically updating assembler properties is not ", &
+            "yet supported; must set properties before grids are created."
+          stop 1
+        end if
+      end do
+
+      if (any(Assembler%properties%connection_type == OVK_CONNECTION_FULL_GRID)) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_CONNECTION_FULL_GRID is not yet supported."
+        stop 1
+      end if
+
+      do n = 1, NumGrids
+        InterpScheme = OVK_INTERP_LINEAR
+        do m = 1, NumGrids
+          if (Assembler%properties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
+            InterpScheme = Assembler%properties%interp_scheme(m,n)
+            exit
+          end if
+        end do
+        do m = 1, NumGrids
+          if (Assembler%properties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
+            if (Assembler%properties%interp_scheme(m,n) /= InterpScheme) then
+              write (ERROR_UNIT, '(2a)') "ERROR: Pairwise interpolation scheme specification is ", &
+                "not currently supported; must be set uniformly for each receiver grid."
+              stop 1
+            end if
+          end if
+        end do
+      end do
+
+      do n = 1, NumGrids
+        FringeSize = 0
+        do m = 1, NumGrids
+          if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+            FringeSize = Assembler%properties%fringe_size(m,n)
+            exit
+          end if
+        end do
+        do m = 1, NumGrids
+          if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+            if (Assembler%properties%fringe_size(m,n) /= FringeSize) then
+              write (ERROR_UNIT, '(2a)') "ERROR: Pairwise fringe size specification is ", &
+                "not currently supported; must be set uniformly for each receiver grid."
+              stop 1
+            end if
+          end if
+        end do
+      end do
+
+!       do n = 1, NumGrids
+!         FringePadding = 0
+!         do m = 1, NumGrids
+!           if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+!             FringePadding = Assembler%properties%fringe_padding(m,n)
+!             exit
+!           end if
+!         end do
+!         do m = 1, NumGrids
+!           if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+!             if (Assembler%properties%fringe_padding(m,n) /= FringePadding) then
+!               write (ERROR_UNIT, '(2a)') "ERROR: Pairwise fringe padding specification is ", &
+!                 "not currently supported; must be set uniformly for each receiver grid."
+!               stop 1
+!             end if
+!           end if
+!         end do
+!       end do
+
+    end if
 
     ! Propagate verbose flag to sub-objects
     call ovkEditDomainProperties(Assembler%domain, DomainProperties)
@@ -304,172 +357,22 @@ contains
     call ovkSetConnectivityPropertyVerbose(ConnectivityProperties, Assembler%properties%verbose)
     call ovkReleaseConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
 
-    nullify(Properties)
-    Assembler%editing_properties = .false.
-
-  end subroutine ovkReleaseAssemblerProperties
-
-  subroutine ovkGetAssemblerGraph(Assembler, Graph)
-
-    type(ovk_assembler), intent(in) :: Assembler
-    type(ovk_assembler_graph), pointer, intent(out) :: Graph
-
-    Graph => Assembler%graph
-
-  end subroutine ovkGetAssemblerGraph
-
-  subroutine ovkEditAssemblerGraph(Assembler, Graph)
-
-    type(ovk_assembler), intent(inout) :: Assembler
-    type(ovk_assembler_graph), pointer, intent(out) :: Graph
-
-    logical :: CannotEdit
-
-    CannotEdit = &
-      Assembler%editing_properties .or. &
-      Assembler%editing_domain .or. &
-      Assembler%editing_connectivity
-
-    if (CannotEdit) then
-
-      if (OVK_DEBUG) then
-        if (Assembler%editing_properties) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler graph while editing assembler ", &
-            "properties."
-        else if (Assembler%editing_domain) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembler graph while editing domain."
-        else
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembler graph while editing connectivity."
-        end if
-        stop 1
-      end if
-
-      nullify(Graph)
-
-    else
-
-      if (.not. Assembler%editing_graph) then
-        Assembler%prev_graph = Assembler%graph
-      end if
-
-      Graph => Assembler%graph
-      Assembler%editing_graph = .true.
-
-    end if
-
-  end subroutine ovkEditAssemblerGraph
-
-  subroutine ovkReleaseAssemblerGraph(Assembler, Graph)
-
-    type(ovk_assembler), intent(inout) :: Assembler
-    type(ovk_assembler_graph), pointer, intent(inout) :: Graph
-
-    integer :: m, n
-    integer :: NumGrids
-    integer :: InterpScheme
-    integer :: FringeSize
-!     integer :: FringePadding
-    type(ovk_domain_properties), pointer :: DomainProperties
-    integer :: MaxEdgeDist, PrevMaxEdgeDist
-
-    if (.not. associated(Graph, Assembler%graph)) return
-    if (.not. Assembler%editing_graph) then
-      nullify(Graph)
-      return
-    end if
-
-    NumGrids = Assembler%properties%ngrids
-
-    if (OVK_DEBUG) then
-
-      do m = 1, NumGrids
-        if (ovkCartCount(Assembler%domain%grids(m)%cart) > 0) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Dynamically updating assembler graph is not yet ", &
-            "supported; must be set before grids are created."
-          stop 1
-        end if
-      end do
-
-      if (any(Assembler%graph%connection_type == OVK_CONNECTION_FULL_GRID)) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_CONNECTION_FULL_GRID is not yet supported."
-        stop 1
-      end if
-
-      do n = 1, NumGrids
-        InterpScheme = OVK_INTERP_LINEAR
-        do m = 1, NumGrids
-          if (Assembler%graph%connection_type(m,n) /= OVK_CONNECTION_NONE) then
-            InterpScheme = Assembler%graph%interp_scheme(m,n)
-            exit
-          end if
-        end do
-        do m = 1, NumGrids
-          if (Assembler%graph%connection_type(m,n) /= OVK_CONNECTION_NONE) then
-            if (Assembler%graph%interp_scheme(m,n) /= InterpScheme) then
-              write (ERROR_UNIT, '(2a)') "ERROR: Pairwise interpolation scheme specification is ", &
-                "not currently supported; must be set uniformly for each receiver grid."
-              stop 1
-            end if
-          end if
-        end do
-      end do
-
-      do n = 1, NumGrids
-        FringeSize = 0
-        do m = 1, NumGrids
-          if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-            FringeSize = Assembler%graph%fringe_size(m,n)
-            exit
-          end if
-        end do
-        do m = 1, NumGrids
-          if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-            if (Assembler%graph%fringe_size(m,n) /= FringeSize) then
-              write (ERROR_UNIT, '(2a)') "ERROR: Pairwise fringe size specification is ", &
-                "not currently supported; must be set uniformly for each receiver grid."
-              stop 1
-            end if
-          end if
-        end do
-      end do
-
-!       do n = 1, NumGrids
-!         FringePadding = 0
-!         do m = 1, NumGrids
-!           if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-!             FringePadding = Assembler%graph%fringe_padding(m,n)
-!             exit
-!           end if
-!         end do
-!         do m = 1, NumGrids
-!           if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-!             if (Assembler%graph%fringe_padding(m,n) /= FringePadding) then
-!               write (ERROR_UNIT, '(2a)') "ERROR: Pairwise fringe padding specification is ", &
-!                 "not currently supported; must be set uniformly for each receiver grid."
-!               stop 1
-!             end if
-!           end if
-!         end do
-!       end do
-
-    end if
-
     do n = 1, NumGrids
       ! No self-intersection support (yet)
-      Assembler%graph%overlap(n,n) = .false.
+      Assembler%properties%overlap(n,n) = .false.
       ! No overlap implies no hole cutting, no communication
       do m = 1, NumGrids
-        if (.not. Assembler%graph%overlap(m,n)) then
-          Assembler%graph%boundary_hole_cutting(m,n) = .false.
-          Assembler%graph%overlap_hole_cutting(m,n) = .false.
-          Assembler%graph%connection_type(m,n) = OVK_CONNECTION_NONE
+        if (.not. Assembler%properties%overlap(m,n)) then
+          Assembler%properties%boundary_hole_cutting(m,n) = .false.
+          Assembler%properties%overlap_hole_cutting(m,n) = .false.
+          Assembler%properties%connection_type(m,n) = OVK_CONNECTION_NONE
         end if
       end do
     end do
 
     do n = 1, NumGrids
-      MaxEdgeDist = GetMaxEdgeDistance(Assembler%graph, n)
-      PrevMaxEdgeDist = GetMaxEdgeDistance(Assembler%prev_graph, n)
+      MaxEdgeDist = GetMaxEdgeDistance(Assembler%properties, n)
+      PrevMaxEdgeDist = GetMaxEdgeDistance(Assembler%prev_properties, n)
       if (MaxEdgeDist /= PrevMaxEdgeDist) then
         call ovkEditDomainProperties(Assembler%domain, DomainProperties)
         call ovkSetDomainPropertyMaxEdgeDistance(DomainProperties, n, MaxEdgeDist)
@@ -477,24 +380,12 @@ contains
       end if
     end do
 
-    Assembler%prev_graph = Assembler%graph
+    Assembler%prev_properties = Assembler%properties
 
-    nullify(Graph)
-    Assembler%editing_graph = .false.
+    nullify(Properties)
+    Assembler%editing_properties = .false.
 
-  end subroutine ovkReleaseAssemblerGraph
-
-  subroutine ovkResetAssemblerGraph(Assembler)
-
-    type(ovk_assembler), intent(inout) :: Assembler
-
-    type(ovk_assembler_graph), pointer :: Graph
-
-    call ovkEditAssemblerGraph(Assembler, Graph)
-    Graph = ovk_assembler_graph_(Assembler%properties%ngrids)
-    call ovkReleaseAssemblerGraph(Assembler, Graph)
-
-  end subroutine ovkResetAssemblerGraph
+  end subroutine ovkReleaseAssemblerProperties
 
   subroutine ovkGetAssemblerDomain(Assembler, Domain)
 
@@ -514,7 +405,6 @@ contains
 
     CannotEdit = &
       Assembler%editing_properties .or. &
-      Assembler%editing_graph .or. &
       Assembler%editing_connectivity
 
     if (CannotEdit) then
@@ -522,8 +412,6 @@ contains
       if (OVK_DEBUG) then
         if (Assembler%editing_properties) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing assembler properties."
-        else if (Assembler%editing_graph) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing assembler graph."
         else
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing connectivity."
         end if
@@ -574,13 +462,13 @@ contains
     do n = 1, NumGrids
       do m = 1, NumGrids
         if (ChangedGrid(m) .or. ChangedGrid(n)) then
-          if (Assembler%graph%overlap(m,n)) then
+          if (Assembler%properties%overlap(m,n)) then
             Bounds = ovkBBIntersect(Domain%grids(m)%bounds, Domain%grids(n)%bounds)
             if (ovkBBIsEmpty(Bounds)) then
-              Assembler%graph%overlap(m,n) = .false.
-              Assembler%graph%boundary_hole_cutting(m,n) = .false.
-              Assembler%graph%overlap_hole_cutting(m,n) = .false.
-              Assembler%graph%connection_type(m,n) = OVK_CONNECTION_NONE
+              Assembler%properties%overlap(m,n) = .false.
+              Assembler%properties%boundary_hole_cutting(m,n) = .false.
+              Assembler%properties%overlap_hole_cutting(m,n) = .false.
+              Assembler%properties%connection_type(m,n) = OVK_CONNECTION_NONE
             end if
           end if
         end if
@@ -608,7 +496,8 @@ contains
 
     logical :: CannotEdit
 
-    CannotEdit = Assembler%editing_properties .or. Assembler%editing_graph .or. &
+    CannotEdit = &
+      Assembler%editing_properties .or. &
       Assembler%editing_domain
 
     if (CannotEdit) then
@@ -616,8 +505,6 @@ contains
       if (OVK_DEBUG) then
         if (Assembler%editing_properties) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing assembler properties."
-        else if (Assembler%editing_graph) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing assembler graph."
         else
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing domain."
         end if
@@ -677,6 +564,33 @@ contains
 
     allocate(Properties%infer_boundaries(NumGrids))
     Properties%infer_boundaries = .false.
+
+    allocate(Properties%overlap(NumGrids,NumGrids))
+    Properties%overlap = .false.
+
+    allocate(Properties%overlap_tolerance(NumGrids,NumGrids))
+    Properties%overlap_tolerance = 0._rk
+
+    allocate(Properties%boundary_hole_cutting(NumGrids,NumGrids))
+    Properties%boundary_hole_cutting = .false.
+
+    allocate(Properties%overlap_hole_cutting(NumGrids,NumGrids))
+    Properties%overlap_hole_cutting = .false.
+
+    allocate(Properties%connection_type(NumGrids,NumGrids))
+    Properties%connection_type = OVK_CONNECTION_NONE
+
+    allocate(Properties%disjoint_connection(NumGrids,NumGrids))
+    Properties%disjoint_connection = .false.
+
+    allocate(Properties%interp_scheme(NumGrids,NumGrids))
+    Properties%interp_scheme = OVK_INTERP_LINEAR
+
+    allocate(Properties%fringe_size(NumGrids,NumGrids))
+    Properties%fringe_size = 0
+
+    allocate(Properties%fringe_padding(NumGrids,NumGrids))
+    Properties%fringe_padding = 0
 
   end function ovk_assembler_properties_Allocated
 
@@ -761,95 +675,53 @@ contains
 
   end subroutine ovkSetAssemblerPropertyInferBoundaries
 
-  function ovk_assembler_graph_Default() result(Graph)
+  subroutine ovkGetAssemblerPropertyOverlap(Properties, OverlappingGridID, OverlappedGridID, &
+    Overlap)
 
-    type(ovk_assembler_graph) :: Graph
-
-    Graph%ngrids = 0
-
-  end function ovk_assembler_graph_Default
-
-  function ovk_assembler_graph_Allocated(NumGrids) result(Graph)
-
-    type(ovk_assembler_graph) :: Graph
-    integer, intent(in) :: NumGrids
-
-    Graph%ngrids = NumGrids
-
-    allocate(Graph%overlap(NumGrids,NumGrids))
-    Graph%overlap = .false.
-
-    allocate(Graph%overlap_tolerance(NumGrids,NumGrids))
-    Graph%overlap_tolerance = 0._rk
-
-    allocate(Graph%boundary_hole_cutting(NumGrids,NumGrids))
-    Graph%boundary_hole_cutting = .false.
-
-    allocate(Graph%overlap_hole_cutting(NumGrids,NumGrids))
-    Graph%overlap_hole_cutting = .false.
-
-    allocate(Graph%connection_type(NumGrids,NumGrids))
-    Graph%connection_type = OVK_CONNECTION_NONE
-
-    allocate(Graph%disjoint_connection(NumGrids,NumGrids))
-    Graph%disjoint_connection = .false.
-
-    allocate(Graph%interp_scheme(NumGrids,NumGrids))
-    Graph%interp_scheme = OVK_INTERP_LINEAR
-
-    allocate(Graph%fringe_size(NumGrids,NumGrids))
-    Graph%fringe_size = 0
-
-    allocate(Graph%fringe_padding(NumGrids,NumGrids))
-    Graph%fringe_padding = 0
-
-  end function ovk_assembler_graph_Allocated
-
-  subroutine ovkGetAssemblerGraphOverlap(Graph, OverlappingGridID, OverlappedGridID, Overlap)
-
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
     logical, intent(out) :: Overlap
 
-    Overlap = Graph%overlap(OverlappingGridID,OverlappedGridID)
+    Overlap = Properties%overlap(OverlappingGridID,OverlappedGridID)
 
-  end subroutine ovkGetAssemblerGraphOverlap
+  end subroutine ovkGetAssemblerPropertyOverlap
 
-  subroutine ovkSetAssemblerGraphOverlap(Graph, OverlappingGridID, OverlappedGridID, Overlap)
+  subroutine ovkSetAssemblerPropertyOverlap(Properties, OverlappingGridID, OverlappedGridID, &
+    Overlap)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
     logical, intent(in) :: Overlap
 
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call GridIDRange(Graph%ngrids, OverlappingGridID, ms, me)
-    call GridIDRange(Graph%ngrids, OverlappedGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, OverlappingGridID, ms, me)
+    call GridIDRange(Properties%ngrids, OverlappedGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%overlap(m,n) = Overlap
+        Properties%overlap(m,n) = Overlap
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphOverlap
+  end subroutine ovkSetAssemblerPropertyOverlap
 
-  subroutine ovkGetAssemblerGraphOverlapTolerance(Graph, OverlappingGridID, OverlappedGridID, &
-    OverlapTolerance)
+  subroutine ovkGetAssemblerPropertyOverlapTolerance(Properties, OverlappingGridID, &
+    OverlappedGridID, OverlapTolerance)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
     real(rk), intent(out) :: OverlapTolerance
 
-    OverlapTolerance = Graph%overlap_tolerance(OverlappingGridID,OverlappedGridID)
+    OverlapTolerance = Properties%overlap_tolerance(OverlappingGridID,OverlappedGridID)
 
-  end subroutine ovkGetAssemblerGraphOverlapTolerance
+  end subroutine ovkGetAssemblerPropertyOverlapTolerance
 
-  subroutine ovkSetAssemblerGraphOverlapTolerance(Graph, OverlappingGridID, OverlappedGridID, &
-    OverlapTolerance)
+  subroutine ovkSetAssemblerPropertyOverlapTolerance(Properties, OverlappingGridID, &
+    OverlappedGridID, OverlapTolerance)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
     real(rk), intent(in) :: OverlapTolerance
 
@@ -863,94 +735,96 @@ contains
       end if
     end if
 
-    call GridIDRange(Graph%ngrids, OverlappingGridID, ms, me)
-    call GridIDRange(Graph%ngrids, OverlappedGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, OverlappingGridID, ms, me)
+    call GridIDRange(Properties%ngrids, OverlappedGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%overlap_tolerance(m,n) = OverlapTolerance
+        Properties%overlap_tolerance(m,n) = OverlapTolerance
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphOverlapTolerance
+  end subroutine ovkSetAssemblerPropertyOverlapTolerance
 
-  subroutine ovkGetAssemblerGraphBoundaryHoleCutting(Graph, CuttingGridID, CutGridID, &
+  subroutine ovkGetAssemblerPropertyBoundaryHoleCutting(Properties, CuttingGridID, CutGridID, &
     BoundaryHoleCutting)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: CuttingGridID, CutGridID
     logical, intent(out) :: BoundaryHoleCutting
 
-    BoundaryHoleCutting = Graph%boundary_hole_cutting(CuttingGridID,CutGridID)
+    BoundaryHoleCutting = Properties%boundary_hole_cutting(CuttingGridID,CutGridID)
 
-  end subroutine ovkGetAssemblerGraphBoundaryHoleCutting
+  end subroutine ovkGetAssemblerPropertyBoundaryHoleCutting
 
-  subroutine ovkSetAssemblerGraphBoundaryHoleCutting(Graph, CuttingGridID, CutGridID, &
+  subroutine ovkSetAssemblerPropertyBoundaryHoleCutting(Properties, CuttingGridID, CutGridID, &
     BoundaryHoleCutting)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: CuttingGridID, CutGridID
     logical, intent(in) :: BoundaryHoleCutting
 
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call GridIDRange(Graph%ngrids, CuttingGridID, ms, me)
-    call GridIDRange(Graph%ngrids, CutGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, CuttingGridID, ms, me)
+    call GridIDRange(Properties%ngrids, CutGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%boundary_hole_cutting(m,n) = BoundaryHoleCutting
+        Properties%boundary_hole_cutting(m,n) = BoundaryHoleCutting
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphBoundaryHoleCutting
+  end subroutine ovkSetAssemblerPropertyBoundaryHoleCutting
 
-  subroutine ovkGetAssemblerGraphOverlapHoleCutting(Graph, CuttingGridID, CutGridID, &
+  subroutine ovkGetAssemblerPropertyOverlapHoleCutting(Properties, CuttingGridID, CutGridID, &
     OverlapHoleCutting)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: CuttingGridID, CutGridID
     logical, intent(out) :: OverlapHoleCutting
 
-    OverlapHoleCutting = Graph%overlap_hole_cutting(CuttingGridID,CutGridID)
+    OverlapHoleCutting = Properties%overlap_hole_cutting(CuttingGridID,CutGridID)
 
-  end subroutine ovkGetAssemblerGraphOverlapHoleCutting
+  end subroutine ovkGetAssemblerPropertyOverlapHoleCutting
 
-  subroutine ovkSetAssemblerGraphOverlapHoleCutting(Graph, CuttingGridID, CutGridID, &
+  subroutine ovkSetAssemblerPropertyOverlapHoleCutting(Properties, CuttingGridID, CutGridID, &
     OverlapHoleCutting)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: CuttingGridID, CutGridID
     logical, intent(in) :: OverlapHoleCutting
 
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call GridIDRange(Graph%ngrids, CuttingGridID, ms, me)
-    call GridIDRange(Graph%ngrids, CutGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, CuttingGridID, ms, me)
+    call GridIDRange(Properties%ngrids, CutGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%overlap_hole_cutting(m,n) = OverlapHoleCutting
+        Properties%overlap_hole_cutting(m,n) = OverlapHoleCutting
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphOverlapHoleCutting
+  end subroutine ovkSetAssemblerPropertyOverlapHoleCutting
 
-  subroutine ovkGetAssemblerGraphConnectionType(Graph, DonorGridID, ReceiverGridID, ConnectionType)
+  subroutine ovkGetAssemblerPropertyConnectionType(Properties, DonorGridID, ReceiverGridID, &
+    ConnectionType)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(out) :: ConnectionType
 
-    ConnectionType = Graph%connection_type(DonorGridID,ReceiverGridID)
+    ConnectionType = Properties%connection_type(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetAssemblerGraphConnectionType
+  end subroutine ovkGetAssemblerPropertyConnectionType
 
-  subroutine ovkSetAssemblerGraphConnectionType(Graph, DonorGridID, ReceiverGridID, ConnectionType)
+  subroutine ovkSetAssemblerPropertyConnectionType(Properties, DonorGridID, ReceiverGridID, &
+    ConnectionType)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(in) :: ConnectionType
 
@@ -969,62 +843,64 @@ contains
       end if
     end if
 
-    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%connection_type(m,n) = ConnectionType
+        Properties%connection_type(m,n) = ConnectionType
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphConnectionType
+  end subroutine ovkSetAssemblerPropertyConnectionType
 
-  subroutine ovkGetAssemblerGraphDisjointConnection(Graph, DonorGridID, ReceiverGridID, &
+  subroutine ovkGetAssemblerPropertyDisjointConnection(Properties, DonorGridID, ReceiverGridID, &
     DisjointConnection)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     logical, intent(out) :: DisjointConnection
 
-    DisjointConnection = Graph%disjoint_connection(DonorGridID,ReceiverGridID)
+    DisjointConnection = Properties%disjoint_connection(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetAssemblerGraphDisjointConnection
+  end subroutine ovkGetAssemblerPropertyDisjointConnection
 
-  subroutine ovkSetAssemblerGraphDisjointConnection(Graph, DonorGridID, ReceiverGridID, &
+  subroutine ovkSetAssemblerPropertyDisjointConnection(Properties, DonorGridID, ReceiverGridID, &
     DisjointConnection)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     logical, intent(in) :: DisjointConnection
 
     integer :: m, n
     integer :: ms, me, ns, ne
 
-    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%disjoint_connection(m,n) = DisjointConnection
+        Properties%disjoint_connection(m,n) = DisjointConnection
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphDisjointConnection
+  end subroutine ovkSetAssemblerPropertyDisjointConnection
 
-  subroutine ovkGetAssemblerGraphInterpScheme(Graph, DonorGridID, ReceiverGridID, InterpScheme)
+  subroutine ovkGetAssemblerPropertyInterpScheme(Properties, DonorGridID, ReceiverGridID, &
+    InterpScheme)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(out) :: InterpScheme
 
-    InterpScheme = Graph%interp_scheme(DonorGridID,ReceiverGridID)
+    InterpScheme = Properties%interp_scheme(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetAssemblerGraphInterpScheme
+  end subroutine ovkGetAssemblerPropertyInterpScheme
 
-  subroutine ovkSetAssemblerGraphInterpScheme(Graph, DonorGridID, ReceiverGridID, InterpScheme)
+  subroutine ovkSetAssemblerPropertyInterpScheme(Properties, DonorGridID, ReceiverGridID, &
+    InterpScheme)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(in) :: InterpScheme
 
@@ -1042,30 +918,30 @@ contains
       end if
     end if
 
-    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%interp_scheme(m,n) = InterpScheme
+        Properties%interp_scheme(m,n) = InterpScheme
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphInterpScheme
+  end subroutine ovkSetAssemblerPropertyInterpScheme
 
-  subroutine ovkGetAssemblerGraphFringeSize(Graph, DonorGridID, ReceiverGridID, FringeSize)
+  subroutine ovkGetAssemblerPropertyFringeSize(Properties, DonorGridID, ReceiverGridID, FringeSize)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(out) :: FringeSize
 
-    FringeSize = Graph%fringe_size(DonorGridID,ReceiverGridID)
+    FringeSize = Properties%fringe_size(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetAssemblerGraphFringeSize
+  end subroutine ovkGetAssemblerPropertyFringeSize
 
-  subroutine ovkSetAssemblerGraphFringeSize(Graph, DonorGridID, ReceiverGridID, FringeSize)
+  subroutine ovkSetAssemblerPropertyFringeSize(Properties, DonorGridID, ReceiverGridID, FringeSize)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(in) :: FringeSize
 
@@ -1079,30 +955,32 @@ contains
       end if
     end if
 
-    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%fringe_size(m,n) = FringeSize
+        Properties%fringe_size(m,n) = FringeSize
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphFringeSize
+  end subroutine ovkSetAssemblerPropertyFringeSize
 
-  subroutine ovkGetAssemblerGraphFringePadding(Graph, DonorGridID, ReceiverGridID, FringePadding)
+  subroutine ovkGetAssemblerPropertyFringePadding(Properties, DonorGridID, ReceiverGridID, &
+    FringePadding)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(out) :: FringePadding
 
-    FringePadding = Graph%fringe_padding(DonorGridID,ReceiverGridID)
+    FringePadding = Properties%fringe_padding(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetAssemblerGraphFringePadding
+  end subroutine ovkGetAssemblerPropertyFringePadding
 
-  subroutine ovkSetAssemblerGraphFringePadding(Graph, DonorGridID, ReceiverGridID, FringePadding)
+  subroutine ovkSetAssemblerPropertyFringePadding(Properties, DonorGridID, ReceiverGridID, &
+    FringePadding)
 
-    type(ovk_assembler_graph), intent(inout) :: Graph
+    type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(in) :: FringePadding
 
@@ -1116,16 +994,16 @@ contains
       end if
     end if
 
-    call GridIDRange(Graph%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Graph%ngrids, ReceiverGridID, ns, ne)
+    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
 
     do n = ns, ne
       do m = ms, me
-        Graph%fringe_padding(m,n) = FringePadding
+        Properties%fringe_padding(m,n) = FringePadding
       end do
     end do
 
-  end subroutine ovkSetAssemblerGraphFringePadding
+  end subroutine ovkSetAssemblerPropertyFringePadding
 
   subroutine GridIDRange(NumGrids, GridID, StartID, EndID)
 
@@ -1143,9 +1021,9 @@ contains
 
   end subroutine GridIDRange
 
-  function GetMaxEdgeDistance(Graph, GridID) result(MaxEdgeDist)
+  function GetMaxEdgeDistance(Properties, GridID) result(MaxEdgeDist)
 
-    type(ovk_assembler_graph), intent(in) :: Graph
+    type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: GridID
     integer :: MaxEdgeDist
 
@@ -1155,12 +1033,12 @@ contains
 
     MaxEdgeDist = 0
 
-    do m = 1, Graph%ngrids
-      if (Graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-        if (Graph%disjoint_connection(m,n)) then
-          MaxEdgeDist = max(MaxEdgeDist, Graph%fringe_size(m,n) + Graph%fringe_padding(m,n))
+    do m = 1, Properties%ngrids
+      if (Properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+        if (Properties%disjoint_connection(m,n)) then
+          MaxEdgeDist = max(MaxEdgeDist, Properties%fringe_size(m,n) + Properties%fringe_padding(m,n))
         else
-          MaxEdgeDist = max(MaxEdgeDist, max(Graph%fringe_size(m,n), Graph%fringe_padding(m,n)))
+          MaxEdgeDist = max(MaxEdgeDist, max(Properties%fringe_size(m,n), Properties%fringe_padding(m,n)))
         end if
       end if
     end do

@@ -21,8 +21,7 @@ program Bump
   integer, dimension(MAX_ND) :: NumPointsBump
   real(rk), dimension(MAX_ND) :: Length
   type(ovk_assembler) :: Assembler
-  type(ovk_assembler_properties), pointer :: AssemblerProperties
-  type(ovk_assembler_graph), pointer :: Graph
+  type(ovk_assembler_properties), pointer :: Properties
   type(ovk_domain), pointer :: Domain
   type(ovk_grid), pointer :: Grid
   real(rk), dimension(:,:,:,:), allocatable :: XYZ
@@ -97,23 +96,27 @@ program Bump
   ! Initialize the problem
   call ovkCreateAssembler(Assembler, NumDims=NumDims, NumGrids=2, Verbose=.true.)
 
-  call ovkEditAssemblerProperties(Assembler, AssemblerProperties)
-  ! Automatically define boundaries in non-overlapping regions
-  call ovkSetAssemblerPropertyInferBoundaries(AssemblerProperties, OVK_ALL_GRIDS, .true.)
-  call ovkReleaseAssemblerProperties(Assembler, AssemblerProperties)
+  call ovkEditAssemblerProperties(Assembler, Properties)
 
-  ! Indicate which grids can intersect, cut, communicate, etc.
-  call ovkEditAssemblerGraph(Assembler, Graph)
-  call ovkSetAssemblerGraphOverlap(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetAssemblerGraphOverlapTolerance(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0.1_rk)
-  call ovkSetAssemblerGraphBoundaryHoleCutting(Graph, 2, 1, .true.)
-  call ovkSetAssemblerGraphOverlapHoleCutting(Graph, 2, 1, .true.)
-  call ovkSetAssemblerGraphConnectionType(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
-  call ovkSetAssemblerGraphDisjointConnection(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetAssemblerGraphInterpScheme(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, InterpScheme)
-  call ovkSetAssemblerGraphFringeSize(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
-  call ovkSetAssemblerGraphFringePadding(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
-  call ovkReleaseAssemblerGraph(Assembler, Graph)
+  ! Automatically define boundaries in non-overlapping regions
+  call ovkSetAssemblerPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
+
+  ! Indicate which grids can intersect
+  call ovkSetAssemblerPropertyOverlap(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0.1_rk)
+
+  ! Indicate which grids can cut each other
+  call ovkSetAssemblerPropertyBoundaryHoleCutting(Properties, 2, 1, .true.)
+  call ovkSetAssemblerPropertyOverlapHoleCutting(Properties, 2, 1, .true.)
+
+  ! Indicate which grids can communicate and how
+  call ovkSetAssemblerPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
+  call ovkSetAssemblerPropertyDisjointConnection(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, InterpScheme)
+  call ovkSetAssemblerPropertyFringeSize(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblerPropertyFringePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
+
+  call ovkReleaseAssemblerProperties(Assembler, Properties)
 
   ! Set up the domain
   call ovkEditAssemblerDomain(Assembler, Domain)

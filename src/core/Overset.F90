@@ -110,7 +110,6 @@ contains
     if (OVK_DEBUG) then
       if ( &
         Assembler%editing_properties .or. &
-        Assembler%editing_graph .or. &
         Assembler%editing_domain .or. &
   !       Assembler%editing_overlap .or. &
         Assembler%editing_connectivity &
@@ -135,8 +134,8 @@ contains
 !       FringeSize(n) = 0
 !       do m_ = 1, NumActiveGrids
 !         m = Assembler%grid_id(m_)
-!         if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-!           FringeSize(n) = Assembler%graph%fringe_size(m,n)
+!         if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+!           FringeSize(n) = Assembler%properties%fringe_size(m,n)
 !           exit
 !         end if
 !       end do
@@ -147,7 +146,7 @@ contains
     do n = 1, NumGrids
       InterpScheme(n) = OVK_INTERP_LINEAR
       do m = 1, NumGrids
-        if (Assembler%graph%interp_scheme(m,n) == OVK_INTERP_CUBIC) then
+        if (Assembler%properties%interp_scheme(m,n) == OVK_INTERP_CUBIC) then
           InterpScheme(n) = OVK_INTERP_CUBIC
           exit
         end if
@@ -159,8 +158,8 @@ contains
     do n = 1, NumGrids
       FringeSize(n) = 0
       do m = 1, NumGrids
-        if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-          FringeSize(n) = Assembler%graph%fringe_size(m,n)
+        if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+          FringeSize(n) = Assembler%properties%fringe_size(m,n)
           exit
         end if
       end do
@@ -171,8 +170,8 @@ contains
 !     do n = 1, NumGrids
 !       FringePadding(n) = 0
 !       do m = 1, NumGrids
-!         if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-!           FringePadding(n) = Assembler%graph%fringe_padding(m,n)
+!         if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+!           FringePadding(n) = Assembler%properties%fringe_padding(m,n)
 !           exit
 !         end if
 !       end do
@@ -223,11 +222,11 @@ contains
       OverlapBounds(m) = ovk_bbox_(NumDims)
       MaxOverlapTolerance(m) = 0._rk
       do n = 1, NumGrids
-        if (Assembler%graph%overlap(m,n)) then
+        if (Assembler%properties%overlap(m,n)) then
           Bounds = ovkBBIntersect(Grids(m)%bounds, Grids(n)%bounds)
           OverlapBounds(m) = ovkBBUnion(OverlapBounds(m), Bounds)
           MaxOverlapTolerance(m) = max(MaxOverlapTolerance(m), &
-            Assembler%graph%overlap_tolerance(m,n))
+            Assembler%properties%overlap_tolerance(m,n))
         end if
       end do
     end do
@@ -242,9 +241,9 @@ contains
       call ovkGenerateDonorAccel(Grids(m), DonorAccel, Bounds=OverlapBounds(m), &
         OverlapTolerance=MaxOverlapTolerance(m))
       do n = 1, NumGrids
-        if (Assembler%graph%overlap(m,n)) then
+        if (Assembler%properties%overlap(m,n)) then
           call ovkFindDonors(Grids(m), Grids(n), DonorAccel, PairwiseDonors(m,n), &
-            OverlapTolerance=Assembler%graph%overlap_tolerance(m,n))
+            OverlapTolerance=Assembler%properties%overlap_tolerance(m,n))
           if (OVK_VERBOSE) then
             PointCount = ovkCountMask(PairwiseDonors(m,n)%valid_mask)
             write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), &
@@ -267,7 +266,7 @@ contains
     do n = 1, NumGrids
       OverlapMasks(n) = ovk_field_logical_(Grids(n)%cart, .false.)
       do m = 1, NumGrids
-        if (Assembler%graph%overlap(m,n)) then
+        if (Assembler%properties%overlap(m,n)) then
           OverlapMasks(n)%values = OverlapMasks(n)%values .or. &
             PairwiseDonors(m,n)%valid_mask%values
         end if
@@ -320,11 +319,11 @@ contains
       if (OVK_VERBOSE) then
         PointCount = 0_lk
       end if
-      if (any(Assembler%graph%boundary_hole_cutting(:,n))) then
+      if (any(Assembler%properties%boundary_hole_cutting(:,n))) then
         BoundaryMask = ovk_field_logical_(Grids(n)%cart, .false.)
         InteriorMask = ovk_field_logical_(Grids(n)%cart, .false.)
         do m = 1, NumGrids
-          if (Assembler%graph%boundary_hole_cutting(m,n)) then
+          if (Assembler%properties%boundary_hole_cutting(m,n)) then
             call ovkFindMaskEdge(PairwiseDonors(m,n)%valid_mask, OVK_EDGE_TYPE_OUTER, OVK_MIRROR, &
               EdgeMask1)
             EdgeMask2 = ovk_field_logical_(Grids(n)%cart)
@@ -378,13 +377,13 @@ contains
           Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. &
             ExteriorMask%values
           do m = 1, NumGrids
-            if (Assembler%graph%overlap(m,n)) then
+            if (Assembler%properties%overlap(m,n)) then
               PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
                 .not. ExteriorMask%values
             end if
           end do
           do m = 1, NumGrids
-            if (Assembler%graph%overlap(n,m)) then
+            if (Assembler%properties%overlap(n,m)) then
               call ovkGenerateReceiverMask(Grids(m), Grids(n), PairwiseDonors(n,m), ReceiverMask, &
                 DonorSubset=ExteriorMask)
               PairwiseDonors(n,m)%valid_mask%values = PairwiseDonors(n,m)%valid_mask%values .and. &
@@ -422,8 +421,8 @@ contains
     ! Cut out coarse points in overlapping regions
     do n = 1, NumGrids
       do m = n+1, NumGrids
-        if (Assembler%graph%overlap_hole_cutting(m,n) .and. &
-          Assembler%graph%overlap_hole_cutting(n,m)) then
+        if (Assembler%properties%overlap_hole_cutting(m,n) .and. &
+          Assembler%properties%overlap_hole_cutting(n,m)) then
           ! Find the coarse points
           call ovkGenerateThresholdMask(PairwiseDonors(n,m)%res_diff, CoarseMask_m, &
             Upper=0._rk, Subset=PairwiseDonors(n,m)%valid_mask)
@@ -447,13 +446,13 @@ contains
           FineMasks(n)%values = FineMasks(n)%values .and. .not. CoarseMask_n%values
           PairwiseFineMasks(m,n)%values = PairwiseFineMasks(m,n)%values .and. .not. &
             CoarseMask_n%values
-        else if (Assembler%graph%overlap_hole_cutting(m,n)) then
+        else if (Assembler%properties%overlap_hole_cutting(m,n)) then
           ! Behave as if grid m is finer everywhere
           FineMasks(n)%values = FineMasks(n)%values .and. .not. &
             PairwiseDonors(m,n)%valid_mask%values
           PairwiseFineMasks(m,n)%values = PairwiseFineMasks(m,n)%values .and. .not. &
             PairwiseDonors(m,n)%valid_mask%values
-        else if (Assembler%graph%overlap_hole_cutting(n,m)) then
+        else if (Assembler%properties%overlap_hole_cutting(n,m)) then
           ! Behave as if grid n is finer everywhere
           FineMasks(m)%values = FineMasks(m)%values .and. .not. &
             PairwiseDonors(n,m)%valid_mask%values
@@ -471,14 +470,14 @@ contains
       CoarseMask%values = .not. FineMasks(n)%values
       call ovkFindMaskEdge(CoarseMask, OVK_EDGE_TYPE_OUTER, OVK_MIRROR, CoarseEdgeMask)
       do m = 1, NumGrids
-        if (Assembler%graph%overlap_hole_cutting(m,n) .and. &
-          Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+        if (Assembler%properties%overlap_hole_cutting(m,n) .and. &
+          Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
           PairwiseCoarseMask = ovk_field_logical_(Grids(n)%cart)
           PairwiseCoarseMask%values = .not. PairwiseFineMasks(m,n)%values
           call ovkFindMaskEdge(PairwiseCoarseMask, OVK_EDGE_TYPE_OUTER, OVK_MIRROR, &
             PaddingEdgeMask)
           PaddingEdgeMask%values = PaddingEdgeMask%values .and. CoarseEdgeMask%values
-          call ovkGrowMask(PaddingEdgeMask, Assembler%graph%fringe_padding(m,n))
+          call ovkGrowMask(PaddingEdgeMask, Assembler%properties%fringe_padding(m,n))
           PaddingMasks(n)%values = PaddingMasks(n)%values .or. &
             (PairwiseDonors(m,n)%valid_mask%values .and. PaddingEdgeMask%values( &
             Grids(n)%cart%is(1):Grids(n)%cart%ie(1),Grids(n)%cart%is(2):Grids(n)%cart%ie(2), &
@@ -528,13 +527,13 @@ contains
 
     do n = 1, NumGrids
       do m = 1, NumGrids
-        if (Assembler%graph%overlap(m,n)) then
+        if (Assembler%properties%overlap(m,n)) then
           PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
             Grids(n)%grid_mask%values
         end if
       end do
       do m = 1, NumGrids
-        if (Assembler%graph%overlap(m,n)) then
+        if (Assembler%properties%overlap(m,n)) then
           NonGridMask = ovk_field_logical_(Grids(m)%cart)
           NonGridMask%values = .not. Grids(m)%grid_mask%values
           call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), ReceiverMask, &
@@ -580,7 +579,7 @@ contains
 
     do n = 1, NumGrids
       do m = 1, NumGrids
-        select case (Assembler%graph%connection_type(m,n))
+        select case (Assembler%properties%connection_type(m,n))
         case (OVK_CONNECTION_FRINGE)
           PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
             FringeMasks(n)%values
@@ -598,12 +597,12 @@ contains
             BestCellDiff = huge(0._rk)
             BestGrid = 0
             do m = 1, NumGrids
-              if (Assembler%graph%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
+              if (Assembler%properties%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
                 PairwiseDonors(m,n)%valid_mask%values(i,j,k)) then
-                if (Assembler%graph%disjoint_connection(n,m)) then
-                  PaddingAmount = FringeSize(m) + Assembler%graph%fringe_padding(n,m)
+                if (Assembler%properties%disjoint_connection(n,m)) then
+                  PaddingAmount = FringeSize(m) + Assembler%properties%fringe_padding(n,m)
                 else
-                  PaddingAmount = Assembler%graph%fringe_padding(n,m)
+                  PaddingAmount = Assembler%properties%fringe_padding(n,m)
                 end if
                 CandidateCellDistance = real(PairwiseDonors(m,n)%edge_dist%values(i,j,k), &
                   kind=rk)/real(max(PaddingAmount,1),kind=rk)
@@ -652,7 +651,7 @@ contains
     end if
 
     ! TODO: Need to update this to work with per-pair interp scheme parameter
-    if (any(Assembler%graph%interp_scheme == OVK_INTERP_CUBIC)) then
+    if (any(Assembler%properties%interp_scheme == OVK_INTERP_CUBIC)) then
 
       if (OVK_VERBOSE) then
         write (*, '(a)') "Expanding donor cells for cubic interpolation..."
@@ -673,7 +672,7 @@ contains
       end do
 
       do n = 1, NumGrids
-        if (all(Assembler%graph%interp_scheme(:,n) /= OVK_INTERP_CUBIC)) cycle
+        if (all(Assembler%properties%interp_scheme(:,n) /= OVK_INTERP_CUBIC)) cycle
         do k = Grids(n)%cart%is(3), Grids(n)%cart%ie(3)
           do j = Grids(n)%cart%is(2), Grids(n)%cart%ie(2)
             do i = Grids(n)%cart%is(1), Grids(n)%cart%ie(1)
@@ -779,8 +778,8 @@ contains
 
     do n = 1, NumGrids
       do m = 1, NumGrids
-        if (Assembler%graph%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
-          Assembler%graph%disjoint_connection(m,n)) then
+        if (Assembler%properties%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
+          Assembler%properties%disjoint_connection(m,n)) then
           call ovkGenerateReceiverMask(Grids(n), Grids(m), Donors(n), ReceiverMask, &
             DonorSubset=Donors(m)%valid_mask)
           Donors(n)%valid_mask%values = Donors(n)%valid_mask%values .and. .not. &
@@ -826,8 +825,8 @@ contains
     do n = 1, NumGrids
       StencilSize = 2
       do m = 1, NumGrids
-        if (Assembler%graph%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
-          Assembler%graph%interp_scheme(m,n) == OVK_INTERP_CUBIC) then
+        if (Assembler%properties%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
+          Assembler%properties%interp_scheme(m,n) == OVK_INTERP_CUBIC) then
           StencilSize = 4
           exit
         end if

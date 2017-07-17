@@ -33,17 +33,11 @@ module Overkit
   public :: ovk_assembler_
   public :: ovk_assembler_properties
   public :: ovk_assembler_properties_
-  public :: ovk_assembler_graph
-  public :: ovk_assembler_graph_
   public :: ovkCreateAssembler
   public :: ovkDestroyAssembler
   public :: ovkGetAssemblerProperties
   public :: ovkEditAssemblerProperties
   public :: ovkReleaseAssemblerProperties
-  public :: ovkGetAssemblerGraph
-  public :: ovkEditAssemblerGraph
-  public :: ovkReleaseAssemblerGraph
-  public :: ovkResetAssemblerGraph
   public :: ovkGetAssemblerDomain
   public :: ovkEditAssemblerDomain
   public :: ovkReleaseAssemblerDomain
@@ -61,24 +55,24 @@ module Overkit
   public :: ovkSetAssemblerPropertyManualPadding
   public :: ovkGetAssemblerPropertyInferBoundaries
   public :: ovkSetAssemblerPropertyInferBoundaries
-  public :: ovkGetAssemblerGraphOverlap
-  public :: ovkSetAssemblerGraphOverlap
-  public :: ovkGetAssemblerGraphOverlapTolerance
-  public :: ovkSetAssemblerGraphOverlapTolerance
-  public :: ovkGetAssemblerGraphBoundaryHoleCutting
-  public :: ovkSetAssemblerGraphBoundaryHoleCutting
-  public :: ovkGetAssemblerGraphOverlapHoleCutting
-  public :: ovkSetAssemblerGraphOverlapHoleCutting
-  public :: ovkGetAssemblerGraphConnectionType
-  public :: ovkSetAssemblerGraphConnectionType
-  public :: ovkGetAssemblerGraphDisjointConnection
-  public :: ovkSetAssemblerGraphDisjointConnection
-  public :: ovkGetAssemblerGraphInterpScheme
-  public :: ovkSetAssemblerGraphInterpScheme
-  public :: ovkGetAssemblerGraphFringeSize
-  public :: ovkSetAssemblerGraphFringeSize
-  public :: ovkGetAssemblerGraphFringePadding
-  public :: ovkSetAssemblerGraphFringePadding
+  public :: ovkGetAssemblerPropertyOverlap
+  public :: ovkSetAssemblerPropertyOverlap
+  public :: ovkGetAssemblerPropertyOverlapTolerance
+  public :: ovkSetAssemblerPropertyOverlapTolerance
+  public :: ovkGetAssemblerPropertyBoundaryHoleCutting
+  public :: ovkSetAssemblerPropertyBoundaryHoleCutting
+  public :: ovkGetAssemblerPropertyOverlapHoleCutting
+  public :: ovkSetAssemblerPropertyOverlapHoleCutting
+  public :: ovkGetAssemblerPropertyConnectionType
+  public :: ovkSetAssemblerPropertyConnectionType
+  public :: ovkGetAssemblerPropertyDisjointConnection
+  public :: ovkSetAssemblerPropertyDisjointConnection
+  public :: ovkGetAssemblerPropertyInterpScheme
+  public :: ovkSetAssemblerPropertyInterpScheme
+  public :: ovkGetAssemblerPropertyFringeSize
+  public :: ovkSetAssemblerPropertyFringeSize
+  public :: ovkGetAssemblerPropertyFringePadding
+  public :: ovkSetAssemblerPropertyFringePadding
 
   ! ovkBoundingBox
   public :: ovk_bbox
