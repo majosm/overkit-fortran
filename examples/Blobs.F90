@@ -37,6 +37,7 @@ program Blobs
   type(ovk_cart) :: CartOverlap
   type(ovk_field_logical), pointer :: GridMask
   type(ovk_field_logical), pointer :: ReceiverMask
+  type(ovk_field_logical), pointer :: OrphanMask
   type(ovk_field_int), pointer :: DonorGridIDs
   type(ovk_field_real) :: XOverlap, YOverlap
   type(ovk_field_int) :: IBlank
@@ -81,6 +82,7 @@ program Blobs
   call ovkSetAssemblerGraphDisjointConnection(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
   call ovkSetAssemblerGraphInterpScheme(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_LINEAR)
   call ovkSetAssemblerGraphFringeSize(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblerGraphFringePadding(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 8)
   call ovkReleaseAssemblerGraph(Assembler, Graph)
 
   ! Set up the domain
@@ -112,10 +114,10 @@ program Blobs
 
   ! Outer edge boundaries on background grid
   call ovkEditGridBoundaryMask(Grid, BoundaryMask)
-  BoundaryMask%values(1:NumPointsBackground(1),1,1) = .true.
-  BoundaryMask%values(1:NumPointsBackground(1),NumPointsBackground(2),1) = .true.
-  BoundaryMask%values(1,1:NumPointsBackground(2),1) = .true.
-  BoundaryMask%values(NumPointsBackground(1),1:NumPointsBackground(2),1) = .true.
+  BoundaryMask%values(1,:,1) = .true.
+  BoundaryMask%values(NumPointsBackground(1),:,1) = .true.
+  BoundaryMask%values(:,1,1) = .true.
+  BoundaryMask%values(:,NumPointsBackground(2),1) = .true.
   call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
 
   call ovkReleaseDomainGrid(Domain, Grid)
@@ -260,18 +262,22 @@ program Blobs
 
     call ovkGetGridMask(Grid, GridMask)
     call ovkGetInterpDataReceiverMask(InterpData, ReceiverMask)
+    call ovkGetInterpDataOrphanMask(InterpData, OrphanMask)
     call ovkGetInterpDataDonorGridIDs(InterpData, DonorGridIDs)
 
     ! IBlank values are set as follows:
     !   1 => normal point
     !   0 => hole
     !  -N => receives from grid N
+    !   7 => orphan
     IBlank = ovk_field_int_(Cart)
     do j = Cart%is(2), Cart%ie(2)
       do i = Cart%is(1), Cart%ie(1)
         if (GridMask%values(i,j,1)) then
           if (ReceiverMask%values(i,j,1)) then
             IBlank%values(i,j,1) = -DonorGridIDs%values(i,j,1)
+          else if (OrphanMask%values(i,j,1)) then
+            IBlank%values(i,j,1) = 7
           else
             IBlank%values(i,j,1) = 1
           end if

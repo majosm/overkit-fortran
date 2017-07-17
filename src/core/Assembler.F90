@@ -47,6 +47,8 @@ module ovkAssembler
   public :: ovkGetAssemblerPropertyGridCount
   public :: ovkGetAssemblerPropertyVerbose
   public :: ovkSetAssemblerPropertyVerbose
+  public :: ovkGetAssemblerPropertyManualPadding
+  public :: ovkSetAssemblerPropertyManualPadding
   public :: ovkGetAssemblerGraphOverlap
   public :: ovkSetAssemblerGraphOverlap
   public :: ovkGetAssemblerGraphOverlapTolerance
@@ -72,6 +74,7 @@ module ovkAssembler
     integer :: ngrids
     ! Read/write
     logical :: verbose
+    logical :: manual_padding
   end type ovk_assembler_properties
 
   type ovk_assembler_graph
@@ -355,7 +358,7 @@ contains
     integer :: NumGrids
     integer :: InterpScheme
     integer :: FringeSize
-    integer :: FringePadding
+!     integer :: FringePadding
     type(ovk_domain_properties), pointer :: DomainProperties
     integer :: MaxEdgeDist, PrevMaxEdgeDist
 
@@ -420,24 +423,24 @@ contains
         end do
       end do
 
-      do n = 1, NumGrids
-        FringePadding = 0
-        do m = 1, NumGrids
-          if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-            FringePadding = Assembler%graph%fringe_padding(m,n)
-            exit
-          end if
-        end do
-        do m = 1, NumGrids
-          if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-            if (Assembler%graph%fringe_padding(m,n) /= FringePadding) then
-              write (ERROR_UNIT, '(2a)') "ERROR: Pairwise fringe padding specification is ", &
-                "not currently supported; must be set uniformly for each receiver grid."
-              stop 1
-            end if
-          end if
-        end do
-      end do
+!       do n = 1, NumGrids
+!         FringePadding = 0
+!         do m = 1, NumGrids
+!           if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+!             FringePadding = Assembler%graph%fringe_padding(m,n)
+!             exit
+!           end if
+!         end do
+!         do m = 1, NumGrids
+!           if (Assembler%graph%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
+!             if (Assembler%graph%fringe_padding(m,n) /= FringePadding) then
+!               write (ERROR_UNIT, '(2a)') "ERROR: Pairwise fringe padding specification is ", &
+!                 "not currently supported; must be set uniformly for each receiver grid."
+!               stop 1
+!             end if
+!           end if
+!         end do
+!       end do
 
     end if
 
@@ -647,6 +650,7 @@ contains
     Properties%nd = 2
     Properties%ngrids = 0
     Properties%verbose = .false.
+    Properties%manual_padding = .true.
 
   end function ovk_assembler_properties_Default
 
@@ -685,6 +689,24 @@ contains
     Properties%verbose = Verbose
 
   end subroutine ovkSetAssemblerPropertyVerbose
+
+  subroutine ovkGetAssemblerPropertyManualPadding(Properties, ManualPadding)
+
+    type(ovk_assembler_properties), intent(in) :: Properties
+    logical, intent(out) :: ManualPadding
+
+    ManualPadding = Properties%manual_padding
+
+  end subroutine ovkGetAssemblerPropertyManualPadding
+
+  subroutine ovkSetAssemblerPropertyManualPadding(Properties, ManualPadding)
+
+    type(ovk_assembler_properties), intent(inout) :: Properties
+    logical, intent(in) :: ManualPadding
+
+    Properties%manual_padding = ManualPadding
+
+  end subroutine ovkSetAssemblerPropertyManualPadding
 
   function ovk_assembler_graph_Default() result(Graph)
 

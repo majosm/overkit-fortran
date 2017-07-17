@@ -42,6 +42,7 @@ program Bump
   type(ovk_cart) :: CartOverlap
   type(ovk_field_logical), pointer :: GridMask
   type(ovk_field_logical), pointer :: ReceiverMask
+  type(ovk_field_logical), pointer :: OrphanMask
   type(ovk_field_int), pointer :: DonorGridIDs
   type(ovk_field_real) :: XOverlap, YOverlap, ZOverlap
   type(ovk_field_int) :: IBlank
@@ -111,7 +112,7 @@ program Bump
   call ovkSetAssemblerGraphDisjointConnection(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
   call ovkSetAssemblerGraphInterpScheme(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, InterpScheme)
   call ovkSetAssemblerGraphFringeSize(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
-  call ovkSetAssemblerGraphFringePadding(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblerGraphFringePadding(Graph, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
   call ovkReleaseAssemblerGraph(Assembler, Graph)
 
   ! Set up the domain
@@ -150,14 +151,21 @@ program Bump
     call ovkReleaseGridCoords(Grid, Coords)
   end do
 
-  ! Lower edge boundary on background grid (other boundaries don't need to be specified as they will
-  ! not influence fringe placement or hole cutting)
+  ! Outer edge boundaries on background grid
   call ovkEditGridBoundaryMask(Grid, BoundaryMask)
   select case (NumDims)
   case (2)
+    BoundaryMask%values(1,:,1) = .true.
+    BoundaryMask%values(NumPointsBackground(1),:,1) = .true.
     BoundaryMask%values(:,1,1) = .true.
+    BoundaryMask%values(:,NumPointsBackground(2),1) = .true.
   case (3)
+    BoundaryMask%values(1,:,:) = .true.
+    BoundaryMask%values(NumPointsBackground(1),:,:) = .true.
+    BoundaryMask%values(:,1,:) = .true.
+    BoundaryMask%values(:,NumPointsBackground(2),:) = .true.
     BoundaryMask%values(:,:,1) = .true.
+    BoundaryMask%values(:,:,NumPointsBackground(3)) = .true.
   end select
   call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
 
@@ -263,12 +271,14 @@ program Bump
 
     call ovkGetGridMask(Grid, GridMask)
     call ovkGetInterpDataReceiverMask(InterpData, ReceiverMask)
+    call ovkGetInterpDataOrphanMask(InterpData, OrphanMask)
     call ovkGetInterpDataDonorGridIDs(InterpData, DonorGridIDs)
 
     ! IBlank values are set as follows:
     !   1 => normal point
     !   0 => hole
     !  -N => receives from grid N
+    !   7 => orphan
     IBlank = ovk_field_int_(Cart)
     do k = Cart%is(3), Cart%ie(3)
       do j = Cart%is(2), Cart%ie(2)
@@ -276,6 +286,8 @@ program Bump
           if (GridMask%values(i,j,k)) then
             if (ReceiverMask%values(i,j,k)) then
               IBlank%values(i,j,k) = -DonorGridIDs%values(i,j,k)
+            else if (OrphanMask%values(i,j,k)) then
+              IBlank%values(i,j,k) = 7
             else
               IBlank%values(i,j,k) = 1
             end if

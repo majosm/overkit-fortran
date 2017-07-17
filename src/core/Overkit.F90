@@ -57,6 +57,8 @@ module Overkit
   public :: ovkGetAssemblerPropertyGridCount
   public :: ovkGetAssemblerPropertyVerbose
   public :: ovkSetAssemblerPropertyVerbose
+  public :: ovkGetAssemblerPropertyManualPadding
+  public :: ovkSetAssemblerPropertyManualPadding
   public :: ovkGetAssemblerGraphOverlap
   public :: ovkSetAssemblerGraphOverlap
   public :: ovkGetAssemblerGraphOverlapTolerance
@@ -307,6 +309,7 @@ module Overkit
   public :: ovkUpdateInterpData
   public :: ovkFillInterpData
   public :: ovkGetInterpDataReceiverMask
+  public :: ovkGetInterpDataOrphanMask
   public :: ovkGetInterpDataDonorGridIDs
   public :: ovkGetInterpDataDonorCells
   public :: ovkGetInterpDataDonorCellCoords
@@ -329,8 +332,6 @@ module Overkit
 
   ! ovkOverset
   public :: ovkAssemble
-  public :: ovkPartitionReceivers
-  public :: ovkGenerateOverlapOptimizationMask
 
   ! ovkPegasus
   public :: ovk_pegasus

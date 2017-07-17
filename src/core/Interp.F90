@@ -23,6 +23,7 @@ module ovkInterp
   public :: ovkUpdateInterpData
   public :: ovkFillInterpData
   public :: ovkGetInterpDataReceiverMask
+  public :: ovkGetInterpDataOrphanMask
   public :: ovkGetInterpDataDonorGridIDs
   public :: ovkGetInterpDataDonorCells
   public :: ovkGetInterpDataDonorCellCoords
@@ -46,7 +47,8 @@ module ovkInterp
   type ovk_interp
     type(ovk_interp_properties), pointer :: properties
     type(ovk_cart) :: cart
-    type(ovk_field_logical), pointer :: valid_mask
+    type(ovk_field_logical), pointer :: receiver_mask
+    type(ovk_field_logical), pointer :: orphan_mask
     type(ovk_field_int), pointer :: donor_grid_ids
     type(ovk_field_int), dimension(:), pointer :: donor_cells
     type(ovk_field_real), dimension(:), pointer :: donor_cell_coords
@@ -73,7 +75,8 @@ contains
 
     nullify(InterpData%properties)
     InterpData%cart = ovk_cart_(2)
-    nullify(InterpData%valid_mask)
+    nullify(InterpData%receiver_mask)
+    nullify(InterpData%orphan_mask)
     nullify(InterpData%donor_grid_ids)
     nullify(InterpData%donor_cells)
     nullify(InterpData%donor_cell_coords)
@@ -111,8 +114,11 @@ contains
 
     InterpData%cart = Grid%cart
 
-    allocate(InterpData%valid_mask)
-    InterpData%valid_mask = ovk_field_logical_(InterpData%cart, .false.)
+    allocate(InterpData%receiver_mask)
+    InterpData%receiver_mask = ovk_field_logical_(InterpData%cart, .false.)
+
+    allocate(InterpData%orphan_mask)
+    InterpData%orphan_mask = ovk_field_logical_(InterpData%cart, .false.)
 
     allocate(InterpData%donor_grid_ids)
     InterpData%donor_grid_ids = ovk_field_int_(InterpData%cart, 0)
@@ -147,7 +153,8 @@ contains
 
     if (associated(InterpData%properties)) deallocate(InterpData%properties)
 
-    if (associated(InterpData%valid_mask)) deallocate(InterpData%valid_mask)
+    if (associated(InterpData%receiver_mask)) deallocate(InterpData%receiver_mask)
+    if (associated(InterpData%orphan_mask)) deallocate(InterpData%orphan_mask)
     if (associated(InterpData%donor_grid_ids)) deallocate(InterpData%donor_grid_ids)
     if (associated(InterpData%donor_cells)) deallocate(InterpData%donor_cells)
     if (associated(InterpData%donor_cell_coords)) deallocate(InterpData%donor_cell_coords)
@@ -181,10 +188,11 @@ contains
 
   end subroutine ovkUpdateInterpData
 
-  subroutine ovkFillInterpData(InterpData, Donors, InterpScheme)
+  subroutine ovkFillInterpData(InterpData, Donors, OrphanMask, InterpScheme)
 
     type(ovk_interp), intent(inout) :: InterpData
     type(ovk_donors), intent(in) :: Donors
+    type(ovk_field_logical), intent(in) :: OrphanMask
     integer, intent(in), optional :: InterpScheme
 
     integer :: InterpScheme_
@@ -197,15 +205,15 @@ contains
       InterpScheme_ = OVK_INTERP_LINEAR
     end if
 
-    InterpData%valid_mask%values = .false.
+    InterpData%receiver_mask%values = Donors%valid_mask%values
+    InterpData%orphan_mask%values = OrphanMask%values
 
     select case (InterpScheme_)
     case (OVK_INTERP_LINEAR)
       do k = Donors%cart%is(3), Donors%cart%ie(3)
         do j = Donors%cart%is(2), Donors%cart%ie(2)
           do i = Donors%cart%is(1), Donors%cart%ie(1)
-            if (Donors%valid_mask%values(i,j,k)) then
-              InterpData%valid_mask%values(i,j,k) = .true.
+            if (InterpData%receiver_mask%values(i,j,k)) then
               InterpData%donor_grid_ids%values(i,j,k) = Donors%grid_ids%values(i,j,k)
               do d = 1, InterpData%cart%nd
                 InterpData%donor_cells(d)%values(i,j,k) = Donors%cells(d)%values(i,j,k)
@@ -226,8 +234,7 @@ contains
       do k = Donors%cart%is(3), Donors%cart%ie(3)
         do j = Donors%cart%is(2), Donors%cart%ie(2)
           do i = Donors%cart%is(1), Donors%cart%ie(1)
-            if (Donors%valid_mask%values(i,j,k)) then
-              InterpData%valid_mask%values(i,j,k) = .true.
+            if (InterpData%receiver_mask%values(i,j,k)) then
               InterpData%donor_grid_ids%values(i,j,k) = Donors%grid_ids%values(i,j,k)
               do d = 1, Donors%cart%nd
                 InterpData%donor_cells(d)%values(i,j,k) = Donors%cells(d)%values(i,j,k)
@@ -269,9 +276,18 @@ contains
     type(ovk_interp), intent(in) :: InterpData
     type(ovk_field_logical), pointer, intent(out) :: ReceiverMask
 
-    ReceiverMask => InterpData%valid_mask
+    ReceiverMask => InterpData%receiver_mask
 
   end subroutine ovkGetInterpDataReceiverMask
+
+  subroutine ovkGetInterpDataOrphanMask(InterpData, OrphanMask)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_field_logical), pointer, intent(out) :: OrphanMask
+
+    OrphanMask => InterpData%orphan_mask
+
+  end subroutine ovkGetInterpDataOrphanMask
 
   subroutine ovkGetInterpDataDonorGridIDs(InterpData, DonorGridIDs)
 

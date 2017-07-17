@@ -161,7 +161,7 @@ contains
           do i = 1, InterpData(m)%properties%npoints(1)
             Point = [i,j,k]
             Point(:NumDims) = ovkCartPeriodicAdjust(InterpData(m)%cart, Point)
-            if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
+            if (InterpData(m)%receiver_mask%values(Point(1),Point(2),Point(3))) then
               n = InterpData(m)%donor_grid_ids%values(Point(1),Point(2),Point(3))
               NumReceivers(m) = NumReceivers(m) + 1
               NumDonors(n) = NumDonors(n) + 1
@@ -238,7 +238,7 @@ contains
           do i = 1, InterpData(m)%properties%npoints(1)
             Point = [i,j,k]
             Point(:NumDims) = ovkCartPeriodicAdjust(InterpData(m)%cart, Point)
-            if (InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
+            if (InterpData(m)%receiver_mask%values(Point(1),Point(2),Point(3))) then
               n = InterpData(m)%donor_grid_ids%values(Point(1),Point(2),Point(3))
               do d = 1, NumDims
                 DonorCell(d) = InterpData(m)%donor_cells(d)%values(Point(1),Point(2),Point(3))
@@ -295,7 +295,7 @@ contains
               Point = [i,j,k]
               Point(:NumDims) = ovkCartPeriodicAdjust(InterpData(m)%cart, Point)
               if (.not. HoleMasks(m)%values(Point(1),Point(2),Point(3)) .and. .not. &
-                InterpData(m)%valid_mask%values(Point(1),Point(2),Point(3))) then
+                InterpData(m)%receiver_mask%values(Point(1),Point(2),Point(3))) then
                 PegasusData%iblank(l,m) = 1
               else
                 PegasusData%iblank(l,m) = 0
