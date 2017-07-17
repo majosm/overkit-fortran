@@ -95,12 +95,7 @@ program Bump
   Length(NumDims) = 1._rk
 
   ! Initialize the problem
-  call ovkCreateAssembler(Assembler, NumDims=NumDims, NumGrids=2)
-
-  ! Enable verbose command line output
-  call ovkEditAssemblerProperties(Assembler, AssemblerProperties)
-  call ovkSetAssemblerPropertyVerbose(AssemblerProperties, .true.)
-  call ovkReleaseAssemblerProperties(Assembler, AssemblerProperties)
+  call ovkCreateAssembler(Assembler, NumDims=NumDims, NumGrids=2, Verbose=.true.)
 
   ! Indicate which grids can intersect, cut, communicate, etc.
   call ovkEditAssemblerGraph(Assembler, Graph)

@@ -142,19 +142,28 @@ contains
 
   end function ovk_assembler_Default
 
-  subroutine ovkCreateAssembler(Assembler, NumDims, NumGrids)
+  subroutine ovkCreateAssembler(Assembler, NumDims, NumGrids, Verbose)
 
     type(ovk_assembler), intent(out) :: Assembler
     integer, intent(in) :: NumDims
     integer, intent(in) :: NumGrids
+    logical, intent(in), optional :: Verbose
 
+    logical :: Verbose_
     integer :: m
+
+    if (present(Verbose)) then
+      Verbose_ = Verbose
+    else
+      Verbose_ = .false.
+    end if
 
     allocate(Assembler%properties)
     Assembler%properties = ovk_assembler_properties_()
 
     Assembler%properties%nd = NumDims
     Assembler%properties%ngrids = NumGrids
+    Assembler%properties%verbose = Verbose_
 
     allocate(Assembler%graph)
     Assembler%graph = ovk_assembler_graph_(NumGrids)
@@ -162,10 +171,10 @@ contains
     Assembler%prev_graph = Assembler%graph
 
     allocate(Assembler%domain)
-    call ovkCreateDomain(Assembler%domain, NumDims, NumGrids, Verbose=.false.)
+    call ovkCreateDomain(Assembler%domain, NumDims, NumGrids, Verbose=Verbose_)
 
 !     allocate(Assembler%overlap)
-!     call ovkCreateOverlap(Assembler%overlap, NumDims, NumGrids, Verbose=.false.)
+!     call ovkCreateOverlap(Assembler%overlap, NumDims, NumGrids, Verbose=Verbose_)
 
     allocate(Assembler%donors(NumGrids))
     do m = 1, NumGrids
@@ -173,7 +182,7 @@ contains
     end do
 
     allocate(Assembler%connectivity)
-    call ovkCreateConnectivity(Assembler%connectivity, NumDims, NumGrids, Verbose=.false.)
+    call ovkCreateConnectivity(Assembler%connectivity, NumDims, NumGrids, Verbose=Verbose_)
 
     Assembler%editing_properties = .false.
     Assembler%editing_graph = .false.
