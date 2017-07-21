@@ -720,7 +720,8 @@ contains
           AwayFromEdge = ovkCartContains(Grid%cart, VertexUpper)
           if (AwayFromEdge) then
             Grid%cell_grid_mask%values(i,j,k) = .true.
-        L1: do o = VertexLower(3), VertexUpper(3)
+            L1: &
+            do o = VertexLower(3), VertexUpper(3)
               do n = VertexLower(2), VertexUpper(2)
                 do m = VertexLower(1), VertexUpper(1)
                   if (.not. Grid%grid_mask%values(m,n,o)) then
@@ -732,7 +733,8 @@ contains
             end do L1
           else
             Grid%cell_grid_mask%values(i,j,k) = .true.
-        L2: do o = VertexLower(3), VertexUpper(3)
+            L2: &
+            do o = VertexLower(3), VertexUpper(3)
               do n = VertexLower(2), VertexUpper(2)
                 do m = VertexLower(1), VertexUpper(1)
                   Vertex = [m,n,o]

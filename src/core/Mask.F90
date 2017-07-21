@@ -255,7 +255,8 @@ contains
             AwayFromEdge = ovkCartContains(Cart, NeighborLower) .and. &
               ovkCartContains(Cart, NeighborUpper)
             if (AwayFromEdge) then
-          L1: do o = NeighborLower(3), NeighborUpper(3)
+              L1: &
+              do o = NeighborLower(3), NeighborUpper(3)
                 do n = NeighborLower(2), NeighborUpper(2)
                   do m = NeighborLower(1), NeighborUpper(1)
                     Neighbor = [m,n,o]
@@ -268,7 +269,8 @@ contains
                 end do
               end do L1
             else
-          L2: do o = NeighborLower(3), NeighborUpper(3)
+              L2: &
+              do o = NeighborLower(3), NeighborUpper(3)
                 do n = NeighborLower(2), NeighborUpper(2)
                   do m = NeighborLower(1), NeighborUpper(1)
                     Neighbor = [m,n,o]
