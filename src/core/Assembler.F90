@@ -36,6 +36,7 @@ module ovkAssembler
   public :: ovkGetAssemblerConnectivity
   public :: ovkEditAssemblerConnectivity
   public :: ovkReleaseAssemblerConnectivity
+  public :: ovkGetAssemblerDebugField
   public :: ovkGetAssemblerPropertyDimension
   public :: ovkGetAssemblerPropertyGridCount
   public :: ovkGetAssemblerPropertyVerbose
@@ -88,6 +89,7 @@ module ovkAssembler
     type(ovk_domain), pointer :: domain
 !     type(ovk_overlap), pointer :: overlap
     type(ovk_connectivity), pointer :: connectivity
+    type(ovk_field_int), dimension(:), pointer :: debug_fields
     logical :: editing_properties
     logical :: editing_domain
 !     logical :: editing_overlap
@@ -116,6 +118,7 @@ contains
     nullify(Assembler%domain)
 !     nullify(Assembler%overlap)
     nullify(Assembler%connectivity)
+    nullify(Assembler%debug_fields)
     Assembler%editing_properties = .false.
     Assembler%editing_domain = .false.
 !     Assembler%editing_overlap = .false.
@@ -154,6 +157,15 @@ contains
     allocate(Assembler%connectivity)
     call ovkCreateConnectivity(Assembler%connectivity, NumDims, NumGrids, Verbose=Verbose_)
 
+    if (OVK_DEBUG) then
+      allocate(Assembler%debug_fields(NumGrids))
+      do m = 1, NumGrids
+        Assembler%debug_fields(m) = ovk_field_int_()
+      end do
+    else
+      nullify(Assembler%debug_fields)
+    end if
+
     Assembler%editing_properties = .false.
     Assembler%editing_domain = .false.
 !     Assembler%editing_overlap = .false.
@@ -181,6 +193,12 @@ contains
     if (associated(Assembler%connectivity)) then
       call ovkDestroyConnectivity(Assembler%connectivity)
       deallocate(Assembler%connectivity)
+    end if
+
+    if (OVK_DEBUG) then
+      if (associated(Assembler%debug_fields)) then
+        deallocate(Assembler%debug_fields)
+      end if
     end if
 
   end subroutine ovkDestroyAssembler
@@ -458,6 +476,14 @@ contains
       end do
     end do
 
+    if (OVK_DEBUG) then
+      do m = 1, NumGrids
+        if (ChangedGrid(m)) then
+          Assembler%debug_fields(m) = ovk_field_int_(Domain%grids(m)%cart, 0)
+        end if
+      end do
+    end if
+
     nullify(Domain)
     Assembler%editing_domain = .false.
 
@@ -522,6 +548,20 @@ contains
     Assembler%editing_connectivity = .false.
 
   end subroutine ovkReleaseAssemblerConnectivity
+
+  subroutine ovkGetAssemblerDebugField(Assembler, GridID, DebugField)
+
+    type(ovk_assembler), intent(in) :: Assembler
+    integer, intent(in) :: GridID
+    type(ovk_field_int), pointer, intent(out) :: DebugField
+
+    if (OVK_DEBUG) then
+      DebugField => Assembler%debug_fields(GridID)
+    else
+      nullify(DebugField)
+    end if
+
+  end subroutine ovkGetAssemblerDebugField
 
   function ovk_assembler_properties_Default() result(Properties)
 

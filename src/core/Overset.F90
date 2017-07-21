@@ -25,10 +25,9 @@ module ovkOverset
 
 contains
 
-  subroutine ovkAssemble(Assembler, DebugFields)
+  subroutine ovkAssemble(Assembler)
 
     type(ovk_assembler), intent(inout) :: Assembler
-    type(ovk_field_int), dimension(:), intent(out), optional :: DebugFields
 
     integer :: i, j, k, l, m, n, p, q, r
     integer :: ClockInitial, ClockFinal, ClockRate
@@ -203,12 +202,6 @@ contains
             trim(kEString), ")"
         end select
         write (*, '(a)') ""
-      end do
-    end if
-
-    if (present(DebugFields)) then
-      do m = 1, NumGrids
-        DebugFields(m) = ovk_field_int_(Grids(m)%cart, 0)
       end do
     end if
 

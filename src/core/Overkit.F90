@@ -47,6 +47,7 @@ module Overkit
   public :: ovkGetAssemblerConnectivity
   public :: ovkEditAssemblerConnectivity
   public :: ovkReleaseAssemblerConnectivity
+  public :: ovkGetAssemblerDebugField
   public :: ovkGetAssemblerPropertyDimension
   public :: ovkGetAssemblerPropertyGridCount
   public :: ovkGetAssemblerPropertyVerbose
