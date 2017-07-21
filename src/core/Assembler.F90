@@ -6,7 +6,6 @@ module ovkAssembler
   use ovkBoundingBox
   use ovkCart
   use ovkConnectivity
-  use ovkDonors
   use ovkDomain
   use ovkField
   use ovkGeometry
@@ -89,7 +88,6 @@ module ovkAssembler
     type(ovk_domain), pointer :: domain
 !     type(ovk_overlap), pointer :: overlap
     type(ovk_connectivity), pointer :: connectivity
-    type(ovk_donors), dimension(:), pointer :: donors
     logical :: editing_properties
     logical :: editing_domain
 !     logical :: editing_overlap
@@ -117,7 +115,6 @@ contains
     Assembler%prev_properties = ovk_assembler_properties_()
     nullify(Assembler%domain)
 !     nullify(Assembler%overlap)
-    nullify(Assembler%donors)
     nullify(Assembler%connectivity)
     Assembler%editing_properties = .false.
     Assembler%editing_domain = .false.
@@ -154,11 +151,6 @@ contains
 !     allocate(Assembler%overlap)
 !     call ovkCreateOverlap(Assembler%overlap, NumDims, NumGrids, Verbose=Verbose_)
 
-    allocate(Assembler%donors(NumGrids))
-    do m = 1, NumGrids
-      Assembler%donors(m) = ovk_donors_()
-    end do
-
     allocate(Assembler%connectivity)
     call ovkCreateConnectivity(Assembler%connectivity, NumDims, NumGrids, Verbose=Verbose_)
 
@@ -173,8 +165,6 @@ contains
 
     type(ovk_assembler), intent(inout) :: Assembler
 
-    integer :: m
-
     if (associated(Assembler%properties)) deallocate(Assembler%properties)
     Assembler%prev_properties = ovk_assembler_properties_()
 
@@ -187,13 +177,6 @@ contains
 !       call ovkDestroyOverlap(Assembler%overlap)
 !       deallocate(Assembler%overlap)
 !     end if
-
-    if (associated(Assembler%donors)) then
-      do m = 1, size(Assembler%donors)
-        call ovkDestroyDonors(Assembler%donors(m))
-      end do
-      deallocate(Assembler%donors)
-    end if
 
     if (associated(Assembler%connectivity)) then
       call ovkDestroyConnectivity(Assembler%connectivity)

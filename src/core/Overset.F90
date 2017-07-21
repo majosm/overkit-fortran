@@ -76,7 +76,7 @@ contains
     type(ovk_field_logical) :: InteriorMask
     type(ovk_field_logical) :: ExteriorMask
     type(ovk_field_logical) :: ReceiverMask
-    type(ovk_donors), dimension(:), pointer :: Donors
+    type(ovk_donors), dimension(:), allocatable :: Donors
     type(ovk_field_logical), dimension(:), allocatable :: OrphanMasks
     type(ovk_connectivity), pointer :: Connectivity
     integer :: StencilSize
@@ -633,7 +633,7 @@ contains
       write (*, '(a)') "Merging remaining candidate donor/receiver pairs into final set..."
     end if
 
-    Donors => Assembler%donors
+    allocate(Donors(NumGrids))
 
     do m = 1, NumGrids
       call ovkMergeDonors(PairwiseDonors(:,m), Donors(m))
@@ -644,6 +644,11 @@ contains
       end if
     end do
 
+    do n = 1, NumGrids
+      do m = 1, NumGrids
+        call ovkDestroyDonors(PairwiseDonors(m,n))
+      end do
+    end do
     deallocate(PairwiseDonors)
 
     if (OVK_VERBOSE) then
@@ -844,6 +849,11 @@ contains
     end do
 
     call ovkReleaseAssemblerConnectivity(Assembler, Connectivity)
+
+    do m = 1, NumGrids
+      call ovkDestroyDonors(Donors(m))
+    end do
+    deallocate(Donors)
 
     if (OVK_VERBOSE) then
       write (*, '(a)') "Finished generating interpolation data."
