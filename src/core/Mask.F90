@@ -19,7 +19,6 @@ module ovkMask
   public :: ovkGenerateNearEdgeMask
   public :: ovkGenerateThresholdMask
   public :: ovkCountMask
-  public :: ovkPrintMask
   public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
 
   integer, parameter :: OVK_EDGE_TYPE_INNER = 1
@@ -612,96 +611,5 @@ contains
     end do
 
   end function ovkCountMask
-
-  subroutine ovkPrintMask(Mask, StartIndex, EndIndex)
-
-    type(ovk_field_logical), intent(in) :: Mask
-    integer, dimension(Mask%cart%nd), intent(in), optional :: StartIndex, EndIndex
-
-    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
-    integer :: i, j
-    integer :: NormalDir
-    integer :: IDir, JDir
-    integer, dimension(2) :: StartSlice, EndSlice
-    integer :: Slice
-    integer, dimension(MAX_ND) :: Point
-    integer, dimension(MAX_ND) :: AdjustedPoint
-
-    if (OVK_DEBUG) then
-      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
-        stop 1
-      end if
-    end if
-
-    if (present(StartIndex)) then
-      StartIndex_(:Mask%cart%nd) = StartIndex
-      StartIndex_(Mask%cart%nd+1:) = 1
-    else
-      StartIndex_ = Mask%cart%is
-    end if
-
-    if (present(EndIndex)) then
-      EndIndex_(:Mask%cart%nd) = EndIndex
-      EndIndex_(Mask%cart%nd+1:) = 1
-    else
-      EndIndex_ = Mask%cart%ie
-      EndIndex_(MAX_ND) = Mask%cart%is(MAX_ND)
-    end if
-
-    do i = 1, MAX_ND
-      if (EndIndex_(i) == StartIndex_(i)) then
-        exit
-      end if
-    end do
-    NormalDir = i
-
-    IDir = modulo(NormalDir,3) + 1
-    JDir = modulo(NormalDir+1,3) + 1
-    StartSlice = [StartIndex_(IDir),StartIndex_(JDir)]
-    EndSlice = [EndIndex_(IDir),EndIndex_(JDir)]
-    if (Mask%cart%nd == 3) then
-      Slice = StartIndex_(NormalDir)
-    else
-      Slice = 1
-    end if
-
-    write (*, '(a)', advance='no') "   "
-    do i = StartSlice(1), EndSlice(1)
-      write (*, '(a)', advance='no') " - "
-    end do
-    write (*, '(a)') "   "
-
-    do j = EndSlice(2), StartSlice(2), -1
-
-      write (*, '(a)', advance='no') " | "
-
-      do i = StartSlice(1), EndSlice(1)
-        select case (NormalDir)
-        case (1)
-          Point = [Slice,i,j]
-        case (2)
-          Point = [j,Slice,i]
-        case (3)
-          Point = [i,j,Slice]
-        end select
-        AdjustedPoint(:Mask%cart%nd) = ovkCartPeriodicAdjust(Mask%cart, Point)
-        AdjustedPoint(Mask%cart%nd+1:) = 1
-        write(*, '(a)', advance='no') merge(" X ", "   ", Mask%values(AdjustedPoint(1), &
-          AdjustedPoint(2), AdjustedPoint(3)))
-      end do
-
-      write (*, '(a)') " | "
-
-    end do
-
-    write (*, '(a)', advance='no') "   "
-    do i = StartSlice(1), EndSlice(1)
-      write (*, '(a)', advance='no') " - "
-    end do
-    write (*, '(a)') "   "
-    write (*, '(a)') ""
-
-  end subroutine ovkPrintMask
 
 end module ovkMask

@@ -192,6 +192,7 @@ module Overkit
   public :: ovk_field_logical
   public :: ovk_field_logical_
   public :: ovkExportField
+  public :: ovkPrintField
 
   ! ovkGeometry
   public :: ovkOverlapsRectangle
@@ -323,7 +324,6 @@ module Overkit
   public :: ovkGenerateNearEdgeMask
   public :: ovkGenerateThresholdMask
   public :: ovkCountMask
-  public :: ovkPrintMask
   public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
 
   ! ovkOverset

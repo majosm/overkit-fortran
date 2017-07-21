@@ -21,6 +21,7 @@ module ovkField
   public :: operator (==)
   public :: operator (/=)
   public :: ovkExportField
+  public :: ovkPrintField
 
   type ovk_field_int
     type(ovk_cart) :: cart
@@ -101,6 +102,13 @@ module ovkField
     module procedure ovkExportField_Real
     module procedure ovkExportField_Logical
   end interface ovkExportField
+
+  interface ovkPrintField
+    module procedure ovkPrintField_Integer
+    module procedure ovkPrintField_LargeInteger
+    module procedure ovkPrintField_Real
+    module procedure ovkPrintField_Logical
+  end interface ovkPrintField
 
 contains
 
@@ -626,5 +634,369 @@ contains
     end do
 
   end subroutine ovkExportField_Logical
+
+  subroutine ovkPrintField_Integer(Field, OutputUnit, StartIndex, EndIndex, NumDigits)
+
+    type(ovk_field_int), intent(in) :: Field
+    integer, intent(in) :: OutputUnit
+    integer, dimension(Field%cart%nd), intent(in), optional :: StartIndex, EndIndex
+    integer, intent(in), optional :: NumDigits
+
+    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer :: NumDigits_
+    integer :: i, j
+    integer :: IDir, JDir, KDir
+    integer :: IStart, IEnd, JStart, JEnd
+    integer :: KSlice
+    character(len=16) :: FormatString
+    integer, dimension(MAX_ND) :: Point
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(StartIndex)) then
+      StartIndex_(:Field%cart%nd) = StartIndex
+      StartIndex_(Field%cart%nd+1:) = 1
+    else
+      StartIndex_ = Field%cart%is
+    end if
+
+    if (present(EndIndex)) then
+      EndIndex_(:Field%cart%nd) = EndIndex
+      EndIndex_(Field%cart%nd+1:) = 1
+    else
+      EndIndex_ = Field%cart%ie
+      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+    end if
+
+    if (present(NumDigits)) then
+      NumDigits_ = NumDigits
+    else
+      NumDigits_ = 4
+    end if
+
+    call FindSlice(StartIndex_, EndIndex_, IDir, JDir, KDir, IStart, IEnd, JStart, JEnd, KSlice)
+
+    write (FormatString, '(a,i0,a)') "(a,i", NumDigits_, ",a)"
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, NumDigits_)
+
+    do j = JEnd, JStart, -1
+
+      write (OutputUnit, '(a)', advance='no') " | "
+
+      do i = IStart, IEnd
+        Point(IDir) = i
+        Point(JDir) = j
+        Point(KDir) = KSlice
+        Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+        write (OutputUnit, FormatString, advance='no') " ", Field%values(Point(1),Point(2), &
+          Point(3)), " "
+      end do
+
+      write (OutputUnit, '(a)') " | "
+
+    end do
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, NumDigits_)
+
+    write (OutputUnit, '(a)') ""
+
+  end subroutine ovkPrintField_Integer
+
+  subroutine ovkPrintField_LargeInteger(Field, OutputUnit, StartIndex, EndIndex, NumDigits)
+
+    type(ovk_field_large_int), intent(in) :: Field
+    integer, intent(in) :: OutputUnit
+    integer, dimension(Field%cart%nd), intent(in), optional :: StartIndex, EndIndex
+    integer, intent(in), optional :: NumDigits
+
+    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer :: NumDigits_
+    integer :: i, j
+    integer :: IDir, JDir, KDir
+    integer :: IStart, IEnd, JStart, JEnd
+    integer :: KSlice
+    character(len=16) :: FormatString
+    integer, dimension(MAX_ND) :: Point
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(StartIndex)) then
+      StartIndex_(:Field%cart%nd) = StartIndex
+      StartIndex_(Field%cart%nd+1:) = 1
+    else
+      StartIndex_ = Field%cart%is
+    end if
+
+    if (present(EndIndex)) then
+      EndIndex_(:Field%cart%nd) = EndIndex
+      EndIndex_(Field%cart%nd+1:) = 1
+    else
+      EndIndex_ = Field%cart%ie
+      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+    end if
+
+    if (present(NumDigits)) then
+      NumDigits_ = NumDigits
+    else
+      NumDigits_ = 4
+    end if
+
+    call FindSlice(StartIndex_, EndIndex_, IDir, JDir, KDir, IStart, IEnd, JStart, JEnd, KSlice)
+
+    write (FormatString, '(a,i0,a)') "(a,i", NumDigits_, ",a)"
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, NumDigits_)
+
+    do j = JEnd, JStart, -1
+
+      write (OutputUnit, '(a)', advance='no') " | "
+
+      do i = IStart, IEnd
+        Point(IDir) = i
+        Point(JDir) = j
+        Point(KDir) = KSlice
+        Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+        write (OutputUnit, FormatString, advance='no') " ", Field%values(Point(1),Point(2), &
+          Point(3)), " "
+      end do
+
+      write (OutputUnit, '(a)') " | "
+
+    end do
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, NumDigits_)
+
+    write (OutputUnit, '(a)') ""
+
+  end subroutine ovkPrintField_LargeInteger
+
+  subroutine ovkPrintField_Real(Field, OutputUnit, StartIndex, EndIndex, NumDigits, &
+    NumFractionalDigits, NumExponentDigits)
+
+    type(ovk_field_real), intent(in) :: Field
+    integer, intent(in) :: OutputUnit
+    integer, dimension(Field%cart%nd), intent(in), optional :: StartIndex, EndIndex
+    integer, intent(in), optional :: NumDigits
+    integer, intent(in), optional :: NumFractionalDigits
+    integer, intent(in), optional :: NumExponentDigits
+
+    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer :: NumDigits_
+    integer :: NumFractionalDigits_
+    integer :: NumExponentDigits_
+    integer :: i, j
+    integer :: IDir, JDir, KDir
+    integer :: IStart, IEnd, JStart, JEnd
+    integer :: KSlice
+    character(len=16) :: FormatString
+    character(len=256) :: TestString
+    integer :: ElementLength
+    integer, dimension(MAX_ND) :: Point
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(StartIndex)) then
+      StartIndex_(:Field%cart%nd) = StartIndex
+      StartIndex_(Field%cart%nd+1:) = 1
+    else
+      StartIndex_ = Field%cart%is
+    end if
+
+    if (present(EndIndex)) then
+      EndIndex_(:Field%cart%nd) = EndIndex
+      EndIndex_(Field%cart%nd+1:) = 1
+    else
+      EndIndex_ = Field%cart%ie
+      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+    end if
+
+    if (present(NumDigits)) then
+      NumDigits_ = NumDigits
+    else
+      NumDigits_ = 6
+    end if
+
+    if (present(NumFractionalDigits)) then
+      NumFractionalDigits_ = NumFractionalDigits
+    else
+      NumFractionalDigits_ = 2
+    end if
+
+    if (present(NumExponentDigits)) then
+      NumExponentDigits_ = NumExponentDigits
+    else
+      NumExponentDigits_ = 0
+    end if
+
+    call FindSlice(StartIndex_, EndIndex_, IDir, JDir, KDir, IStart, IEnd, JStart, JEnd, KSlice)
+
+    if (NumExponentDigits_ > 0) then
+      write (FormatString, '(a,3(i0,a))') "(a,e", NumDigits_, ".",  NumFractionalDigits_, "e", &
+        NumExponentDigits_, ",a)"
+    else
+      write (FormatString, '(a,2(i0,a))') "(a,f", NumDigits_, ".", NumFractionalDigits_, ",a)"
+    end if
+
+    write (TestString, FormatString) " ", 0._rk, " "
+    ElementLength = len_trim(TestString)-1
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, ElementLength)
+
+    do j = JEnd, JStart, -1
+
+      write (OutputUnit, '(a)', advance='no') " | "
+
+      do i = IStart, IEnd
+        Point(IDir) = i
+        Point(JDir) = j
+        Point(KDir) = KSlice
+        Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+        write (OutputUnit, FormatString, advance='no') " ", Field%values(Point(1),Point(2), &
+          Point(3)), " "
+      end do
+
+      write (OutputUnit, '(a)') " | "
+
+    end do
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, ElementLength)
+
+    write (OutputUnit, '(a)') ""
+
+  end subroutine ovkPrintField_Real
+
+  subroutine ovkPrintField_Logical(Field, OutputUnit, StartIndex, EndIndex)
+
+    type(ovk_field_logical), intent(in) :: Field
+    integer, intent(in) :: OutputUnit
+    integer, dimension(Field%cart%nd), intent(in), optional :: StartIndex, EndIndex
+
+    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer :: i, j
+    integer :: IDir, JDir, KDir
+    integer :: IStart, IEnd, JStart, JEnd
+    integer :: KSlice
+    integer, dimension(MAX_ND) :: Point
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(StartIndex)) then
+      StartIndex_(:Field%cart%nd) = StartIndex
+      StartIndex_(Field%cart%nd+1:) = 1
+    else
+      StartIndex_ = Field%cart%is
+    end if
+
+    if (present(EndIndex)) then
+      EndIndex_(:Field%cart%nd) = EndIndex
+      EndIndex_(Field%cart%nd+1:) = 1
+    else
+      EndIndex_ = Field%cart%ie
+      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+    end if
+
+    call FindSlice(StartIndex_, EndIndex_, IDir, JDir, KDir, IStart, IEnd, JStart, JEnd, KSlice)
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, 1)
+
+    do j = JEnd, JStart, -1
+
+      write (OutputUnit, '(a)', advance='no') " | "
+
+      do i = IStart, IEnd
+        Point(IDir) = i
+        Point(JDir) = j
+        Point(KDir) = KSlice
+        Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+        write (OutputUnit, '(a)', advance='no') merge(" X ", "   ", Field%values(Point(1), &
+          Point(2),Point(3)))
+      end do
+
+      write (OutputUnit, '(a)') " | "
+
+    end do
+
+    call PrintRowHeaderFooter(OutputUnit, IStart, IEnd, 1)
+
+    write (OutputUnit, '(a)') ""
+
+  end subroutine ovkPrintField_Logical
+
+  subroutine FindSlice(StartIndex, EndIndex, IDir, JDir, KDir, IStart, IEnd, JStart, JEnd, KSlice)
+
+    integer, dimension(MAX_ND), intent(in) :: StartIndex, EndIndex
+    integer, intent(out) :: IDir, JDir, KDir
+    integer, intent(out) :: IStart, IEnd, JStart, JEnd
+    integer, intent(out) :: KSlice
+
+    integer :: d
+
+    do d = 1, MAX_ND
+      if (EndIndex(d) == StartIndex(d)) then
+        exit
+      end if
+    end do
+    KDir = d
+
+    if (OVK_DEBUG) then
+      if (KDir > MAX_ND) then
+        write (ERROR_UNIT, '(a)') "ERROR: Range to print must be two-dimensional."
+        stop 1
+      end if
+    end if
+
+    IDir = modulo(KDir,MAX_ND)+1
+    JDir = modulo(KDir+1,MAX_ND)+1
+
+    IStart = StartIndex(IDir)
+    IEnd = EndIndex(IDir)
+
+    JStart = StartIndex(JDir)
+    JEnd = EndIndex(JDir)
+
+    KSlice = StartIndex(KDir)
+
+  end subroutine FindSlice
+
+  subroutine PrintRowHeaderFooter(OutputUnit, IStart, IEnd, ElementLength)
+
+    integer, intent(in) :: OutputUnit
+    integer, intent(in) :: IStart, IEnd
+    integer, intent(in) :: ElementLength
+
+    integer :: i, l
+
+    write (OutputUnit, '(a)', advance='no') "   "
+    do i = IStart, IEnd
+      write (OutputUnit, '(a)', advance='no') " "
+      do l = 1, ElementLength
+        write (OutputUnit, '(a)', advance='no') "-"
+      end do
+      write (OutputUnit, '(a)', advance='no') " "
+    end do
+    write (OutputUnit, '(a)') "   "
+
+  end subroutine PrintRowHeaderFooter
 
 end module ovkField
