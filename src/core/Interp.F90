@@ -33,6 +33,7 @@ module ovkInterp
   public :: ovkSetInterpDataPropertyVerbose
 
   type ovk_interp_properties
+    type(t_noconstruct) :: noconstruct
     ! Read-only
     integer :: id
     integer :: nd
@@ -45,6 +46,7 @@ module ovkInterp
   end type ovk_interp_properties
 
   type ovk_interp
+    type(t_noconstruct) :: noconstruct
     type(ovk_interp_properties), pointer :: properties
     type(ovk_cart) :: cart
     type(ovk_field_logical), pointer :: receiver_mask

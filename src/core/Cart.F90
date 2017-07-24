@@ -26,6 +26,7 @@ module ovkCart
   public :: ovkCartPointToCell
 
   type ovk_cart
+    type(t_noconstruct) :: noconstruct
     integer :: nd
     integer, dimension(MAX_ND) :: is, ie
     logical, dimension(MAX_ND) :: periodic

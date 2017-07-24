@@ -38,6 +38,7 @@ module ovkDomain
   end type t_grid_properties
 
   type ovk_domain_properties
+    type(t_noconstruct) :: noconstruct
     ! Read-only
     integer :: nd
     integer :: ngrids
@@ -47,6 +48,7 @@ module ovkDomain
   end type ovk_domain_properties
 
   type ovk_domain
+    type(t_noconstruct) :: noconstruct
     type(ovk_domain_properties), pointer :: properties
     type(ovk_domain_properties) :: prev_properties
     type(ovk_grid), dimension(:), pointer :: grids

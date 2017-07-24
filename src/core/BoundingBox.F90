@@ -27,6 +27,7 @@ module ovkBoundingBox
   public :: ovkBBFromPoints
 
   type ovk_bbox
+    type(t_noconstruct) :: noconstruct
     integer :: nd
     real(rk), dimension(MAX_ND) :: b, e
   end type ovk_bbox

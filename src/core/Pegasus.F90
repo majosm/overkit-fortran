@@ -62,6 +62,7 @@ module ovkPegasus
   ! coeffit(m,io,3,ng) - polynomial coefficients of m-th donor point on grid ng in 3-dir, io = 1, ..., nkt(m,ng)
 
   type ovk_pegasus
+    type(t_noconstruct) :: noconstruct
     integer :: ngrd
     integer, dimension(:), allocatable :: ieng, jeng, keng
     integer :: ipall

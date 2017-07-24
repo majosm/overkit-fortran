@@ -64,6 +64,7 @@ module ovkAssembler
   public :: ovkSetAssemblerPropertyFringePadding
 
   type ovk_assembler_properties
+    type(t_noconstruct) :: noconstruct
     ! Read-only
     integer :: nd
     integer :: ngrids
@@ -83,6 +84,7 @@ module ovkAssembler
   end type ovk_assembler_properties
 
   type ovk_assembler
+    type(t_noconstruct) :: noconstruct
     type(ovk_assembler_properties), pointer :: properties
     type(ovk_assembler_properties) :: prev_properties
     type(ovk_domain), pointer :: domain

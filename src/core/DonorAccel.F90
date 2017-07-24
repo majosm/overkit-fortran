@@ -31,6 +31,7 @@ module ovkDonorAccel
   end type t_node
 
   type ovk_donor_accel
+    type(t_noconstruct) :: noconstruct
     integer :: nd
     type(ovk_bbox) :: bounds
     real(rk) :: max_cell_size_deviation

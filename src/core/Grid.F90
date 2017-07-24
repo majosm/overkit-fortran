@@ -63,6 +63,7 @@ module ovkGrid
   public :: OVK_GRID_GEOMETRY_CURVILINEAR
 
   type ovk_grid_properties
+    type(t_noconstruct) :: noconstruct
     ! Read-only
     integer :: id
     integer :: nd
@@ -77,6 +78,7 @@ module ovkGrid
   end type ovk_grid_properties
 
   type ovk_grid
+    type(t_noconstruct) :: noconstruct
     type(ovk_grid_properties), pointer :: properties
     type(ovk_grid_properties) :: prev_properties
     type(ovk_cart) :: cart

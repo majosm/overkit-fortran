@@ -42,6 +42,7 @@ module ovkConnectivity
   public :: ovkSetConnectivityPropertyVerbose
 
   type ovk_connectivity_properties
+    type(t_noconstruct) :: noconstruct
     ! Read-only
     integer :: nd
     integer :: ngrids
@@ -50,6 +51,7 @@ module ovkConnectivity
   end type ovk_connectivity_properties
 
   type ovk_connectivity
+    type(t_noconstruct) :: noconstruct
     type(ovk_connectivity_properties), pointer :: properties
     type(ovk_interp), dimension(:), pointer :: interp_data
 !     type(ovk_donors), dimension(:), pointer :: donors

@@ -24,21 +24,25 @@ module ovkField
   public :: ovkPrintField
 
   type ovk_field_int
+    type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     integer, dimension(:,:,:), allocatable :: values
   end type ovk_field_int
 
   type ovk_field_large_int
+    type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     integer(lk), dimension(:,:,:), allocatable :: values
   end type ovk_field_large_int
 
   type ovk_field_real
+    type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     real(rk), dimension(:,:,:), allocatable :: values
   end type ovk_field_real
 
   type ovk_field_logical
+    type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     logical(bk), dimension(:,:,:), allocatable :: values
   end type ovk_field_logical

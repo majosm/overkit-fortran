@@ -39,6 +39,7 @@ module ovkGlobal
   public :: LargeIntToString
   public :: TupleToString
   public :: CoordsToString
+  public :: t_noconstruct
 
   integer, parameter :: ovk_rk = selected_real_kind(15, 307)
   integer, parameter :: ovk_lk = selected_int_kind(18)
@@ -97,6 +98,13 @@ module ovkGlobal
 
   ! Length of strings used in ToString function
   integer, parameter :: STRING_LENGTH = 256
+
+  ! Empty type which, when used as a member of another type, prevents Fortran built-in
+  ! constructor from being called; useful for catching instances of constructor calls with
+  ! the trailing underscore omitted (e.g., ovk_<type>(...) vs. ovk_<type>_(...)), which
+  ! otherwise don't always produce compiler errors
+  type t_noconstruct
+  end type t_noconstruct
 
 contains
 

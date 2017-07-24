@@ -21,6 +21,7 @@ module ovkHashGrid
   public :: ovkHashGridHistogram
 
   type ovk_hash_grid
+    type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     type(ovk_bbox) :: bounds
     real(rk), dimension(MAX_ND) :: bin_size

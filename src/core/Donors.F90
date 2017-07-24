@@ -33,6 +33,7 @@ module ovkDonors
   public :: ovkGenerateOrphanMask
 
   type ovk_donors
+    type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     type(ovk_field_logical) :: valid_mask
     type(ovk_field_int) :: grid_ids

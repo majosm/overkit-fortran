@@ -22,6 +22,7 @@ module ovkPLOT3D
   public :: ovkWriteP3D
 
   type ovk_plot3d_grid_file
+    type(t_noconstruct) :: noconstruct
     character(len=PATH_LENGTH) :: path
     integer :: nd
     integer :: ngrids
