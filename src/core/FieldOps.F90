@@ -11,22 +11,28 @@ module ovkFieldOps
   private
 
   ! API
-  public :: ovkFindMaskEdge
-  public :: ovkGrowMask
+  public :: ovkDetectEdge
+  public :: ovkDilate
+  public :: ovkErode
   public :: ovkConnectedComponents
-  public :: ovkFillMask
+  public :: ovkFloodFill
+  public :: ovkThreshold
   public :: ovkDistanceField
-  public :: ovkGenerateNearEdgeMask
-  public :: ovkGenerateThresholdMask
   public :: ovkCountMask
-  public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
+  public :: OVK_INNER_EDGE, OVK_OUTER_EDGE
 
-  integer, parameter :: OVK_EDGE_TYPE_INNER = 1
-  integer, parameter :: OVK_EDGE_TYPE_OUTER = 2
+  integer, parameter :: OVK_INNER_EDGE = 1
+  integer, parameter :: OVK_OUTER_EDGE = 2
+
+  interface ovkThreshold
+    module procedure ovkThreshold_Integer
+    module procedure ovkThreshold_LargeInteger
+    module procedure ovkThreshold_Real
+  end interface ovkThreshold
 
 contains
 
-  subroutine ovkFindMaskEdge(Mask, EdgeType, OuterValue, EdgeMask)
+  subroutine ovkDetectEdge(Mask, EdgeType, OuterValue, EdgeMask)
 
     type(ovk_field_logical), intent(in) :: Mask
     integer, intent(in) :: EdgeType
@@ -55,7 +61,7 @@ contains
     Cart = Mask%cart
 
     EdgeCart = Mask%cart
-    if (EdgeType == OVK_EDGE_TYPE_OUTER) then
+    if (EdgeType == OVK_OUTER_EDGE) then
       EdgeCart%is(:EdgeCart%nd) = EdgeCart%is(:EdgeCart%nd) - merge(0, 1, &
         EdgeCart%periodic(:EdgeCart%nd))
       EdgeCart%ie(:EdgeCart%nd) = EdgeCart%ie(:EdgeCart%nd) + merge(0, 1, &
@@ -65,7 +71,7 @@ contains
     EdgeMask = ovk_field_logical_(EdgeCart, .false.)
 
     ! Points on inner edge will have Mask == .true., points on outer edge will have Mask == .false.
-    EdgeValue = EdgeType == OVK_EDGE_TYPE_INNER
+    EdgeValue = EdgeType == OVK_INNER_EDGE
 
     do k = EdgeCart%is(3), EdgeCart%ie(3)
       do j = EdgeCart%is(2), EdgeCart%ie(2)
@@ -138,9 +144,27 @@ contains
       end do
     end do
 
-  end subroutine ovkFindMaskEdge
+  end subroutine ovkDetectEdge
 
-  subroutine ovkGrowMask(Mask, Amount)
+  subroutine ovkDilate(Mask, Amount)
+
+    type(ovk_field_logical), intent(inout) :: Mask
+    integer, intent(in) :: Amount
+
+    call DilateErode(Mask, Amount)
+
+  end subroutine ovkDilate
+
+  subroutine ovkErode(Mask, Amount)
+
+    type(ovk_field_logical), intent(inout) :: Mask
+    integer, intent(in) :: Amount
+
+    call DilateErode(Mask, -Amount)
+
+  end subroutine ovkErode
+
+  subroutine DilateErode(Mask, Amount)
 
     type(ovk_field_logical), intent(inout) :: Mask
     integer, intent(in) :: Amount
@@ -169,12 +193,12 @@ contains
     FillDistance = abs(Amount)
     FillValue = Amount > 0
 
-    EdgeType = merge(OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER, Amount > 0)
+    EdgeType = merge(OVK_INNER_EDGE, OVK_OUTER_EDGE, Amount > 0)
     OuterValue = merge(OVK_TRUE, OVK_FALSE, FillValue)
 
     Cart = Mask%cart
 
-    call ovkFindMaskEdge(Mask, EdgeType, OuterValue, EdgeMask)
+    call ovkDetectEdge(Mask, EdgeType, OuterValue, EdgeMask)
 
     do k = Cart%is(3), Cart%ie(3)
       do j = Cart%is(2), Cart%ie(2)
@@ -214,7 +238,7 @@ contains
       end do
     end do
 
-  end subroutine ovkGrowMask
+  end subroutine DilateErode
 
   subroutine ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
 
@@ -369,7 +393,7 @@ contains
 
   end subroutine ovkConnectedComponents
 
-  subroutine ovkFillMask(Mask, BarrierMask)
+  subroutine ovkFloodFill(Mask, BarrierMask)
 
     type(ovk_field_logical), intent(inout) :: Mask
     type(ovk_field_logical), intent(in) :: BarrierMask
@@ -420,7 +444,133 @@ contains
       end do
     end do
 
-  end subroutine ovkFillMask
+  end subroutine ovkFloodFill
+
+  subroutine ovkThreshold_Integer(Field, ThresholdMask, Lower, Upper)
+
+    type(ovk_field_int), intent(in) :: Field
+    type(ovk_field_logical), intent(out) :: ThresholdMask
+    integer, intent(in), optional :: Lower, Upper
+
+    real(rk) :: Lower_, Upper_
+    integer :: i, j, k
+    real(rk) :: Value
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(Lower)) then
+      Lower_ = Lower
+    else
+      Lower_ = -huge(0)
+    end if
+
+    if (present(Upper)) then
+      Upper_ = Upper
+    else
+      Upper_ = huge(0)
+    end if
+
+    ThresholdMask = ovk_field_logical_(Field%cart, .false.)
+
+    do k = Field%cart%is(3), Field%cart%ie(3)
+      do j = Field%cart%is(2), Field%cart%ie(2)
+        do i = Field%cart%is(1), Field%cart%ie(1)
+          Value = Field%values(i,j,k)
+          ThresholdMask%values(i,j,k) = Value >= Lower_ .and. Value <= Upper_
+        end do
+      end do
+    end do
+
+  end subroutine ovkThreshold_Integer
+
+  subroutine ovkThreshold_LargeInteger(Field, ThresholdMask, Lower, Upper)
+
+    type(ovk_field_large_int), intent(in) :: Field
+    type(ovk_field_logical), intent(out) :: ThresholdMask
+    integer(lk), intent(in), optional :: Lower, Upper
+
+    real(rk) :: Lower_, Upper_
+    integer :: i, j, k
+    real(rk) :: Value
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(Lower)) then
+      Lower_ = Lower
+    else
+      Lower_ = -huge(0_lk)
+    end if
+
+    if (present(Upper)) then
+      Upper_ = Upper
+    else
+      Upper_ = huge(0_lk)
+    end if
+
+    ThresholdMask = ovk_field_logical_(Field%cart, .false.)
+
+    do k = Field%cart%is(3), Field%cart%ie(3)
+      do j = Field%cart%is(2), Field%cart%ie(2)
+        do i = Field%cart%is(1), Field%cart%ie(1)
+          Value = Field%values(i,j,k)
+          ThresholdMask%values(i,j,k) = Value >= Lower_ .and. Value <= Upper_
+        end do
+      end do
+    end do
+
+  end subroutine ovkThreshold_LargeInteger
+
+  subroutine ovkThreshold_Real(Field, ThresholdMask, Lower, Upper)
+
+    type(ovk_field_real), intent(in) :: Field
+    type(ovk_field_logical), intent(out) :: ThresholdMask
+    real(rk), intent(in), optional :: Lower, Upper
+
+    real(rk) :: Lower_, Upper_
+    integer :: i, j, k
+    real(rk) :: Value
+
+    if (OVK_DEBUG) then
+      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    if (present(Lower)) then
+      Lower_ = Lower
+    else
+      Lower_ = -huge(0._rk)
+    end if
+
+    if (present(Upper)) then
+      Upper_ = Upper
+    else
+      Upper_ = huge(0._rk)
+    end if
+
+    ThresholdMask = ovk_field_logical_(Field%cart, .false.)
+
+    do k = Field%cart%is(3), Field%cart%ie(3)
+      do j = Field%cart%is(2), Field%cart%ie(2)
+        do i = Field%cart%is(1), Field%cart%ie(1)
+          Value = Field%values(i,j,k)
+          ThresholdMask%values(i,j,k) = Value >= Lower_ .and. Value <= Upper_
+        end do
+      end do
+    end do
+
+  end subroutine ovkThreshold_Real
 
   subroutine ovkDistanceField(Mask, MaxDistance, OuterValue, Distances)
 
@@ -458,7 +608,7 @@ contains
       NonMaskOuterValue = OVK_MIRROR
     end select
 
-    call ovkFindMaskEdge(NonMask, OVK_EDGE_TYPE_OUTER, NonMaskOuterValue, CoverMask)
+    call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskOuterValue, CoverMask)
 
     do k = Mask%cart%is(3), Mask%cart%ie(3)
       do j = Mask%cart%is(2), Mask%cart%ie(2)
@@ -479,7 +629,7 @@ contains
     PrevCoverMask = ovk_field_logical_(CoverMask%cart)
     do d = 1, MaxDistance-1
       PrevCoverMask%values = CoverMask%values
-      call ovkGrowMask(CoverMask, 1)
+      call ovkDilate(CoverMask, 1)
       do k = Mask%cart%is(3), Mask%cart%ie(3)
         do j = Mask%cart%is(2), Mask%cart%ie(2)
           do i = Mask%cart%is(1), Mask%cart%ie(1)
@@ -496,103 +646,6 @@ contains
     end do
 
   end subroutine ovkDistanceField
-
-  subroutine ovkGenerateNearEdgeMask(Mask, EdgeDistance, OuterValue, NearEdgeMask, IgnoredEdges)
-
-    type(ovk_field_logical), intent(in) :: Mask
-    integer, intent(in) :: EdgeDistance
-    integer, intent(in) :: OuterValue
-    type(ovk_field_logical), intent(out) :: NearEdgeMask
-    type(ovk_field_logical), intent(in), optional :: IgnoredEdges
-
-    type(ovk_field_logical) :: EdgeMask
-    type(ovk_field_logical) :: NonSubsetMask
-    type(ovk_field_logical) :: NonSubsetEdgeMask
-    type(ovk_field_logical) :: SubsetMask
-    type(ovk_field_logical) :: SubsetEdgeMask
-
-    if (OVK_DEBUG) then
-      if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
-        stop 1
-      end if
-    end if
-
-    call ovkFindMaskEdge(Mask, OVK_EDGE_TYPE_OUTER, OuterValue, EdgeMask)
-
-    if (present(IgnoredEdges)) then
-
-      NonSubsetMask = IgnoredEdges
-      call ovkFindMaskEdge(NonSubsetMask, OVK_EDGE_TYPE_OUTER, OuterValue, NonSubsetEdgeMask)
-
-      SubsetMask = ovk_field_logical_(Mask%cart)
-      SubsetMask%values = Mask%values .and. .not. NonSubsetMask%values
-
-      call ovkFindMaskEdge(SubsetMask, OVK_EDGE_TYPE_OUTER, OuterValue, SubsetEdgeMask)
-
-      EdgeMask%values = EdgeMask%values .and. .not. (NonSubsetEdgeMask%values .and. .not. &
-        SubsetEdgeMask%values)
-
-    end if
-
-    call ovkGrowMask(EdgeMask, EdgeDistance)
-
-    NearEdgeMask = ovk_field_logical_(Mask%cart)
-    NearEdgeMask%values = Mask%values .and. EdgeMask%values(Mask%cart%is(1):Mask%cart%ie(1), &
-      Mask%cart%is(2):Mask%cart%ie(2),Mask%cart%is(3):Mask%cart%ie(3))
-
-  end subroutine ovkGenerateNearEdgeMask
-
-  subroutine ovkGenerateThresholdMask(Field, ThresholdMask, Lower, Upper, Subset)
-
-    type(ovk_field_real), intent(in) :: Field
-    type(ovk_field_logical), intent(out) :: ThresholdMask
-    real(rk), intent(in), optional :: Lower, Upper
-    type(ovk_field_logical), intent(in), optional :: Subset
-
-    real(rk) :: Lower_, Upper_
-    integer :: i, j, k
-    logical :: IncludePoint
-    real(rk) :: Value
-
-    if (OVK_DEBUG) then
-      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
-        stop 1
-      end if
-    end if
-
-    if (present(Lower)) then
-      Lower_ = Lower
-    else
-      Lower_ = -huge(0._rk)
-    end if
-
-    if (present(Upper)) then
-      Upper_ = Upper
-    else
-      Upper_ = huge(0._rk)
-    end if
-
-    ThresholdMask = ovk_field_logical_(Field%cart, .false.)
-
-    do k = Field%cart%is(3), Field%cart%ie(3)
-      do j = Field%cart%is(2), Field%cart%ie(2)
-        do i = Field%cart%is(1), Field%cart%ie(1)
-          if (present(Subset)) then
-            IncludePoint = Subset%values(i,j,k)
-          else
-            IncludePoint = .true.
-          end if
-          if (IncludePoint) then
-            Value = Field%values(i,j,k)
-            ThresholdMask%values(i,j,k) = Value >= Lower_ .and. Value <= Upper_
-          end if
-        end do
-      end do
-    end do
-
-  end subroutine ovkGenerateThresholdMask
 
   function ovkCountMask(Mask) result(NumTrue)
 

@@ -281,7 +281,7 @@ contains
         PointCount = 0_lk
       end if
       if (Assembler%properties%infer_boundaries(n)) then
-        call ovkFindMaskEdge(Grids(n)%grid_mask, OVK_EDGE_TYPE_INNER, OVK_FALSE, EdgeMask1)
+        call ovkDetectEdge(Grids(n)%grid_mask, OVK_INNER_EDGE, OVK_FALSE, EdgeMask1)
         EdgeMask1%values = EdgeMask1%values .and. .not. OverlapMasks(n)%values
         call ovkEditDomainGrid(EditDomain, n, EditGrid)
         call ovkEditGridBoundaryMask(EditGrid, EditBoundaryMask)
@@ -317,34 +317,34 @@ contains
         InteriorMask = ovk_field_logical_(Grids(n)%cart, .false.)
         do m = 1, NumGrids
           if (Assembler%properties%boundary_hole_cutting(m,n)) then
-            call ovkFindMaskEdge(PairwiseDonors(m,n)%valid_mask, OVK_EDGE_TYPE_OUTER, OVK_MIRROR, &
+            call ovkDetectEdge(PairwiseDonors(m,n)%valid_mask, OVK_OUTER_EDGE, OVK_MIRROR, &
               EdgeMask1)
             EdgeMask2 = ovk_field_logical_(Grids(n)%cart)
             EdgeMask2%values = EdgeMask1%values(Grids(n)%cart%is(1):Grids(n)%cart%ie(1), &
               Grids(n)%cart%is(2):Grids(n)%cart%ie(2),Grids(n)%cart%is(3):Grids(n)%cart%ie(3))
-            call ovkFindMaskEdge(PairwiseDonors(n,m)%valid_mask, OVK_EDGE_TYPE_INNER, OVK_FALSE, &
+            call ovkDetectEdge(PairwiseDonors(n,m)%valid_mask, OVK_INNER_EDGE, OVK_FALSE, &
               EdgeMask1)
             call ovkGenerateDonorMask(Grids(n), Grids(m), PairwiseDonors(n,m), DonorMask, &
               ReceiverSubset=EdgeMask1)
             EdgeMask2%values = EdgeMask2%values .and. .not. DonorMask%values
             i = 0
             do while (any(EdgeMask2%values))
-              call ovkGrowMask(DonorMask, 1)
+              call ovkDilate(DonorMask, 1)
               EdgeMask2%values = EdgeMask2%values .and. .not. DonorMask%values
               i = i + 1
             end do
             call ovkGenerateDonorMask(Grids(n), Grids(m), PairwiseDonors(n,m), DonorMask, &
               ReceiverSubset=Grids(m)%boundary_mask)
             do j = 1, i
-              call ovkGrowMask(DonorMask, 1)
+              call ovkDilate(DonorMask, 1)
             end do
             DonorMask%values = DonorMask%values .and. .not. PairwiseDonors(m,n)%valid_mask%values
-            call ovkFindMaskEdge(DonorMask, OVK_EDGE_TYPE_OUTER, OVK_FALSE, EdgeMask1)
+            call ovkDetectEdge(DonorMask, OVK_OUTER_EDGE, OVK_FALSE, EdgeMask1)
             EdgeMask2%values = EdgeMask1%values(Grids(n)%cart%is(1):Grids(n)%cart%ie(1), &
               Grids(n)%cart%is(2):Grids(n)%cart%ie(2),Grids(n)%cart%is(3):Grids(n)%cart%ie(3))
             EdgeMask2%values = EdgeMask2%values .and. PairwiseDonors(m,n)%valid_mask%values
             BoundaryMask%values = BoundaryMask%values .or. EdgeMask2%values
-            call ovkFindMaskEdge(EdgeMask2, OVK_EDGE_TYPE_OUTER, OVK_FALSE, EdgeMask1)
+            call ovkDetectEdge(EdgeMask2, OVK_OUTER_EDGE, OVK_FALSE, EdgeMask1)
             EdgeMask2%values = EdgeMask1%values(Grids(n)%cart%is(1):Grids(n)%cart%ie(1), &
               Grids(n)%cart%is(2):Grids(n)%cart%ie(2),Grids(n)%cart%is(3):Grids(n)%cart%ie(3))
             InteriorMask%values = InteriorMask%values .or. (EdgeMask2%values .and. &
@@ -353,19 +353,19 @@ contains
         end do
         if (any(InteriorMask%values)) then
           BoundaryMask%values = BoundaryMask%values .or. Grids(n)%boundary_mask%values
-          call ovkFillMask(InteriorMask, BoundaryMask)
-          call ovkFindMaskEdge(InteriorMask, OVK_EDGE_TYPE_OUTER, OVK_FALSE, EdgeMask1)
+          call ovkFloodFill(InteriorMask, BoundaryMask)
+          call ovkDetectEdge(InteriorMask, OVK_OUTER_EDGE, OVK_FALSE, EdgeMask1)
           BoundaryMask%values = BoundaryMask%values .and. EdgeMask1%values(Grids(n)%cart%is(1): &
             Grids(n)%cart%ie(1),Grids(n)%cart%is(2):Grids(n)%cart%ie(2),Grids(n)%cart%is(3): &
             Grids(n)%cart%ie(3))
           InteriorMask%values = InteriorMask%values .or. BoundaryMask%values
-          call ovkFindMaskEdge(InteriorMask, OVK_EDGE_TYPE_INNER, OVK_FALSE, BoundaryMask)
-          call ovkFindMaskEdge(BoundaryMask, OVK_EDGE_TYPE_OUTER, OVK_FALSE, EdgeMask1)
+          call ovkDetectEdge(InteriorMask, OVK_INNER_EDGE, OVK_FALSE, BoundaryMask)
+          call ovkDetectEdge(BoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, EdgeMask1)
           ExteriorMask = ovk_field_logical_(Grids(n)%cart)
           ExteriorMask%values = EdgeMask1%values(Grids(n)%cart%is(1):Grids(n)%cart%ie(1), &
             Grids(n)%cart%is(2):Grids(n)%cart%ie(2),Grids(n)%cart%is(3):Grids(n)%cart%ie(3)) .and. &
             .not. InteriorMask%values
-          call ovkFillMask(ExteriorMask, BoundaryMask)
+          call ovkFloodFill(ExteriorMask, BoundaryMask)
           Grids(n)%grid_mask%values = Grids(n)%grid_mask%values .and. .not. ExteriorMask%values
           Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. &
             ExteriorMask%values
@@ -417,10 +417,10 @@ contains
         if (Assembler%properties%overlap_hole_cutting(m,n) .and. &
           Assembler%properties%overlap_hole_cutting(n,m)) then
           ! Find the coarse points
-          call ovkGenerateThresholdMask(PairwiseDonors(n,m)%res_diff, CoarseMask_m, &
-            Upper=0._rk, Subset=PairwiseDonors(n,m)%valid_mask)
-          call ovkGenerateThresholdMask(PairwiseDonors(m,n)%res_diff, CoarseMask_n, &
-            Upper=0._rk, Subset=PairwiseDonors(m,n)%valid_mask)
+          call ovkThreshold(PairwiseDonors(n,m)%res_diff, CoarseMask_m, Upper=0._rk)
+          call ovkThreshold(PairwiseDonors(m,n)%res_diff, CoarseMask_n, Upper=0._rk)
+          CoarseMask_m%values = CoarseMask_m%values .and. PairwiseDonors(n,m)%valid_mask%values
+          CoarseMask_n%values = CoarseMask_n%values .and. PairwiseDonors(m,n)%valid_mask%values
           ! If any coarse points on grid m receive from coarse points on grid n, change them
           ! to fine
           if (any(CoarseMask_m%values)) then
@@ -461,16 +461,15 @@ contains
       PaddingMasks(n) = FineMasks(n)
       CoarseMask = ovk_field_logical_(Grids(n)%cart)
       CoarseMask%values = .not. FineMasks(n)%values
-      call ovkFindMaskEdge(CoarseMask, OVK_EDGE_TYPE_OUTER, OVK_MIRROR, CoarseEdgeMask)
+      call ovkDetectEdge(CoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, CoarseEdgeMask)
       do m = 1, NumGrids
         if (Assembler%properties%overlap_hole_cutting(m,n) .and. &
           Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
           PairwiseCoarseMask = ovk_field_logical_(Grids(n)%cart)
           PairwiseCoarseMask%values = .not. PairwiseFineMasks(m,n)%values
-          call ovkFindMaskEdge(PairwiseCoarseMask, OVK_EDGE_TYPE_OUTER, OVK_MIRROR, &
-            PaddingEdgeMask)
+          call ovkDetectEdge(PairwiseCoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, PaddingEdgeMask)
           PaddingEdgeMask%values = PaddingEdgeMask%values .and. CoarseEdgeMask%values
-          call ovkGrowMask(PaddingEdgeMask, Assembler%properties%fringe_padding(m,n))
+          call ovkDilate(PaddingEdgeMask, Assembler%properties%fringe_padding(m,n))
           PaddingMasks(n)%values = PaddingMasks(n)%values .or. &
             (PairwiseDonors(m,n)%valid_mask%values .and. PaddingEdgeMask%values( &
             Grids(n)%cart%is(1):Grids(n)%cart%ie(1),Grids(n)%cart%is(2):Grids(n)%cart%ie(2), &
@@ -566,7 +565,7 @@ contains
       IgnoredEdgeMask = ovk_field_logical_(Grids(n)%cart)
       IgnoredEdgeMask%values = Grids(n)%boundary_mask%values .or. &
         Grids(n)%internal_boundary_mask%values
-      call ovkGenerateNearEdgeMask(Grids(n)%grid_mask, FringeSize(n), OVK_FALSE, FringeMasks(n), &
+      call GenerateFringe(Grids(n)%grid_mask, FringeSize(n), FringeMasks(n), &
         IgnoredEdges=IgnoredEdgeMask)
     end do
 
@@ -661,8 +660,7 @@ contains
 
       do m = 1, NumGrids
         call GenerateValidCellMask(Grids(m), ValidCellMasks(m))
-        call ovkFindMaskEdge(ValidCellMasks(m), OVK_EDGE_TYPE_INNER, OVK_FALSE, &
-          ValidCellInnerEdgeMask)
+        call ovkDetectEdge(ValidCellMasks(m), OVK_INNER_EDGE, OVK_FALSE, ValidCellInnerEdgeMask)
         ExpandableCellMasks(m) = ovk_field_logical_(Grids(m)%cell_cart)
         ExpandableCellMasks(m)%values = ValidCellMasks(m)%values .and. .not. &
           ValidCellInnerEdgeMask%values
@@ -1019,5 +1017,51 @@ contains
     end if
 
   end subroutine ExpandDonorCell
+
+  subroutine GenerateFringe(GridMask, FringeSize, FringeMask, IgnoredEdges)
+
+    type(ovk_field_logical), intent(in) :: GridMask
+    integer, intent(in) :: FringeSize
+    type(ovk_field_logical), intent(out) :: FringeMask
+    type(ovk_field_logical), intent(in), optional :: IgnoredEdges
+
+    type(ovk_field_logical) :: EdgeMask
+    type(ovk_field_logical) :: NonSubsetMask
+    type(ovk_field_logical) :: NonSubsetEdgeMask
+    type(ovk_field_logical) :: SubsetMask
+    type(ovk_field_logical) :: SubsetEdgeMask
+
+    if (OVK_DEBUG) then
+      if (GridMask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
+        stop 1
+      end if
+    end if
+
+    call ovkDetectEdge(GridMask, OVK_OUTER_EDGE, OVK_FALSE, EdgeMask)
+
+    if (present(IgnoredEdges)) then
+
+      NonSubsetMask = IgnoredEdges
+      call ovkDetectEdge(NonSubsetMask, OVK_OUTER_EDGE, OVK_FALSE, NonSubsetEdgeMask)
+
+      SubsetMask = ovk_field_logical_(GridMask%cart)
+      SubsetMask%values = GridMask%values .and. .not. NonSubsetMask%values
+
+      call ovkDetectEdge(SubsetMask, OVK_OUTER_EDGE, OVK_FALSE, SubsetEdgeMask)
+
+      EdgeMask%values = EdgeMask%values .and. .not. (NonSubsetEdgeMask%values .and. .not. &
+        SubsetEdgeMask%values)
+
+    end if
+
+    call ovkDilate(EdgeMask, FringeSize)
+
+    FringeMask = ovk_field_logical_(GridMask%cart)
+    FringeMask%values = GridMask%values .and. EdgeMask%values(&
+      GridMask%cart%is(1):GridMask%cart%ie(1),GridMask%cart%is(2):GridMask%cart%ie(2), &
+      GridMask%cart%is(3):GridMask%cart%ie(3))
+
+  end subroutine GenerateFringe
 
 end module ovkOverset

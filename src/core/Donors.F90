@@ -603,7 +603,7 @@ contains
     call ovkGenerateDonorMask(Grid1, Grid2, Donors2, DonorMask, DonorSubset=Subset1, &
       ReceiverSubset=Subset2)
 
-    call ovkGrowMask(DonorMask, Distance)
+    call ovkDilate(DonorMask, Distance)
 
     NearCrossoverMask = ovk_field_logical_(Grid1%cart)
     NearCrossoverMask%values = ReceiverMask%values .and. DonorMask%values

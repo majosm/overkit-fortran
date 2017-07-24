@@ -196,15 +196,15 @@ module Overkit
   public :: ovkPrintField
 
   ! ovkFieldOps
-  public :: ovkFindMaskEdge
-  public :: ovkGrowMask
+  public :: ovkDetectEdge
+  public :: ovkDilate
+  public :: ovkErode
   public :: ovkConnectedComponents
-  public :: ovkFillMask
+  public :: ovkFloodFill
+  public :: ovkThreshold
   public :: ovkDistanceField
-  public :: ovkGenerateNearEdgeMask
-  public :: ovkGenerateThresholdMask
   public :: ovkCountMask
-  public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
+  public :: OVK_INNER_EDGE, OVK_OUTER_EDGE
 
   ! ovkGeometry
   public :: ovkOverlapsRectangle

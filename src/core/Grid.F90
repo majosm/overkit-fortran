@@ -856,7 +856,8 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    call ovkDistanceField(Grid%grid_mask, Grid%properties%max_edge_dist, OVK_FALSE, Grid%edge_dist)
+    call ovkDistanceField(Grid%grid_mask, Grid%properties%max_edge_dist, OVK_FALSE, &
+      Grid%edge_dist)
     call ovkDistanceField(Grid%cell_grid_mask, Grid%properties%max_edge_dist, OVK_FALSE, &
       Grid%cell_edge_dist)
 
