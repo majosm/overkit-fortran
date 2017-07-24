@@ -7,10 +7,10 @@ module ovkDonors
   use ovkCart
   use ovkDonorAccel
   use ovkField
+  use ovkFieldOps
   use ovkGlobal
   use ovkGrid
   use ovkHashGrid
-  use ovkMask
   implicit none
 
   private

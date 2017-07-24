@@ -6,11 +6,11 @@ module ovkDonorAccel
   use ovkBoundingBox
   use ovkCart
   use ovkField
+  use ovkFieldOps
   use ovkGeometry
   use ovkGlobal
   use ovkGrid
   use ovkHashGrid
-  use ovkMask
   implicit none
 
   private

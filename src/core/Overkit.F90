@@ -11,12 +11,12 @@ module Overkit
   use ovkDonorAccel
   use ovkDonors
   use ovkField
+  use ovkFieldOps
   use ovkGeometry
   use ovkGlobal
   use ovkGrid
   use ovkHashGrid
   use ovkInterp
-  use ovkMask
   use ovkOverset
   use ovkPegasus
   use ovkPLOT3D
@@ -195,6 +195,17 @@ module Overkit
   public :: ovkExportField
   public :: ovkPrintField
 
+  ! ovkFieldOps
+  public :: ovkFindMaskEdge
+  public :: ovkGrowMask
+  public :: ovkConnectedComponents
+  public :: ovkFillMask
+  public :: ovkDistanceField
+  public :: ovkGenerateNearEdgeMask
+  public :: ovkGenerateThresholdMask
+  public :: ovkCountMask
+  public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
+
   ! ovkGeometry
   public :: ovkOverlapsRectangle
   public :: ovkOverlapsQuad
@@ -315,17 +326,6 @@ module Overkit
   public :: ovkGetInterpDataCoefs
   public :: ovkGetInterpDataPropertyVerbose
   public :: ovkSetInterpDataPropertyVerbose
-
-  ! ovkMask
-  public :: ovkFindMaskEdge
-  public :: ovkGrowMask
-  public :: ovkConnectedComponents
-  public :: ovkFillMask
-  public :: ovkDistanceField
-  public :: ovkGenerateNearEdgeMask
-  public :: ovkGenerateThresholdMask
-  public :: ovkCountMask
-  public :: OVK_EDGE_TYPE_INNER, OVK_EDGE_TYPE_OUTER
 
   ! ovkOverset
   public :: ovkAssemble

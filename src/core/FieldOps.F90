@@ -1,7 +1,7 @@
 ! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 ! License: MIT (http://opensource.org/licenses/MIT)
 
-module ovkMask
+module ovkFieldOps
 
   use ovkCart
   use ovkField
@@ -614,4 +614,4 @@ contains
 
   end function ovkCountMask
 
-end module ovkMask
+end module ovkFieldOps

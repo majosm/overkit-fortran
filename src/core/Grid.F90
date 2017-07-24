@@ -6,9 +6,9 @@ module ovkGrid
   use ovkBoundingBox
   use ovkCart
   use ovkField
+  use ovkFieldOps
   use ovkGeometry
   use ovkGlobal
-  use ovkMask
   implicit none
 
   private

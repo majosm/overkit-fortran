@@ -14,12 +14,12 @@ set(OVERKIT_SOURCES
   DonorAccel.F90
   Donors.F90
   Field.F90
+  FieldOps.F90
   Geometry.F90
   Global.F90
   Grid.F90
   HashGrid.F90
   Interp.F90
-  Mask.F90
   Overkit.F90
   Overset.F90
   Pegasus.F90

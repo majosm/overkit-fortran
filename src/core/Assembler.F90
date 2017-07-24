@@ -12,7 +12,6 @@ module ovkAssembler
   use ovkGlobal
   use ovkGrid
   use ovkInterp
-  use ovkMask
   implicit none
 
   private

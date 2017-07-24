@@ -11,11 +11,11 @@ module ovkOverset
   use ovkDonorAccel
   use ovkDonors
   use ovkField
+  use ovkFieldOps
   use ovkGeometry
   use ovkGlobal
   use ovkGrid
   use ovkInterp
-  use ovkMask
   implicit none
 
   private
