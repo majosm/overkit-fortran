@@ -72,23 +72,23 @@ contains
 
     Donors%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
 
-    Donors%valid_mask = ovk_field_logical_(Donors%cart)
-    Donors%grid_ids = ovk_field_int_(Donors%cart)
+    Donors%valid_mask = ovk_field_logical_(Donors%cart, .false.)
+    Donors%grid_ids = ovk_field_int_(Donors%cart, 0)
 
     allocate(Donors%cells(Donors%cart%nd))
     do i = 1, Donors%cart%nd
-      Donors%cells(i) = ovk_field_int_(Donors%cart)
+      Donors%cells(i) = ovk_field_int_(Donors%cart, 0)
     end do
 
-    Donors%cell_extents = ovk_field_int_(Donors%cart)
+    Donors%cell_extents = ovk_field_int_(Donors%cart, 0)
 
     allocate(Donors%cell_coords(Donors%cart%nd))
     do i = 1, Donors%cart%nd
-      Donors%cell_coords(i) = ovk_field_real_(Donors%cart)
+      Donors%cell_coords(i) = ovk_field_real_(Donors%cart, 0._rk)
     end do
 
-    Donors%res_diff = ovk_field_real_(Donors%cart)
-    Donors%edge_dist = ovk_field_int_(Donors%cart)
+    Donors%res_diff = ovk_field_real_(Donors%cart, 0._rk)
+    Donors%edge_dist = ovk_field_int_(Donors%cart, 0)
 
   end subroutine ovkMakeDonors
 
