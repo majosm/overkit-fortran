@@ -32,11 +32,12 @@ module ovkFieldOps
 
 contains
 
-  subroutine ovkDetectEdge(Mask, EdgeType, OuterValue, EdgeMask)
+  subroutine ovkDetectEdge(Mask, EdgeType, BoundaryValue, IncludeBoundary, EdgeMask)
 
     type(ovk_field_logical), intent(in) :: Mask
     integer, intent(in) :: EdgeType
-    integer, intent(in) :: OuterValue
+    integer, intent(in) :: BoundaryValue
+    logical, intent(in) :: IncludeBoundary
     type(ovk_field_logical), intent(out) :: EdgeMask
 
     integer :: i, j, k, m, n, o
@@ -59,9 +60,9 @@ contains
     end if
 
     Cart = Mask%cart
-
     EdgeCart = Mask%cart
-    if (EdgeType == OVK_OUTER_EDGE) then
+
+    if (IncludeBoundary) then
       EdgeCart%is(:EdgeCart%nd) = EdgeCart%is(:EdgeCart%nd) - merge(0, 1, &
         EdgeCart%periodic(:EdgeCart%nd))
       EdgeCart%ie(:EdgeCart%nd) = EdgeCart%ie(:EdgeCart%nd) + merge(0, 1, &
@@ -80,7 +81,7 @@ contains
           if (ovkCartContains(Cart, Point)) then
             Value = Mask%values(i,j,k)
           else
-            select case (OuterValue)
+            select case (BoundaryValue)
             case (OVK_TRUE)
               Value = .true.
             case (OVK_FALSE)
@@ -121,7 +122,7 @@ contains
                     if (ovkCartContains(Cart, Neighbor)) then
                       NeighborValue = Mask%values(Neighbor(1),Neighbor(2),Neighbor(3))
                     else
-                      select case (OuterValue)
+                      select case (BoundaryValue)
                       case (OVK_TRUE)
                         NeighborValue = .true.
                       case (OVK_FALSE)
@@ -171,10 +172,10 @@ contains
 
     integer :: i, j, k, m, n, o
     type(ovk_cart) :: Cart
+    type(ovk_cart) :: EdgeCart
     integer :: FillDistance
     logical :: FillValue
     integer :: EdgeType
-    integer :: OuterValue
     type(ovk_field_logical) :: EdgeMask
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: FillLower, FillUpper
@@ -190,27 +191,31 @@ contains
 
     if (Amount == 0) return
 
-    FillDistance = abs(Amount)
-    FillValue = Amount > 0
+    if (Amount > 0) then
+      FillDistance = Amount
+      FillValue = .true.
+      EdgeType = OVK_INNER_EDGE
+    else
+      FillDistance = -Amount
+      FillValue = .false.
+      EdgeType = OVK_OUTER_EDGE
+    end if
 
-    EdgeType = merge(OVK_INNER_EDGE, OVK_OUTER_EDGE, Amount > 0)
-    OuterValue = merge(OVK_TRUE, OVK_FALSE, FillValue)
+    call ovkDetectEdge(Mask, EdgeType, OVK_MIRROR, .true., EdgeMask)
 
     Cart = Mask%cart
+    EdgeCart = EdgeMask%cart
 
-    call ovkDetectEdge(Mask, EdgeType, OuterValue, EdgeMask)
-
-    do k = Cart%is(3), Cart%ie(3)
-      do j = Cart%is(2), Cart%ie(2)
-        do i = Cart%is(1), Cart%ie(1)
+    do k = EdgeCart%is(3), EdgeCart%ie(3)
+      do j = EdgeCart%is(2), EdgeCart%ie(2)
+        do i = EdgeCart%is(1), EdgeCart%ie(1)
           if (EdgeMask%values(i,j,k)) then
             Point = [i,j,k]
             FillLower(:Cart%nd) = Point(:Cart%nd)-FillDistance
             FillLower(Cart%nd+1:) = Point(Cart%nd+1:)
             FillUpper(:Cart%nd) = Point(:Cart%nd)+FillDistance
             FillUpper(Cart%nd+1:) = Point(Cart%nd+1:)
-            AwayFromEdge = ovkCartContains(Cart, FillLower) .and. &
-              ovkCartContains(Cart, FillUpper)
+            AwayFromEdge = ovkCartContains(Cart, FillLower) .and. ovkCartContains(Cart, FillUpper)
             if (AwayFromEdge) then
               do o = FillLower(3), FillUpper(3)
                 do n = FillLower(2), FillUpper(2)
@@ -608,7 +613,7 @@ contains
       NonMaskOuterValue = OVK_MIRROR
     end select
 
-    call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskOuterValue, CoverMask)
+    call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskBoundaryValue, .true., CoverMask)
 
     do k = Mask%cart%is(3), Mask%cart%ie(3)
       do j = Mask%cart%is(2), Mask%cart%ie(2)
