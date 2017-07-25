@@ -147,28 +147,31 @@ contains
 
   end subroutine ovkDetectEdge
 
-  subroutine ovkDilate(Mask, Amount)
+  subroutine ovkDilate(Mask, Amount, BoundaryValue)
 
     type(ovk_field_logical), intent(inout) :: Mask
     integer, intent(in) :: Amount
+    integer, intent(in) :: BoundaryValue
 
-    call DilateErode(Mask, Amount)
+    call DilateErode(Mask, Amount, BoundaryValue)
 
   end subroutine ovkDilate
 
-  subroutine ovkErode(Mask, Amount)
+  subroutine ovkErode(Mask, Amount, BoundaryValue)
 
     type(ovk_field_logical), intent(inout) :: Mask
     integer, intent(in) :: Amount
+    integer, intent(in) :: BoundaryValue
 
-    call DilateErode(Mask, -Amount)
+    call DilateErode(Mask, -Amount, BoundaryValue)
 
   end subroutine ovkErode
 
-  subroutine DilateErode(Mask, Amount)
+  subroutine DilateErode(Mask, Amount, BoundaryValue)
 
     type(ovk_field_logical), intent(inout) :: Mask
     integer, intent(in) :: Amount
+    integer, intent(in) :: BoundaryValue
 
     integer :: i, j, k, m, n, o
     type(ovk_cart) :: Cart
@@ -176,6 +179,7 @@ contains
     integer :: FillDistance
     logical :: FillValue
     integer :: EdgeType
+    integer :: EdgeBoundaryValue
     type(ovk_field_logical) :: EdgeMask
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: FillLower, FillUpper
@@ -195,13 +199,15 @@ contains
       FillDistance = Amount
       FillValue = .true.
       EdgeType = OVK_INNER_EDGE
+      EdgeBoundaryValue = merge(OVK_TRUE, OVK_MIRROR, BoundaryValue == OVK_TRUE)
     else
       FillDistance = -Amount
       FillValue = .false.
       EdgeType = OVK_OUTER_EDGE
+      EdgeBoundaryValue = merge(OVK_FALSE, OVK_MIRROR, BoundaryValue == OVK_FALSE)
     end if
 
-    call ovkDetectEdge(Mask, EdgeType, OVK_MIRROR, .true., EdgeMask)
+    call ovkDetectEdge(Mask, EdgeType, EdgeBoundaryValue, .true., EdgeMask)
 
     Cart = Mask%cart
     EdgeCart = EdgeMask%cart
@@ -634,7 +640,7 @@ contains
     PrevCoverMask = ovk_field_logical_(CoverMask%cart)
     do d = 1, MaxDistance-1
       PrevCoverMask%values = CoverMask%values
-      call ovkDilate(CoverMask, 1)
+      call ovkDilate(CoverMask, 1, OVK_FALSE)
       do k = Mask%cart%is(3), Mask%cart%ie(3)
         do j = Mask%cart%is(2), Mask%cart%ie(2)
           do i = Mask%cart%is(1), Mask%cart%ie(1)

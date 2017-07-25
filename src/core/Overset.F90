@@ -326,14 +326,14 @@ contains
             EdgeMask1%values = EdgeMask1%values .and. .not. DonorMask%values
             i = 0
             do while (any(EdgeMask1%values))
-              call ovkDilate(DonorMask, 1)
+              call ovkDilate(DonorMask, 1, OVK_FALSE)
               EdgeMask1%values = EdgeMask1%values .and. .not. DonorMask%values
               i = i + 1
             end do
             call ovkGenerateDonorMask(Grids(n), Grids(m), PairwiseDonors(n,m), DonorMask, &
               ReceiverSubset=Grids(m)%boundary_mask)
             do j = 1, i
-              call ovkDilate(DonorMask, 1)
+              call ovkDilate(DonorMask, 1, OVK_FALSE)
             end do
             DonorMask%values = DonorMask%values .and. .not. PairwiseDonors(m,n)%valid_mask%values
             call ovkDetectEdge(DonorMask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask1)
@@ -459,7 +459,7 @@ contains
           call ovkDetectEdge(PairwiseCoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., &
             PaddingEdgeMask)
           PaddingEdgeMask%values = PaddingEdgeMask%values .and. CoarseEdgeMask%values
-          call ovkDilate(PaddingEdgeMask, Assembler%properties%fringe_padding(m,n))
+          call ovkDilate(PaddingEdgeMask, Assembler%properties%fringe_padding(m,n), OVK_FALSE)
           PaddingMasks(n)%values = PaddingMasks(n)%values .or. &
             (PairwiseDonors(m,n)%valid_mask%values .and. PaddingEdgeMask%values)
         end if
@@ -1044,7 +1044,7 @@ contains
 
     end if
 
-    call ovkDilate(EdgeMask, FringeSize)
+    call ovkDilate(EdgeMask, FringeSize, OVK_FALSE)
 
     FringeMask = ovk_field_logical_(GridMask%cart)
     FringeMask%values = GridMask%values .and. EdgeMask%values(&
