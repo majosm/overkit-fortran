@@ -577,16 +577,16 @@ contains
 
   end subroutine ovkThreshold_Real
 
-  subroutine ovkDistanceField(Mask, MaxDistance, OuterValue, Distances)
+  subroutine ovkDistanceField(Mask, MaxDistance, BoundaryValue, Distances)
 
     type(ovk_field_logical), intent(in) :: Mask
     integer, intent(in) :: MaxDistance
-    integer, intent(in) :: OuterValue
+    integer, intent(in) :: BoundaryValue
     type(ovk_field_int), intent(out) :: Distances
 
     integer :: i, j, k, d
     type(ovk_field_logical) :: NonMask
-    integer :: NonMaskOuterValue
+    integer :: NonMaskBoundaryValue
     type(ovk_field_logical) :: CoverMask
     type(ovk_field_logical) :: PrevCoverMask
 
@@ -604,13 +604,13 @@ contains
     NonMask = ovk_field_logical_(Mask%cart)
     NonMask%values = .not. Mask%values
 
-    select case (OuterValue)
+    select case (BoundaryValue)
     case (OVK_TRUE)
-      NonMaskOuterValue = OVK_FALSE
+      NonMaskBoundaryValue = OVK_FALSE
     case (OVK_FALSE)
-      NonMaskOuterValue = OVK_TRUE
+      NonMaskBoundaryValue = OVK_TRUE
     case (OVK_MIRROR)
-      NonMaskOuterValue = OVK_MIRROR
+      NonMaskBoundaryValue = OVK_MIRROR
     end select
 
     call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskBoundaryValue, .true., CoverMask)
