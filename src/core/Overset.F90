@@ -77,6 +77,7 @@ contains
     type(ovk_field_logical) :: ReceiverMask
     type(ovk_donors), dimension(:), allocatable :: Donors
     type(ovk_field_logical), dimension(:), allocatable :: OrphanMasks
+    integer :: NumWarnings
     type(ovk_connectivity), pointer :: Connectivity
     integer :: StencilSize
     type(ovk_interp), dimension(:), pointer :: InterpData
@@ -779,14 +780,21 @@ contains
       OrphanMasks(n) = ovk_field_logical_(Grids(n)%cart)
       OrphanMasks(n)%values = FringeMasks(n)%values .and. .not. Donors(n)%valid_mask%values
       if (OVK_VERBOSE) then
+        NumWarnings = 0
         do k = Grids(n)%cart%is(3), Grids(n)%cart%ie(3)
           do j = Grids(n)%cart%is(2), Grids(n)%cart%ie(2)
             do i = Grids(n)%cart%is(1), Grids(n)%cart%ie(1)
               ReceiverPoint = [i,j,k]
               if (OrphanMasks(n)%values(i,j,k)) then
-                write (ERROR_UNIT, '(4a)') "WARNING: Orphan detected at point ", &
-                  trim(TupleToString(ReceiverPoint(:Grids(n)%cart%nd))), " of grid ", &
-                  trim(IntToString(n))
+                if (NumWarnings <= 100) then
+                  write (ERROR_UNIT, '(4a)') "WARNING: Orphan detected at point ", &
+                    trim(TupleToString(ReceiverPoint(:Grids(n)%cart%nd))), " of grid ", &
+                    trim(IntToString(n))
+                  if (NumWarnings == 100) then
+                    write (ERROR_UNIT, '(a)') "Further warnings suppressed."
+                  end if
+                  NumWarnings = NumWarnings + 1
+                end if
               end if
             end do
           end do
