@@ -22,7 +22,6 @@ set(OVERKIT_SOURCES
   Interp.F90
   Overkit.F90
   Overset.F90
-  Pegasus.F90
   PLOT3D.F90
   PLOT3DInternal.c
 )

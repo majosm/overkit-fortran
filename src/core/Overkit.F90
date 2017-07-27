@@ -18,7 +18,6 @@ module Overkit
   use ovkHashGrid
   use ovkInterp
   use ovkOverset
-  use ovkPegasus
   use ovkPLOT3D
   implicit none
 
@@ -329,14 +328,6 @@ module Overkit
 
   ! ovkOverset
   public :: ovkAssemble
-
-  ! ovkPegasus
-  public :: ovk_pegasus
-  public :: ovk_pegasus_
-  public :: ovkMakePegasusData
-  public :: ovkDestroyPegasusData
-  public :: ovkWritePegasusData
-  public :: ovkPrintPegasusData
 
   ! ovkPLOT3D
   public :: ovk_plot3d_grid_file
