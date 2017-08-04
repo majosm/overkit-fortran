@@ -1,12 +1,13 @@
 # Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 # License: MIT (http://opensource.org/licenses/MIT)
 
-#============
-# Unit tests
-#============
+#=======================
+# Overkit library tests
+#=======================
 
 if(TESTS)
 
+  # Unit tests
   if(PFUNIT_FOUND)
 
     set(UNIT_TEST_SOURCES
@@ -59,7 +60,7 @@ if(TESTS)
     add_executable(runall "${PFUNIT_DRIVER}" ${PROCESSED_TEST_SOURCES})
     target_link_libraries(runall overkit overkit-support "${PFUNIT_LIBRARY}")
 
-    add_test(unit-tests "${CMAKE_CURRENT_BINARY_DIR}/runall" -v)
+    add_test(core-unit-tests "${CMAKE_CURRENT_BINARY_DIR}/runall" -v)
 
   endif()
 
