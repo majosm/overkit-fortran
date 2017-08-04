@@ -32,12 +32,21 @@ module ovkHashGrid
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_hash_grid_
     module procedure ovk_hash_grid_Default
+    module procedure ovk_hash_grid_Empty
     module procedure ovk_hash_grid_Allocated
   end interface ovk_hash_grid_
 
 contains
 
-  pure function ovk_hash_grid_Default(NumDims) result(HashGrid)
+  pure function ovk_hash_grid_Default() result(HashGrid)
+
+    type(ovk_hash_grid) :: HashGrid
+
+    HashGrid = ovk_hash_grid_Empty(2)
+
+  end function ovk_hash_grid_Default
+
+  pure function ovk_hash_grid_Empty(NumDims) result(HashGrid)
 
     integer, intent(in) :: NumDims
     type(ovk_hash_grid) :: HashGrid
@@ -46,7 +55,7 @@ contains
     HashGrid%bounds = ovk_bbox_(NumDims)
     HashGrid%bin_size = 0._rk
 
-  end function ovk_hash_grid_Default
+  end function ovk_hash_grid_Empty
 
   pure function ovk_hash_grid_Allocated(Cart, Bounds, NumBinEntries) result(HashGrid)
 

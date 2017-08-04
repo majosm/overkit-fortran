@@ -76,7 +76,7 @@ contains
     type(ovk_interp) :: InterpData
 
     nullify(InterpData%properties)
-    InterpData%cart = ovk_cart_(2)
+    InterpData%cart = ovk_cart_()
     nullify(InterpData%receiver_mask)
     nullify(InterpData%orphan_mask)
     nullify(InterpData%donor_grid_ids)

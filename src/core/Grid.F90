@@ -126,9 +126,9 @@ contains
 
     nullify(Grid%properties)
     Grid%prev_properties = ovk_grid_properties_(2)
-    Grid%cart = ovk_cart_(2)
-    Grid%cell_cart = ovk_cart_(2)
-    Grid%bounds = ovk_bbox_(2)
+    Grid%cart = ovk_cart_()
+    Grid%cell_cart = ovk_cart_()
+    Grid%bounds = ovk_bbox_()
     nullify(Grid%xyz)
     nullify(Grid%grid_mask)
     nullify(Grid%boundary_mask)

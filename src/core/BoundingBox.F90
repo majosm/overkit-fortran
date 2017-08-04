@@ -35,7 +35,8 @@ module ovkBoundingBox
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_bbox_
     module procedure ovk_bbox_Default
-    module procedure ovk_bbox_Assigned
+    module procedure ovk_bbox_Assigned_Empty
+    module procedure ovk_bbox_Assigned_BeginEnd
   end interface ovk_bbox_
 
   interface operator (==)
@@ -54,7 +55,15 @@ module ovkBoundingBox
 
 contains
 
-  pure function ovk_bbox_Default(NumDims) result(BBox)
+  pure function ovk_bbox_Default() result(BBox)
+
+    type(ovk_bbox) :: BBox
+
+    BBox = ovk_bbox_Assigned_Empty(2)
+
+  end function ovk_bbox_Default
+
+  pure function ovk_bbox_Assigned_Empty(NumDims) result(BBox)
 
     integer, intent(in) :: NumDims
     type(ovk_bbox) :: BBox
@@ -64,9 +73,9 @@ contains
     BBox%e(:NumDims) = -1._rk
     BBox%e(NumDims+1:) = 0._rk
 
-  end function ovk_bbox_Default
+  end function ovk_bbox_Assigned_Empty
 
-  pure function ovk_bbox_Assigned(NumDims, B, E) result(BBox)
+  pure function ovk_bbox_Assigned_BeginEnd(NumDims, B, E) result(BBox)
 
     integer, intent(in) :: NumDims
     real(rk), dimension(NumDims), intent(in) :: B, E
@@ -78,7 +87,7 @@ contains
     BBox%e(:BBox%nd) = E
     BBox%e(BBox%nd+1:) = 0._rk
 
-  end function ovk_bbox_Assigned
+  end function ovk_bbox_Assigned_BeginEnd
 
   pure function ovk_bbox_Equal(LeftBBox, RightBBox) result(Equal)
 

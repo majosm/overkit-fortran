@@ -36,12 +36,15 @@ module ovkCart
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_cart_
     module procedure ovk_cart_Default
-    module procedure ovk_cart_AssignedNumPoints
-    module procedure ovk_cart_AssignedNumPointsPeriodic
-    module procedure ovk_cart_AssignedNumPointsPeriodicWithStorage
-    module procedure ovk_cart_AssignedStartEnd
-    module procedure ovk_cart_AssignedStartEndPeriodic
-    module procedure ovk_cart_AssignedStartEndPeriodicWithStorage
+    module procedure ovk_cart_Assigned_Empty
+    module procedure ovk_cart_Assigned_EmptyPeriodic
+    module procedure ovk_cart_Assigned_EmptyPeriodicWithStorage
+    module procedure ovk_cart_Assigned_NumPoints
+    module procedure ovk_cart_Assigned_NumPointsPeriodic
+    module procedure ovk_cart_Assigned_NumPointsPeriodicWithStorage
+    module procedure ovk_cart_Assigned_StartEnd
+    module procedure ovk_cart_Assigned_StartEndPeriodic
+    module procedure ovk_cart_Assigned_StartEndPeriodicWithStorage
   end interface ovk_cart_
 
   interface operator (==)
@@ -54,7 +57,15 @@ module ovkCart
 
 contains
 
-  pure function ovk_cart_Default(NumDims) result(Cart)
+  pure function ovk_cart_Default() result(Cart)
+
+    type(ovk_cart) :: Cart
+
+    Cart = ovk_cart_Assigned_Empty(2)
+
+  end function ovk_cart_Default
+
+  pure function ovk_cart_Assigned_Empty(NumDims) result(Cart)
 
     integer, intent(in) :: NumDims
     type(ovk_cart) :: Cart
@@ -66,9 +77,43 @@ contains
     Cart%periodic = .false.
     Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
 
-  end function ovk_cart_Default
+  end function ovk_cart_Assigned_Empty
 
-  pure function ovk_cart_AssignedNumPoints(NumDims, NumPoints) result(Cart)
+  pure function ovk_cart_Assigned_EmptyPeriodic(NumDims, Periodic) result(Cart)
+
+    integer, intent(in) :: NumDims
+    logical, dimension(NumDims), intent(in) :: Periodic
+    type(ovk_cart) :: Cart
+
+    Cart%nd = NumDims
+    Cart%is = 1
+    Cart%ie(:NumDims) = 0
+    Cart%ie(NumDims+1:) = 1
+    Cart%periodic(:NumDims) = Periodic
+    Cart%periodic(NumDims+1:) = .false.
+    Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+
+  end function ovk_cart_Assigned_EmptyPeriodic
+
+  pure function ovk_cart_Assigned_EmptyPeriodicWithStorage(NumDims, Periodic, PeriodicStorage) &
+    result(Cart)
+
+    integer, intent(in) :: NumDims
+    logical, dimension(NumDims), intent(in) :: Periodic
+    integer, intent(in) :: PeriodicStorage
+    type(ovk_cart) :: Cart
+
+    Cart%nd = NumDims
+    Cart%is = 1
+    Cart%ie(:NumDims) = 0
+    Cart%ie(NumDims+1:) = 1
+    Cart%periodic(:NumDims) = Periodic
+    Cart%periodic(NumDims+1:) = .false.
+    Cart%periodic_storage = PeriodicStorage
+
+  end function ovk_cart_Assigned_EmptyPeriodicWithStorage
+
+  pure function ovk_cart_Assigned_NumPoints(NumDims, NumPoints) result(Cart)
 
     integer, intent(in) :: NumDims
     integer, dimension(NumDims), intent(in) :: NumPoints
@@ -81,9 +126,9 @@ contains
     Cart%periodic = .false.
     Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
 
-  end function ovk_cart_AssignedNumPoints
+  end function ovk_cart_Assigned_NumPoints
 
-  pure function ovk_cart_AssignedNumPointsPeriodic(NumDims, NumPoints, Periodic) result(Cart)
+  pure function ovk_cart_Assigned_NumPointsPeriodic(NumDims, NumPoints, Periodic) result(Cart)
 
     integer, intent(in) :: NumDims
     integer, dimension(NumDims), intent(in) :: NumPoints
@@ -98,9 +143,9 @@ contains
     Cart%periodic(NumDims+1:) = .false.
     Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
 
-  end function ovk_cart_AssignedNumPointsPeriodic
+  end function ovk_cart_Assigned_NumPointsPeriodic
 
-  pure function ovk_cart_AssignedNumPointsPeriodicWithStorage(NumDims, NumPoints, Periodic, &
+  pure function ovk_cart_Assigned_NumPointsPeriodicWithStorage(NumDims, NumPoints, Periodic, &
     PeriodicStorage) result(Cart)
 
     integer, intent(in) :: NumDims
@@ -117,9 +162,9 @@ contains
     Cart%periodic(NumDims+1:) = .false.
     Cart%periodic_storage = PeriodicStorage
 
-  end function ovk_cart_AssignedNumPointsPeriodicWithStorage
+  end function ovk_cart_Assigned_NumPointsPeriodicWithStorage
 
-  pure function ovk_cart_AssignedStartEnd(NumDims, StartIndex, EndIndex) result(Cart)
+  pure function ovk_cart_Assigned_StartEnd(NumDims, StartIndex, EndIndex) result(Cart)
 
     integer, intent(in) :: NumDims
     integer, dimension(NumDims), intent(in) :: StartIndex, EndIndex
@@ -133,9 +178,9 @@ contains
     Cart%periodic = .false.
     Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
 
-  end function ovk_cart_AssignedStartEnd
+  end function ovk_cart_Assigned_StartEnd
 
-  pure function ovk_cart_AssignedStartEndPeriodic(NumDims, StartIndex, EndIndex, Periodic) &
+  pure function ovk_cart_Assigned_StartEndPeriodic(NumDims, StartIndex, EndIndex, Periodic) &
     result(Cart)
 
     integer, intent(in) :: NumDims
@@ -152,9 +197,9 @@ contains
     Cart%periodic(NumDims+1:) = .false.
     Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
 
-  end function ovk_cart_AssignedStartEndPeriodic
+  end function ovk_cart_Assigned_StartEndPeriodic
 
-  pure function ovk_cart_AssignedStartEndPeriodicWithStorage(NumDims, StartIndex, EndIndex, &
+  pure function ovk_cart_Assigned_StartEndPeriodicWithStorage(NumDims, StartIndex, EndIndex, &
     Periodic, PeriodicStorage) result(Cart)
 
     integer, intent(in) :: NumDims
@@ -172,7 +217,7 @@ contains
     Cart%periodic(NumDims+1:) = .false.
     Cart%periodic_storage = PeriodicStorage
 
-  end function ovk_cart_AssignedStartEndPeriodicWithStorage
+  end function ovk_cart_Assigned_StartEndPeriodicWithStorage
 
   pure function ovk_cart_Equal(LeftCart, RightCart) result(Equal)
 

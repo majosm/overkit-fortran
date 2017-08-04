@@ -44,11 +44,20 @@ module ovkDonorAccel
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_donor_accel_
     module procedure ovk_donor_accel_Default
+    module procedure ovk_donor_accel_Empty
   end interface ovk_donor_accel_
 
 contains
 
-  pure function ovk_donor_accel_Default(NumDims) result(Accel)
+  pure function ovk_donor_accel_Default() result(Accel)
+
+    type(ovk_donor_accel) :: Accel
+
+    Accel = ovk_donor_accel_Empty(2)
+
+  end function ovk_donor_accel_Default
+
+  pure function ovk_donor_accel_Empty(NumDims) result(Accel)
 
     integer, intent(in) :: NumDims
     type(ovk_donor_accel) :: Accel
@@ -61,7 +70,7 @@ contains
     Accel%max_depth = 0
     nullify(Accel%root)
 
-  end function ovk_donor_accel_Default
+  end function ovk_donor_accel_Empty
 
   subroutine ovkGenerateDonorAccel(Grid, Accel, Bounds, MaxCellSizeDeviation, BinScale, &
     OverlapTolerance, MaxDepth)

@@ -55,7 +55,7 @@ contains
 
     type(ovk_donors) :: Donors
 
-    Donors%cart = ovk_cart_(2)
+    Donors%cart = ovk_cart_()
     Donors%valid_mask = ovk_field_logical_()
     Donors%grid_ids = ovk_field_int_()
     Donors%cell_extents = ovk_field_int_()
