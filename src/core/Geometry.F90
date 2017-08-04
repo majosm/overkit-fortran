@@ -75,13 +75,13 @@ contains
     real(rk), dimension(2), intent(in) :: Coords
     logical :: Overlaps
 
+    Overlaps = .false.
+
     if (any(Coords < VertexCoords(:,1))) then
-      Overlaps = .false.
       return
     end if
 
     if (any(Coords > VertexCoords(:,4))) then
-      Overlaps = .false.
       return
     end if
 
@@ -105,21 +105,20 @@ contains
 
     ! Decompose quad into 2 triangles
 
+    Overlaps = .false.
+
     do i = 1, 2
       Basis(:,1) = VertexCoords(:,Triangles(2,i)) - VertexCoords(:,Triangles(1,i))
       Basis(:,2) = VertexCoords(:,Triangles(3,i)) - VertexCoords(:,Triangles(1,i))
       RelativeCoords = Coords - VertexCoords(:,Triangles(1,i))
       LocalCoords = Solve2D(Basis, RelativeCoords)
       if (any(LocalCoords < -TOLERANCE)) then
-        Overlaps = .false.
         return
       else if (sum(LocalCoords) <= 1._rk+TOLERANCE) then
         Overlaps = .true.
         return
       end if
     end do
-
-    Overlaps = .true.
 
   end function ovkOverlapsQuad
 
@@ -129,13 +128,13 @@ contains
     real(rk), dimension(3), intent(in) :: Coords
     logical :: Overlaps
 
+    Overlaps = .false.
+
     if (any(Coords < VertexCoords(:,1))) then
-      Overlaps = .false.
       return
     end if
 
     if (any(Coords > VertexCoords(:,8))) then
-      Overlaps = .false.
       return
     end if
 
