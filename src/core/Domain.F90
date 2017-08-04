@@ -22,7 +22,6 @@ module ovkDomain
   public :: ovkReleaseDomainProperties
   public :: ovkCreateDomainGrid
   public :: ovkDestroyDomainGrid
-  public :: ovkResetDomainGrid
   public :: ovkGetDomainGrid
   public :: ovkEditDomainGrid
   public :: ovkReleaseDomainGrid
@@ -305,16 +304,6 @@ contains
     Domain%changed_grid(GridID) = .true.
 
   end subroutine ovkDestroyDomainGrid
-
-  subroutine ovkResetDomainGrid(Domain, GridID)
-
-    type(ovk_domain), intent(inout) :: Domain
-    integer, intent(in) :: GridID
-
-    call ovkResetGrid(Domain%grids(GridID))
-    Domain%changed_grid(GridID) = .true.
-
-  end subroutine ovkResetDomainGrid
 
   subroutine ovkGetDomainGrid(Domain, GridID, Grid)
 

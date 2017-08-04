@@ -149,7 +149,6 @@ module Overkit
   public :: ovkReleaseDomainProperties
   public :: ovkCreateDomainGrid
   public :: ovkDestroyDomainGrid
-  public :: ovkResetDomainGrid
   public :: ovkGetDomainGrid
   public :: ovkEditDomainGrid
   public :: ovkReleaseDomainGrid
@@ -257,7 +256,6 @@ module Overkit
   public :: ovk_grid_properties_
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
-  public :: ovkResetGrid
   public :: ovkUpdateGrid
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties

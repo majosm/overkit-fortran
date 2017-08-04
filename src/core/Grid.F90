@@ -20,7 +20,6 @@ module ovkGrid
   public :: ovk_grid_properties_
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
-  public :: ovkResetGrid
   public :: ovkUpdateGrid
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties
@@ -274,29 +273,6 @@ contains
     Grid%cell_edge_dist = ovk_field_int_()
 
   end subroutine ovkDestroyGrid
-
-  subroutine ovkResetGrid(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    integer :: d
-
-    do d = 1, Grid%cart%nd
-      Grid%xyz(d)%values = 0._rk
-    end do
-
-    Grid%bounds = ovk_bbox_(Grid%cart%nd)
-
-    Grid%grid_mask%values = .true.
-    Grid%boundary_mask%values = .false.
-    Grid%internal_boundary_mask%values = .false.
-
-    Grid%cell_grid_mask%values = .true.
-    Grid%resolution%values = 0._rk
-
-    call UpdateEdgeDistance(Grid)
-
-  end subroutine ovkResetGrid
 
   subroutine ovkUpdateGrid(Grid)
 
