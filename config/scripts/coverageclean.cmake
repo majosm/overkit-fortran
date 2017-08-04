@@ -10,4 +10,4 @@ file(GLOB_RECURSE GCDA_FILES "${BINARY_DIR}/*.gcda")
 file(REMOVE_RECURSE ${GCDA_FILES})
 
 # Remove coverage report directory
-file(REMOVE_RECURSE "${BINARY_DIR}/tests/coverage")
+file(REMOVE_RECURSE "${BINARY_DIR}/coverage")

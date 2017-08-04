@@ -48,11 +48,6 @@ endif()
 add_custom_target(distclean COMMAND "${CMAKE_COMMAND}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
   -P "${CMAKE_SOURCE_DIR}/config/scripts/distclean.cmake")
 
-# Enable testing
-if(TESTS)
-  enable_testing()
-endif()
-
 #=========================
 # Build types and options
 #=========================
@@ -134,6 +129,38 @@ set(CMAKE_Fortran_FLAGS_COVERAGE "${CMAKE_Fortran_FLAGS_COVERAGE} ${EXTRA_Fortra
   "Flags used by the Fortran compiler during coverage builds." FORCE)
 set(CMAKE_C_FLAGS_COVERAGE "${CMAKE_C_FLAGS_COVERAGE} ${EXTRA_C_FLAGS}" CACHE STRING
   "Flags used by the C compiler during coverage builds." FORCE)
+
+#======================
+# Testing and coverage
+#======================
+
+# Enable testing
+if(TESTS)
+  enable_testing()
+  find_package(pFUnit)
+  if(NOT PFUNIT_FOUND)
+    message(WARNING "Could not find pFUnit. Unit tests will not be built.")
+    set(GLOBAL_WARNING_FLAG TRUE CACHE INTERNAL "")
+  endif()
+endif()
+
+# Coverage report
+add_custom_target(coverage
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
+    -DCOVERAGE_DIR="src/core" -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
+    -DCOVERAGE_DIR="src/support" -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
+    -DCOVERAGE_DIR="src/utils" -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
+    -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-report.cmake"
+)
+
+# Reset coverage data
+add_custom_target(coverageclean
+  COMMAND "${CMAKE_COMMAND}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
+    -P "${CMAKE_SOURCE_DIR}/config/scripts/coverageclean.cmake"
+)
 
 #=====================
 # Other configuration

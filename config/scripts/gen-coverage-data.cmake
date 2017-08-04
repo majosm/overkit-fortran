@@ -1,13 +1,13 @@
 # Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 # License: MIT (http://opensource.org/licenses/MIT)
 
-set(DEST_DIR "${BINARY_DIR}/tests/coverage/${COVERAGE_DIR}")
+set(DEST_DIR "${BINARY_DIR}/coverage/${COVERAGE_DIR}")
 file(MAKE_DIRECTORY "${DEST_DIR}")
 foreach(SOURCE_EXT c cpp F90)
   file(GLOB_RECURSE GCNO_FILES "${BINARY_DIR}/${COVERAGE_DIR}/CMakeFiles/*.${SOURCE_EXT}.gcno")
   unset(SOURCE_FILES)
   foreach(GCNO_FILE ${GCNO_FILES})
-    # Copy source/.gcno/.gcda files to corresponding directory inside tests/coverage, removing source
+    # Copy source/.gcno/.gcda files to corresponding directory inside coverage dir, removing source
     # extension for .gcno and .gcda files
     get_filename_component(BASE_DIR "${GCNO_FILE}" DIRECTORY)
     get_filename_component(BASE_NAME "${GCNO_FILE}" NAME_WE)

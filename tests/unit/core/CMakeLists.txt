@@ -7,8 +7,6 @@
 
 if(TESTS)
 
-  find_package(pFUnit)
-
   if(PFUNIT_FOUND)
 
     set(UNIT_TEST_SOURCES
@@ -62,11 +60,6 @@ if(TESTS)
     target_link_libraries(runall overkit overkit-support "${PFUNIT_LIBRARY}")
 
     add_test(unit-tests "${CMAKE_CURRENT_BINARY_DIR}/runall" -v)
-
-  else()
-
-    message(WARNING "Could not find pFUnit. Unit tests will not be built.")
-    set(GLOBAL_WARNING_FLAG TRUE CACHE INTERNAL "")
 
   endif()
 
