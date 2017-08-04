@@ -144,6 +144,9 @@ if(TESTS)
   endif()
 endif()
 
+# Verbose version of 'make test'
+add_custom_target(test-v COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+
 # Coverage report
 add_custom_target(coverage
   COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"

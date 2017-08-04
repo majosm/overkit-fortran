@@ -60,7 +60,9 @@ if(TESTS)
     add_executable(runall "${PFUNIT_DRIVER}" ${PROCESSED_TEST_SOURCES})
     target_link_libraries(runall overkit overkit-support "${PFUNIT_LIBRARY}")
 
-    add_test(core-unit-tests "${CMAKE_CURRENT_BINARY_DIR}/runall" -v)
+    add_test(NAME core-unit-tests
+      COMMAND "${CMAKE_COMMAND}" -DTEST_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/runall
+        -P "${CMAKE_SOURCE_DIR}/config/scripts/pfunit-passfail.cmake")
 
   endif()
 
