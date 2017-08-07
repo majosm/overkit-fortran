@@ -240,7 +240,7 @@ contains
     Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
 
     Grid%edge_dist = ovk_field_int_(Grid%cart, 1)
-    Grid%cell_edge_dist = ovk_field_int_(Grid%cart, 1)
+    Grid%cell_edge_dist = ovk_field_int_(Grid%cell_cart, 1)
 
     Grid%editing_properties = .false.
     Grid%editing_xyz = .false.
