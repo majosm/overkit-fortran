@@ -242,7 +242,9 @@ module Overkit
   public :: ovkCaseID
   public :: OVK_DEBUG
   public :: OVK_VERBOSE
+  public :: OVK_TRUE, OVK_FALSE
   public :: OVK_NO_ERROR, OVK_IO_ERROR
+  public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_ALL_GRIDS
