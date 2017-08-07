@@ -239,9 +239,8 @@ contains
     Grid%cell_grid_mask = ovk_field_logical_(Grid%cell_cart, .true.)
     Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
 
-    Grid%edge_dist = ovk_field_int_(Grid%cart)
-    Grid%cell_edge_dist = ovk_field_int_(Grid%cart)
-    call UpdateEdgeDistance(Grid)
+    Grid%edge_dist = ovk_field_int_(Grid%cart, 1)
+    Grid%cell_edge_dist = ovk_field_int_(Grid%cart, 1)
 
     Grid%editing_properties = .false.
     Grid%editing_xyz = .false.
@@ -834,14 +833,17 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    call ovkDistanceField(Grid%grid_mask, Grid%properties%max_edge_dist, OVK_FALSE, &
-      Grid%edge_dist)
-    call ovkDistanceField(Grid%cell_grid_mask, Grid%properties%max_edge_dist, OVK_FALSE, &
-      Grid%cell_edge_dist)
+    type(ovk_field_logical) :: NotMask
 
-    ! Want the interior values to be positive
-    Grid%edge_dist%values = -Grid%edge_dist%values
-    Grid%cell_edge_dist%values = -Grid%cell_edge_dist%values
+    NotMask = ovk_field_logical_(Grid%cart)
+    NotMask%values = .not. Grid%grid_mask%values
+
+    call ovkDistanceField(NotMask, Grid%properties%max_edge_dist, OVK_TRUE, Grid%edge_dist)
+
+    NotMask = ovk_field_logical_(Grid%cell_cart)
+    NotMask%values = .not. Grid%cell_grid_mask%values
+
+    call ovkDistanceField(NotMask, Grid%properties%max_edge_dist, OVK_TRUE, Grid%cell_edge_dist)
 
   end subroutine UpdateEdgeDistance
 
