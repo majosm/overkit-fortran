@@ -179,8 +179,8 @@ contains
 
     if (Upper-Lower > 0) then
 
-      HistogramStart = real(Lower,kind=rk)
-      HistogramInterval = real(Upper-Lower,kind=rk)/real(N,kind=rk)
+      HistogramStart = real(Lower,kind=rk)-0.5_rk
+      HistogramInterval = (real(Upper-Lower,kind=rk)+1._rk)/real(N,kind=rk)
 
       l = 1_lk
       do k = HashGrid%cart%is(3), HashGrid%cart%ie(3)
