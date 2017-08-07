@@ -226,6 +226,8 @@ contains
     end do
 
     Grid%bounds = ovk_bbox_(NumDims)
+    Grid%bounds%b(:NumDims) = 0._rk
+    Grid%bounds%e(:NumDims) = 0._rk
 
     allocate(Grid%grid_mask)
     Grid%grid_mask = ovk_field_logical_(Grid%cart, .true.)
