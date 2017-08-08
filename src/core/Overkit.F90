@@ -55,8 +55,8 @@ module Overkit
   public :: ovkSetAssemblerPropertyManualPadding
   public :: ovkGetAssemblerPropertyInferBoundaries
   public :: ovkSetAssemblerPropertyInferBoundaries
-  public :: ovkGetAssemblerPropertyOverlap
-  public :: ovkSetAssemblerPropertyOverlap
+  public :: ovkGetAssemblerPropertyOverlappable
+  public :: ovkSetAssemblerPropertyOverlappable
   public :: ovkGetAssemblerPropertyOverlapTolerance
   public :: ovkSetAssemblerPropertyOverlapTolerance
   public :: ovkGetAssemblerPropertyBoundaryHoleCutting

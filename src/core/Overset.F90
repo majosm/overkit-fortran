@@ -216,7 +216,7 @@ contains
       OverlapBounds(m) = ovk_bbox_(NumDims)
       MaxOverlapTolerance(m) = 0._rk
       do n = 1, NumGrids
-        if (Assembler%properties%overlap(m,n)) then
+        if (Assembler%properties%overlappable(m,n)) then
           Bounds = ovkBBIntersect(Grids(m)%bounds, Grids(n)%bounds)
           OverlapBounds(m) = ovkBBUnion(OverlapBounds(m), Bounds)
           MaxOverlapTolerance(m) = max(MaxOverlapTolerance(m), &
@@ -235,7 +235,7 @@ contains
       call ovkGenerateDonorAccel(Grids(m), DonorAccel, Bounds=OverlapBounds(m), &
         OverlapTolerance=MaxOverlapTolerance(m))
       do n = 1, NumGrids
-        if (Assembler%properties%overlap(m,n)) then
+        if (Assembler%properties%overlappable(m,n)) then
           call ovkFindDonors(Grids(m), Grids(n), DonorAccel, PairwiseDonors(m,n), &
             OverlapTolerance=Assembler%properties%overlap_tolerance(m,n))
           if (OVK_VERBOSE) then
@@ -260,7 +260,7 @@ contains
     do n = 1, NumGrids
       OverlapMasks(n) = ovk_field_logical_(Grids(n)%cart, .false.)
       do m = 1, NumGrids
-        if (Assembler%properties%overlap(m,n)) then
+        if (Assembler%properties%overlappable(m,n)) then
           OverlapMasks(n)%values = OverlapMasks(n)%values .or. &
             PairwiseDonors(m,n)%valid_mask%values
         end if
@@ -360,13 +360,13 @@ contains
           Grids(n)%boundary_mask%values = Grids(n)%boundary_mask%values .and. .not. &
             ExteriorMask%values
           do m = 1, NumGrids
-            if (Assembler%properties%overlap(m,n)) then
+            if (Assembler%properties%overlappable(m,n)) then
               PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
                 .not. ExteriorMask%values
             end if
           end do
           do m = 1, NumGrids
-            if (Assembler%properties%overlap(n,m)) then
+            if (Assembler%properties%overlappable(n,m)) then
               call ovkGenerateReceiverMask(Grids(m), Grids(n), PairwiseDonors(n,m), ReceiverMask, &
                 DonorSubset=ExteriorMask)
               PairwiseDonors(n,m)%valid_mask%values = PairwiseDonors(n,m)%valid_mask%values .and. &
@@ -508,13 +508,13 @@ contains
 
     do n = 1, NumGrids
       do m = 1, NumGrids
-        if (Assembler%properties%overlap(m,n)) then
+        if (Assembler%properties%overlappable(m,n)) then
           PairwiseDonors(m,n)%valid_mask%values = PairwiseDonors(m,n)%valid_mask%values .and. &
             Grids(n)%grid_mask%values
         end if
       end do
       do m = 1, NumGrids
-        if (Assembler%properties%overlap(m,n)) then
+        if (Assembler%properties%overlappable(m,n)) then
           NonGridMask = ovk_field_logical_(Grids(m)%cart)
           NonGridMask%values = .not. Grids(m)%grid_mask%values
           call ovkGenerateReceiverMask(Grids(n), Grids(m), PairwiseDonors(m,n), ReceiverMask, &

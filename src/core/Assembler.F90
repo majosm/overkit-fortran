@@ -44,8 +44,8 @@ module ovkAssembler
   public :: ovkSetAssemblerPropertyManualPadding
   public :: ovkGetAssemblerPropertyInferBoundaries
   public :: ovkSetAssemblerPropertyInferBoundaries
-  public :: ovkGetAssemblerPropertyOverlap
-  public :: ovkSetAssemblerPropertyOverlap
+  public :: ovkGetAssemblerPropertyOverlappable
+  public :: ovkSetAssemblerPropertyOverlappable
   public :: ovkGetAssemblerPropertyOverlapTolerance
   public :: ovkSetAssemblerPropertyOverlapTolerance
   public :: ovkGetAssemblerPropertyBoundaryHoleCutting
@@ -72,7 +72,7 @@ module ovkAssembler
     logical :: verbose
     logical :: manual_padding
     logical, dimension(:), allocatable :: infer_boundaries
-    logical, dimension(:,:), allocatable :: overlap
+    logical, dimension(:,:), allocatable :: overlappable
     real(rk), dimension(:,:), allocatable :: overlap_tolerance
     logical, dimension(:,:), allocatable :: boundary_hole_cutting
     logical, dimension(:,:), allocatable :: overlap_hole_cutting
@@ -361,10 +361,10 @@ contains
 
     do n = 1, NumGrids
       ! No self-intersection support (yet)
-      Assembler%properties%overlap(n,n) = .false.
+      Assembler%properties%overlappable(n,n) = .false.
       ! No overlap implies no hole cutting, no communication
       do m = 1, NumGrids
-        if (.not. Assembler%properties%overlap(m,n)) then
+        if (.not. Assembler%properties%overlappable(m,n)) then
           Assembler%properties%boundary_hole_cutting(m,n) = .false.
           Assembler%properties%overlap_hole_cutting(m,n) = .false.
           Assembler%properties%connection_type(m,n) = OVK_CONNECTION_NONE
@@ -464,10 +464,10 @@ contains
     do n = 1, NumGrids
       do m = 1, NumGrids
         if (ChangedGrid(m) .or. ChangedGrid(n)) then
-          if (Assembler%properties%overlap(m,n)) then
+          if (Assembler%properties%overlappable(m,n)) then
             Bounds = ovkBBIntersect(Domain%grids(m)%bounds, Domain%grids(n)%bounds)
             if (ovkBBIsEmpty(Bounds)) then
-              Assembler%properties%overlap(m,n) = .false.
+              Assembler%properties%overlappable(m,n) = .false.
               Assembler%properties%boundary_hole_cutting(m,n) = .false.
               Assembler%properties%overlap_hole_cutting(m,n) = .false.
               Assembler%properties%connection_type(m,n) = OVK_CONNECTION_NONE
@@ -589,8 +589,8 @@ contains
     allocate(Properties%infer_boundaries(NumGrids))
     Properties%infer_boundaries = .false.
 
-    allocate(Properties%overlap(NumGrids,NumGrids))
-    Properties%overlap = .false.
+    allocate(Properties%overlappable(NumGrids,NumGrids))
+    Properties%overlappable = .false.
 
     allocate(Properties%overlap_tolerance(NumGrids,NumGrids))
     Properties%overlap_tolerance = 0._rk
@@ -699,23 +699,23 @@ contains
 
   end subroutine ovkSetAssemblerPropertyInferBoundaries
 
-  subroutine ovkGetAssemblerPropertyOverlap(Properties, OverlappingGridID, OverlappedGridID, &
-    Overlap)
+  subroutine ovkGetAssemblerPropertyOverlappable(Properties, OverlappingGridID, OverlappedGridID, &
+    Overlappable)
 
     type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(out) :: Overlap
+    logical, intent(out) :: Overlappable
 
-    Overlap = Properties%overlap(OverlappingGridID,OverlappedGridID)
+    Overlappable = Properties%overlappable(OverlappingGridID,OverlappedGridID)
 
-  end subroutine ovkGetAssemblerPropertyOverlap
+  end subroutine ovkGetAssemblerPropertyOverlappable
 
-  subroutine ovkSetAssemblerPropertyOverlap(Properties, OverlappingGridID, OverlappedGridID, &
-    Overlap)
+  subroutine ovkSetAssemblerPropertyOverlappable(Properties, OverlappingGridID, OverlappedGridID, &
+    Overlappable)
 
     type(ovk_assembler_properties), intent(inout) :: Properties
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(in) :: Overlap
+    logical, intent(in) :: Overlappable
 
     integer :: m, n
     integer :: ms, me, ns, ne
@@ -725,11 +725,11 @@ contains
 
     do n = ns, ne
       do m = ms, me
-        Properties%overlap(m,n) = Overlap
+        Properties%overlappable(m,n) = Overlappable
       end do
     end do
 
-  end subroutine ovkSetAssemblerPropertyOverlap
+  end subroutine ovkSetAssemblerPropertyOverlappable
 
   subroutine ovkGetAssemblerPropertyOverlapTolerance(Properties, OverlappingGridID, &
     OverlappedGridID, OverlapTolerance)

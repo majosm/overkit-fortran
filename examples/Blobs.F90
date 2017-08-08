@@ -72,7 +72,7 @@ program Blobs
   call ovkSetAssemblerPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
 
   ! Indicate which grids can intersect
-  call ovkSetAssemblerPropertyOverlap(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblerPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
   call ovkSetAssemblerPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0._rk)
 
   ! Indicate which grids can cut each other
