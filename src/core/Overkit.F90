@@ -112,7 +112,6 @@ module Overkit
   public :: ovk_connectivity_properties_
   public :: ovkCreateConnectivity
   public :: ovkDestroyConnectivity
-  public :: ovkUpdateConnectivity
   public :: ovkGetConnectivityProperties
   public :: ovkEditConnectivityProperties
   public :: ovkReleaseConnectivityProperties
@@ -141,9 +140,10 @@ module Overkit
   public :: ovk_domain_
   public :: ovk_domain_properties
   public :: ovk_domain_properties_
+  public :: ovk_domain_event_flags
+  public :: ovk_domain_event_flags_
   public :: ovkCreateDomain
   public :: ovkDestroyDomain
-  public :: ovkUpdateDomain
   public :: ovkGetDomainProperties
   public :: ovkEditDomainProperties
   public :: ovkReleaseDomainProperties
@@ -156,6 +156,7 @@ module Overkit
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
   public :: ovkSetDomainPropertyVerbose
+  public :: ovkResetGridEventFlags
 
   ! ovkDonorAccel
   public :: ovk_donor_accel
@@ -254,12 +255,16 @@ module Overkit
   public :: ovk_grid_
   public :: ovk_grid_properties
   public :: ovk_grid_properties_
+  public :: ovk_grid_event_flags
+  public :: ovk_grid_event_flags_
+  public :: ovk_grid_description
+  public :: ovk_grid_description_
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
-  public :: ovkUpdateGrid
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties
   public :: ovkReleaseGridProperties
+  public :: ovkGetGridDescription
   public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
@@ -291,6 +296,7 @@ module Overkit
   public :: ovkSetGridPropertyVerbose
   public :: ovkGetGridPropertyMaxEdgeDistance
   public :: ovkSetGridPropertyMaxEdgeDistance
+  public :: ovkResetGridEventFlags
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
@@ -312,7 +318,9 @@ module Overkit
   public :: ovk_interp_properties_
   public :: ovkCreateInterpData
   public :: ovkDestroyInterpData
-  public :: ovkUpdateInterpData
+  public :: ovkGetInterpDataProperties
+  public :: ovkEditInterpDataProperties
+  public :: ovkReleaseInterpDataProperties
   public :: ovkFillInterpData
   public :: ovkGetInterpDataReceiverMask
   public :: ovkGetInterpDataOrphanMask

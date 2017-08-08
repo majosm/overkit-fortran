@@ -83,18 +83,23 @@ module ovkAssembler
     integer, dimension(:,:), allocatable :: fringe_padding
   end type ovk_assembler_properties
 
+  type t_assembler_editor
+    integer :: properties_ref_count
+    integer :: domain_ref_count
+    integer :: overlap_ref_count
+    integer :: connectivity_ref_count
+  end type t_assembler_editor
+
   type ovk_assembler
     type(t_noconstruct) :: noconstruct
     type(ovk_assembler_properties), pointer :: properties
     type(ovk_assembler_properties) :: prev_properties
     type(ovk_domain), pointer :: domain
+    type(ovk_domain_event_flags), pointer :: domain_event_flags
 !     type(ovk_overlap), pointer :: overlap
     type(ovk_connectivity), pointer :: connectivity
     type(ovk_field_int), dimension(:), pointer :: debug_fields
-    logical :: editing_properties
-    logical :: editing_domain
-!     logical :: editing_overlap
-    logical :: editing_connectivity
+    type(t_assembler_editor) :: editor
   end type ovk_assembler
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -108,6 +113,11 @@ module ovkAssembler
     module procedure ovk_assembler_properties_Allocated
   end interface ovk_assembler_properties_
 
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface t_assembler_editor_
+    module procedure t_assembler_editor_Default
+  end interface t_assembler_editor_
+
 contains
 
   function ovk_assembler_Default() result(Assembler)
@@ -117,13 +127,11 @@ contains
     nullify(Assembler%properties)
     Assembler%prev_properties = ovk_assembler_properties_()
     nullify(Assembler%domain)
+    nullify(Assembler%domain_event_flags)
 !     nullify(Assembler%overlap)
     nullify(Assembler%connectivity)
     nullify(Assembler%debug_fields)
-    Assembler%editing_properties = .false.
-    Assembler%editing_domain = .false.
-!     Assembler%editing_overlap = .false.
-    Assembler%editing_connectivity = .false.
+    Assembler%editor = t_assembler_editor_()
 
   end function ovk_assembler_Default
 
@@ -150,7 +158,9 @@ contains
     Assembler%prev_properties = Assembler%properties
 
     allocate(Assembler%domain)
-    call ovkCreateDomain(Assembler%domain, NumDims, NumGrids, Verbose=Verbose_)
+    allocate(Assembler%domain_event_flags)
+    call ovkCreateDomain(Assembler%domain, NumDims, NumGrids, Verbose=Verbose_, &
+      EventFlags=Assembler%domain_event_flags)
 
 !     allocate(Assembler%overlap)
 !     call ovkCreateOverlap(Assembler%overlap, NumDims, NumGrids, Verbose=Verbose_)
@@ -167,10 +177,7 @@ contains
       nullify(Assembler%debug_fields)
     end if
 
-    Assembler%editing_properties = .false.
-    Assembler%editing_domain = .false.
-!     Assembler%editing_overlap = .false.
-    Assembler%editing_connectivity = .false.
+    Assembler%editor = t_assembler_editor_()
 
   end subroutine ovkCreateAssembler
 
@@ -184,6 +191,7 @@ contains
     if (associated(Assembler%domain)) then
       call ovkDestroyDomain(Assembler%domain)
       deallocate(Assembler%domain)
+      deallocate(Assembler%domain_event_flags)
     end if
 
 !     if (associated(Assembler%overlap)) then
@@ -202,6 +210,8 @@ contains
       end if
     end if
 
+    Assembler%editor = t_assembler_editor_()
+
   end subroutine ovkDestroyAssembler
 
   subroutine ovkGetAssemblerProperties(Assembler, Properties)
@@ -218,35 +228,57 @@ contains
     type(ovk_assembler), intent(inout) :: Assembler
     type(ovk_assembler_properties), pointer, intent(out) :: Properties
 
-    logical :: CannotEdit
+    integer :: n
+    logical :: EditingDomain
+!     logical :: EditingOverlap
+    logical :: EditingConnectivity
+    logical :: GridsExist
+    logical :: Success
 
-    CannotEdit = &
-      Assembler%editing_domain .or. &
-      Assembler%editing_connectivity
+    EditingDomain = Assembler%editor%domain_ref_count > 0
+!     EditingOverlap = Assembler%editor%overlap_ref_count > 0
+    EditingConnectivity = Assembler%editor%connectivity_ref_count > 0
+    GridsExist = .false.
+    do n = 1, Assembler%properties%ngrids
+      if (ovkCartCount(Assembler%domain%grids(n)%cart) > 0) then
+        GridsExist = .true.
+        exit
+      end if
+    end do
 
-    if (CannotEdit) then
+    Success = &
+      .not. EditingDomain .and. &
+!       .not. EditingOverlap .and. &
+      .not. EditingConnectivity .and. &
+      .not. GridsExist
+
+    if (Success) then
+
+      if (Assembler%editor%properties_ref_count == 0) then
+        Assembler%prev_properties = Assembler%properties
+      end if
+
+      Assembler%editor%properties_ref_count = Assembler%editor%properties_ref_count + 1
+
+      Properties => Assembler%properties
+
+    else
 
       if (OVK_DEBUG) then
-        if (Assembler%editing_domain) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler properties while editing ", &
-            "domain."
-        else
-          write (ERROR_UNIT, '(2a)') "ERROR: Cannot edit assembler properties while editing ", &
-            "connectivity."
+        if (EditingDomain) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembler properties while editing domain."
+!         else if (EditingOverlap) then
+!           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembler properties while editing overlap."
+        else if (EditingConnectivity) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit assembler properties while editing connectivity."
+        else if (GridsExist) then
+          write (ERROR_UNIT, '(2a)') "ERROR: Dynamically updating assembler properties is not ", &
+            "yet supported; must set properties before grids are created."
         end if
         stop 1
       end if
 
       nullify(Properties)
-
-    else
-
-      if (.not. Assembler%editing_properties) then
-        Assembler%prev_properties = Assembler%properties
-      end if
-
-      Properties => Assembler%properties
-      Assembler%editing_properties = .true.
 
     end if
 
@@ -257,33 +289,250 @@ contains
     type(ovk_assembler), intent(inout) :: Assembler
     type(ovk_assembler_properties), pointer, intent(inout) :: Properties
 
+    if (associated(Properties, Assembler%properties)) then
+
+      nullify(Properties)
+
+      if (Assembler%editor%properties_ref_count > 0) then
+
+        Assembler%editor%properties_ref_count = Assembler%editor%properties_ref_count - 1
+
+        if (Assembler%editor%properties_ref_count == 0) then
+          if (Assembler%properties%verbose .neqv. Assembler%prev_properties%verbose) then
+            call UpdateVerbose(Assembler)
+          end if
+          call UpdateAssemblyConfiguration(Assembler)
+          call UpdateMaxEdgeDistance(Assembler)
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release assembler properties; invalid pointer."
+        stop 1
+      end if
+
+    end if
+
+  end subroutine ovkReleaseAssemblerProperties
+
+  subroutine ovkGetAssemblerDomain(Assembler, Domain)
+
+    type(ovk_assembler), intent(in) :: Assembler
+    type(ovk_domain), pointer, intent(out) :: Domain
+
+    Domain => Assembler%domain
+
+  end subroutine ovkGetAssemblerDomain
+
+  subroutine ovkEditAssemblerDomain(Assembler, Domain)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+    type(ovk_domain), pointer, intent(out) :: Domain
+
+    logical :: EditingProperties
+!     logical :: EditingOverlap
+    logical :: EditingConnectivity
+    logical :: Success
+
+    EditingProperties = Assembler%editor%properties_ref_count > 0
+!     EditingOverlap = Assembler%editor%overlap_ref_count > 0
+    EditingConnectivity = Assembler%editor%connectivity_ref_count > 0
+
+    Success = &
+      .not. EditingProperties .and. &
+!       .not. EditingOverlap .and. &
+      .not. EditingConnectivity
+
+    if (Success) then
+
+      Assembler%editor%domain_ref_count = Assembler%editor%domain_ref_count + 1
+
+      Domain => Assembler%domain
+
+    else
+
+      if (OVK_DEBUG) then
+        if (EditingProperties) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing assembler properties."
+!         else if (EditingOverlap) then
+!           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing overlap."
+        else if (EditingConnectivity) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing connectivity."
+        end if
+        stop 1
+      end if
+
+      nullify(Domain)
+
+    end if
+
+  end subroutine ovkEditAssemblerDomain
+
+  subroutine ovkReleaseAssemblerDomain(Assembler, Domain)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+    type(ovk_domain), pointer, intent(inout) :: Domain
+
+    if (associated(Domain, Assembler%domain)) then
+
+      nullify(Domain)
+
+      if (Assembler%editor%domain_ref_count > 0) then
+
+        Assembler%editor%domain_ref_count = Assembler%editor%domain_ref_count - 1
+
+        if (Assembler%editor%domain_ref_count == 0) then
+!           call UpdateOverlap(Assembler)
+!           call UpdateConnectivity(Assembler)
+          call UpdateDebugFields(Assembler)
+          call ovkResetDomainEventFlags(Assembler%domain_event_flags)
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release domain; invalid pointer."
+        stop 1
+      end if
+
+    end if
+
+  end subroutine ovkReleaseAssemblerDomain
+
+  subroutine ovkGetAssemblerConnectivity(Assembler, Connectivity)
+
+    type(ovk_assembler), intent(in) :: Assembler
+    type(ovk_connectivity), pointer, intent(out) :: Connectivity
+
+    Connectivity => Assembler%connectivity
+
+  end subroutine ovkGetAssemblerConnectivity
+
+  subroutine ovkEditAssemblerConnectivity(Assembler, Connectivity)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+    type(ovk_connectivity), pointer, intent(out) :: Connectivity
+
+    logical :: EditingProperties
+    logical :: EditingDomain
+!     logical :: EditingOverlap
+    logical :: Success
+
+    EditingProperties = Assembler%editor%properties_ref_count > 0
+    EditingDomain = Assembler%editor%domain_ref_count > 0
+!     EditingOverlap = Assembler%editor%overlap_ref_count > 0
+
+    Success = &
+      .not. EditingProperties .and. &
+      .not. EditingDomain ! .and. &
+!       .not. EditingOverlap
+
+    if (Success) then
+
+      Assembler%editor%connectivity_ref_count = Assembler%editor%connectivity_ref_count + 1
+
+      Connectivity => Assembler%connectivity
+
+    else
+
+      if (OVK_DEBUG) then
+        if (EditingProperties) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing assembler properties."
+        else if (EditingDomain) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing domain."
+!         else if (EditingOverlap) then
+!           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing overlap."
+        end if
+        stop 1
+      end if
+
+      nullify(Connectivity)
+
+    end if
+
+  end subroutine ovkEditAssemblerConnectivity
+
+  subroutine ovkReleaseAssemblerConnectivity(Assembler, Connectivity)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+    type(ovk_connectivity), pointer, intent(inout) :: Connectivity
+
+    if (associated(Connectivity, Assembler%connectivity)) then
+
+      nullify(Connectivity)
+
+      if (Assembler%editor%connectivity_ref_count > 0) then
+
+        Assembler%editor%connectivity_ref_count = Assembler%editor%connectivity_ref_count - 1
+
+        if (Assembler%editor%connectivity_ref_count == 0) then
+          ! Nothing here yet
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release connectivity; invalid pointer."
+        stop 1
+      end if
+
+    end if
+
+  end subroutine ovkReleaseAssemblerConnectivity
+
+  subroutine ovkGetAssemblerDebugField(Assembler, GridID, DebugField)
+
+    type(ovk_assembler), intent(in) :: Assembler
+    integer, intent(in) :: GridID
+    type(ovk_field_int), pointer, intent(out) :: DebugField
+
+    if (OVK_DEBUG) then
+      DebugField => Assembler%debug_fields(GridID)
+    else
+      nullify(DebugField)
+    end if
+
+  end subroutine ovkGetAssemblerDebugField
+
+  subroutine UpdateVerbose(Assembler)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+
+    type(ovk_domain_properties), pointer :: DomainProperties
+!     type(ovk_overlap_properties), pointer :: OverlapProperties
+    type(ovk_connectivity_properties), pointer :: ConnectivityProperties
+
+    call ovkEditDomainProperties(Assembler%domain, DomainProperties)
+    call ovkSetDomainPropertyVerbose(DomainProperties, Assembler%properties%verbose)
+    call ovkReleaseDomainProperties(Assembler%domain, DomainProperties)
+!     call ovkEditOverlapProperties(Assembler%overlap, OverlapProperties)
+!     call ovkSetOverlapPropertyVerbose(OverlapProperties, Assembler%properties%verbose)
+!     call ovkReleaseOverlapProperties(Assembler%overlap, OverlapProperties)
+    call ovkEditConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
+    call ovkSetConnectivityPropertyVerbose(ConnectivityProperties, Assembler%properties%verbose)
+    call ovkReleaseConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
+
+  end subroutine UpdateVerbose
+
+  subroutine UpdateAssemblyConfiguration(Assembler)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+
     integer :: m, n
     integer :: NumGrids
-    type(ovk_domain_properties), pointer :: DomainProperties
-    type(ovk_connectivity_properties), pointer :: ConnectivityProperties
-    type(ovk_grid), pointer :: Grid
-    type(ovk_grid_properties), pointer :: GridProperties
     integer :: InterpScheme
     integer :: FringeSize
-    integer :: MaxEdgeDist, PrevMaxEdgeDist
-
-    if (.not. associated(Properties, Assembler%properties)) return
-    if (.not. Assembler%editing_properties) then
-      nullify(Properties)
-      return
-    end if
 
     NumGrids = Assembler%properties%ngrids
 
     if (OVK_DEBUG) then
-
-      do m = 1, NumGrids
-        if (ovkCartCount(Assembler%domain%grids(m)%cart) > 0) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Dynamically updating assembler properties is not ", &
-            "yet supported; must set properties before grids are created."
-          stop 1
-        end if
-      end do
 
       do n = 1, NumGrids
         InterpScheme = OVK_INTERP_LINEAR
@@ -325,17 +574,6 @@ contains
 
     end if
 
-    ! Propagate verbose flag to sub-objects
-    call ovkEditDomainProperties(Assembler%domain, DomainProperties)
-    call ovkSetDomainPropertyVerbose(DomainProperties, Assembler%properties%verbose)
-    call ovkReleaseDomainProperties(Assembler%domain, DomainProperties)
-!     call ovkEditOverlapProperties(Assembler%overlap, OverlapProperties)
-!     call ovkSetOverlapPropertyVerbose(OverlapProperties, Assembler%properties%verbose)
-!     call ovkReleaseOverlapProperties(Assembler%overlap, OverlapProperties)
-    call ovkEditConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
-    call ovkSetConnectivityPropertyVerbose(ConnectivityProperties, Assembler%properties%verbose)
-    call ovkReleaseConnectivityProperties(Assembler%connectivity, ConnectivityProperties)
-
     do n = 1, NumGrids
       ! No self-intersection support (yet)
       Assembler%properties%overlappable(n,n) = .false.
@@ -349,7 +587,18 @@ contains
       end do
     end do
 
-    do n = 1, NumGrids
+  end subroutine UpdateAssemblyConfiguration
+
+  subroutine UpdateMaxEdgeDistance(Assembler)
+
+    type(ovk_assembler), intent(inout) :: Assembler
+
+    integer :: n
+    integer :: MaxEdgeDist, PrevMaxEdgeDist
+    type(ovk_grid), pointer :: Grid
+    type(ovk_grid_properties), pointer :: GridProperties
+
+    do n = 1, Assembler%properties%ngrids
       MaxEdgeDist = GetMaxEdgeDistance(Assembler%properties, n)
       PrevMaxEdgeDist = GetMaxEdgeDistance(Assembler%prev_properties, n)
       if (MaxEdgeDist /= PrevMaxEdgeDist) then
@@ -361,187 +610,23 @@ contains
       end if
     end do
 
-    Assembler%prev_properties = Assembler%properties
+  end subroutine UpdateMaxEdgeDistance
 
-    nullify(Properties)
-    Assembler%editing_properties = .false.
-
-  end subroutine ovkReleaseAssemblerProperties
-
-  subroutine ovkGetAssemblerDomain(Assembler, Domain)
-
-    type(ovk_assembler), intent(in) :: Assembler
-    type(ovk_domain), pointer, intent(out) :: Domain
-
-    Domain => Assembler%domain
-
-  end subroutine ovkGetAssemblerDomain
-
-  subroutine ovkEditAssemblerDomain(Assembler, Domain)
+  subroutine UpdateDebugFields(Assembler)
 
     type(ovk_assembler), intent(inout) :: Assembler
-    type(ovk_domain), pointer, intent(out) :: Domain
 
-    logical :: CannotEdit
-
-    CannotEdit = &
-      Assembler%editing_properties .or. &
-      Assembler%editing_connectivity
-
-    if (CannotEdit) then
-
-      if (OVK_DEBUG) then
-        if (Assembler%editing_properties) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing assembler properties."
-        else
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit domain while editing connectivity."
-        end if
-        stop 1
-      end if
-
-      nullify(Domain)
-
-    else
-
-      Domain => Assembler%domain
-      Assembler%editing_domain = .true.
-
-    end if
-
-  end subroutine ovkEditAssemblerDomain
-
-  subroutine ovkReleaseAssemblerDomain(Assembler, Domain)
-
-    type(ovk_assembler), intent(inout) :: Assembler
-    type(ovk_domain), pointer, intent(inout) :: Domain
-
-    integer :: m, n
-    integer :: NumGrids
-    logical, dimension(:), allocatable :: ChangedGrid
-    type(ovk_bbox) :: Bounds
-
-    if (.not. associated(Domain, Assembler%domain)) return
-    if (.not. Assembler%editing_domain) then
-      nullify(Domain)
-      return
-    end if
-
-    NumGrids = Assembler%properties%ngrids
-
-    allocate(ChangedGrid(NumGrids))
-    ChangedGrid = Domain%changed_grid
-
-    call ovkUpdateDomain(Assembler%domain)
-
-!     do n = 1, NumGrids
-!       if (ChangedGrid(n)) then
-!         call ovkResetConnectivityDonors(Connectivity, GridID)
-!         call ovkResetConnectivityReceivers(Connectivity, GridID)
-!       end if
-!     end do
-
-    do n = 1, NumGrids
-      do m = 1, NumGrids
-        if (ChangedGrid(m) .or. ChangedGrid(n)) then
-          if (Assembler%properties%overlappable(m,n)) then
-            Bounds = ovkBBIntersect(Domain%grids(m)%bounds, Domain%grids(n)%bounds)
-            if (ovkBBIsEmpty(Bounds)) then
-              Assembler%properties%overlappable(m,n) = .false.
-              Assembler%properties%boundary_hole_cutting(m,n) = .false.
-              Assembler%properties%overlap_hole_cutting(m,n) = .false.
-              Assembler%properties%connection_type(m,n) = OVK_CONNECTION_NONE
-            end if
-          end if
-        end if
-      end do
-    end do
+    integer :: n
 
     if (OVK_DEBUG) then
-      do m = 1, NumGrids
-        if (ChangedGrid(m)) then
-          Assembler%debug_fields(m) = ovk_field_int_(Domain%grids(m)%cart, 0)
+      do n = 1, Assembler%properties%ngrids
+        if (Assembler%domain_event_flags%modified_cart(n)) then
+          Assembler%debug_fields(n) = ovk_field_int_(Assembler%domain%grids(n)%cart, 0)
         end if
       end do
     end if
 
-    nullify(Domain)
-    Assembler%editing_domain = .false.
-
-  end subroutine ovkReleaseAssemblerDomain
-
-  subroutine ovkGetAssemblerConnectivity(Assembler, Connectivity)
-
-    type(ovk_assembler), intent(in) :: Assembler
-    type(ovk_connectivity), pointer, intent(out) :: Connectivity
-
-    Connectivity => Assembler%connectivity
-
-  end subroutine ovkGetAssemblerConnectivity
-
-  subroutine ovkEditAssemblerConnectivity(Assembler, Connectivity)
-
-    type(ovk_assembler), intent(inout) :: Assembler
-    type(ovk_connectivity), pointer, intent(out) :: Connectivity
-
-    logical :: CannotEdit
-
-    CannotEdit = &
-      Assembler%editing_properties .or. &
-      Assembler%editing_domain
-
-    if (CannotEdit) then
-
-      if (OVK_DEBUG) then
-        if (Assembler%editing_properties) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing assembler properties."
-        else
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing domain."
-        end if
-        stop 1
-      end if
-
-      nullify(Connectivity)
-
-    else
-
-      Connectivity => Assembler%connectivity
-      Assembler%editing_connectivity = .true.
-
-    end if
-
-  end subroutine ovkEditAssemblerConnectivity
-
-  subroutine ovkReleaseAssemblerConnectivity(Assembler, Connectivity)
-
-    type(ovk_assembler), intent(inout) :: Assembler
-    type(ovk_connectivity), pointer, intent(inout) :: Connectivity
-
-    if (.not. associated(Connectivity, Assembler%connectivity)) return
-    if (.not. Assembler%editing_connectivity) then
-      nullify(Connectivity)
-      return
-    end if
-
-    call ovkUpdateConnectivity(Assembler%connectivity)
-
-    nullify(Connectivity)
-    Assembler%editing_connectivity = .false.
-
-  end subroutine ovkReleaseAssemblerConnectivity
-
-  subroutine ovkGetAssemblerDebugField(Assembler, GridID, DebugField)
-
-    type(ovk_assembler), intent(in) :: Assembler
-    integer, intent(in) :: GridID
-    type(ovk_field_int), pointer, intent(out) :: DebugField
-
-    if (OVK_DEBUG) then
-      DebugField => Assembler%debug_fields(GridID)
-    else
-      nullify(DebugField)
-    end if
-
-  end subroutine ovkGetAssemblerDebugField
+  end subroutine UpdateDebugFields
 
   function ovk_assembler_properties_Default() result(Properties)
 
@@ -1057,5 +1142,16 @@ contains
     MaxEdgeDist = MaxEdgeDist + 2
 
   end function GetMaxEdgeDistance
+
+  function t_assembler_editor_Default() result(Editor)
+
+    type(t_assembler_editor) :: Editor
+
+    Editor%properties_ref_count = 0
+    Editor%domain_ref_count = 0
+!     Editor%overlap_ref_count = 0
+    Editor%connectivity_ref_count = 0
+
+  end function t_assembler_editor_Default
 
 end module ovkAssembler

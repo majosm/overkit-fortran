@@ -18,12 +18,16 @@ module ovkGrid
   public :: ovk_grid_
   public :: ovk_grid_properties
   public :: ovk_grid_properties_
+  public :: ovk_grid_event_flags
+  public :: ovk_grid_event_flags_
+  public :: ovk_grid_description
+  public :: ovk_grid_description_
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
-  public :: ovkUpdateGrid
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties
   public :: ovkReleaseGridProperties
+  public :: ovkGetGridDescription
   public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
@@ -55,6 +59,7 @@ module ovkGrid
   public :: ovkSetGridPropertyVerbose
   public :: ovkGetGridPropertyMaxEdgeDistance
   public :: ovkSetGridPropertyMaxEdgeDistance
+  public :: ovkResetGridEventFlags
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
@@ -76,6 +81,32 @@ module ovkGrid
     integer :: max_edge_dist
   end type ovk_grid_properties
 
+  type t_grid_editor
+    integer :: properties_ref_count
+    integer, dimension(:), allocatable :: xyz_ref_count
+    integer :: grid_mask_ref_count
+    integer :: boundary_mask_ref_count
+    integer :: internal_boundary_mask_ref_count
+  end type t_grid_editor
+
+  type ovk_grid_event_flags
+    type(t_noconstruct) :: noconstruct
+    logical :: modified_xyz
+    logical :: modified_grid_mask
+    logical :: modified_boundary_mask
+    logical :: modified_internal_boundary_mask
+  end type ovk_grid_event_flags
+
+  type ovk_grid_description
+    type(t_noconstruct) :: noconstruct
+    integer :: nd
+    integer, dimension(MAX_ND) :: npoints
+    logical, dimension(MAX_ND) :: periodic
+    integer :: periodic_storage
+    real(rk), dimension(MAX_ND) :: periodic_length
+    integer :: geometry_type
+  end type ovk_grid_description
+
   type ovk_grid
     type(t_noconstruct) :: noconstruct
     type(ovk_grid_properties), pointer :: properties
@@ -91,15 +122,8 @@ module ovkGrid
     type(ovk_field_real) :: resolution
     type(ovk_field_int) :: edge_dist
     type(ovk_field_int) :: cell_edge_dist
-    logical :: editing_properties
-    logical, dimension(MAX_ND) :: editing_xyz
-    logical :: editing_grid_mask
-    logical :: editing_boundary_mask
-    logical :: editing_internal_boundary_mask
-    logical, dimension(MAX_ND) :: changed_xyz
-    logical :: changed_grid_mask
-    logical :: changed_boundary_mask
-    logical :: changed_internal_boundary_mask
+    type(t_grid_editor) :: editor
+    type(ovk_grid_event_flags), pointer :: event_flags
   end type ovk_grid
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -108,9 +132,28 @@ module ovkGrid
   end interface ovk_grid_
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface ovk_grid_description_
+    module procedure ovk_grid_description_Default
+    module procedure ovk_grid_description_Assigned
+  end interface ovk_grid_description_
+
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_grid_properties_
     module procedure ovk_grid_properties_Default
+    module procedure ovk_grid_properties_Assigned
   end interface ovk_grid_properties_
+
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface t_grid_editor_
+    module procedure t_grid_editor_Default
+    module procedure t_grid_editor_Assigned
+  end interface t_grid_editor_
+
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface ovk_grid_event_flags_
+    module procedure ovk_grid_event_flags_Default
+    module procedure ovk_grid_event_flags_Assigned
+  end interface ovk_grid_event_flags_
 
   integer, parameter :: OVK_GRID_GEOMETRY_CARTESIAN = 1
   integer, parameter :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED = 2
@@ -125,32 +168,25 @@ contains
     type(ovk_grid) :: Grid
 
     nullify(Grid%properties)
-    Grid%prev_properties = ovk_grid_properties_(2)
+    Grid%prev_properties = ovk_grid_properties_()
     Grid%cart = ovk_cart_()
     Grid%cell_cart = ovk_cart_()
-    Grid%bounds = ovk_bbox_()
     nullify(Grid%xyz)
     nullify(Grid%grid_mask)
     nullify(Grid%boundary_mask)
     nullify(Grid%internal_boundary_mask)
+    Grid%bounds = ovk_bbox_()
     Grid%cell_grid_mask = ovk_field_logical_()
     Grid%resolution = ovk_field_real_()
     Grid%edge_dist = ovk_field_int_()
     Grid%cell_edge_dist = ovk_field_int_()
-    Grid%editing_properties = .false.
-    Grid%editing_xyz = .false.
-    Grid%editing_grid_mask = .false.
-    Grid%editing_boundary_mask = .false.
-    Grid%editing_internal_boundary_mask = .false.
-    Grid%changed_xyz = .false.
-    Grid%changed_grid_mask = .false.
-    Grid%changed_boundary_mask = .false.
-    Grid%changed_internal_boundary_mask = .false.
+    Grid%editor = t_grid_editor_()
+    nullify(Grid%event_flags)
 
   end function ovk_grid_Default
 
   subroutine ovkCreateGrid(Grid, ID, NumDims, NumPoints, Periodic, PeriodicStorage, &
-    PeriodicLength, GeometryType, Verbose)
+    PeriodicLength, GeometryType, Verbose, EventFlags)
 
     type(ovk_grid), intent(out) :: Grid
     integer, intent(in) :: ID
@@ -161,6 +197,7 @@ contains
     real(rk), dimension(NumDims), intent(in), optional :: PeriodicLength
     integer, intent(in), optional :: GeometryType
     logical, intent(in), optional :: Verbose
+    type(ovk_grid_event_flags), target, intent(inout), optional :: EventFlags
 
     logical, dimension(MAX_ND) :: Periodic_
     integer :: PeriodicStorage_
@@ -205,7 +242,6 @@ contains
     Grid%properties = ovk_grid_properties_(NumDims)
     Grid%properties%id = ID
     Grid%properties%npoints(:NumDims) = NumPoints
-    Grid%properties%npoints(NumDims+1:) = 1
     Grid%properties%periodic = Periodic_
     Grid%properties%periodic_storage = PeriodicStorage_
     Grid%properties%periodic_length = PeriodicLength_
@@ -225,10 +261,6 @@ contains
       Grid%xyz(d) = ovk_field_real_(Grid%cart, 0._rk)
     end do
 
-    Grid%bounds = ovk_bbox_(NumDims)
-    Grid%bounds%b(:NumDims) = 0._rk
-    Grid%bounds%e(:NumDims) = 0._rk
-
     allocate(Grid%grid_mask)
     Grid%grid_mask = ovk_field_logical_(Grid%cart, .true.)
 
@@ -238,21 +270,26 @@ contains
     allocate(Grid%internal_boundary_mask)
     Grid%internal_boundary_mask = ovk_field_logical_(Grid%cart, .false.)
 
+    Grid%bounds = ovk_bbox_(NumDims)
+    if (ovkCartCount(Grid%cart) > 0) then
+      Grid%bounds%b(:NumDims) = 0._rk
+      Grid%bounds%e(:NumDims) = 0._rk
+    end if
+
     Grid%cell_grid_mask = ovk_field_logical_(Grid%cell_cart, .true.)
     Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
 
     Grid%edge_dist = ovk_field_int_(Grid%cart, 1)
     Grid%cell_edge_dist = ovk_field_int_(Grid%cell_cart, 1)
 
-    Grid%editing_properties = .false.
-    Grid%editing_xyz = .false.
-    Grid%editing_grid_mask = .false.
-    Grid%editing_boundary_mask = .false.
-    Grid%editing_internal_boundary_mask = .false.
-    Grid%changed_xyz = .false.
-    Grid%changed_grid_mask = .false.
-    Grid%changed_boundary_mask = .false.
-    Grid%changed_internal_boundary_mask = .false.
+    Grid%editor = t_grid_editor_(NumDims)
+
+    if (present(EventFlags)) then
+      Grid%event_flags => EventFlags
+      Grid%event_flags = ovk_grid_event_flags_(NumDims)
+    else
+      nullify(Grid%event_flags)
+    end if
 
   end subroutine ovkCreateGrid
 
@@ -261,7 +298,7 @@ contains
     type(ovk_grid), intent(inout) :: Grid
 
     if (associated(Grid%properties)) deallocate(Grid%properties)
-    Grid%prev_properties = ovk_grid_properties_(2)
+    Grid%prev_properties = ovk_grid_properties_()
 
     if (associated(Grid%xyz)) deallocate(Grid%xyz)
     if (associated(Grid%grid_mask)) deallocate(Grid%grid_mask)
@@ -273,49 +310,9 @@ contains
     Grid%edge_dist = ovk_field_int_()
     Grid%cell_edge_dist = ovk_field_int_()
 
+    Grid%editor = t_grid_editor_()
+
   end subroutine ovkDestroyGrid
-
-  subroutine ovkUpdateGrid(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    logical :: CannotUpdate
-
-    CannotUpdate = &
-      Grid%editing_properties .or. &
-      any(Grid%editing_xyz) .or. &
-      Grid%editing_grid_mask .or. &
-      Grid%editing_boundary_mask .or. &
-      Grid%editing_internal_boundary_mask
-
-    if (CannotUpdate) then
-
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot update grid; still being edited."
-        stop 1
-      end if
-
-      return
-
-    else
-
-      if (any(Grid%changed_xyz) .or. Grid%changed_grid_mask) then
-        call UpdateBounds(Grid)
-        call UpdateResolution(Grid)
-      end if
-
-      if (Grid%changed_grid_mask) then
-        call UpdateEdgeDistance(Grid)
-      end if
-
-      Grid%changed_xyz = .false.
-      Grid%changed_grid_mask = .false.
-      Grid%changed_boundary_mask = .false.
-      Grid%changed_internal_boundary_mask = .false.
-
-    end if
-
-  end subroutine ovkUpdateGrid
 
   subroutine ovkGetGridProperties(Grid, Properties)
 
@@ -331,39 +328,53 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_grid_properties), pointer, intent(out) :: Properties
 
-    logical :: CannotEdit
+    integer :: d
+    logical :: EditingCoords
+    logical :: EditingGridMask
+    logical :: EditingBoundaryMask
+    logical :: EditingInternalBoundaryMask
+    logical :: Success
 
-    CannotEdit = &
-      any(Grid%editing_xyz) .or. &
-      Grid%editing_grid_mask .or. &
-      Grid%editing_boundary_mask .or. &
-      Grid%editing_internal_boundary_mask
+    EditingCoords = .false.
+    do d = 1, Grid%cart%nd
+      EditingCoords = EditingCoords .or. Grid%editor%xyz_ref_count(d) > 0
+    end do
+    EditingGridMask = Grid%editor%grid_mask_ref_count > 0
+    EditingBoundaryMask = Grid%editor%boundary_mask_ref_count > 0
+    EditingInternalBoundaryMask = Grid%editor%internal_boundary_mask_ref_count > 0
 
-    if (CannotEdit) then
+    Success = &
+      .not. EditingCoords .and. &
+      .not. EditingGridMask .and. &
+      .not. EditingBoundaryMask .and. &
+      .not. EditingInternalBoundaryMask
+
+    if (Success) then
+
+      if (Grid%editor%properties_ref_count == 0) then
+        Grid%prev_properties = Grid%properties
+      end if
+
+      Grid%editor%properties_ref_count = Grid%editor%properties_ref_count + 1
+
+      Properties => Grid%properties
+
+    else
 
       if (OVK_DEBUG) then
-        if (any(Grid%editing_xyz)) then
+        if (EditingCoords) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing coordinates."
-        else if (Grid%editing_grid_mask) then
+        else if (EditingGridMask) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing grid mask."
-        else if (Grid%editing_boundary_mask) then
+        else if (EditingBoundaryMask) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing boundary mask."
-        else
+        else if (EditingInternalBoundaryMask) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid properties while editing internal boundary mask."
         end if
         stop 1
       end if
 
       nullify(Properties)
-
-    else
-
-      if (.not. Grid%editing_properties) then
-        Grid%prev_properties = Grid%properties
-      end if
-
-      Properties => Grid%properties
-      Grid%editing_properties = .true.
 
     end if
 
@@ -374,22 +385,46 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_grid_properties), pointer, intent(inout) :: Properties
 
-    if (.not. associated(Properties, Grid%properties)) return
-    if (.not. Grid%editing_properties) then
+    if (associated(Properties, Grid%properties)) then
+
       nullify(Properties)
-      return
+
+      if (Grid%editor%properties_ref_count > 0) then
+
+        Grid%editor%properties_ref_count = Grid%editor%properties_ref_count - 1
+
+        if (Grid%editor%properties_ref_count == 0) then
+          if (Grid%properties%max_edge_dist /= Grid%prev_properties%max_edge_dist) then
+            call UpdateEdgeDistance(Grid)
+          end if
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release grid properties; invalid pointer."
+        stop 1
+      end if
+
     end if
-
-    if (Grid%properties%max_edge_dist /= Grid%prev_properties%max_edge_dist) then
-      call UpdateEdgeDistance(Grid)
-    end if
-
-    Grid%prev_properties = Grid%properties
-
-    nullify(Properties)
-    Grid%editing_properties = .false.
 
   end subroutine ovkReleaseGridProperties
+
+  subroutine ovkGetGridDescription(Grid, Description)
+
+    type(ovk_grid), intent(in) :: Grid
+    type(ovk_grid_description), intent(out) :: Description
+
+    Description = ovk_grid_description_(Grid%properties%nd)
+    Description%npoints = Grid%properties%npoints
+    Description%periodic = Grid%properties%periodic
+    Description%periodic_storage = Grid%properties%periodic_storage
+    Description%periodic_length = Grid%properties%periodic_length
+    Description%geometry_type = Grid%properties%geometry_type
+
+  end subroutine ovkGetGridDescription
 
   subroutine ovkGetGridCart(Grid, Cart)
 
@@ -416,24 +451,29 @@ contains
     integer, intent(in) :: DimIndex
     type(ovk_field_real), pointer, intent(out) :: Coords
 
-    logical :: CannotEdit
+    logical :: EditingProperties
+    logical :: Success
 
-    CannotEdit = &
-      Grid%editing_properties
+    EditingProperties = Grid%editor%properties_ref_count > 0
 
-    if (CannotEdit) then
+    Success = .not. EditingProperties
+
+    if (Success) then
+
+      Grid%editor%xyz_ref_count(DimIndex) = Grid%editor%xyz_ref_count(DimIndex) + 1
+
+      Coords => Grid%xyz(DimIndex)
+
+    else
 
       if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid coordinates while editing properties."
+        if (EditingProperties) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid coordinates while editing properties."
+        end if
         stop 1
       end if
 
       nullify(Coords)
-
-    else
-
-      Coords => Grid%xyz(DimIndex)
-      Grid%editing_xyz(DimIndex) = .true.
 
     end if
 
@@ -455,17 +495,32 @@ contains
       end if
     end do
 
-    if (DimIndex == 0) return
-    if (.not. Grid%editing_xyz(DimIndex)) then
+    if (DimIndex /= 0) then
+
       nullify(Coords)
-      return
+
+      if (Grid%editor%xyz_ref_count(DimIndex) > 0) then
+
+        Grid%editor%xyz_ref_count(DimIndex) = Grid%editor%xyz_ref_count(DimIndex) - 1
+
+        if (all(Grid%editor%xyz_ref_count == 0)) then
+          if (associated(Grid%event_flags)) then
+            Grid%event_flags%modified_xyz = .true.
+          end if
+          call AttemptUpdateBounds(Grid)
+          call AttemptUpdateResolution(Grid)
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release grid coordinates; invalid pointer."
+        stop 1
+      end if
+
     end if
-
-    ! Nothing here at the moment
-
-    nullify(Coords)
-    Grid%editing_xyz(DimIndex) = .false.
-    Grid%changed_xyz(DimIndex) = .true.
 
   end subroutine ovkReleaseGridCoords
 
@@ -483,24 +538,29 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_field_logical), pointer, intent(out) :: GridMask
 
-    logical :: CannotEdit
+    logical :: EditingProperties
+    logical :: Success
 
-    CannotEdit = &
-      Grid%editing_properties
+    EditingProperties = Grid%editor%properties_ref_count > 0
 
-    if (CannotEdit) then
+    Success = .not. EditingProperties
+
+    if (Success) then
+
+      Grid%editor%grid_mask_ref_count = Grid%editor%grid_mask_ref_count + 1
+
+      GridMask => Grid%grid_mask
+
+    else
 
       if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid mask while editing properties."
+        if (EditingProperties) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid mask while editing properties."
+        end if
         stop 1
       end if
 
       nullify(GridMask)
-
-    else
-
-      GridMask => Grid%grid_mask
-      Grid%editing_grid_mask = .true.
 
     end if
 
@@ -511,17 +571,32 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_field_logical), pointer, intent(inout) :: GridMask
 
-    if (.not. associated(GridMask, Grid%grid_mask)) return
-    if (.not. Grid%editing_grid_mask) then
+    if (associated(GridMask, Grid%grid_mask)) then
+
       nullify(GridMask)
-      return
+
+      if (Grid%editor%grid_mask_ref_count > 0) then
+
+        Grid%editor%grid_mask_ref_count = Grid%editor%grid_mask_ref_count - 1
+
+        if (Grid%editor%grid_mask_ref_count == 0) then
+          if (associated(Grid%event_flags)) then
+            Grid%event_flags%modified_grid_mask = .true.
+          end if
+          call UpdateCellGridMask(Grid)
+          call UpdateEdgeDistance(Grid)
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release grid mask; invalid pointer."
+        stop 1
+      end if
+
     end if
-
-    call UpdateCellGridMask(Grid)
-
-    nullify(GridMask)
-    Grid%editing_grid_mask = .false.
-    Grid%changed_grid_mask = .true.
 
   end subroutine ovkReleaseGridMask
 
@@ -539,24 +614,29 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_field_logical), pointer, intent(out) :: BoundaryMask
 
-    logical :: CannotEdit
+    logical :: EditingProperties
+    logical :: Success
 
-    CannotEdit = &
-      Grid%editing_properties
+    EditingProperties = Grid%editor%properties_ref_count > 0
 
-    if (CannotEdit) then
+    Success = .not. EditingProperties
+
+    if (Success) then
+
+      Grid%editor%boundary_mask_ref_count = Grid%editor%boundary_mask_ref_count + 1
+
+      BoundaryMask => Grid%boundary_mask
+
+    else
 
       if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid boundary mask while editing properties."
+        if (EditingProperties) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid boundary mask while editing properties."
+        end if
         stop 1
       end if
 
       nullify(BoundaryMask)
-
-    else
-
-      BoundaryMask => Grid%boundary_mask
-      Grid%editing_boundary_mask = .true.
 
     end if
 
@@ -567,17 +647,30 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_field_logical), pointer, intent(inout) :: BoundaryMask
 
-    if (.not. associated(BoundaryMask, Grid%boundary_mask)) return
-    if (.not. Grid%editing_boundary_mask) then
+    if (associated(BoundaryMask, Grid%boundary_mask)) then
+
       nullify(BoundaryMask)
-      return
+
+      if (Grid%editor%boundary_mask_ref_count > 0) then
+
+        Grid%editor%boundary_mask_ref_count = Grid%editor%boundary_mask_ref_count - 1
+
+        if (Grid%editor%boundary_mask_ref_count == 0) then
+          if (associated(Grid%event_flags)) then
+            Grid%event_flags%modified_boundary_mask = .true.
+          end if
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release boundary mask; invalid pointer."
+        stop 1
+      end if
+
     end if
-
-    ! Nothing here at the moment
-
-    nullify(BoundaryMask)
-    Grid%editing_boundary_mask = .false.
-    Grid%changed_boundary_mask = .true.
 
   end subroutine ovkReleaseGridBoundaryMask
 
@@ -595,24 +688,29 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_field_logical), pointer, intent(out) :: InternalBoundaryMask
 
-    logical :: CannotEdit
+    logical :: EditingProperties
+    logical :: Success
 
-    CannotEdit = &
-      Grid%editing_properties
+    EditingProperties = Grid%editor%properties_ref_count > 0
 
-    if (CannotEdit) then
+    Success = .not. EditingProperties
+
+    if (Success) then
+
+      Grid%editor%internal_boundary_mask_ref_count = Grid%editor%internal_boundary_mask_ref_count + 1
+
+      InternalBoundaryMask => Grid%internal_boundary_mask
+
+    else
 
       if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid boundary mask while editing properties."
+        if (EditingProperties) then
+          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid internal boundary mask while editing properties."
+        end if
         stop 1
       end if
 
       nullify(InternalBoundaryMask)
-
-    else
-
-      InternalBoundaryMask => Grid%internal_boundary_mask
-      Grid%editing_internal_boundary_mask = .true.
 
     end if
 
@@ -623,28 +721,52 @@ contains
     type(ovk_grid), intent(inout) :: Grid
     type(ovk_field_logical), pointer, intent(inout) :: InternalBoundaryMask
 
-    if (.not. associated(InternalBoundaryMask, Grid%internal_boundary_mask)) return
-    if (.not. Grid%editing_internal_boundary_mask) then
+    if (associated(InternalBoundaryMask, Grid%internal_boundary_mask)) then
+
       nullify(InternalBoundaryMask)
-      return
+
+      if (Grid%editor%internal_boundary_mask_ref_count > 0) then
+
+        Grid%editor%internal_boundary_mask_ref_count = &
+          Grid%editor%internal_boundary_mask_ref_count - 1
+
+        if (Grid%editor%internal_boundary_mask_ref_count == 0) then
+          if (associated(Grid%event_flags)) then
+            Grid%event_flags%modified_internal_boundary_mask = .true.
+          end if
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release internal boundary mask; invalid pointer."
+        stop 1
+      end if
+
     end if
-
-    ! Nothing here at the moment
-
-    nullify(InternalBoundaryMask)
-    Grid%editing_internal_boundary_mask = .false.
-    Grid%changed_internal_boundary_mask = .true.
 
   end subroutine ovkReleaseGridInternalBoundaryMask
 
-  subroutine UpdateBounds(Grid)
+  subroutine AttemptUpdateBounds(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
 
     integer :: i, j, d, l
+    logical :: EditingCoords
+    logical :: EditingGridMask
     integer :: idir, jdir
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
     real(rk), dimension(Grid%cart%nd) :: PeriodicCoords
+
+    EditingCoords = .false.
+    do d = 1, Grid%cart%nd
+      EditingCoords = EditingCoords .or. Grid%editor%xyz_ref_count(d) > 0
+    end do
+    EditingGridMask = Grid%editor%grid_mask_ref_count > 0
+
+    if (EditingCoords .or. EditingGridMask) return
 
     Grid%bounds = ovk_bbox_(Grid%cart%nd)
     do d = 1, Grid%cart%nd
@@ -679,7 +801,7 @@ contains
       end do
     end if
 
-  end subroutine UpdateBounds
+  end subroutine AttemptUpdateBounds
 
   subroutine UpdateCellGridMask(Grid)
 
@@ -732,11 +854,13 @@ contains
 
   end subroutine UpdateCellGridMask
 
-  subroutine UpdateResolution(Grid)
+  subroutine AttemptUpdateResolution(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
 
-    integer :: i, j, k, m, n, o
+    integer :: i, j, k, d, m, n, o
+    logical :: EditingCoords
+    logical :: EditingGridMask
     type(ovk_field_real) :: CellSizes
     integer, dimension(MAX_ND) :: Cell
     real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
@@ -747,6 +871,14 @@ contains
     real(rk) :: AvgCellSize
     integer :: NumCells
     logical :: AwayFromEdge
+
+    EditingCoords = .false.
+    do d = 1, Grid%cart%nd
+      EditingCoords = EditingCoords .or. Grid%editor%xyz_ref_count(d) > 0
+    end do
+    EditingGridMask = Grid%editor%grid_mask_ref_count > 0
+
+    if (EditingCoords .or. EditingGridMask) return
 
     CellSizes = ovk_field_real_(Grid%cell_cart)
 
@@ -829,7 +961,7 @@ contains
       end do
     end do
 
-  end subroutine UpdateResolution
+  end subroutine AttemptUpdateResolution
 
   subroutine UpdateEdgeDistance(Grid)
 
@@ -1175,7 +1307,38 @@ contains
 
   end subroutine ovkExportGridCoords
 
-  function ovk_grid_properties_Default(NumDims) result(Properties)
+  function ovk_grid_description_Default() result(Description)
+
+    type(ovk_grid_description) :: Description
+
+    Description = ovk_grid_description_Assigned(2)
+
+  end function ovk_grid_description_Default
+
+  function ovk_grid_description_Assigned(NumDims) result(Description)
+
+    integer, intent(in) :: NumDims
+    type(ovk_grid_description) :: Description
+
+    Description%nd = NumDims
+    Description%npoints(:NumDims) = 0
+    Description%npoints(NumDims+1:) = 1
+    Description%periodic = .false.
+    Description%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Description%periodic_length = 0._rk
+    Description%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
+
+  end function ovk_grid_description_Assigned
+
+  function ovk_grid_properties_Default() result(Properties)
+
+    type(ovk_grid_properties) :: Properties
+
+    Properties = ovk_grid_properties_Assigned(2)
+
+  end function ovk_grid_properties_Default
+
+  function ovk_grid_properties_Assigned(NumDims) result(Properties)
 
     integer, intent(in) :: NumDims
     type(ovk_grid_properties) :: Properties
@@ -1191,7 +1354,7 @@ contains
     Properties%verbose = .false.
     Properties%max_edge_dist = 1
 
-  end function ovk_grid_properties_Default
+  end function ovk_grid_properties_Assigned
 
   subroutine ovkGetGridPropertyID(Properties, ID)
 
@@ -1291,5 +1454,58 @@ contains
     Properties%max_edge_dist = MaxEdgeDist
 
   end subroutine ovkSetGridPropertyMaxEdgeDistance
+
+  function t_grid_editor_Default() result(Editor)
+
+    type(t_grid_editor) :: Editor
+
+    Editor%properties_ref_count = 0
+    Editor%grid_mask_ref_count = 0
+    Editor%boundary_mask_ref_count = 0
+    Editor%internal_boundary_mask_ref_count = 0
+
+  end function t_grid_editor_Default
+
+  function t_grid_editor_Assigned(NumDims) result(Editor)
+
+    integer :: NumDims
+    type(t_grid_editor) :: Editor
+
+    Editor%properties_ref_count = 0
+    allocate(Editor%xyz_ref_count(NumDims))
+    Editor%xyz_ref_count = 0
+    Editor%grid_mask_ref_count = 0
+    Editor%boundary_mask_ref_count = 0
+    Editor%internal_boundary_mask_ref_count = 0
+
+  end function t_grid_editor_Assigned
+
+  function ovk_grid_event_flags_Default() result(EventFlags)
+
+    type(ovk_grid_event_flags) :: EventFlags
+
+    EventFlags = ovk_grid_event_flags_Assigned(2)
+
+  end function ovk_grid_event_flags_Default
+
+  function ovk_grid_event_flags_Assigned(NumDims) result(EventFlags)
+
+    integer, intent(in) :: NumDims
+    type(ovk_grid_event_flags) :: EventFlags
+
+    call ovkResetGridEventFlags(EventFlags)
+
+  end function ovk_grid_event_flags_Assigned
+
+  subroutine ovkResetGridEventFlags(EventFlags)
+
+    type(ovk_grid_event_flags), intent(inout) :: EventFlags
+
+    EventFlags%modified_xyz = .false.
+    EventFlags%modified_grid_mask = .false.
+    EventFlags%modified_boundary_mask = .false.
+    EventFlags%modified_internal_boundary_mask = .false.
+
+  end subroutine ovkResetGridEventFlags
 
 end module ovkGrid

@@ -20,7 +20,9 @@ module ovkInterp
   public :: ovk_interp_properties_
   public :: ovkCreateInterpData
   public :: ovkDestroyInterpData
-  public :: ovkUpdateInterpData
+  public :: ovkGetInterpDataProperties
+  public :: ovkEditInterpDataProperties
+  public :: ovkReleaseInterpDataProperties
   public :: ovkFillInterpData
   public :: ovkGetInterpDataReceiverMask
   public :: ovkGetInterpDataOrphanMask
@@ -35,7 +37,7 @@ module ovkInterp
   type ovk_interp_properties
     type(t_noconstruct) :: noconstruct
     ! Read-only
-    integer :: id
+    integer :: grid_id
     integer :: nd
     integer, dimension(MAX_ND) :: npoints
     logical, dimension(MAX_ND) :: periodic
@@ -45,9 +47,14 @@ module ovkInterp
     logical :: verbose
   end type ovk_interp_properties
 
+  type t_interp_editor
+    integer :: properties_ref_count
+  end type t_interp_editor
+
   type ovk_interp
     type(t_noconstruct) :: noconstruct
     type(ovk_interp_properties), pointer :: properties
+    type(ovk_interp_properties) :: prev_properties
     type(ovk_cart) :: cart
     type(ovk_field_logical), pointer :: receiver_mask
     type(ovk_field_logical), pointer :: orphan_mask
@@ -56,7 +63,7 @@ module ovkInterp
     type(ovk_field_real), dimension(:), pointer :: donor_cell_coords
     type(ovk_field_int), pointer :: schemes
     type(ovk_field_real), dimension(:,:), pointer :: coefs
-    logical :: editing_properties
+    type(t_interp_editor) :: editor
   end type ovk_interp
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -67,15 +74,22 @@ module ovkInterp
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_interp_properties_
     module procedure ovk_interp_properties_Default
+    module procedure ovk_interp_properties_Assigned
   end interface ovk_interp_properties_
+
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface t_interp_editor_
+    module procedure t_interp_editor_Default
+  end interface t_interp_editor_
 
 contains
 
-  pure function ovk_interp_Default() result(InterpData)
+  function ovk_interp_Default() result(InterpData)
 
     type(ovk_interp) :: InterpData
 
     nullify(InterpData%properties)
+    InterpData%prev_properties = ovk_interp_properties_()
     InterpData%cart = ovk_cart_()
     nullify(InterpData%receiver_mask)
     nullify(InterpData%orphan_mask)
@@ -84,14 +98,15 @@ contains
     nullify(InterpData%donor_cell_coords)
     nullify(InterpData%schemes)
     nullify(InterpData%coefs)
-    InterpData%editing_properties = .false.
+    InterpData%editor = t_interp_editor_()
 
   end function ovk_interp_Default
 
-  subroutine ovkCreateInterpData(InterpData, Grid, StencilSize, Verbose)
+  subroutine ovkCreateInterpData(InterpData, GridID, GridDescription, StencilSize, Verbose)
 
     type(ovk_interp), intent(out) :: InterpData
-    type(ovk_grid), intent(in) :: Grid
+    integer, intent(in) :: GridID
+    type(ovk_grid_description), intent(in) :: GridDescription
     integer, intent(in) :: StencilSize
     logical, intent(in), optional :: Verbose
 
@@ -105,16 +120,20 @@ contains
     end if
 
     allocate(InterpData%properties)
-    InterpData%properties = ovk_interp_properties_()
-    InterpData%properties%id = Grid%properties%id
-    InterpData%properties%nd = Grid%properties%nd
-    InterpData%properties%npoints = Grid%properties%npoints
-    InterpData%properties%periodic = Grid%properties%periodic
-    InterpData%properties%periodic_storage = Grid%properties%periodic_storage
+    InterpData%properties = ovk_interp_properties_(GridDescription%nd)
+    InterpData%properties%grid_id = GridID
+    InterpData%properties%nd = GridDescription%nd
+    InterpData%properties%npoints = GridDescription%npoints
+    InterpData%properties%periodic = GridDescription%periodic
+    InterpData%properties%periodic_storage = GridDescription%periodic_storage
     InterpData%properties%stencil_size = StencilSize
     InterpData%properties%verbose = Verbose_
 
-    InterpData%cart = Grid%cart
+    InterpData%prev_properties = InterpData%properties
+
+    InterpData%cart = ovk_cart_(GridDescription%nd, GridDescription%npoints, &
+      GridDescription%periodic, GridDescription%periodic_storage)
+    InterpData%cart = ovkCartConvertPeriodicStorage(InterpData%cart, OVK_NO_OVERLAP_PERIODIC)
 
     allocate(InterpData%receiver_mask)
     InterpData%receiver_mask = ovk_field_logical_(InterpData%cart, .false.)
@@ -145,7 +164,7 @@ contains
       end do
     end do
 
-    InterpData%editing_properties = .false.
+    InterpData%editor = t_interp_editor_()
 
   end subroutine ovkCreateInterpData
 
@@ -154,6 +173,7 @@ contains
     type(ovk_interp), intent(inout) :: InterpData
 
     if (associated(InterpData%properties)) deallocate(InterpData%properties)
+    InterpData%prev_properties = ovk_interp_properties_()
 
     if (associated(InterpData%receiver_mask)) deallocate(InterpData%receiver_mask)
     if (associated(InterpData%orphan_mask)) deallocate(InterpData%orphan_mask)
@@ -165,30 +185,55 @@ contains
 
   end subroutine ovkDestroyInterpData
 
-  subroutine ovkUpdateInterpData(InterpData)
+  subroutine ovkGetInterpDataProperties(InterpData, Properties)
+
+    type(ovk_interp), intent(in) :: InterpData
+    type(ovk_interp_properties), pointer, intent(out) :: Properties
+
+    Properties => InterpData%properties
+
+  end subroutine ovkGetInterpDataProperties
+
+  subroutine ovkEditInterpDataProperties(InterpData, Properties)
 
     type(ovk_interp), intent(inout) :: InterpData
+    type(ovk_interp_properties), pointer, intent(out) :: Properties
 
-    logical :: CannotUpdate
+    if (InterpData%editor%properties_ref_count == 0) then
+      InterpData%prev_properties = InterpData%properties
+    end if
 
-    CannotUpdate = InterpData%editing_properties
+    InterpData%editor%properties_ref_count = InterpData%editor%properties_ref_count + 1
 
-    if (CannotUpdate) then
+    Properties => InterpData%properties
 
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot update interpolation data; still being edited."
-        stop 1
+  end subroutine ovkEditInterpDataProperties
+
+  subroutine ovkReleaseInterpDataProperties(InterpData, Properties)
+
+    type(ovk_interp), intent(inout) :: InterpData
+    type(ovk_interp_properties), pointer, intent(inout) :: Properties
+
+    if (associated(Properties, InterpData%properties)) then
+
+      nullify(Properties)
+
+      if (InterpData%editor%properties_ref_count > 0) then
+
+        InterpData%editor%properties_ref_count = InterpData%editor%properties_ref_count - 1
+
       end if
-
-      return
 
     else
 
-      ! Nothing here at the moment
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release interpolation data properties; invalid pointer."
+        stop 1
+      end if
 
     end if
 
-  end subroutine ovkUpdateInterpData
+  end subroutine ovkReleaseInterpDataProperties
 
   subroutine ovkFillInterpData(InterpData, Donors, OrphanMask, InterpScheme)
 
@@ -340,15 +385,25 @@ contains
 
     type(ovk_interp_properties) :: Properties
 
-    Properties%id = 0
-    Properties%nd = 2
-    Properties%npoints = [0,0,1]
+    Properties = ovk_interp_properties_Assigned(2)
+
+  end function ovk_interp_properties_Default
+
+  function ovk_interp_properties_Assigned(NumDims) result(Properties)
+
+    integer, intent(in) :: NumDims
+    type(ovk_interp_properties) :: Properties
+
+    Properties%grid_id = 0
+    Properties%nd = NumDims
+    Properties%npoints(:NumDims) = 0
+    Properties%npoints(NumDims+1:) = 1
     Properties%periodic = .false.
     Properties%periodic_storage = OVK_NO_OVERLAP_PERIODIC
     Properties%stencil_size = 2
     Properties%verbose = .false.
 
-  end function ovk_interp_properties_Default
+  end function ovk_interp_properties_Assigned
 
   subroutine ovkGetInterpDataPropertyVerbose(Properties, Verbose)
 
@@ -367,5 +422,13 @@ contains
     Properties%verbose = Verbose
 
   end subroutine ovkSetInterpDataPropertyVerbose
+
+  function t_interp_editor_Default() result(Editor)
+
+    type(t_interp_editor) :: Editor
+
+    Editor%properties_ref_count = 0
+
+  end function t_interp_editor_Default
 
 end module ovkInterp

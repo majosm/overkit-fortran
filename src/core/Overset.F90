@@ -89,6 +89,7 @@ contains
     type(ovk_field_logical), dimension(:), allocatable :: OrphanMasks
     integer :: NumWarnings
     type(ovk_connectivity), pointer :: Connectivity
+    type(ovk_grid_description) :: GridDescription
     integer :: StencilSize
     type(ovk_interp), pointer :: InterpData_n
 
@@ -119,10 +120,10 @@ contains
 
     if (OVK_DEBUG) then
       if ( &
-        Assembler%editing_properties .or. &
-        Assembler%editing_domain .or. &
-  !       Assembler%editing_overlap .or. &
-        Assembler%editing_connectivity &
+        Assembler%editor%properties_ref_count > 0 .or. &
+        Assembler%editor%domain_ref_count > 0 .or. &
+  !       Assembler%editor%overlap_ref_count > 0 .or. &
+        Assembler%editor%connectivity_ref_count > 0 &
       ) then
         write (ERROR_UNIT, '(a)') "ERROR: Cannot perform assembly; assembler is still being edited."
         stop 1
@@ -260,8 +261,19 @@ contains
           Grid_m => Domain%grids(IndexToID(m))
           Grid_n => Domain%grids(IndexToID(n))
           Bounds = ovkBBIntersect(Grid_m%bounds, Grid_n%bounds)
-          OverlapBounds(m) = ovkBBUnion(OverlapBounds(m), Bounds)
-          MaxOverlapTolerance(m) = max(MaxOverlapTolerance(m), OverlapTolerance(m,n))
+          if (.not. ovkBBIsEmpty(Bounds)) then
+            OverlapBounds(m) = ovkBBUnion(OverlapBounds(m), Bounds)
+            MaxOverlapTolerance(m) = max(MaxOverlapTolerance(m), OverlapTolerance(m,n))
+          else
+            Overlappable(m,n) = .false.
+            BoundaryHoleCutting(m,n) = .false.
+            OverlapHoleCutting(m,n) = .false.
+            ConnectionType(m,n) = OVK_CONNECTION_NONE
+            Assembler%properties%overlappable(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%boundary_hole_cutting(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%overlap_hole_cutting(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%connection_type(IndexToID(m),IndexToID(n)) = OVK_CONNECTION_NONE
+          end if
         end if
       end do
     end do
@@ -344,6 +356,26 @@ contains
     end do
 
     call ovkReleaseAssemblerDomain(Assembler, EditDomain)
+
+    do m = 1, NumGrids
+      do n = 1, NumGrids
+        if (Overlappable(m,n)) then
+          Grid_m => Domain%grids(IndexToID(m))
+          Grid_n => Domain%grids(IndexToID(n))
+          Bounds = ovkBBIntersect(Grid_m%bounds, Grid_n%bounds)
+          if (ovkBBIsEmpty(Bounds)) then
+            Overlappable(m,n) = .false.
+            BoundaryHoleCutting(m,n) = .false.
+            OverlapHoleCutting(m,n) = .false.
+            ConnectionType(m,n) = OVK_CONNECTION_NONE
+            Assembler%properties%overlappable(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%boundary_hole_cutting(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%overlap_hole_cutting(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%connection_type(IndexToID(m),IndexToID(n)) = OVK_CONNECTION_NONE
+          end if
+        end if
+      end do
+    end do
 
     if (OVK_VERBOSE) then
       write (*, '(a)') "Finished inferring domain boundaries in non-overlapping regions."
@@ -547,6 +579,26 @@ contains
     end do
 
     call ovkReleaseAssemblerDomain(Assembler, EditDomain)
+
+    do m = 1, NumGrids
+      do n = 1, NumGrids
+        if (Overlappable(m,n)) then
+          Grid_m => Domain%grids(IndexToID(m))
+          Grid_n => Domain%grids(IndexToID(n))
+          Bounds = ovkBBIntersect(Grid_m%bounds, Grid_n%bounds)
+          if (ovkBBIsEmpty(Bounds)) then
+            Overlappable(m,n) = .false.
+            BoundaryHoleCutting(m,n) = .false.
+            OverlapHoleCutting(m,n) = .false.
+            ConnectionType(m,n) = OVK_CONNECTION_NONE
+            Assembler%properties%overlappable(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%boundary_hole_cutting(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%overlap_hole_cutting(IndexToID(m),IndexToID(n)) = .false.
+            Assembler%properties%connection_type(IndexToID(m),IndexToID(n)) = OVK_CONNECTION_NONE
+          end if
+        end if
+      end do
+    end do
 
     if (OVK_VERBOSE) then
       write (*, '(a)') "Finished cutting overlap holes."
@@ -884,7 +936,8 @@ contains
           exit
         end if
       end do
-      call ovkCreateConnectivityInterpData(Connectivity, IndexToID(n), Grid_n, StencilSize)
+      call ovkGetGridDescription(Grid_n, GridDescription)
+      call ovkCreateConnectivityInterpData(Connectivity, IndexToID(n), GridDescription, StencilSize)
     end do
 
     do n = 1, NumGrids

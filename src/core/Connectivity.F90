@@ -17,7 +17,6 @@ module ovkConnectivity
   public :: ovk_connectivity_properties_
   public :: ovkCreateConnectivity
   public :: ovkDestroyConnectivity
-  public :: ovkUpdateConnectivity
   public :: ovkGetConnectivityProperties
   public :: ovkEditConnectivityProperties
   public :: ovkReleaseConnectivityProperties
@@ -50,20 +49,20 @@ module ovkConnectivity
     logical :: verbose
   end type ovk_connectivity_properties
 
+  type t_connectivity_editor
+    integer :: properties_ref_count
+!     integer, dimension(:), allocatable :: donors_ref_count
+!     integer, dimension(:), allocatable :: receivers_ref_count
+  end type t_connectivity_editor
+
   type ovk_connectivity
     type(t_noconstruct) :: noconstruct
     type(ovk_connectivity_properties), pointer :: properties
+    type(ovk_connectivity_properties) :: prev_properties
     type(ovk_interp), dimension(:), pointer :: interp_data
 !     type(ovk_donors), dimension(:), pointer :: donors
 !     type(ovk_receivers), dimension(:), pointer :: receivers
-    logical, dimension(:), allocatable :: interp_data_exists
-!     logical, dimension(:), allocatable :: donors_exist
-!     logical, dimension(:), allocatable :: receivers_exist
-    logical :: editing_properties
-!     logical, dimension(:), allocatable :: editing_donors
-!     logical, dimension(:), allocatable :: editing_receivers
-!     logical, dimension(:), allocatable :: changed_donors
-!     logical, dimension(:), allocatable :: changed_receivers
+    type(t_connectivity_editor) :: editor
   end type ovk_connectivity
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -74,7 +73,14 @@ module ovkConnectivity
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_connectivity_properties_
     module procedure ovk_connectivity_properties_Default
+    module procedure ovk_connectivity_properties_Assigned
   end interface ovk_connectivity_properties_
+
+  ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
+  interface t_connectivity_editor_
+    module procedure t_connectivity_editor_Default
+    module procedure t_connectivity_editor_Allocated
+  end interface t_connectivity_editor_
 
 contains
 
@@ -83,10 +89,11 @@ contains
     type(ovk_connectivity) :: Connectivity
 
     nullify(Connectivity%properties)
+    Connectivity%prev_properties = ovk_connectivity_properties_()
     nullify(Connectivity%interp_data)
 !     nullify(Connectivity%donors)
 !     nullify(Connectivity%receivers)
-    Connectivity%editing_properties = .false.
+    Connectivity%editor = t_connectivity_editor_()
 
   end function ovk_connectivity_Default
 
@@ -99,6 +106,7 @@ contains
 
     logical :: Verbose_
     integer :: m
+    type(ovk_grid_description) :: EmptyGridDescription
 
     if (present(Verbose)) then
       Verbose_ = Verbose
@@ -107,39 +115,18 @@ contains
     end if
 
     allocate(Connectivity%properties)
-    Connectivity%properties = ovk_connectivity_properties_()
-
-    Connectivity%properties%nd = NumDims
-    Connectivity%properties%ngrids = NumGrids
+    Connectivity%properties = ovk_connectivity_properties_(NumDims, NumGrids)
     Connectivity%properties%verbose = Verbose_
+
+    EmptyGridDescription = ovk_grid_description_(NumDims)
 
     allocate(Connectivity%interp_data(NumGrids))
     do m = 1, NumGrids
-      Connectivity%interp_data(m) = ovk_interp_()
+      call ovkCreateInterpData(Connectivity%interp_data(m), m, EmptyGridDescription, 1, &
+        Verbose=Verbose_)
     end do
 
-    allocate(Connectivity%interp_data_exists(NumGrids))
-    Connectivity%interp_data_exists = .false.
-
-!     allocate(Connectivity%donors_exist(NumGrids))
-!     Connectivity%donors_exist = .false.
-
-!     allocate(Connectivity%receivers_exist(NumGrids))
-!     Connectivity%receivers_exist = .false.
-
-    Connectivity%editing_properties = .false.
-
-!     allocate(Connectivity%editing_donors(NumGrids))
-!     Connectivity%editing_donors = .false.
-
-!     allocate(Connectivity%editing_receivers(NumGrids))
-!     Connectivity%editing_receivers = .false.
-
-!     allocate(Connectivity%changed_donors(NumGrids))
-!     Connectivity%changed_donors = .false.
-
-!     allocate(Connectivity%changed_receivers(NumGrids))
-!     Connectivity%changed_receivers = .false.
+    Connectivity%editor = t_connectivity_editor_(NumGrids)
 
   end subroutine ovkCreateConnectivity
 
@@ -153,69 +140,28 @@ contains
 
     if (associated(Connectivity%interp_data)) then
       do m = 1, size(Connectivity%interp_data)
-        if (Connectivity%interp_data_exists(m)) then
-          call ovkDestroyInterpData(Connectivity%interp_data(m))
-        end if
+        call ovkDestroyInterpData(Connectivity%interp_data(m))
       end do
       deallocate(Connectivity%interp_data)
     end if
 
 !     if (associated(Connectivity%donors)) then
 !       do m = 1, size(Connectivity%donors)
-!         if (Connectivity%donors_exist(m)) then
-!           call ovkDestroyDonors(Connectivity%donors(m))
-!         end if
+!         call ovkDestroyDonors(Connectivity%donors(m))
 !       end do
 !       deallocate(Connectivity%donors)
 !     end if
 
 !     if (associated(Connectivity%receivers)) then
 !       do m = 1, size(Connectivity%receivers)
-!         if (Connectivity%receivers_exist(m)) then
-!           call ovkDestroyDonors(Connectivity%receivers(m))
-!         end if
+!         call ovkDestroyDonors(Connectivity%receivers(m))
 !       end do
 !       deallocate(Connectivity%receivers)
 !     end if
 
-!     if (allocated(Connectivity%editing_donors)) deallocate(Connectivity%editing_donors)
-!     if (allocated(Connectivity%editing_receivers)) deallocate(Connectivity%editing_receivers)
-!     if (allocated(Connectivity%changed_donors)) deallocate(Connectivity%changed_donors)
-!     if (allocated(Connectivity%changed_receivers)) deallocate(Connectivity%changed_receivers)
+    Connectivity%editor = t_connectivity_editor_()
 
   end subroutine ovkDestroyConnectivity
-
-  subroutine ovkUpdateConnectivity(Connectivity)
-
-    type(ovk_connectivity), intent(inout) :: Connectivity
-
-    logical :: CannotUpdate
-
-    CannotUpdate = &
-      Connectivity%editing_properties
-
-!     CannotUpdate = &
-!       Connectivity%editing_properties .or. &
-!       any(Connectivity%editing_donors) .or. &
-!       any(Connectivity%editing_receivers)
-
-    if (CannotUpdate) then
-
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Cannot update connectivity; still being edited."
-        stop 1
-      end if
-
-      return
-
-    else
-
-!       Connectivity%changed_donors = .false.
-!       Connectivity%changed_receivers = .false.
-
-    end if
-
-  end subroutine ovkUpdateConnectivity
 
   subroutine ovkGetConnectivityProperties(Connectivity, Properties)
 
@@ -231,25 +177,45 @@ contains
     type(ovk_connectivity), intent(inout) :: Connectivity
     type(ovk_connectivity_properties), pointer, intent(out) :: Properties
 
-!     logical :: CannotEdit
+!     integer :: m
+!     logical :: EditingDonors
+!     logical :: EditingReceivers
+!     logical :: Success
 
-!     CannotEdit = &
-!       any(Connectivity%editing_donors) .or. &
-!       any(Connectivity%editing_receivers)
+!     EditingDonors = .false.
+!     EditingReceivers = .false.
+!     do m = 1, Connectivity%properties%ngrids
+!       EditingDonors = EditingDonors .or. Connectivity%editor%donors_ref_count(m) > 0
+!       EditingReceivers = EditingReceivers .or. Connectivity%editor%receivers_ref_count(m) > 0
+!     end do
 
-!     if (CannotEdit) then
+!     Success = &
+!       .not. EditingDonors .and. &
+!       .not. EditingReceivers
+
+!     if (Success) then
+
+      if (Connectivity%editor%properties_ref_count == 0) then
+        Connectivity%prev_properties = Connectivity%properties
+      end if
+
+      Connectivity%editor%properties_ref_count = Connectivity%editor%properties_ref_count + 1
+
+      Properties => Connectivity%properties
+
+!     else
 
 !       if (OVK_DEBUG) then
-!         write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity properties while editing grids."
+!         if (EditingDonors) then
+!           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity properties while editing donors."
+!         end if
+!         if (EditingReceivers) then
+!           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity properties while editing receivers."
+!         end if
 !         stop 1
 !       end if
 
 !       nullify(Properties)
-
-!     else
-
-      Properties => Connectivity%properties
-      Connectivity%editing_properties = .true.
 
 !     end if
 
@@ -260,50 +226,65 @@ contains
     type(ovk_connectivity), intent(inout) :: Connectivity
     type(ovk_connectivity_properties), pointer, intent(inout) :: Properties
 
-!     integer :: m
-!     integer :: NumGrids
-!     type(ovk_donors_properties), pointer :: DonorProperties
-!     type(ovk_receivers_properties), pointer :: ReceiverProperties
+    if (associated(Properties, Connectivity%properties)) then
 
-    if (.not. associated(Properties, Connectivity%properties)) return
-    if (.not. Connectivity%editing_properties) then
       nullify(Properties)
-      return
+
+      if (Connectivity%editor%properties_ref_count > 0) then
+
+        Connectivity%editor%properties_ref_count = Connectivity%editor%properties_ref_count - 1
+
+        if (Connectivity%editor%properties_ref_count == 0) then
+          if (Connectivity%properties%verbose .neqv. Connectivity%prev_properties%verbose) then
+            call UpdateVerbose(Connectivity)
+          end if
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to release connectivity properties; invalid pointer."
+        stop 1
+      end if
+
     end if
-
-!     NumGrids = Connectivity%properties%ngrids
-
-    ! Propagate verbose flag to donors and receivers
-!     do m = 1, NumGrids
-!       if (Connectivity%donors_exist(m)) then
-!         call ovkEditDonorProperties(Connectivity%donors(m), DonorProperties)
-!         call ovkSetDonorPropertyVerbose(DonorProperties, Connectivity%properties%verbose)
-!         call ovkReleaseDonorProperties(Connectivity%donors(m), DonorProperties)
-!       end if
-!       if (Connectivity%receivers_exist(m)) then
-!         call ovkEditReceiverProperties(Connectivity%receivers(m), ReceiverProperties)
-!         call ovkSetReceiverPropertyVerbose(ReceiverProperties, Connectivity%properties%verbose)
-!         call ovkReleaseReceiverProperties(Connectivity%receivers(m), ReceiverProperties)
-!       end if
-!     end do
-
-    nullify(Properties)
-    Connectivity%editing_properties = .false.
 
   end subroutine ovkReleaseConnectivityProperties
 
-  subroutine ovkCreateConnectivityInterpData(Connectivity, GridID, Grid, MaxStencilSize)
+  subroutine UpdateVerbose(Connectivity)
+
+    type(ovk_connectivity), intent(inout) :: Connectivity
+
+    integer :: m
+    type(ovk_interp_properties), pointer :: InterpDataProperties
+
+    do m = 1, Connectivity%properties%ngrids
+      call ovkEditInterpDataProperties(Connectivity%interp_data(m), InterpDataProperties)
+      call ovkSetInterpDataPropertyVerbose(InterpDataProperties, Connectivity%properties%verbose)
+      call ovkReleaseInterpDataProperties(Connectivity%interp_data(m), InterpDataProperties)
+!       call ovkEditDonorProperties(Connectivity%donors(m), DonorProperties)
+!       call ovkSetDonorPropertyVerbose(DonorProperties, Connectivity%properties%verbose)
+!       call ovkReleaseDonorProperties(Connectivity%donors(m), DonorProperties)
+!       call ovkEditReceiverProperties(Connectivity%receivers(m), ReceiverProperties)
+!       call ovkSetReceiverPropertyVerbose(ReceiverProperties, Connectivity%properties%verbose)
+!       call ovkReleaseReceiverProperties(Connectivity%receivers(m), ReceiverProperties)
+    end do
+
+  end subroutine UpdateVerbose
+
+  subroutine ovkCreateConnectivityInterpData(Connectivity, GridID, GridDescription, StencilSize)
 
     type(ovk_connectivity), intent(inout) :: Connectivity
     integer, intent(in) :: GridID
-    type(ovk_grid), intent(in) :: Grid
-    integer, intent(in) :: MaxStencilSize
+    type(ovk_grid_description), intent(in) :: GridDescription
+    integer, intent(in) :: StencilSize
 
-    call ovkCreateInterpData(Connectivity%interp_data(GridID), Grid, MaxStencilSize, &
-      Verbose=Connectivity%properties%verbose)
+    call ovkDestroyInterpData(Connectivity%interp_data(GridID))
 
-    Connectivity%interp_data_exists(GridID) = .true.
-!     Connectivity%changed_interp_data(GridID) = .true.
+    call ovkCreateInterpData(Connectivity%interp_data(GridID), GridID, GridDescription, &
+      StencilSize, Verbose=Connectivity%properties%verbose)
 
   end subroutine ovkCreateConnectivityInterpData
 
@@ -312,10 +293,14 @@ contains
     type(ovk_connectivity), intent(inout) :: Connectivity
     integer, intent(in) :: GridID
 
+    type(ovk_grid_description) :: EmptyGridDescription
+
     call ovkDestroyInterpData(Connectivity%interp_data(GridID))
 
-    Connectivity%interp_data_exists(GridID) = .false.
-!     Connectivity%changed_interp_data(GridID) = .true.
+    EmptyGridDescription = ovk_grid_description_(Connectivity%properties%nd)
+
+    call ovkCreateInterpData(Connectivity%interp_data(GridID), GridID, EmptyGridDescription, 1, &
+      Verbose=Connectivity%properties%verbose)
 
   end subroutine ovkDestroyConnectivityInterpData
 
@@ -325,20 +310,7 @@ contains
     integer, intent(in) :: GridID
     type(ovk_interp), pointer, intent(out) :: InterpData
 
-    if (.not. Connectivity%interp_data_exists(GridID)) then
-
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Interpolation data does not exist."
-        stop 1
-      end if
-
-      nullify(InterpData)
-
-    else
-
-      InterpData => Connectivity%interp_data(GridID)
-
-    end if
+    InterpData => Connectivity%interp_data(GridID)
 
   end subroutine ovkGetConnectivityInterpData
 
@@ -351,6 +323,18 @@ contains
     Properties%verbose = .false.
 
   end function ovk_connectivity_properties_Default
+
+  function ovk_connectivity_properties_Assigned(NumDims, NumGrids) result(Properties)
+
+    integer, intent(in) :: NumDims
+    integer, intent(in) :: NumGrids
+    type(ovk_connectivity_properties) :: Properties
+
+    Properties%nd = NumDims
+    Properties%ngrids = NumGrids
+    Properties%verbose = .false.
+
+  end function ovk_connectivity_properties_Assigned
 
   subroutine ovkGetConnectivityPropertyDimension(Properties, NumDims)
 
@@ -387,5 +371,27 @@ contains
     Properties%verbose = Verbose
 
   end subroutine ovkSetConnectivityPropertyVerbose
+
+  function t_connectivity_editor_Default() result(Editor)
+
+    type(t_connectivity_editor) :: Editor
+
+    Editor%properties_ref_count = 0
+
+  end function t_connectivity_editor_Default
+
+  function t_connectivity_editor_Allocated(NumGrids) result(Editor)
+
+    integer, intent(in) :: NumGrids
+    type(t_connectivity_editor) :: Editor
+
+    Editor%properties_ref_count = 0
+
+!     allocate(Editor%donors_ref_count(NumGrids))
+!     Editor%donors_ref_count = 0
+!     allocate(Editor%receivers_ref_count(NumGrids))
+!     Editor%receivers_ref_count = 0
+
+  end function t_connectivity_editor_Allocated
 
 end module ovkConnectivity
