@@ -142,6 +142,7 @@ contains
         end if
       end do
       deallocate(Domain%grids)
+      deallocate(Domain%grid_exists)
     end if
 
     if (allocated(Domain%editing_grid)) deallocate(Domain%editing_grid)
