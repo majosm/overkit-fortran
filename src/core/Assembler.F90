@@ -263,7 +263,6 @@ contains
     type(ovk_connectivity_properties), pointer :: ConnectivityProperties
     integer :: InterpScheme
     integer :: FringeSize
-!     integer :: FringePadding
     integer :: MaxEdgeDist, PrevMaxEdgeDist
 
     if (.not. associated(Properties, Assembler%properties)) return
@@ -283,11 +282,6 @@ contains
           stop 1
         end if
       end do
-
-      if (any(Assembler%properties%connection_type == OVK_CONNECTION_FULL_GRID)) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_CONNECTION_FULL_GRID is not yet supported."
-        stop 1
-      end if
 
       do n = 1, NumGrids
         InterpScheme = OVK_INTERP_LINEAR
@@ -326,25 +320,6 @@ contains
           end if
         end do
       end do
-
-!       do n = 1, NumGrids
-!         FringePadding = 0
-!         do m = 1, NumGrids
-!           if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-!             FringePadding = Assembler%properties%fringe_padding(m,n)
-!             exit
-!           end if
-!         end do
-!         do m = 1, NumGrids
-!           if (Assembler%properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-!             if (Assembler%properties%fringe_padding(m,n) /= FringePadding) then
-!               write (ERROR_UNIT, '(2a)') "ERROR: Pairwise fringe padding specification is ", &
-!                 "not currently supported; must be set uniformly for each receiver grid."
-!               stop 1
-!             end if
-!           end if
-!         end do
-!       end do
 
     end if
 
@@ -840,6 +815,13 @@ contains
     type(ovk_assembler_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer, intent(out) :: ConnectionType
+
+    if (OVK_DEBUG) then
+      if (ConnectionType == OVK_CONNECTION_FULL_GRID) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_CONNECTION_FULL_GRID is not yet supported."
+        stop 1
+      end if
+    end if
 
     ConnectionType = Properties%connection_type(DonorGridID,ReceiverGridID)
 
