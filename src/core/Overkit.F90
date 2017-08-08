@@ -156,8 +156,6 @@ module Overkit
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
   public :: ovkSetDomainPropertyVerbose
-  public :: ovkGetDomainPropertyMaxEdgeDistance
-  public :: ovkSetDomainPropertyMaxEdgeDistance
 
   ! ovkDonorAccel
   public :: ovk_donor_accel

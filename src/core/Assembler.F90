@@ -261,6 +261,8 @@ contains
     integer :: NumGrids
     type(ovk_domain_properties), pointer :: DomainProperties
     type(ovk_connectivity_properties), pointer :: ConnectivityProperties
+    type(ovk_grid), pointer :: Grid
+    type(ovk_grid_properties), pointer :: GridProperties
     integer :: InterpScheme
     integer :: FringeSize
     integer :: MaxEdgeDist, PrevMaxEdgeDist
@@ -351,9 +353,11 @@ contains
       MaxEdgeDist = GetMaxEdgeDistance(Assembler%properties, n)
       PrevMaxEdgeDist = GetMaxEdgeDistance(Assembler%prev_properties, n)
       if (MaxEdgeDist /= PrevMaxEdgeDist) then
-        call ovkEditDomainProperties(Assembler%domain, DomainProperties)
-        call ovkSetDomainPropertyMaxEdgeDistance(DomainProperties, n, MaxEdgeDist)
-        call ovkReleaseDomainProperties(Assembler%domain, DomainProperties)
+        call ovkEditDomainGrid(Assembler%domain, n, Grid)
+        call ovkEditGridProperties(Grid, GridProperties)
+        call ovkSetGridPropertyMaxEdgeDistance(GridProperties, MaxEdgeDist)
+        call ovkReleaseGridProperties(Grid, GridProperties)
+        call ovkReleaseDomainGrid(Assembler%domain, Grid)
       end if
     end do
 
