@@ -760,6 +760,8 @@ contains
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
     real(rk), dimension(Grid%cart%nd) :: PeriodicCoords
 
+    if (ovkCartCount(Grid%cart) == 0) return
+
     EditingCoords = .false.
     do d = 1, Grid%cart%nd
       EditingCoords = EditingCoords .or. Grid%editor%xyz_ref_count(d) > 0
@@ -811,6 +813,8 @@ contains
     integer, dimension(MAX_ND) :: VertexLower, VertexUpper
     integer, dimension(MAX_ND) :: Vertex
     logical :: AwayFromEdge
+
+    if (ovkCartCount(Grid%cart) == 0) return
 
     do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
@@ -871,6 +875,8 @@ contains
     real(rk) :: AvgCellSize
     integer :: NumCells
     logical :: AwayFromEdge
+
+    if (ovkCartCount(Grid%cart) == 0) return
 
     EditingCoords = .false.
     do d = 1, Grid%cart%nd
@@ -968,6 +974,8 @@ contains
     type(ovk_grid), intent(inout) :: Grid
 
     type(ovk_field_logical) :: NotMask
+
+    if (ovkCartCount(Grid%cart) == 0) return
 
     NotMask = ovk_field_logical_(Grid%cart)
     NotMask%values = .not. Grid%grid_mask%values
