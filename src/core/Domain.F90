@@ -523,6 +523,8 @@ contains
 
     type(ovk_domain_event_flags) :: EventFlags
 
+    ! Nothing to do here
+
   end function ovk_domain_event_flags_Default
 
   function ovk_domain_event_flags_Allocated(NumDims, NumGrids) result(EventFlags)
