@@ -156,7 +156,7 @@ module Overkit
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
   public :: ovkSetDomainPropertyVerbose
-  public :: ovkResetGridEventFlags
+  public :: ovkResetDomainEventFlags
 
   ! ovkDonorAccel
   public :: ovk_donor_accel
