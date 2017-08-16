@@ -196,7 +196,9 @@ contains
 
     if (size(CandidateDonors) == 0) return
 
-    Cart = CandidateDonors(1)%cart
+    ! Intel 16.0.4 doesn't like this (internal compiler error)
+!     Cart = CandidateDonors(1)%cart
+    Cart = GetCart(CandidateDonors(1))
 
     do k = Cart%is(3), Cart%ie(3)
       do j = Cart%is(2), Cart%ie(2)
@@ -240,7 +242,9 @@ contains
 
     if (size(CandidateDonors) == 0) return
 
-    Cart = CandidateDonors(1)%cart
+    ! Intel 16.0.4 doesn't like this (internal compiler error)
+!     Cart = CandidateDonors(1)%cart
+    Cart = GetCart(CandidateDonors(1))
 
     call ovkMakeDonors(MergedDonors, Cart)
     MergedDonors%valid_mask%values = .false.
@@ -273,6 +277,15 @@ contains
     end do
 
   end subroutine ovkMergeDonors
+
+  function GetCart(Donors) result(Cart)
+
+    type(ovk_donors), intent(in) :: Donors
+    type(ovk_cart) :: Cart
+
+    Cart = Donors%cart
+
+  end function GetCart
 
   subroutine ovkPrintDonors(DonorGrid, ReceiverGrid, Donors)
 
@@ -543,7 +556,9 @@ contains
 
     if (size(CandidateDonors) == 0) return
 
-    Cart = CandidateDonors(1)%cart
+    ! Intel 16.0.4 doesn't like this (internal compiler error)
+!     Cart = CandidateDonors(1)%cart
+    Cart = GetCart(CandidateDonors(1))
 
     OverlapMask = ovk_field_logical_(Cart, .false.)
 
