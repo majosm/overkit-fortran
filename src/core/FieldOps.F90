@@ -463,7 +463,7 @@ contains
     type(ovk_field_logical), intent(out) :: ThresholdMask
     integer, intent(in), optional :: Lower, Upper
 
-    real(rk) :: Lower_, Upper_
+    integer :: Lower_, Upper_
     integer :: i, j, k
     real(rk) :: Value
 
@@ -505,7 +505,7 @@ contains
     type(ovk_field_logical), intent(out) :: ThresholdMask
     integer(lk), intent(in), optional :: Lower, Upper
 
-    real(rk) :: Lower_, Upper_
+    integer(lk) :: Lower_, Upper_
     integer :: i, j, k
     real(rk) :: Value
 
