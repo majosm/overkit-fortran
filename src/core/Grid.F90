@@ -585,6 +585,8 @@ contains
           end if
           call UpdateCellGridMask(Grid)
           call UpdateEdgeDistance(Grid)
+          call AttemptUpdateBounds(Grid)
+          call AttemptUpdateResolution(Grid)
         end if
 
       end if
