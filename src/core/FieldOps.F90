@@ -594,7 +594,7 @@ contains
     type(ovk_field_logical) :: NonMask
     integer :: NonMaskBoundaryValue
     type(ovk_field_logical) :: CoverMask
-    type(ovk_field_logical) :: PrevCoverMask
+    type(ovk_field_logical) :: CoverEdgeMask
 
     if (OVK_DEBUG) then
       if (Mask%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
@@ -637,14 +637,12 @@ contains
       end do
     end do
 
-    PrevCoverMask = ovk_field_logical_(CoverMask%cart)
     do d = 1, MaxDistance-1
-      PrevCoverMask%values = CoverMask%values
-      call ovkDilate(CoverMask, 1, OVK_FALSE)
+      call ovkDetectEdge(CoverMask, OVK_OUTER_EDGE, OVK_FALSE, .false., CoverEdgeMask)
       do k = Mask%cart%is(3), Mask%cart%ie(3)
         do j = Mask%cart%is(2), Mask%cart%ie(2)
           do i = Mask%cart%is(1), Mask%cart%ie(1)
-            if (CoverMask%values(i,j,k) .and. .not. PrevCoverMask%values(i,j,k)) then
+            if (CoverEdgeMask%values(i,j,k)) then
               if (Mask%values(i,j,k)) then
                 Distances%values(i,j,k) = -d
               else
@@ -654,6 +652,7 @@ contains
           end do
         end do
       end do
+      CoverMask%values = CoverMask%values .or. CoverEdgeMask%values
     end do
 
   end subroutine ovkDistanceField
