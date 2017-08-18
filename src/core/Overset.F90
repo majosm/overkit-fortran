@@ -282,12 +282,14 @@ contains
 
     do m = 1, NumGrids
       Grid_m => Domain%grids(IndexToID(m))
-      if (OVK_VERBOSE) then
-        write (*, '(3a)') "* Generating donor search accelerator on grid ", &
-          trim(IntToString(Grid_m%properties%id)), "..."
+      if (any(Overlappable(m,:))) then
+        if (OVK_VERBOSE) then
+          write (*, '(3a)') "* Generating donor search accelerator on grid ", &
+            trim(IntToString(Grid_m%properties%id)), "..."
+        end if
+        call ovkGenerateDonorAccel(Grid_m, DonorAccel, Bounds=OverlapBounds(m), &
+          OverlapTolerance=MaxOverlapTolerance(m))
       end if
-      call ovkGenerateDonorAccel(Grid_m, DonorAccel, Bounds=OverlapBounds(m), &
-        OverlapTolerance=MaxOverlapTolerance(m))
       do n = 1, NumGrids
         Grid_n => Domain%grids(IndexToID(n))
         if (Overlappable(m,n)) then
@@ -295,16 +297,20 @@ contains
             OverlapTolerance=OverlapTolerance(m,n))
           if (OVK_VERBOSE) then
             PointCount = ovkCountMask(PairwiseDonors(m,n)%valid_mask)
-            write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), &
-              " candidate donors from grid ", trim(IntToString(Grid_m%properties%id)), &
-              " to grid ", trim(IntToString(Grid_n%properties%id)), " found."
+            if (PointCount > 0) then
+              write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), &
+                " candidate donors from grid ", trim(IntToString(Grid_m%properties%id)), &
+                " to grid ", trim(IntToString(Grid_n%properties%id)), " found."
+            end if
           end if
         else
           call ovkMakeDonors(PairwiseDonors(m,n), Grid_n%cart)
           PairwiseDonors(m,n)%valid_mask%values = .false.
         end if
       end do
-      call ovkDestroyDonorAccel(DonorAccel)
+      if (any(Overlappable(m,:))) then
+        call ovkDestroyDonorAccel(DonorAccel)
+      end if
     end do
 
     deallocate(OverlapBounds)
@@ -350,8 +356,10 @@ contains
         end if
       end if
       if (OVK_VERBOSE) then
-        write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
-          " points marked as boundaries on grid ", trim(IntToString(Grid_n%properties%id)), "."
+        if (PointCount > 0) then
+          write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+            " points marked as boundaries on grid ", trim(IntToString(Grid_n%properties%id)), "."
+        end if
       end if
     end do
 
@@ -457,8 +465,10 @@ contains
         end if
       end if
       if (OVK_VERBOSE) then
-        write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
-          " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+        if (PointCount > 0) then
+          write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+            " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+        end if
       end if
     end do
 
@@ -573,8 +583,10 @@ contains
       if (OVK_VERBOSE) then
         Grid_n => Domain%grids(IndexToID(n))
         PointCount = ovkCountMask(CutMasks(n))
-        write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
-          " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+        if (PointCount > 0) then
+          write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+            " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+        end if
       end if
     end do
 
@@ -726,8 +738,10 @@ contains
       call ovkMergeDonors(PairwiseDonors(:,n), Donors(n))
       if (OVK_VERBOSE) then
         PointCount = ovkCountMask(Donors(n)%valid_mask)
-        write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
-          " receiver points on grid ", trim(IntToString(Grid_n%properties%id)), "."
+        if (PointCount > 0) then
+          write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+            " receiver points on grid ", trim(IntToString(Grid_n%properties%id)), "."
+        end if
       end if
     end do
 
@@ -911,8 +925,10 @@ contains
           end do
         end do
         PointCount = ovkCountMask(OrphanMasks(n))
-        write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
-          " orphan points found on grid ", trim(IntToString(Grid_n%properties%id)), "."
+        if (PointCount > 0) then
+          write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+            " orphan points found on grid ", trim(IntToString(Grid_n%properties%id)), "."
+        end if
       end if
     end do
 
@@ -943,10 +959,12 @@ contains
     do n = 1, NumGrids
       Grid_n => Domain%grids(IndexToID(n))
       InterpData_n => Connectivity%interp_data(IndexToID(n))
-      call ovkFillInterpData(InterpData_n, Donors(n), OrphanMasks(n), InterpScheme=InterpScheme(n))
-      if (OVK_VERBOSE) then
-        write (*, '(3a)') "* Generated interpolation data for grid ", &
-          trim(IntToString(Grid_n%properties%id)), "."
+      if (any(ConnectionType(:,n) /= OVK_CONNECTION_NONE)) then
+        call ovkFillInterpData(InterpData_n, Donors(n), OrphanMasks(n), InterpScheme=InterpScheme(n))
+        if (OVK_VERBOSE) then
+          write (*, '(3a)') "* Generated interpolation data for grid ", &
+            trim(IntToString(Grid_n%properties%id)), "."
+        end if
       end if
     end do
 
