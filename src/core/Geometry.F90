@@ -14,16 +14,24 @@ module ovkGeometry
   ! API
   public :: ovkOverlapsRectangle
   public :: ovkOverlapsCuboid
+  public :: ovkOverlapsOrientedRectangle
+  public :: ovkOverlapsOrientedCuboid
   public :: ovkOverlapsQuad
   public :: ovkOverlapsHexahedron
   public :: ovkRectangleSize
   public :: ovkCuboidSize
+  public :: ovkOrientedRectangleSize
+  public :: ovkOrientedCuboidSize
   public :: ovkQuadSize
   public :: ovkHexahedronSize
   public :: ovkRectangleIsoLinear
   public :: ovkRectangleIsoCubic
   public :: ovkCuboidIsoLinear
   public :: ovkCuboidIsoCubic
+  public :: ovkOrientedRectangleIsoLinear
+  public :: ovkOrientedRectangleIsoCubic
+  public :: ovkOrientedCuboidIsoLinear
+  public :: ovkOrientedCuboidIsoCubic
   public :: ovkQuadIsoLinear
   public :: ovkQuadIsoCubic
   public :: ovkHexahedronIsoLinear
@@ -32,6 +40,10 @@ module ovkGeometry
   public :: ovkRectangleIsoInverseCubic
   public :: ovkCuboidIsoInverseLinear
   public :: ovkCuboidIsoInverseCubic
+  public :: ovkOrientedRectangleIsoInverseLinear
+  public :: ovkOrientedRectangleIsoInverseCubic
+  public :: ovkOrientedCuboidIsoInverseLinear
+  public :: ovkOrientedCuboidIsoInverseCubic
   public :: ovkQuadIsoInverseLinear
   public :: ovkQuadIsoInverseCubic
   public :: ovkHexahedronIsoInverseLinear
@@ -108,6 +120,58 @@ contains
     Overlaps = .true.
 
   end function ovkOverlapsCuboid
+
+  pure function ovkOverlapsOrientedRectangle(VertexCoords, Coords) result(Overlaps)
+
+    real(rk), dimension(2,4), intent(in) :: VertexCoords
+    real(rk), dimension(2), intent(in) :: Coords
+    logical :: Overlaps
+
+    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+
+    real(rk), dimension(2) :: LocalCoords
+
+    Overlaps = .false.
+
+    LocalCoords = ovkOrientedRectangleIsoInverseLinear(VertexCoords, Coords)
+
+    if (any(LocalCoords < -TOLERANCE)) then
+      return
+    end if
+
+    if (any(LocalCoords > 1._rk+TOLERANCE)) then
+      return
+    end if
+
+    Overlaps = .true.
+
+  end function ovkOverlapsOrientedRectangle
+
+  pure function ovkOverlapsOrientedCuboid(VertexCoords, Coords) result(Overlaps)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: Coords
+    logical :: Overlaps
+
+    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+
+    real(rk), dimension(3) :: LocalCoords
+
+    Overlaps = .false.
+
+    LocalCoords = ovkOrientedCuboidIsoInverseLinear(VertexCoords, Coords)
+
+    if (any(LocalCoords < -TOLERANCE)) then
+      return
+    end if
+
+    if (any(LocalCoords > 1._rk+TOLERANCE)) then
+      return
+    end if
+
+    Overlaps = .true.
+
+  end function ovkOverlapsOrientedCuboid
 
   pure function ovkOverlapsQuad(VertexCoords, Coords) result(Overlaps)
 
@@ -192,6 +256,38 @@ contains
     CuboidSize = product(VertexCoords(:,8) - VertexCoords(:,1))
 
   end function ovkCuboidSize
+
+  pure function ovkOrientedRectangleSize(VertexCoords) result(RectangleSize)
+
+    real(rk), dimension(2,4), intent(in) :: VertexCoords
+    real(rk) :: RectangleSize
+
+    real(rk), dimension(2,2) :: Basis
+
+    Basis(:,1) = VertexCoords(:,2) - VertexCoords(:,1)
+    Basis(:,2) = VertexCoords(:,3) - VertexCoords(:,1)
+
+    RectangleSize = abs(Basis(1,1) * Basis(2,2) - Basis(1,2) * Basis(2,1))
+
+  end function ovkOrientedRectangleSize
+
+  pure function ovkOrientedCuboidSize(VertexCoords) result(CuboidSize)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk) :: CuboidSize
+
+    real(rk), dimension(3,3) :: Basis
+
+    Basis(:,1) = VertexCoords(:,2) - VertexCoords(:,1)
+    Basis(:,2) = VertexCoords(:,3) - VertexCoords(:,1)
+    Basis(:,3) = VertexCoords(:,5) - VertexCoords(:,1)
+
+    CuboidSize = abs( &
+      Basis(1,1) * (Basis(2,2)*Basis(3,3) - Basis(2,3)*Basis(3,2)) + &
+      Basis(1,2) * (Basis(2,3)*Basis(3,1) - Basis(2,1)*Basis(3,3)) + &
+      Basis(1,3) * (Basis(2,1)*Basis(3,2) - Basis(2,2)*Basis(3,1)))
+
+  end function ovkOrientedCuboidSize
 
   pure function ovkQuadSize(VertexCoords) result(QuadSize)
 
@@ -283,6 +379,70 @@ contains
     Coords = (1._rk - LocalCoords) * VertexCoords(:,22) + LocalCoords * VertexCoords(:,43)
 
   end function ovkCuboidIsoCubic
+
+  pure function ovkOrientedRectangleIsoLinear(VertexCoords, LocalCoords) result(Coords)
+
+    real(rk), dimension(2,4), intent(in) :: VertexCoords
+    real(rk), dimension(2), intent(in) :: LocalCoords
+    real(rk), dimension(2) :: Coords
+
+    real(rk), dimension(2,2) :: Basis
+
+    Basis(:,1) = VertexCoords(:,2) - VertexCoords(:,1)
+    Basis(:,2) = VertexCoords(:,3) - VertexCoords(:,1)
+
+    Coords = VertexCoords(:,1) + LocalCoords(1) * Basis(:,1) + LocalCoords(2) * Basis(:,2)
+
+  end function ovkOrientedRectangleIsoLinear
+
+  pure function ovkOrientedRectangleIsoCubic(VertexCoords, LocalCoords) result(Coords)
+
+    real(rk), dimension(2,16), intent(in) :: VertexCoords
+    real(rk), dimension(2), intent(in) :: LocalCoords
+    real(rk), dimension(2) :: Coords
+
+    real(rk), dimension(2,2) :: Basis
+
+    Basis(:,1) = VertexCoords(:,7) - VertexCoords(:,6)
+    Basis(:,2) = VertexCoords(:,10) - VertexCoords(:,6)
+
+    Coords = VertexCoords(:,6) + LocalCoords(1) * Basis(:,1) + LocalCoords(2) * Basis(:,2)
+
+  end function ovkOrientedRectangleIsoCubic
+
+  pure function ovkOrientedCuboidIsoLinear(VertexCoords, LocalCoords) result(Coords)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: LocalCoords
+    real(rk), dimension(3) :: Coords
+
+    real(rk), dimension(3,3) :: Basis
+
+    Basis(:,1) = VertexCoords(:,2) - VertexCoords(:,1)
+    Basis(:,2) = VertexCoords(:,3) - VertexCoords(:,1)
+    Basis(:,3) = VertexCoords(:,5) - VertexCoords(:,1)
+
+    Coords = VertexCoords(:,1) + LocalCoords(1) * Basis(:,1) + LocalCoords(2) * Basis(:,2) + &
+      LocalCoords(3) * Basis(:,3)
+
+  end function ovkOrientedCuboidIsoLinear
+
+  pure function ovkOrientedCuboidIsoCubic(VertexCoords, LocalCoords) result(Coords)
+
+    real(rk), dimension(3,64), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: LocalCoords
+    real(rk), dimension(3) :: Coords
+
+    real(rk), dimension(3,3) :: Basis
+
+    Basis(:,1) = VertexCoords(:,23) - VertexCoords(:,22)
+    Basis(:,2) = VertexCoords(:,26) - VertexCoords(:,22)
+    Basis(:,3) = VertexCoords(:,38) - VertexCoords(:,22)
+
+    Coords = VertexCoords(:,22) + LocalCoords(1) * Basis(:,1) + LocalCoords(2) * Basis(:,2) + &
+      LocalCoords(3) * Basis(:,3)
+
+  end function ovkOrientedCuboidIsoCubic
 
   pure function ovkQuadIsoLinear_LocalCoords(VertexCoords, LocalCoords) result(Coords)
 
@@ -463,6 +623,82 @@ contains
     LocalCoords = (Coords - VertexCoords(:,22))/(VertexCoords(:,43) - VertexCoords(:,22))
 
   end function ovkCuboidIsoInverseCubic
+
+  pure function ovkOrientedRectangleIsoInverseLinear(VertexCoords, Coords) result(LocalCoords)
+
+    real(rk), dimension(2,4), intent(in) :: VertexCoords
+    real(rk), dimension(2), intent(in) :: Coords
+    real(rk), dimension(2) :: LocalCoords
+
+    real(rk), dimension(2,2) :: Basis
+    real(rk), dimension(2) :: RelativeCoords
+
+    Basis(:,1) = VertexCoords(:,2) - VertexCoords(:,1)
+    Basis(:,2) = VertexCoords(:,3) - VertexCoords(:,1)
+    RelativeCoords = Coords - VertexCoords(:,1)
+
+    LocalCoords(1) = dot_product(Basis(:,1), RelativeCoords)/dot_product(Basis(:,1), Basis(:,1))
+    LocalCoords(2) = dot_product(Basis(:,2), RelativeCoords)/dot_product(Basis(:,2), Basis(:,2))
+
+  end function ovkOrientedRectangleIsoInverseLinear
+
+  pure function ovkOrientedRectangleIsoInverseCubic(VertexCoords, Coords) result(LocalCoords)
+
+    real(rk), dimension(2,16), intent(in) :: VertexCoords
+    real(rk), dimension(2), intent(in) :: Coords
+    real(rk), dimension(2) :: LocalCoords
+
+    real(rk), dimension(2,2) :: Basis
+    real(rk), dimension(2) :: RelativeCoords
+
+    Basis(:,1) = VertexCoords(:,7) - VertexCoords(:,6)
+    Basis(:,2) = VertexCoords(:,10) - VertexCoords(:,6)
+    RelativeCoords = Coords - VertexCoords(:,6)
+
+    LocalCoords(1) = dot_product(Basis(:,1), RelativeCoords)/dot_product(Basis(:,1), Basis(:,1))
+    LocalCoords(2) = dot_product(Basis(:,2), RelativeCoords)/dot_product(Basis(:,2), Basis(:,2))
+
+  end function ovkOrientedRectangleIsoInverseCubic
+
+  pure function ovkOrientedCuboidIsoInverseLinear(VertexCoords, Coords) result(LocalCoords)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: Coords
+    real(rk), dimension(3) :: LocalCoords
+
+    real(rk), dimension(3,3) :: Basis
+    real(rk), dimension(3) :: RelativeCoords
+
+    Basis(:,1) = VertexCoords(:,2) - VertexCoords(:,1)
+    Basis(:,2) = VertexCoords(:,3) - VertexCoords(:,1)
+    Basis(:,3) = VertexCoords(:,5) - VertexCoords(:,1)
+    RelativeCoords = Coords - VertexCoords(:,1)
+
+    LocalCoords(1) = dot_product(Basis(:,1), RelativeCoords)/dot_product(Basis(:,1), Basis(:,1))
+    LocalCoords(2) = dot_product(Basis(:,2), RelativeCoords)/dot_product(Basis(:,2), Basis(:,2))
+    LocalCoords(3) = dot_product(Basis(:,3), RelativeCoords)/dot_product(Basis(:,3), Basis(:,3))
+
+  end function ovkOrientedCuboidIsoInverseLinear
+
+  pure function ovkOrientedCuboidIsoInverseCubic(VertexCoords, Coords) result(LocalCoords)
+
+    real(rk), dimension(3,64), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: Coords
+    real(rk), dimension(3) :: LocalCoords
+
+    real(rk), dimension(3,3) :: Basis
+    real(rk), dimension(3) :: RelativeCoords
+
+    Basis(:,1) = VertexCoords(:,23) - VertexCoords(:,22)
+    Basis(:,2) = VertexCoords(:,26) - VertexCoords(:,22)
+    Basis(:,3) = VertexCoords(:,38) - VertexCoords(:,22)
+    RelativeCoords = Coords - VertexCoords(:,22)
+
+    LocalCoords(1) = dot_product(Basis(:,1), RelativeCoords)/dot_product(Basis(:,1), Basis(:,1))
+    LocalCoords(2) = dot_product(Basis(:,2), RelativeCoords)/dot_product(Basis(:,2), Basis(:,2))
+    LocalCoords(3) = dot_product(Basis(:,3), RelativeCoords)/dot_product(Basis(:,3), Basis(:,3))
+
+  end function ovkOrientedCuboidIsoInverseCubic
 
   function ovkQuadIsoInverseLinear(VertexCoords, Coords, Guess, Success) result(LocalCoords)
 

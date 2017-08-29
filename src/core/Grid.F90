@@ -61,9 +61,9 @@ module ovkGrid
   public :: ovkSetGridPropertyMaxEdgeDistance
   public :: ovkResetGridEventFlags
   public :: OVK_GRID_GEOMETRY_CARTESIAN
-  public :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
-  public :: OVK_GRID_GEOMETRY_RECTILINEAR_ROTATED
+  public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
+  public :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_CURVILINEAR
 
   type ovk_grid_properties
@@ -156,9 +156,9 @@ module ovkGrid
   end interface ovk_grid_event_flags_
 
   integer, parameter :: OVK_GRID_GEOMETRY_CARTESIAN = 1
-  integer, parameter :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED = 2
-  integer, parameter :: OVK_GRID_GEOMETRY_RECTILINEAR = 3
-  integer, parameter :: OVK_GRID_GEOMETRY_RECTILINEAR_ROTATED = 4
+  integer, parameter :: OVK_GRID_GEOMETRY_RECTILINEAR = 2
+  integer, parameter :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN = 3
+  integer, parameter :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR = 4
   integer, parameter :: OVK_GRID_GEOMETRY_CURVILINEAR = 5
 
 contains
@@ -905,6 +905,13 @@ contains
               case (3)
                 CellSizes%values(i,j,k) = ovkCuboidSize(VertexCoords)
               end select
+            case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
+              select case (Grid%cart%nd)
+              case (2)
+                CellSizes%values(i,j,k) = ovkOrientedRectangleSize(VertexCoords)
+              case (3)
+                CellSizes%values(i,j,k) = ovkOrientedCuboidSize(VertexCoords)
+              end select
             case default
               select case (Grid%cart%nd)
               case (2)
@@ -1102,6 +1109,13 @@ contains
       case (3)
         Overlaps = ovkOverlapsCuboid(VertexCoords, Coords)
       end select
+    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
+      select case (Grid%cart%nd)
+      case (2)
+        Overlaps = ovkOverlapsOrientedRectangle(VertexCoords, Coords)
+      case (3)
+        Overlaps = ovkOverlapsOrientedCuboid(VertexCoords, Coords)
+      end select
     case default
       select case (Grid%cart%nd)
       case (2)
@@ -1143,6 +1157,13 @@ contains
         CoordsInCell = ovkRectangleIsoInverseLinear(VertexCoords, Coords)
       case (3)
         CoordsInCell = ovkCuboidIsoInverseLinear(VertexCoords, Coords)
+      end select
+    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
+      select case (Grid%cart%nd)
+      case (2)
+        CoordsInCell = ovkOrientedRectangleIsoInverseLinear(VertexCoords, Coords)
+      case (3)
+        CoordsInCell = ovkOrientedCuboidIsoInverseLinear(VertexCoords, Coords)
       end select
     case default
       select case (Grid%cart%nd)

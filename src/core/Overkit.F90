@@ -206,16 +206,24 @@ module Overkit
   ! ovkGeometry
   public :: ovkOverlapsRectangle
   public :: ovkOverlapsCuboid
+  public :: ovkOverlapsOrientedRectangle
+  public :: ovkOverlapsOrientedCuboid
   public :: ovkOverlapsQuad
   public :: ovkOverlapsHexahedron
   public :: ovkRectangleSize
   public :: ovkCuboidSize
+  public :: ovkOrientedRectangleSize
+  public :: ovkOrientedCuboidSize
   public :: ovkQuadSize
   public :: ovkHexahedronSize
   public :: ovkRectangleIsoLinear
   public :: ovkRectangleIsoCubic
   public :: ovkCuboidIsoLinear
   public :: ovkCuboidIsoCubic
+  public :: ovkOrientedRectangleIsoLinear
+  public :: ovkOrientedRectangleIsoCubic
+  public :: ovkOrientedCuboidIsoLinear
+  public :: ovkOrientedCuboidIsoCubic
   public :: ovkQuadIsoLinear
   public :: ovkQuadIsoCubic
   public :: ovkHexahedronIsoLinear
@@ -224,6 +232,10 @@ module Overkit
   public :: ovkRectangleIsoInverseCubic
   public :: ovkCuboidIsoInverseLinear
   public :: ovkCuboidIsoInverseCubic
+  public :: ovkOrientedRectangleIsoInverseLinear
+  public :: ovkOrientedRectangleIsoInverseCubic
+  public :: ovkOrientedCuboidIsoInverseLinear
+  public :: ovkOrientedCuboidIsoInverseCubic
   public :: ovkQuadIsoInverseLinear
   public :: ovkQuadIsoInverseCubic
   public :: ovkHexahedronIsoInverseLinear
@@ -298,9 +310,9 @@ module Overkit
   public :: ovkSetGridPropertyMaxEdgeDistance
   public :: ovkResetGridEventFlags
   public :: OVK_GRID_GEOMETRY_CARTESIAN
-  public :: OVK_GRID_GEOMETRY_CARTESIAN_ROTATED
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
-  public :: OVK_GRID_GEOMETRY_RECTILINEAR_ROTATED
+  public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
+  public :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_CURVILINEAR
 
   ! ovkHashGrid

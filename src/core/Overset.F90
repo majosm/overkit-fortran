@@ -1126,6 +1126,13 @@ contains
       case (3)
         ExpandedDonorCellCoords = ovkCuboidIsoInverseCubic(VertexCoords, ReceiverCoords)
       end select
+    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+      select case (DonorGrid%cart%nd)
+      case (2)
+        ExpandedDonorCellCoords = ovkOrientedRectangleIsoInverseCubic(VertexCoords, ReceiverCoords)
+      case (3)
+        ExpandedDonorCellCoords = ovkOrientedCuboidIsoInverseCubic(VertexCoords, ReceiverCoords)
+      end select
     case default
       select case (DonorGrid%cart%nd)
       case (2)
