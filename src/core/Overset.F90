@@ -39,6 +39,7 @@ contains
     logical, dimension(:), allocatable :: InferBoundaries
     logical, dimension(:,:), allocatable :: Overlappable
     real(rk), dimension(:,:), allocatable :: OverlapTolerance
+    real(rk), dimension(:), allocatable :: BinScale
     logical, dimension(:,:), allocatable :: BoundaryHoleCutting
     logical, dimension(:,:), allocatable :: OverlapHoleCutting
     integer, dimension(:,:), allocatable :: ConnectionType
@@ -173,6 +174,12 @@ contains
       end do
     end do
 
+    allocate(BinScale(NumGrids))
+    do m = 1, NumGrids
+      p = IndexToID(m)
+      BinScale(m) = 2._rk**(-Assembler%properties%overlap_accel_quality_adjust(p))
+    end do
+
     allocate(BoundaryHoleCutting(NumGrids,NumGrids))
     allocate(OverlapHoleCutting(NumGrids,NumGrids))
     do n = 1, NumGrids
@@ -287,7 +294,7 @@ contains
             trim(IntToString(Grid_m%properties%id)), "..."
         end if
         call ovkGenerateDonorAccel(Grid_m, DonorAccel, Bounds=OverlapBounds(m), &
-          OverlapTolerance=MaxOverlapTolerance(m))
+          OverlapTolerance=MaxOverlapTolerance(m), BinScale=BinScale(m))
       end if
       do n = 1, NumGrids
         Grid_n => Domain%grids(IndexToID(n))

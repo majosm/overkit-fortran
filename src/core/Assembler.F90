@@ -48,6 +48,8 @@ module ovkAssembler
   public :: ovkSetAssemblerPropertyOverlappable
   public :: ovkGetAssemblerPropertyOverlapTolerance
   public :: ovkSetAssemblerPropertyOverlapTolerance
+  public :: ovkGetAssemblerPropertyOverlapAccelQualityAdjust
+  public :: ovkSetAssemblerPropertyOverlapAccelQualityAdjust
   public :: ovkGetAssemblerPropertyBoundaryHoleCutting
   public :: ovkSetAssemblerPropertyBoundaryHoleCutting
   public :: ovkGetAssemblerPropertyOverlapHoleCutting
@@ -74,6 +76,7 @@ module ovkAssembler
     logical, dimension(:), allocatable :: infer_boundaries
     logical, dimension(:,:), allocatable :: overlappable
     real(rk), dimension(:,:), allocatable :: overlap_tolerance
+    real(rk), dimension(:), allocatable :: overlap_accel_quality_adjust
     logical, dimension(:,:), allocatable :: boundary_hole_cutting
     logical, dimension(:,:), allocatable :: overlap_hole_cutting
     integer, dimension(:,:), allocatable :: connection_type
@@ -659,6 +662,9 @@ contains
     allocate(Properties%overlap_tolerance(NumGrids,NumGrids))
     Properties%overlap_tolerance = 0._rk
 
+    allocate(Properties%overlap_accel_quality_adjust(NumGrids))
+    Properties%overlap_accel_quality_adjust = 0._rk
+
     allocate(Properties%boundary_hole_cutting(NumGrids,NumGrids))
     Properties%boundary_hole_cutting = .false.
 
@@ -833,6 +839,33 @@ contains
     end do
 
   end subroutine ovkSetAssemblerPropertyOverlapTolerance
+
+  subroutine ovkGetAssemblerPropertyOverlapAccelQualityAdjust(Properties, GridID, OverlapAccelQualityAdjust)
+
+    type(ovk_assembler_properties), intent(in) :: Properties
+    integer, intent(in) :: GridID
+    real(rk), intent(out) :: OverlapAccelQualityAdjust
+
+    OverlapAccelQualityAdjust = Properties%overlap_accel_quality_adjust(GridID)
+
+  end subroutine ovkGetAssemblerPropertyOverlapAccelQualityAdjust
+
+  subroutine ovkSetAssemblerPropertyOverlapAccelQualityAdjust(Properties, GridID, OverlapAccelQualityAdjust)
+
+    type(ovk_assembler_properties), intent(inout) :: Properties
+    integer, intent(in) :: GridID
+    real(rk), intent(in) :: OverlapAccelQualityAdjust
+
+    integer :: m
+    integer :: ms, me
+
+    call GridIDRange(Properties%ngrids, GridID, ms, me)
+
+    do m = ms, me
+      Properties%overlap_accel_quality_adjust(m) = OverlapAccelQualityAdjust
+    end do
+
+  end subroutine ovkSetAssemblerPropertyOverlapAccelQualityAdjust
 
   subroutine ovkGetAssemblerPropertyBoundaryHoleCutting(Properties, CuttingGridID, CutGridID, &
     BoundaryHoleCutting)

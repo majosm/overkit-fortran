@@ -59,6 +59,8 @@ module Overkit
   public :: ovkSetAssemblerPropertyOverlappable
   public :: ovkGetAssemblerPropertyOverlapTolerance
   public :: ovkSetAssemblerPropertyOverlapTolerance
+  public :: ovkGetAssemblerPropertyOverlapAccelQualityAdjust
+  public :: ovkSetAssemblerPropertyOverlapAccelQualityAdjust
   public :: ovkGetAssemblerPropertyBoundaryHoleCutting
   public :: ovkSetAssemblerPropertyBoundaryHoleCutting
   public :: ovkGetAssemblerPropertyOverlapHoleCutting
