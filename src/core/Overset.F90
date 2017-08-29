@@ -71,7 +71,6 @@ contains
     type(ovk_field_logical), pointer :: EditGridMask
     type(ovk_field_logical), pointer :: EditBoundaryMask
     type(ovk_field_logical), pointer :: EditInternalBoundaryMask
-    type(ovk_field_logical), dimension(:), allocatable :: PaddingMasks
     integer :: PaddingAmount
     real(rk) :: CandidateCellDistance, BestCellDistance
     real(rk) :: CandidateCellDiff, BestCellDiff
@@ -482,12 +481,15 @@ contains
 
     allocate(FineMasks(NumGrids))
     allocate(PairwiseFineMasks(NumGrids,NumGrids))
+
     do n = 1, NumGrids
       Grid_n => Domain%grids(IndexToID(n))
-      FineMasks(n) = Grid_n%grid_mask
-      do m = 1, NumGrids
-        PairwiseFineMasks(m,n) = Grid_n%grid_mask
-      end do
+      if (any(OverlapHoleCutting(:,n))) then
+        FineMasks(n) = Grid_n%grid_mask
+        do m = 1, NumGrids
+          PairwiseFineMasks(m,n) = Grid_n%grid_mask
+        end do
+      end if
     end do
 
     ! Cut out coarse points in overlapping regions
@@ -535,57 +537,54 @@ contains
       end do
     end do
 
-    allocate(PaddingMasks(NumGrids))
-
-    do n = 1, NumGrids
-      Grid_n => Domain%grids(IndexToID(n))
-      PaddingMasks(n) = FineMasks(n)
-      CoarseMask = ovk_field_logical_(Grid_n%cart)
-      CoarseMask%values = .not. FineMasks(n)%values
-      call ovkDetectEdge(CoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., CoarseEdgeMask)
-      do m = 1, NumGrids
-        if (OverlapHoleCutting(m,n) .and. ConnectionType(m,n) == OVK_CONNECTION_FRINGE) then
-          PairwiseCoarseMask = ovk_field_logical_(Grid_n%cart)
-          PairwiseCoarseMask%values = .not. PairwiseFineMasks(m,n)%values
-          call ovkDetectEdge(PairwiseCoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., &
-            PaddingEdgeMask)
-          PaddingEdgeMask%values = PaddingEdgeMask%values .and. CoarseEdgeMask%values
-          call ovkDilate(PaddingEdgeMask, FringePadding(m,n), OVK_FALSE)
-          PaddingMasks(n)%values = PaddingMasks(n)%values .or. &
-            (PairwiseDonors(m,n)%valid_mask%values .and. PaddingEdgeMask%values)
-        end if
-      end do
-    end do
-
     allocate(CutMasks(NumGrids))
 
     do n = 1, NumGrids
       Grid_n => Domain%grids(IndexToID(n))
-      CutMasks(n) = ovk_field_logical_(Grid_n%cart)
-      CutMasks(n)%values = Grid_n%grid_mask%values .and. .not. PaddingMasks(n)%values
+      CutMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
+      if (any(OverlapHoleCutting(:,n))) then
+        CoarseMask = ovk_field_logical_(Grid_n%cart)
+        CoarseMask%values = .not. FineMasks(n)%values
+        CutMasks(n)%values = Grid_n%grid_mask%values .and. CoarseMask%values
+        call ovkDetectEdge(CoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., CoarseEdgeMask)
+        do m = 1, NumGrids
+          if (OverlapHoleCutting(m,n) .and. ConnectionType(m,n) == OVK_CONNECTION_FRINGE) then
+            PairwiseCoarseMask = ovk_field_logical_(Grid_n%cart)
+            PairwiseCoarseMask%values = .not. PairwiseFineMasks(m,n)%values
+            call ovkDetectEdge(PairwiseCoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., &
+              PaddingEdgeMask)
+            PaddingEdgeMask%values = PaddingEdgeMask%values .and. CoarseEdgeMask%values
+            call ovkDilate(PaddingEdgeMask, FringePadding(m,n), OVK_FALSE)
+            CutMasks(n)%values = CutMasks(n)%values .and. .not. &
+              (PairwiseDonors(m,n)%valid_mask%values .and. PaddingEdgeMask%values)
+          end if
+        end do
+      end if
     end do
 
     call ovkEditAssemblerDomain(Assembler, EditDomain)
 
     do n = 1, NumGrids
-      call ovkEditDomainGrid(EditDomain, IndexToID(n), EditGrid)
-      call ovkEditGridMask(EditGrid, EditGridMask)
-      call ovkEditGridBoundaryMask(EditGrid, EditBoundaryMask)
-      call ovkEditGridInternalBoundaryMask(EditGrid, EditInternalBoundaryMask)
-      EditGridMask%values = EditGridMask%values .and. .not. CutMasks(n)%values
-      EditBoundaryMask%values = EditBoundaryMask%values .and. .not. CutMasks(n)%values
-      EditInternalBoundaryMask%values = EditInternalBoundaryMask%values .and. .not. &
-        CutMasks(n)%values
-      call ovkReleaseGridMask(EditGrid, EditGridMask)
-      call ovkReleaseGridBoundaryMask(EditGrid, EditBoundaryMask)
-      call ovkReleaseGridInternalBoundaryMask(EditGrid, EditInternalBoundaryMask)
-      call ovkReleaseDomainGrid(EditDomain, EditGrid)
-      if (OVK_VERBOSE) then
-        Grid_n => Domain%grids(IndexToID(n))
-        PointCount = ovkCountMask(CutMasks(n))
-        if (PointCount > 0) then
-          write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
-            " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+      if (any(OverlapHoleCutting(:,n)) .or. any(BoundaryHoleCutting(:,n))) then
+        call ovkEditDomainGrid(EditDomain, IndexToID(n), EditGrid)
+        call ovkEditGridMask(EditGrid, EditGridMask)
+        call ovkEditGridBoundaryMask(EditGrid, EditBoundaryMask)
+        call ovkEditGridInternalBoundaryMask(EditGrid, EditInternalBoundaryMask)
+        EditGridMask%values = EditGridMask%values .and. .not. CutMasks(n)%values
+        EditBoundaryMask%values = EditBoundaryMask%values .and. .not. CutMasks(n)%values
+        EditInternalBoundaryMask%values = EditInternalBoundaryMask%values .and. .not. &
+          CutMasks(n)%values
+        call ovkReleaseGridMask(EditGrid, EditGridMask)
+        call ovkReleaseGridBoundaryMask(EditGrid, EditBoundaryMask)
+        call ovkReleaseGridInternalBoundaryMask(EditGrid, EditInternalBoundaryMask)
+        call ovkReleaseDomainGrid(EditDomain, EditGrid)
+        if (OVK_VERBOSE) then
+          Grid_n => Domain%grids(IndexToID(n))
+          PointCount = ovkCountMask(CutMasks(n))
+          if (PointCount > 0) then
+            write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+              " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+          end if
         end if
       end if
     end do
