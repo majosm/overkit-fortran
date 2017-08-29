@@ -897,19 +897,19 @@ contains
           call ovkGetCellVertexData(Grid, Cell, VertexCoords=VertexCoords, &
             VertexGridMaskValues=VertexGridMaskValues)
           if (all(VertexGridMaskValues)) then
-            select case (Grid%cart%nd)
-            case (2)
-              select case (Grid%properties%geometry_type)
-              case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+            select case (Grid%properties%geometry_type)
+            case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+              select case (Grid%cart%nd)
+              case (2)
                 CellSizes%values(i,j,k) = ovkRectangleSize(VertexCoords)
-              case default
-                CellSizes%values(i,j,k) = ovkQuadSize(VertexCoords)
-              end select
-            case (3)
-              select case (Grid%properties%geometry_type)
-              case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+              case (3)
                 CellSizes%values(i,j,k) = ovkCuboidSize(VertexCoords)
-              case default
+              end select
+            case default
+              select case (Grid%cart%nd)
+              case (2)
+                CellSizes%values(i,j,k) = ovkQuadSize(VertexCoords)
+              case (3)
                 CellSizes%values(i,j,k) = ovkHexahedronSize(VertexCoords)
               end select
             end select
@@ -1094,19 +1094,19 @@ contains
       end do
     end if
 
-    select case (Grid%cart%nd)
-    case (2)
-      select case (Grid%properties%geometry_type)
-      case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+    select case (Grid%properties%geometry_type)
+    case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+      select case (Grid%cart%nd)
+      case (2)
         Overlaps = ovkOverlapsRectangle(VertexCoords, Coords)
-      case default
-        Overlaps = ovkOverlapsQuad(VertexCoords, Coords)
-      end select
-    case (3)
-      select case (Grid%properties%geometry_type)
-      case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+      case (3)
         Overlaps = ovkOverlapsCuboid(VertexCoords, Coords)
-      case default
+      end select
+    case default
+      select case (Grid%cart%nd)
+      case (2)
+        Overlaps = ovkOverlapsQuad(VertexCoords, Coords)
+      case (3)
         Overlaps = ovkOverlapsHexahedron(VertexCoords, Coords)
       end select
     end select
@@ -1136,19 +1136,19 @@ contains
 
     Success = .true.
 
-    select case (Grid%cart%nd)
-    case (2)
-      select case (Grid%properties%geometry_type)
-      case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+    select case (Grid%properties%geometry_type)
+    case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+      select case (Grid%cart%nd)
+      case (2)
         CoordsInCell = ovkRectangleIsoInverseLinear(VertexCoords, Coords)
-      case default
-        CoordsInCell = ovkQuadIsoInverseLinear(VertexCoords, Coords, Success=Success)
-      end select
-    case (3)
-      select case (Grid%properties%geometry_type)
-      case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+      case (3)
         CoordsInCell = ovkCuboidIsoInverseLinear(VertexCoords, Coords)
-      case default
+      end select
+    case default
+      select case (Grid%cart%nd)
+      case (2)
+        CoordsInCell = ovkQuadIsoInverseLinear(VertexCoords, Coords, Success=Success)
+      case (3)
         CoordsInCell = ovkHexahedronIsoInverseLinear(VertexCoords, Coords, Success=Success)
       end select
     end select

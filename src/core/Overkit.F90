@@ -205,27 +205,27 @@ module Overkit
 
   ! ovkGeometry
   public :: ovkOverlapsRectangle
-  public :: ovkOverlapsQuad
   public :: ovkOverlapsCuboid
+  public :: ovkOverlapsQuad
   public :: ovkOverlapsHexahedron
   public :: ovkRectangleSize
-  public :: ovkQuadSize
   public :: ovkCuboidSize
+  public :: ovkQuadSize
   public :: ovkHexahedronSize
   public :: ovkRectangleIsoLinear
   public :: ovkRectangleIsoCubic
-  public :: ovkQuadIsoLinear
-  public :: ovkQuadIsoCubic
   public :: ovkCuboidIsoLinear
   public :: ovkCuboidIsoCubic
+  public :: ovkQuadIsoLinear
+  public :: ovkQuadIsoCubic
   public :: ovkHexahedronIsoLinear
   public :: ovkHexahedronIsoCubic
   public :: ovkRectangleIsoInverseLinear
   public :: ovkRectangleIsoInverseCubic
-  public :: ovkQuadIsoInverseLinear
-  public :: ovkQuadIsoInverseCubic
   public :: ovkCuboidIsoInverseLinear
   public :: ovkCuboidIsoInverseCubic
+  public :: ovkQuadIsoInverseLinear
+  public :: ovkQuadIsoInverseCubic
   public :: ovkHexahedronIsoInverseLinear
   public :: ovkHexahedronIsoInverseCubic
   public :: ovkCartesianGridCell

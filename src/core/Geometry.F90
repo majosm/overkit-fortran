@@ -13,27 +13,27 @@ module ovkGeometry
 
   ! API
   public :: ovkOverlapsRectangle
-  public :: ovkOverlapsQuad
   public :: ovkOverlapsCuboid
+  public :: ovkOverlapsQuad
   public :: ovkOverlapsHexahedron
   public :: ovkRectangleSize
-  public :: ovkQuadSize
   public :: ovkCuboidSize
+  public :: ovkQuadSize
   public :: ovkHexahedronSize
   public :: ovkRectangleIsoLinear
   public :: ovkRectangleIsoCubic
-  public :: ovkQuadIsoLinear
-  public :: ovkQuadIsoCubic
   public :: ovkCuboidIsoLinear
   public :: ovkCuboidIsoCubic
+  public :: ovkQuadIsoLinear
+  public :: ovkQuadIsoCubic
   public :: ovkHexahedronIsoLinear
   public :: ovkHexahedronIsoCubic
   public :: ovkRectangleIsoInverseLinear
   public :: ovkRectangleIsoInverseCubic
-  public :: ovkQuadIsoInverseLinear
-  public :: ovkQuadIsoInverseCubic
   public :: ovkCuboidIsoInverseLinear
   public :: ovkCuboidIsoInverseCubic
+  public :: ovkQuadIsoInverseLinear
+  public :: ovkQuadIsoInverseCubic
   public :: ovkHexahedronIsoInverseLinear
   public :: ovkHexahedronIsoInverseCubic
   public :: ovkCartesianGridCell
@@ -89,6 +89,26 @@ contains
 
   end function ovkOverlapsRectangle
 
+  pure function ovkOverlapsCuboid(VertexCoords, Coords) result(Overlaps)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: Coords
+    logical :: Overlaps
+
+    Overlaps = .false.
+
+    if (any(Coords < VertexCoords(:,1))) then
+      return
+    end if
+
+    if (any(Coords > VertexCoords(:,8))) then
+      return
+    end if
+
+    Overlaps = .true.
+
+  end function ovkOverlapsCuboid
+
   pure function ovkOverlapsQuad(VertexCoords, Coords) result(Overlaps)
 
     real(rk), dimension(2,4), intent(in) :: VertexCoords
@@ -121,26 +141,6 @@ contains
     end do
 
   end function ovkOverlapsQuad
-
-  pure function ovkOverlapsCuboid(VertexCoords, Coords) result(Overlaps)
-
-    real(rk), dimension(3,8), intent(in) :: VertexCoords
-    real(rk), dimension(3), intent(in) :: Coords
-    logical :: Overlaps
-
-    Overlaps = .false.
-
-    if (any(Coords < VertexCoords(:,1))) then
-      return
-    end if
-
-    if (any(Coords > VertexCoords(:,8))) then
-      return
-    end if
-
-    Overlaps = .true.
-
-  end function ovkOverlapsCuboid
 
   pure function ovkOverlapsHexahedron(VertexCoords, Coords) result(Overlaps)
 
@@ -184,6 +184,15 @@ contains
 
   end function ovkRectangleSize
 
+  pure function ovkCuboidSize(VertexCoords) result(CuboidSize)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk) :: CuboidSize
+
+    CuboidSize = product(VertexCoords(:,8) - VertexCoords(:,1))
+
+  end function ovkCuboidSize
+
   pure function ovkQuadSize(VertexCoords) result(QuadSize)
 
     real(rk), dimension(2,4), intent(in) :: VertexCoords
@@ -206,15 +215,6 @@ contains
     end do
 
   end function ovkQuadSize
-
-  pure function ovkCuboidSize(VertexCoords) result(CuboidSize)
-
-    real(rk), dimension(3,8), intent(in) :: VertexCoords
-    real(rk) :: CuboidSize
-
-    CuboidSize = product(VertexCoords(:,8) - VertexCoords(:,1))
-
-  end function ovkCuboidSize
 
   pure function ovkHexahedronSize(VertexCoords) result(HexahedronSize)
 
@@ -263,6 +263,26 @@ contains
     Coords = (1._rk - LocalCoords) * VertexCoords(:,6) + LocalCoords * VertexCoords(:,11)
 
   end function ovkRectangleIsoCubic
+
+  pure function ovkCuboidIsoLinear(VertexCoords, LocalCoords) result(Coords)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: LocalCoords
+    real(rk), dimension(3) :: Coords
+
+    Coords = (1._rk - LocalCoords) * VertexCoords(:,1) + LocalCoords * VertexCoords(:,8)
+
+  end function ovkCuboidIsoLinear
+
+  pure function ovkCuboidIsoCubic(VertexCoords, LocalCoords) result(Coords)
+
+    real(rk), dimension(3,64), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: LocalCoords
+    real(rk), dimension(3) :: Coords
+
+    Coords = (1._rk - LocalCoords) * VertexCoords(:,22) + LocalCoords * VertexCoords(:,43)
+
+  end function ovkCuboidIsoCubic
 
   pure function ovkQuadIsoLinear_LocalCoords(VertexCoords, LocalCoords) result(Coords)
 
@@ -329,26 +349,6 @@ contains
     end do
 
   end function ovkQuadIsoCubic_BasisValues
-
-  pure function ovkCuboidIsoLinear(VertexCoords, LocalCoords) result(Coords)
-
-    real(rk), dimension(3,8), intent(in) :: VertexCoords
-    real(rk), dimension(3), intent(in) :: LocalCoords
-    real(rk), dimension(3) :: Coords
-
-    Coords = (1._rk - LocalCoords) * VertexCoords(:,1) + LocalCoords * VertexCoords(:,8)
-
-  end function ovkCuboidIsoLinear
-
-  pure function ovkCuboidIsoCubic(VertexCoords, LocalCoords) result(Coords)
-
-    real(rk), dimension(3,64), intent(in) :: VertexCoords
-    real(rk), dimension(3), intent(in) :: LocalCoords
-    real(rk), dimension(3) :: Coords
-
-    Coords = (1._rk - LocalCoords) * VertexCoords(:,22) + LocalCoords * VertexCoords(:,43)
-
-  end function ovkCuboidIsoCubic
 
   pure function ovkHexahedronIsoLinear_LocalCoords(VertexCoords, LocalCoords) result(Coords)
 
@@ -443,6 +443,26 @@ contains
     LocalCoords = (Coords - VertexCoords(:,6))/(VertexCoords(:,11) - VertexCoords(:,6))
 
   end function ovkRectangleIsoInverseCubic
+
+  pure function ovkCuboidIsoInverseLinear(VertexCoords, Coords) result(LocalCoords)
+
+    real(rk), dimension(3,8), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: Coords
+    real(rk), dimension(3) :: LocalCoords
+
+    LocalCoords = (Coords - VertexCoords(:,1))/(VertexCoords(:,8) - VertexCoords(:,1))
+
+  end function ovkCuboidIsoInverseLinear
+
+  pure function ovkCuboidIsoInverseCubic(VertexCoords, Coords) result(LocalCoords)
+
+    real(rk), dimension(3,64), intent(in) :: VertexCoords
+    real(rk), dimension(3), intent(in) :: Coords
+    real(rk), dimension(3) :: LocalCoords
+
+    LocalCoords = (Coords - VertexCoords(:,22))/(VertexCoords(:,43) - VertexCoords(:,22))
+
+  end function ovkCuboidIsoInverseCubic
 
   function ovkQuadIsoInverseLinear(VertexCoords, Coords, Guess, Success) result(LocalCoords)
 
@@ -585,26 +605,6 @@ contains
     end do
 
   end function QuadIsoCubicJacobian
-
-  pure function ovkCuboidIsoInverseLinear(VertexCoords, Coords) result(LocalCoords)
-
-    real(rk), dimension(3,8), intent(in) :: VertexCoords
-    real(rk), dimension(3), intent(in) :: Coords
-    real(rk), dimension(3) :: LocalCoords
-
-    LocalCoords = (Coords - VertexCoords(:,1))/(VertexCoords(:,8) - VertexCoords(:,1))
-
-  end function ovkCuboidIsoInverseLinear
-
-  pure function ovkCuboidIsoInverseCubic(VertexCoords, Coords) result(LocalCoords)
-
-    real(rk), dimension(3,64), intent(in) :: VertexCoords
-    real(rk), dimension(3), intent(in) :: Coords
-    real(rk), dimension(3) :: LocalCoords
-
-    LocalCoords = (Coords - VertexCoords(:,22))/(VertexCoords(:,43) - VertexCoords(:,22))
-
-  end function ovkCuboidIsoInverseCubic
 
   function ovkHexahedronIsoInverseLinear(VertexCoords, Coords, Guess, Success) result(LocalCoords)
 

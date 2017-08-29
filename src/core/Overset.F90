@@ -1118,20 +1118,20 @@ contains
 
     Success = .true.
 
-    select case (DonorGrid%cart%nd)
-    case (2)
-      select case (DonorGrid%properties%geometry_type)
-      case (OVK_GRID_GEOMETRY_CARTESIAN)
+    select case (DonorGrid%properties%geometry_type)
+    case (OVK_GRID_GEOMETRY_CARTESIAN)
+      select case (DonorGrid%cart%nd)
+      case (2)
         ExpandedDonorCellCoords = ovkRectangleIsoInverseCubic(VertexCoords, ReceiverCoords)
-      case default
+      case (3)
+        ExpandedDonorCellCoords = ovkCuboidIsoInverseCubic(VertexCoords, ReceiverCoords)
+      end select
+    case default
+      select case (DonorGrid%cart%nd)
+      case (2)
         ExpandedDonorCellCoords = ovkQuadIsoInverseCubic(VertexCoords, ReceiverCoords, &
           Guess=DonorCellCoords, Success=Success)
-      end select
-    case (3)
-      select case (DonorGrid%properties%geometry_type)
-      case (OVK_GRID_GEOMETRY_CARTESIAN)
-        ExpandedDonorCellCoords = ovkCuboidIsoInverseCubic(VertexCoords, ReceiverCoords)
-      case default
+      case (3)
         ExpandedDonorCellCoords = ovkHexahedronIsoInverseCubic(VertexCoords, ReceiverCoords, &
           Guess=DonorCellCoords, Success=Success)
       end select
