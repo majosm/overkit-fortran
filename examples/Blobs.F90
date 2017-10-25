@@ -8,36 +8,34 @@ program Blobs
   use ovsGlobal
   implicit none
 
-  integer :: i, j, m
+  integer :: i, j, m, n
   character(len=256), dimension(:), allocatable :: RawArguments
   character(len=256) :: Usage
   character(len=256) :: Description
   type(t_cmd_opt), dimension(1) :: Options
-  integer :: N
+  integer :: NumPoints
   integer, dimension(2) :: NumPointsBackground
   integer, dimension(2) :: NumPointsBlob
   real(rk), dimension(2) :: Length
   real(rk) :: SeparationScale
-  type(ovk_assembler) :: Assembler
-  type(ovk_assembler_properties), pointer :: Properties
-  type(ovk_domain), pointer :: Domain
+  type(ovk_domain) :: Domain
+  type(ovk_domain_properties), pointer :: Properties
   type(ovk_grid), pointer :: Grid
   type(ovk_field_real), pointer :: X, Y
-  type(ovk_field_logical), pointer :: BoundaryMask
+  type(ovk_field_int), pointer :: State
   real(rk) :: U, V
   real(rk) :: RMin, RMax
   real(rk) :: Radius
   real(rk) :: Theta
   integer, dimension(2,4) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
-  type(ovk_connectivity), pointer :: Connectivity
-  type(ovk_interp), pointer :: InterpData
   type(ovk_cart) :: Cart
+  integer :: ConnectionType
+  type(ovk_connectivity), pointer :: Connectivity
+  integer, dimension(:,:), pointer :: ReceiverPoints
+  integer, dimension(MAX_ND) :: Point
+  type(ovk_field_logical) :: Mask
   type(ovk_cart) :: CartOverlap
-  type(ovk_field_logical), pointer :: GridMask
-  type(ovk_field_logical), pointer :: ReceiverMask
-  type(ovk_field_logical), pointer :: OrphanMask
-  type(ovk_field_int), pointer :: DonorGridIDs
   type(ovk_field_real) :: XOverlap, YOverlap
   type(ovk_field_int) :: IBlank
   type(ovk_field_int) :: IBlankOverlap
@@ -55,41 +53,36 @@ program Blobs
 
   call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
 
-  call GetOptionValue(Options(1), N, 81)
+  call GetOptionValue(Options(1), NumPoints, 81)
 
-  NumPointsBackground = [N,N]
-  NumPointsBlob = [N,2*N]
+  NumPointsBackground = [NumPoints,NumPoints]
+  NumPointsBlob = [NumPoints,2*NumPoints]
 
   Length = 2._rk
   SeparationScale = 0.8_rk
 
-  ! Initialize the problem
-  call ovkCreateAssembler(Assembler, NumDims=2, NumGrids=4, Verbose=.true.)
+  ! Initialize the domain
+  call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, Verbose=.true.)
 
-  call ovkEditAssemblerProperties(Assembler, Properties)
-
-  ! Automatically define boundaries in non-overlapping regions
-  call ovkSetAssemblerPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
+  call ovkEditDomainProperties(Domain, Properties)
 
   ! Indicate which grids can intersect
-  call ovkSetAssemblerPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetAssemblerPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0._rk)
+  call ovkSetDomainPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+
+  ! Automatically define boundaries in non-overlapping regions
+  call ovkSetDomainPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
 
   ! Indicate which grids can cut each other
-  call ovkSetAssemblerPropertyBoundaryHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetAssemblerPropertyOverlapHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetDomainPropertyBoundaryHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetDomainPropertyOverlapHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 
   ! Indicate which grids can communicate and how
-  call ovkSetAssemblerPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
-  call ovkSetAssemblerPropertyDisjointConnection(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetAssemblerPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_LINEAR)
-  call ovkSetAssemblerPropertyFringeSize(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
-  call ovkSetAssemblerPropertyFringePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 8)
+  call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
+  call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_LINEAR)
+  call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
+  call ovkSetDomainPropertyFringePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
 
-  call ovkReleaseAssemblerProperties(Assembler, Properties)
-
-  ! Set up the domain
-  call ovkEditAssemblerDomain(Assembler, Domain)
+  call ovkReleaseDomainProperties(Domain, Properties)
 
   !=================
   ! Background grid
@@ -97,9 +90,9 @@ program Blobs
 
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateDomainGrid(Domain, 1, NumPoints=NumPointsBackground, &
+  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, &
     GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
-  call ovkEditDomainGrid(Domain, 1, Grid)
+  call ovkEditGrid(Domain, 1, Grid)
 
   ! Generate coordinates for background grid
   call ovkEditGridCoords(Grid, 1, X)
@@ -115,7 +108,7 @@ program Blobs
   call ovkReleaseGridCoords(Grid, X)
   call ovkReleaseGridCoords(Grid, Y)
 
-  call ovkReleaseDomainGrid(Domain, Grid)
+  call ovkReleaseGrid(Domain, Grid)
 
   !============
   ! Blob grids
@@ -123,9 +116,9 @@ program Blobs
 
   ! Initialize grid data structure for blob #1
   ! Periodic in the angular direction, with the last set of points being equal to the first
-  call ovkCreateDomainGrid(Domain, 2, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+  call ovkCreateGrid(Domain, 2, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
     PeriodicStorage=OVK_OVERLAP_PERIODIC)
-  call ovkEditDomainGrid(Domain, 2, Grid)
+  call ovkEditGrid(Domain, 2, Grid)
 
   ! Generate coordinates for blob #1
   call ovkEditGridCoords(Grid, 1, X)
@@ -146,17 +139,17 @@ program Blobs
   call ovkReleaseGridCoords(Grid, Y)
 
   ! Inner radial boundary on blob #1
-  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
-  BoundaryMask%values(1,1:NumPointsBlob(2)-1,1) = .true.
-  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
+  call ovkEditGridInitialState(Grid, State)
+  State%values(1,1:NumPointsBlob(2)-1,1) = ior(OVK_GRID_POINT, OVK_DOMAIN_BOUNDARY_POINT)
+  call ovkReleaseGridInitialState(Grid, State)
 
-  call ovkReleaseDomainGrid(Domain, Grid)
+  call ovkReleaseGrid(Domain, Grid)
 
   ! Initialize grid data structures for blob #2
   ! Periodic in the angular direction, with the last set of points being equal to the first
-  call ovkCreateDomainGrid(Domain, 3, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+  call ovkCreateGrid(Domain, 3, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
     PeriodicStorage=OVK_OVERLAP_PERIODIC)
-  call ovkEditDomainGrid(Domain, 3, Grid)
+  call ovkEditGrid(Domain, 3, Grid)
 
   ! Generate coordinates for blob #2
   call ovkEditGridCoords(Grid, 1, X)
@@ -177,17 +170,17 @@ program Blobs
   call ovkReleaseGridCoords(Grid, Y)
 
   ! Inner radial boundary on blob #2
-  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
-  BoundaryMask%values(1,1:NumPointsBlob(2)-1,1) = .true.
-  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
+  call ovkEditGridInitialState(Grid, State)
+  State%values(1,1:NumPointsBlob(2)-1,1) = ior(OVK_GRID_POINT, OVK_DOMAIN_BOUNDARY_POINT)
+  call ovkReleaseGridInitialState(Grid, State)
 
-  call ovkReleaseDomainGrid(Domain, Grid)
+  call ovkReleaseGrid(Domain, Grid)
 
   ! Initialize grid data structures for blob #3
   ! Periodic in the angular direction, with the last set of points being equal to the first
-  call ovkCreateDomainGrid(Domain, 4, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+  call ovkCreateGrid(Domain, 4, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
     PeriodicStorage=OVK_OVERLAP_PERIODIC)
-  call ovkEditDomainGrid(Domain, 4, Grid)
+  call ovkEditGrid(Domain, 4, Grid)
 
   ! Generate coordinates for blob #3
   call ovkEditGridCoords(Grid, 1, X)
@@ -208,23 +201,18 @@ program Blobs
   call ovkReleaseGridCoords(Grid, Y)
 
   ! Inner radial boundary on blob #3
-  call ovkEditGridBoundaryMask(Grid, BoundaryMask)
-  BoundaryMask%values(1,1:NumPointsBlob(2)-1,1) = .true.
-  call ovkReleaseGridBoundaryMask(Grid, BoundaryMask)
+  call ovkEditGridInitialState(Grid, State)
+  State%values(1,1:NumPointsBlob(2)-1,1) = ior(OVK_GRID_POINT, OVK_DOMAIN_BOUNDARY_POINT)
+  call ovkReleaseGridInitialState(Grid, State)
 
-  call ovkReleaseDomainGrid(Domain, Grid)
-
-  call ovkReleaseAssemblerDomain(Assembler, Domain)
+  call ovkReleaseGrid(Domain, Grid)
 
   !==================
   ! Overset assembly
   !==================
 
   ! Perform overset assembly
-  call ovkAssemble(Assembler)
-!   call ovkFindOverlap(Assembler)
-!   call ovkCutHoles(Assembler)
-!   call ovkConnectGrids(Assembler)
+  call ovkAssemble(Domain)
 
   !========
   ! Output
@@ -235,61 +223,59 @@ program Blobs
   NumPointsAll(:,3) = NumPointsBlob
   NumPointsAll(:,4) = NumPointsBlob
 
-  call ovkGetAssemblerDomain(Assembler, Domain)
-  call ovkGetAssemblerConnectivity(Assembler, Connectivity)
-
-  ! Write a PLOT3D grid file with IBlank to visualize the result
+  ! Write a PLOT3D grid file
   call ovkCreateP3D(GridFile, "grid.xyz", NumDims=2, NumGrids=4, NumPointsAll=NumPointsAll, &
-    WithIBlank=.true.)
+    WithIBlank=.true., Verbose=.true.)
 
-  do m = 1, 4
+  call ovkGetDomainProperties(Domain, Properties)
 
-    call ovkGetDomainGrid(Domain, m, Grid)
-    call ovkGetConnectivityInterpData(Connectivity, m, InterpData)
+  do n = 1, 4
+
+    call ovkGetGrid(Domain, n, Grid)
+    call ovkGetGridCart(Grid, Cart)
+    call ovkGetGridState(Grid, State)
+
+    ! Use IBlank data to visualize status of grid points
+    IBlank = ovk_field_int_(Cart)
+
+    ! IBlank == 1 => Normal
+    ! IBlank == 0 => Hole
+    call ovkFilterState(State, OVK_GRID_POINT, OVK_ALL, Mask)
+    IBlank%values = merge(1, 0, Mask%values)
+
+    ! IBlank == -N => Receives from grid N
+    do m = 1, 4
+      call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
+      if (ConnectionType /= OVK_CONNECTION_NONE) then
+        call ovkGetConnectivity(Domain, m, n, Connectivity)
+        call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
+        do i = 1, size(ReceiverPoints,2)
+          Point = ReceiverPoints(:,i)
+          IBlank%values(Point(1),Point(2),Point(3)) = -m
+        end do
+      end if
+    end do
+
+    ! IBlank == 7 => Orphan
+    call ovkFilterState(State, OVK_ORPHAN_POINT, OVK_ALL, Mask)
+    IBlank%values = merge(7, IBlank%values, Mask%values)
 
     ! At the moment Overkit converts everything to no-overlap periodic internally, so
     ! we will need to convert back
-    call ovkGetGridCart(Grid, Cart)
     CartOverlap = ovkCartConvertPeriodicStorage(Cart, OVK_OVERLAP_PERIODIC)
 
     call ovkExportGridCoords(Grid, 1, CartOverlap, XOverlap)
     call ovkExportGridCoords(Grid, 2, CartOverlap, YOverlap)
 
-    call ovkGetGridMask(Grid, GridMask)
-    call ovkGetInterpDataReceiverMask(InterpData, ReceiverMask)
-    call ovkGetInterpDataOrphanMask(InterpData, OrphanMask)
-    call ovkGetInterpDataDonorGridIDs(InterpData, DonorGridIDs)
-
-    ! IBlank values are set as follows:
-    !   1 => normal point
-    !   0 => hole
-    !  -N => receives from grid N
-    !   7 => orphan
-    IBlank = ovk_field_int_(Cart)
-    do j = Cart%is(2), Cart%ie(2)
-      do i = Cart%is(1), Cart%ie(1)
-        if (GridMask%values(i,j,1)) then
-          if (ReceiverMask%values(i,j,1)) then
-            IBlank%values(i,j,1) = -DonorGridIDs%values(i,j,1)
-          else if (OrphanMask%values(i,j,1)) then
-            IBlank%values(i,j,1) = 7
-          else
-            IBlank%values(i,j,1) = 1
-          end if
-        else
-          IBlank%values(i,j,1) = 0
-        end if
-      end do
-    end do
     call ovkExportField(IBlank, CartOverlap, IBlankOverlap)
 
-    call ovkWriteP3D(GridFile, m, XOverlap, YOverlap, IBlankOverlap)
+    call ovkWriteP3D(GridFile, n, XOverlap, YOverlap, IBlankOverlap)
 
   end do
 
   ! Finalize the PLOT3D file
   call ovkCloseP3D(GridFile)
 
-  call ovkDestroyAssembler(Assembler)
+  call ovkDestroyDomain(Domain)
 
 end program Blobs

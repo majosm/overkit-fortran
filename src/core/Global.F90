@@ -17,8 +17,8 @@ module ovkGlobal
   public :: ovk_bk
   public :: ovkCaseID
   public :: OVK_DEBUG
-  public :: OVK_VERBOSE
   public :: OVK_TRUE, OVK_FALSE
+  public :: OVK_NONE, OVK_ANY, OVK_ALL
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
@@ -53,14 +53,12 @@ module ovkGlobal
   logical, parameter :: OVK_DEBUG = .false.
 #endif
 
-#ifdef OVERKIT_VERBOSE
-  logical, parameter :: OVK_VERBOSE = .true.
-#else
-  logical, parameter :: OVK_VERBOSE = .false.
-#endif
-
   integer, parameter :: OVK_TRUE = 1
   integer, parameter :: OVK_FALSE = 0
+
+  integer, parameter :: OVK_NONE = 0
+  integer, parameter :: OVK_ANY = 1
+  integer, parameter :: OVK_ALL = 2
 
   integer, parameter :: OVK_NO_ERROR = 0
   integer, parameter :: OVK_IO_ERROR = 1

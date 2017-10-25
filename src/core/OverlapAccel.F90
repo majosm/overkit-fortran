@@ -1,7 +1,7 @@
 ! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 ! License: MIT (http://opensource.org/licenses/MIT)
 
-module ovkDonorAccel
+module ovkOverlapAccel
 
   use ovkBoundingBox
   use ovkCart
@@ -15,115 +15,85 @@ module ovkDonorAccel
 
   private
 
-  ! API
-  public :: ovk_donor_accel
-  public :: ovk_donor_accel_
-  public :: ovkGenerateDonorAccel
-  public :: ovkDestroyDonorAccel
-  public :: ovkFindDonorCell
+  ! Internal
+  public :: t_overlap_accel
+  public :: t_overlap_accel_
+  public :: GenerateOverlapAccel
+  public :: DestroyOverlapAccel
+  public :: FindOverlappingCell
 
   type t_node
     real(rk) :: split
     integer :: split_dir
     type(t_node), pointer :: left_child
     type(t_node), pointer :: right_child
-    type(ovk_hash_grid), pointer :: hash_grid
+    type(t_hash_grid), pointer :: hash_grid
   end type t_node
 
-  type ovk_donor_accel
+  type t_overlap_accel
     type(t_noconstruct) :: noconstruct
     integer :: nd
     type(ovk_bbox) :: bounds
     real(rk) :: max_cell_size_deviation
     real(rk) :: bin_scale
-    real(rk) :: overlap_tolerance
     integer :: max_depth
     type(t_node), pointer :: root
-  end type ovk_donor_accel
+  end type t_overlap_accel
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
-  interface ovk_donor_accel_
-    module procedure ovk_donor_accel_Default
-    module procedure ovk_donor_accel_Empty
-  end interface ovk_donor_accel_
+  interface t_overlap_accel_
+    module procedure t_overlap_accel_Default
+    module procedure t_overlap_accel_Empty
+  end interface t_overlap_accel_
 
 contains
 
-  pure function ovk_donor_accel_Default() result(Accel)
+  pure function t_overlap_accel_Default() result(Accel)
 
-    type(ovk_donor_accel) :: Accel
+    type(t_overlap_accel) :: Accel
 
-    Accel = ovk_donor_accel_Empty(2)
+    Accel = t_overlap_accel_Empty(2)
 
-  end function ovk_donor_accel_Default
+  end function t_overlap_accel_Default
 
-  pure function ovk_donor_accel_Empty(NumDims) result(Accel)
+  pure function t_overlap_accel_Empty(NumDims) result(Accel)
 
     integer, intent(in) :: NumDims
-    type(ovk_donor_accel) :: Accel
+    type(t_overlap_accel) :: Accel
 
     Accel%nd = NumDims
     Accel%bounds = ovk_bbox_(NumDims)
     Accel%max_cell_size_deviation = 0._rk
     Accel%bin_scale = 0._rk
-    Accel%overlap_tolerance = 0._rk
     Accel%max_depth = 0
     nullify(Accel%root)
 
-  end function ovk_donor_accel_Empty
+  end function t_overlap_accel_Empty
 
-  subroutine ovkGenerateDonorAccel(Grid, Accel, Bounds, MaxCellSizeDeviation, BinScale, &
-    OverlapTolerance, MaxDepth)
+  subroutine GenerateOverlapAccel(Grid, Accel, Bounds, MaxOverlapTolerance, QualityAdjust)
 
     type(ovk_grid), intent(in) :: Grid
-    type(ovk_donor_accel), intent(out) :: Accel
-    type(ovk_bbox), intent(in), optional :: Bounds
-    real(rk), intent(in), optional :: MaxCellSizeDeviation
-    real(rk), intent(in), optional :: BinScale
-    real(rk), intent(in), optional :: OverlapTolerance
-    integer, intent(in), optional :: MaxDepth
+    type(t_overlap_accel), intent(out) :: Accel
+    type(ovk_bbox), intent(in) :: Bounds
+    real(rk), intent(in) :: MaxOverlapTolerance
+    real(rk), intent(in) :: QualityAdjust
 
-    type(ovk_bbox) :: Bounds_
-    real(rk) :: MaxCellSizeDeviation_
-    real(rk) :: BinScale_
-    real(rk) :: OverlapTolerance_
-    integer :: MaxDepth_
+    real(rk) :: MaxCellSizeDeviation
+    real(rk) :: BinScale
+    integer :: MaxDepth
     integer :: i, j, k, d
     type(ovk_field_logical) :: GridCellOverlapMask
     type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper
     integer, dimension(MAX_ND) :: Cell
-    real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
-    logical, dimension(2**Grid%cart%nd) :: VertexGridMaskValues
     type(ovk_bbox) :: GridCellBounds
     integer(lk) :: NumOverlappingCells, iNextOverlappingCell
     integer(lk), dimension(:), allocatable :: OverlappingCells
 
-    if (present(Bounds)) then
-      Bounds_ = Bounds
-    else
-      Bounds_ = Grid%bounds
-    end if
+    MaxCellSizeDeviation = 0.5_rk
+    BinScale = 0.5_rk**QualityAdjust
 
-    if (present(MaxCellSizeDeviation)) then
-      MaxCellSizeDeviation_ = MaxCellSizeDeviation
-    else
-      MaxCellSizeDeviation_ = 0.5_rk
-    end if
-
-    if (present(BinScale)) then
-      BinScale_ = BinScale
-    else
-      BinScale_ = 1._rk
-    end if
-
-    if (present(OverlapTolerance)) then
-      OverlapTolerance_ = OverlapTolerance
-    else
-      OverlapTolerance_ = 0._rk
-    end if
-
-    if (.not. ovkBBOverlaps(Bounds_, Grid%bounds)) then
-      Accel = ovk_donor_accel_(Grid%cart%nd)
+    if (.not. ovkBBOverlaps(Bounds, Grid%bounds)) then
+      Accel = t_overlap_accel_(Grid%cart%nd)
       return
     end if
 
@@ -143,12 +113,10 @@ contains
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
         do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
           Cell = [i,j,k]
-          call ovkGetCellVertexData(Grid, Cell, VertexCoords=VertexCoords, &
-            VertexGridMaskValues=VertexGridMaskValues)
-          if (all(VertexGridMaskValues)) then
-            GridCellBounds = ovkBBScale(ovkBBFromPoints(VertexCoords), 1._rk + &
-              2._rk * OverlapTolerance_)
-            GridCellOverlapMask%values(i,j,k) = ovkBBOverlaps(Bounds_, GridCellBounds)
+          if (ovkGridCellExists(Grid, Cell)) then
+            GridCellBounds = ovkGridCellBounds(Grid, Cell)
+            GridCellBounds = ovkBBScale(GridCellBounds, 1._rk + 2._rk * MaxOverlapTolerance)
+            GridCellOverlapMask%values(i,j,k) = ovkBBOverlaps(Bounds, GridCellBounds)
             if (GridCellOverlapMask%values(i,j,k)) then
               do d = 1, Grid%cell_cart%nd
                 GridCellLower(d)%values(i,j,k) = GridCellBounds%b(d)
@@ -164,7 +132,7 @@ contains
     NumOverlappingCells = ovkCountMask(GridCellOverlapMask)
 
     if (NumOverlappingCells == 0) then
-      Accel = ovk_donor_accel_(Grid%cart%nd)
+      Accel = t_overlap_accel_(Grid%cart%nd)
       return
     end if
 
@@ -183,42 +151,37 @@ contains
       end do
     end do
 
-    if (present(MaxDepth)) then
-      MaxDepth_ = MaxDepth
-    else
-      ! Stop when the number of cells is likely to be small (say 1000)
-      MaxDepth_ = int(ceiling(log(max(real(NumOverlappingCells,kind=rk)/1000._rk,1._rk))/log(2._rk)))
-    end if
+    ! Stop when the number of cells is likely to be small (say 1000)
+    MaxDepth = int(ceiling(log(max(real(NumOverlappingCells,kind=rk)/1000._rk,1._rk))/log(2._rk)))
 
-    Accel%max_cell_size_deviation = MaxCellSizeDeviation_
-    Accel%bin_scale = BinScale_
-    Accel%overlap_tolerance = OverlapTolerance_
-    Accel%max_depth = MaxDepth_
+    Accel%max_cell_size_deviation = MaxCellSizeDeviation
+    Accel%bin_scale = BinScale
+    Accel%max_depth = MaxDepth
 
     allocate(Accel%root)
-    call GenerateDonorAccelNode(Accel%root, Grid%cell_cart, Accel%bounds, GridCellLower, &
+    call GenerateOverlapAccelNode(Accel%root, Grid%cell_cart, Accel%bounds, GridCellLower, &
       GridCellUpper, OverlappingCells, Accel%max_cell_size_deviation, Accel%bin_scale, &
       Accel%max_depth, 0)
 
-    if (OVK_VERBOSE) then
+    if (Grid%logger%verbose) then
       call PrintStats(Accel)
     end if
 
-  end subroutine ovkGenerateDonorAccel
+  end subroutine GenerateOverlapAccel
 
-  subroutine ovkDestroyDonorAccel(Accel)
+  subroutine DestroyOverlapAccel(Accel)
 
-    type(ovk_donor_accel), intent(inout) :: Accel
+    type(t_overlap_accel), intent(inout) :: Accel
 
     if (associated(Accel%root)) then
-      call DestroyDonorAccelNode(Accel%root)
+      call DestroyOverlapAccelNode(Accel%root)
       deallocate(Accel%root)
     end if
 
-  end subroutine ovkDestroyDonorAccel
+  end subroutine DestroyOverlapAccel
 
-  recursive subroutine GenerateDonorAccelNode(Node, CellCart, Bounds, AllCellLower, AllCellUpper, &
-    OverlappingCells, MaxCellSizeDeviation, BinScale, MaxDepth, Depth)
+  recursive subroutine GenerateOverlapAccelNode(Node, CellCart, Bounds, AllCellLower, &
+    AllCellUpper, OverlappingCells, MaxCellSizeDeviation, BinScale, MaxDepth, Depth)
 
     type(t_node), intent(out) :: Node
     type(ovk_cart), intent(in) :: CellCart
@@ -312,9 +275,9 @@ contains
       RightBounds = Bounds
       RightBounds%b(SplitDir) = Split
 
-      call GenerateDonorAccelNode(Node%left_child, CellCart, LeftBounds, AllCellLower, &
+      call GenerateOverlapAccelNode(Node%left_child, CellCart, LeftBounds, AllCellLower, &
         AllCellUpper, LeftCells, MaxCellSizeDeviation, BinScale, MaxDepth, Depth+1)
-      call GenerateDonorAccelNode(Node%right_child, CellCart, RightBounds, AllCellLower, &
+      call GenerateOverlapAccelNode(Node%right_child, CellCart, RightBounds, AllCellLower, &
         AllCellUpper, RightCells, MaxCellSizeDeviation, BinScale, MaxDepth, Depth+1)
 
     else
@@ -341,7 +304,7 @@ contains
       NumBinElements%values = int(BinCellsEnd%values - BinCellsStart%values + 1_lk)
 
       allocate(Node%hash_grid)
-      Node%hash_grid = ovk_hash_grid_(BinCart, HashGridBounds, NumBinElements)
+      Node%hash_grid = t_hash_grid_(BinCart, HashGridBounds, NumBinElements)
 
       l = 1_lk
       do k = BinCart%is(3), BinCart%ie(3)
@@ -360,7 +323,7 @@ contains
 
     end if
 
-  end subroutine GenerateDonorAccelNode
+  end subroutine GenerateOverlapAccelNode
 
   function FindSplit(CellCart, Bounds, AllCellLower, AllCellUpper, OverlappingCells, SplitDir) &
     result(Split)
@@ -565,7 +528,7 @@ contains
 
   end subroutine DistributeCellsToBins
 
-  recursive subroutine DestroyDonorAccelNode(Node)
+  recursive subroutine DestroyOverlapAccelNode(Node)
 
     type(t_node), intent(inout) :: Node
 
@@ -574,48 +537,40 @@ contains
     end if
 
     if (associated(Node%left_child)) then
-      call DestroyDonorAccelNode(Node%left_child)
+      call DestroyOverlapAccelNode(Node%left_child)
       deallocate(Node%left_child)
     end if
 
     if (associated(Node%right_child)) then
-      call DestroyDonorAccelNode(Node%right_child)
+      call DestroyOverlapAccelNode(Node%right_child)
       deallocate(Node%right_child)
     end if
 
-  end subroutine DestroyDonorAccelNode
+  end subroutine DestroyOverlapAccelNode
 
-  function ovkFindDonorCell(Grid, Accel, Coords, OverlapTolerance) result(DonorCell)
+  function FindOverlappingCell(Grid, Accel, Coords, OverlapTolerance) result(Cell)
 
     type(ovk_grid), intent(in) :: Grid
-    type(ovk_donor_accel), intent(in) :: Accel
+    type(t_overlap_accel), intent(in) :: Accel
     real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
-    real(rk), intent(in), optional :: OverlapTolerance
-    integer, dimension(Grid%cart%nd) :: DonorCell
+    real(rk), intent(in) :: OverlapTolerance
+    integer, dimension(Grid%cart%nd) :: Cell
 
-    real(rk) :: OverlapTolerance_
-
-    if (present(OverlapTolerance)) then
-      OverlapTolerance_ = OverlapTolerance
-    else
-      OverlapTolerance_ = Accel%overlap_tolerance
-    end if
-
-    DonorCell = Grid%cart%is(:Grid%cart%nd)-1
+    Cell = Grid%cart%is(:Grid%cart%nd)-1
 
     if (ovkBBContainsPoint(Accel%bounds, Coords)) then
-      DonorCell = FindDonorCellInNode(Grid, Accel%root, OverlapTolerance_, Coords)
+      Cell = FindOverlappingCellInNode(Grid, Accel%root, OverlapTolerance, Coords)
     end if
 
-  end function ovkFindDonorCell
+  end function FindOverlappingCell
 
-  recursive function FindDonorCellInNode(Grid, Node, OverlapTolerance, Coords) result(DonorCell)
+  recursive function FindOverlappingCellInNode(Grid, Node, OverlapTolerance, Coords) result(Cell)
 
     type(ovk_grid), intent(in) :: Grid
     type(t_node), intent(in) :: Node
     real(rk), intent(in) :: OverlapTolerance
     real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
-    integer, dimension(Grid%cart%nd) :: DonorCell
+    integer, dimension(Grid%cart%nd) :: Cell
 
     integer(lk) :: l, m
     integer, dimension(Grid%cart%nd) :: Bin
@@ -623,21 +578,21 @@ contains
     logical :: LeafNode
     integer, dimension(Grid%cart%nd) :: CandidateCell
 
-    DonorCell = Grid%cell_cart%is(:Grid%cell_cart%nd) - 1
+    Cell = Grid%cell_cart%is(:Grid%cell_cart%nd) - 1
 
     LeafNode = associated(Node%hash_grid)
 
     if (.not. LeafNode) then
 
       if (Coords(Node%split_dir) <= Node%split) then
-        DonorCell = FindDonorCellInNode(Grid, Node%left_child, OverlapTolerance, Coords)
+        Cell = FindOverlappingCellInNode(Grid, Node%left_child, OverlapTolerance, Coords)
       else
-        DonorCell = FindDonorCellInNode(Grid, Node%right_child, OverlapTolerance, Coords)
+        Cell = FindOverlappingCellInNode(Grid, Node%right_child, OverlapTolerance, Coords)
       end if
 
     else
 
-      Bin = ovkHashGridBin(Node%hash_grid, Coords)
+      Bin = HashGridBin(Node%hash_grid, Coords)
 
       if (ovkCartContains(Node%hash_grid%cart, Bin)) then
 
@@ -647,8 +602,8 @@ contains
 
         do m = BinStart, BinEnd
           CandidateCell = ovkCartIndexToTuple(Grid%cell_cart, Node%hash_grid%bin_contents(m))
-          if (ovkOverlapsCell(Grid, CandidateCell, Coords, OverlapTolerance=OverlapTolerance)) then
-            DonorCell = CandidateCell
+          if (ovkOverlapsGridCell(Grid, CandidateCell, Coords, OverlapTolerance)) then
+            Cell = CandidateCell
             return
           end if
         end do
@@ -657,11 +612,11 @@ contains
 
     end if
 
-  end function FindDonorCellInNode
+  end function FindOverlappingCellInNode
 
   subroutine PrintStats(Accel)
 
-    type(ovk_donor_accel), intent(in) :: Accel
+    type(t_overlap_accel), intent(in) :: Accel
 
     integer(lk) :: NumLeaves
     integer(lk) :: TotalLeafDepth
@@ -756,7 +711,7 @@ contains
     LeafNode = associated(Node%hash_grid)
 
     if (LeafNode) then
-      call ovkHashGridStats(Node%hash_grid, NumBins, NumNonEmptyBins, MinBinEntries, &
+      call HashGridStats(Node%hash_grid, NumBins, NumNonEmptyBins, MinBinEntries, &
         MaxBinEntries, TotalBinEntries)
     else
       NumBins = 0_lk
@@ -791,7 +746,7 @@ contains
     LeafNode = associated(Node%hash_grid)
 
     if (LeafNode) then
-      call ovkHashGridHistogram(Node%hash_grid, Lower, Upper, N, Histogram)
+      call HashGridHistogram(Node%hash_grid, Lower, Upper, N, Histogram)
     else
       Histogram = 0_lk
       call BinEntryHistogram(Node%left_child, Lower, Upper, N, HistogramChild)
@@ -802,4 +757,4 @@ contains
 
   end subroutine BinEntryHistogram
 
-end module ovkDonorAccel
+end module ovkOverlapAccel

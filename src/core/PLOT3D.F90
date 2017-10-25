@@ -23,6 +23,7 @@ module ovkPLOT3D
 
   type ovk_plot3d_grid_file
     type(t_noconstruct) :: noconstruct
+    logical :: verbose
     character(len=PATH_LENGTH) :: path
     integer :: nd
     integer :: ngrids
@@ -228,6 +229,7 @@ contains
 
     type(ovk_plot3d_grid_file) :: GridFile
 
+    GridFile%verbose = .true.
     GridFile%path = ""
     GridFile%nd = 2
     GridFile%ngrids = 0
@@ -244,17 +246,24 @@ contains
 
   end function ovkP3DMachineEndian
 
-  subroutine ovkOpenP3D_Grid(GridFile, FilePath, Error)
+  subroutine ovkOpenP3D_Grid(GridFile, FilePath, Verbose, Error)
 
     type(ovk_plot3d_grid_file), intent(out) :: GridFile
     character(len=*), intent(in) :: FilePath
+    logical, intent(in), optional :: Verbose
     integer, intent(out), optional :: Error
-
+    
     integer :: m
     integer :: Error_
     integer :: WithIBlankInt
 
-    if (OVK_VERBOSE) then
+    if (present(Verbose)) then
+      GridFile%verbose = Verbose
+    else
+      GridFile%verbose = .true.
+    end if
+
+    if (GridFile%verbose) then
       write (*, '(3a)') "Opening PLOT3D grid file ", trim(FilePath), "..."
     end if
 
@@ -273,7 +282,7 @@ contains
       if (Error_ /= 0) goto 999
     end do
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Successfully opened PLOT3D grid file ", trim(GridFile%path), "."
       call PrintGridFileInfo(GridFile)
     end if
@@ -290,7 +299,7 @@ contains
   end subroutine ovkOpenP3D_Grid
 
   subroutine ovkCreateP3D_Grid(GridFile, FilePath, NumDims, NumGrids, NumPointsAll, WithIBlank, &
-    Endian, Error)
+    Endian, Verbose, Error)
 
     type(ovk_plot3d_grid_file), intent(out) :: GridFile
     character(len=*), intent(in) :: FilePath
@@ -299,11 +308,18 @@ contains
     integer, dimension(:,:), intent(in) :: NumPointsAll
     logical, intent(in), optional :: WithIBlank
     integer, intent(in), optional :: Endian
+    logical, intent(in), optional :: Verbose
     integer, intent(out), optional :: Error
 
     integer :: Error_
 
-    if (OVK_VERBOSE) then
+    if (present(Verbose)) then
+      GridFile%verbose = Verbose
+    else
+      GridFile%verbose = .true.
+    end if
+
+    if (GridFile%verbose) then
       write (*, '(3a)') "Creating PLOT3D grid file ", trim(FilePath), "..."
     end if
 
@@ -331,7 +347,7 @@ contains
       GridFile%npoints, merge(1,0,GridFile%with_iblank), GridFile%endian, Error_)
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Successfully created PLOT3D grid file ", trim(GridFile%path), "."
       call PrintGridFileInfo(GridFile)
     end if
@@ -351,13 +367,15 @@ contains
 
     type(ovk_plot3d_grid_file), intent(inout) :: GridFile
 
+    logical :: Verbose
     character(len=PATH_LENGTH) :: FilePath
 
+    Verbose = GridFile%verbose
     FilePath = GridFile%path
 
     GridFile = ovk_plot3d_grid_file_()
 
-    if (OVK_VERBOSE) then
+    if (Verbose) then
       write (*, '(3a)') "Closed grid file ", trim(FilePath), "."
     end if
 
@@ -375,7 +393,7 @@ contains
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -420,7 +438,7 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
@@ -448,7 +466,7 @@ contains
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -501,7 +519,7 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
@@ -528,7 +546,7 @@ contains
     integer :: Error_
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -579,7 +597,7 @@ contains
       IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
@@ -607,7 +625,7 @@ contains
     integer :: Error_
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -666,7 +684,7 @@ contains
       Z%values, IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
@@ -693,7 +711,7 @@ contains
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -737,7 +755,7 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 
@@ -765,7 +783,7 @@ contains
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -817,7 +835,7 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 
@@ -844,7 +862,7 @@ contains
     integer :: Error_
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -894,7 +912,7 @@ contains
       IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 
@@ -922,7 +940,7 @@ contains
     integer :: Error_
     integer(ikoffset) :: Offset
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
@@ -980,7 +998,7 @@ contains
       Z%values, IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
-    if (OVK_VERBOSE) then
+    if (GridFile%verbose) then
       write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 

@@ -6,22 +6,21 @@
 #=================
 
 set(OVERKIT_SOURCES
-  Assembler.F90
+  Assembly.F90
   BoundingBox.F90
   Cart.F90
   Connectivity.F90
   Domain.F90
-  DonorAccel.F90
-  Donors.F90
   Field.F90
   FieldOps.F90
   Geometry.F90
   Global.F90
   Grid.F90
   HashGrid.F90
-  Interp.F90
+  Logger.F90
   Overkit.F90
-  Overset.F90
+  Overlap.F90
+  OverlapAccel.F90
   PLOT3D.F90
   PLOT3DInternal.c
 )
@@ -41,11 +40,6 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}/mod")
 set_property(TARGET overkit APPEND PROPERTY COMPILE_DEFINITIONS
   $<$<OR:$<CONFIG:Debug>,$<CONFIG:Coverage>>:OVERKIT_DEBUG>
 )
-
-# Verbose output from Overkit routines
-if (VERBOSE)
-  set_property(TARGET overkit APPEND PROPERTY COMPILE_DEFINITIONS OVERKIT_VERBOSE)
-endif()
 
 #==============
 # Installation

@@ -12,57 +12,57 @@ module ovkHashGrid
 
   private
 
-  ! API
-  public :: ovk_hash_grid
-  public :: ovk_hash_grid_
-  public :: ovkHashGridBin
-  public :: ovkHashGridBinBounds
-  public :: ovkHashGridStats
-  public :: ovkHashGridHistogram
+  ! Internal
+  public :: t_hash_grid
+  public :: t_hash_grid_
+  public :: HashGridBin
+  public :: HashGridBinBounds
+  public :: HashGridStats
+  public :: HashGridHistogram
 
-  type ovk_hash_grid
+  type t_hash_grid
     type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     type(ovk_bbox) :: bounds
     real(rk), dimension(MAX_ND) :: bin_size
     integer(lk), dimension(:), allocatable :: bin_start
     integer(lk), dimension(:), allocatable :: bin_contents
-  end type ovk_hash_grid
+  end type t_hash_grid
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
-  interface ovk_hash_grid_
-    module procedure ovk_hash_grid_Default
-    module procedure ovk_hash_grid_Empty
-    module procedure ovk_hash_grid_Allocated
-  end interface ovk_hash_grid_
+  interface t_hash_grid_
+    module procedure t_hash_grid_Default
+    module procedure t_hash_grid_Empty
+    module procedure t_hash_grid_Allocated
+  end interface t_hash_grid_
 
 contains
 
-  pure function ovk_hash_grid_Default() result(HashGrid)
+  pure function t_hash_grid_Default() result(HashGrid)
 
-    type(ovk_hash_grid) :: HashGrid
+    type(t_hash_grid) :: HashGrid
 
-    HashGrid = ovk_hash_grid_Empty(2)
+    HashGrid = t_hash_grid_Empty(2)
 
-  end function ovk_hash_grid_Default
+  end function t_hash_grid_Default
 
-  pure function ovk_hash_grid_Empty(NumDims) result(HashGrid)
+  pure function t_hash_grid_Empty(NumDims) result(HashGrid)
 
     integer, intent(in) :: NumDims
-    type(ovk_hash_grid) :: HashGrid
+    type(t_hash_grid) :: HashGrid
 
     HashGrid%cart = ovk_cart_(NumDims)
     HashGrid%bounds = ovk_bbox_(NumDims)
     HashGrid%bin_size = 0._rk
 
-  end function ovk_hash_grid_Empty
+  end function t_hash_grid_Empty
 
-  pure function ovk_hash_grid_Allocated(Cart, Bounds, NumBinEntries) result(HashGrid)
+  pure function t_hash_grid_Allocated(Cart, Bounds, NumBinEntries) result(HashGrid)
 
     type(ovk_cart), intent(in) :: Cart
     type(ovk_bbox), intent(in) :: Bounds
     type(ovk_field_int), intent(in) :: NumBinEntries
-    type(ovk_hash_grid) :: HashGrid
+    type(t_hash_grid) :: HashGrid
 
     integer :: i, j, k
     integer(lk) :: l
@@ -90,11 +90,11 @@ contains
 
     allocate(HashGrid%bin_contents(BinStart-1_lk))
 
-  end function ovk_hash_grid_Allocated
+  end function t_hash_grid_Allocated
 
-  pure function ovkHashGridBin(HashGrid, Coords) result(Bin)
+  pure function HashGridBin(HashGrid, Coords) result(Bin)
 
-    type(ovk_hash_grid), intent(in) :: HashGrid
+    type(t_hash_grid), intent(in) :: HashGrid
     real(rk), dimension(HashGrid%cart%nd), intent(in) :: Coords
     integer, dimension(HashGrid%cart%nd) :: Bin
 
@@ -106,11 +106,11 @@ contains
       Bin = HashGrid%cart%is(:HashGrid%cart%nd)-1
     end if
 
-  end function ovkHashGridBin
+  end function HashGridBin
 
-  pure function ovkHashGridBinBounds(HashGrid, Bin) result(BinBounds)
+  pure function HashGridBinBounds(HashGrid, Bin) result(BinBounds)
 
-    type(ovk_hash_grid), intent(in) :: HashGrid
+    type(t_hash_grid), intent(in) :: HashGrid
     integer, dimension(HashGrid%cart%nd), intent(in) :: Bin
     type(ovk_bbox) :: BinBounds
 
@@ -123,12 +123,12 @@ contains
 
     BinBounds = ovk_bbox_(HashGrid%cart%nd, BinBegin, BinEnd)
 
-  end function ovkHashGridBinBounds
+  end function HashGridBinBounds
 
-  subroutine ovkHashGridStats(HashGrid, NumBins, NumNonEmptyBins, MinBinEntries, MaxBinEntries, &
+  subroutine HashGridStats(HashGrid, NumBins, NumNonEmptyBins, MinBinEntries, MaxBinEntries, &
     TotalBinEntries)
 
-    type(ovk_hash_grid), intent(in) :: HashGrid
+    type(t_hash_grid), intent(in) :: HashGrid
     integer(lk), intent(out) :: NumBins
     integer(lk), intent(out) :: NumNonEmptyBins
     integer, intent(out) :: MinBinEntries
@@ -159,11 +159,11 @@ contains
       end do
     end do
 
-  end subroutine ovkHashGridStats
+  end subroutine HashGridStats
 
-  subroutine ovkHashGridHistogram(HashGrid, Lower, Upper, N, Histogram)
+  subroutine HashGridHistogram(HashGrid, Lower, Upper, N, Histogram)
 
-    type(ovk_hash_grid), intent(in) :: HashGrid
+    type(t_hash_grid), intent(in) :: HashGrid
     integer, intent(in) :: Lower
     integer, intent(in) :: Upper
     integer, intent(in) :: N
@@ -198,6 +198,6 @@ contains
 
     end if
 
-  end subroutine ovkHashGridHistogram
+  end subroutine HashGridHistogram
 
 end module ovkHashGrid
