@@ -39,6 +39,10 @@ set(CXX_ENABLED FALSE)
 # OS X RPATH for dynamic libraries
 set(CMAKE_MACOSX_RPATH TRUE)
 
+# Add install lib dir to any executables' RPATH, as well as any paths to external libraries
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 # Forbid in-source builds
 if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
   message(FATAL_ERROR "In-source builds are not allowed. Please run CMake from a separate directory (you may need to remove CMakeFiles and CMakeCache.txt).")
