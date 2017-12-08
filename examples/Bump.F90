@@ -35,14 +35,12 @@ program Bump
   integer, dimension(MAX_ND,2) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
   type(ovk_cart) :: Cart
-  type(ovk_cart) :: CartOverlap
   integer :: ConnectionType
   type(ovk_connectivity), pointer :: Connectivity
   integer, dimension(:,:), pointer :: ReceiverPoints
   type(ovk_field_logical) :: Mask
-  type(ovk_field_real) :: XOverlap, YOverlap, ZOverlap
+  type(ovk_field_real), pointer :: X, Y, Z
   type(ovk_field_int) :: IBlank
-  type(ovk_field_int) :: IBlankOverlap
 
   allocate(RawArguments(command_argument_count()))
   do i = 1, size(RawArguments)
@@ -241,6 +239,11 @@ program Bump
 
     call ovkGetGrid(Domain, n, Grid)
     call ovkGetGridCart(Grid, Cart)
+    call ovkGetGridCoords(Grid, 1, X)
+    call ovkGetGridCoords(Grid, 2, Y)
+    if (NumDims == 3) then
+      call ovkGetGridCoords(Grid, 3, Z)
+    end if
     call ovkGetGridState(Grid, State)
 
     ! Use IBlank data to visualize status of grid points
@@ -268,22 +271,10 @@ program Bump
     call ovkFilterState(State, OVK_ORPHAN_POINT, OVK_ALL, Mask)
     IBlank%values = merge(7, IBlank%values, Mask%values)
 
-    ! At the moment Overkit converts everything to no-overlap periodic internally, so
-    ! we will need to convert back
-    CartOverlap = ovkCartConvertPeriodicStorage(Cart, OVK_OVERLAP_PERIODIC)
-
-    call ovkExportGridCoords(Grid, 1, CartOverlap, XOverlap)
-    call ovkExportGridCoords(Grid, 2, CartOverlap, YOverlap)
-    if (NumDims == 3) then
-      call ovkExportGridCoords(Grid, 3, CartOverlap, ZOverlap)
-    end if
-
-    call ovkExportField(IBlank, CartOverlap, IBlankOverlap)
-
     if (NumDims == 2) then
-      call ovkWriteP3D(GridFile, n, XOverlap, YOverlap, IBlankOverlap)
+      call ovkWriteP3D(GridFile, n, X, Y, IBlank)
     else
-      call ovkWriteP3D(GridFile, n, XOverlap, YOverlap, ZOverlap, IBlankOverlap)
+      call ovkWriteP3D(GridFile, n, X, Y, Z, IBlank)
     end if
 
   end do

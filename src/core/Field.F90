@@ -20,6 +20,7 @@ module ovkField
   public :: ovk_field_logical_
   public :: operator (==)
   public :: operator (/=)
+  public :: ovkFieldPeriodicFill
   public :: ovkExportField
   public :: ovkPrintField
 
@@ -103,6 +104,13 @@ module ovkField
     module procedure ovk_field_real_NotEqual
     module procedure ovk_field_logical_NotEqual
   end interface operator (/=)
+
+  interface ovkFieldPeriodicFill
+    module procedure ovkFieldPeriodicFill_Integer
+    module procedure ovkFieldPeriodicFill_LargeInteger
+    module procedure ovkFieldPeriodicFill_Real
+    module procedure ovkFieldPeriodicFill_Logical
+  end interface ovkFieldPeriodicFill
 
   interface ovkExportField
     module procedure ovkExportField_Integer
@@ -559,6 +567,110 @@ contains
 
   end function ovk_field_logical_NotEqual
 
+  subroutine ovkFieldPeriodicFill_Integer(Field)
+
+    type(ovk_field_int), intent(inout) :: Field
+
+    type(ovk_cart) :: Cart
+
+    Cart = Field%cart
+
+    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+
+      if (Cart%periodic(1)) then
+        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+      end if
+
+      if (Cart%periodic(2)) then
+        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
+      end if
+
+      if (Cart%periodic(3)) then
+        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
+      end if
+
+    end if
+
+  end subroutine ovkFieldPeriodicFill_Integer
+
+  subroutine ovkFieldPeriodicFill_LargeInteger(Field)
+
+    type(ovk_field_large_int), intent(inout) :: Field
+
+    type(ovk_cart) :: Cart
+
+    Cart = Field%cart
+
+    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+
+      if (Cart%periodic(1)) then
+        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+      end if
+
+      if (Cart%periodic(2)) then
+        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
+      end if
+
+      if (Cart%periodic(3)) then
+        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
+      end if
+
+    end if
+
+  end subroutine ovkFieldPeriodicFill_LargeInteger
+
+  subroutine ovkFieldPeriodicFill_Real(Field)
+
+    type(ovk_field_real), intent(inout) :: Field
+
+    type(ovk_cart) :: Cart
+
+    Cart = Field%cart
+
+    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+
+      if (Cart%periodic(1)) then
+        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+      end if
+
+      if (Cart%periodic(2)) then
+        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
+      end if
+
+      if (Cart%periodic(3)) then
+        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
+      end if
+
+    end if
+
+  end subroutine ovkFieldPeriodicFill_Real
+
+  subroutine ovkFieldPeriodicFill_Logical(Field)
+
+    type(ovk_field_logical), intent(inout) :: Field
+
+    type(ovk_cart) :: Cart
+
+    Cart = Field%cart
+
+    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+
+      if (Cart%periodic(1)) then
+        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+      end if
+
+      if (Cart%periodic(2)) then
+        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
+      end if
+
+      if (Cart%periodic(3)) then
+        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
+      end if
+
+    end if
+
+  end subroutine ovkFieldPeriodicFill_Logical
+
   subroutine ovkExportField_Integer(Field, ExportCart, ExportedField)
 
     type(ovk_field_int), intent(in) :: Field
@@ -695,13 +807,6 @@ contains
     character(len=16) :: FormatString
     integer, dimension(MAX_ND) :: Point
 
-    if (OVK_DEBUG) then
-      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
-        stop 1
-      end if
-    end if
-
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex
       StartIndex_(Field%cart%nd+1:) = 1
@@ -767,13 +872,6 @@ contains
     integer :: KSlice
     character(len=16) :: FormatString
     integer, dimension(MAX_ND) :: Point
-
-    if (OVK_DEBUG) then
-      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
-        stop 1
-      end if
-    end if
 
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex
@@ -847,13 +945,6 @@ contains
     character(len=256) :: TestString
     integer :: ElementLength
     integer, dimension(MAX_ND) :: Point
-
-    if (OVK_DEBUG) then
-      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
-        stop 1
-      end if
-    end if
 
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex
@@ -937,13 +1028,6 @@ contains
     integer :: IStart, IEnd, JStart, JEnd
     integer :: KSlice
     integer, dimension(MAX_ND) :: Point
-
-    if (OVK_DEBUG) then
-      if (Field%cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_OVERLAP_PERIODIC is not currently supported."
-        stop 1
-      end if
-    end if
 
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex

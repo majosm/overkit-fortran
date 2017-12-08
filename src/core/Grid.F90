@@ -211,7 +211,7 @@ contains
     allocate(Grid%edits)
     Grid%edits = t_grid_edits_(Cart%nd)
 
-    Grid%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Grid%cart = Cart
 
     Grid%cell_cart = ovkCartPointToCell(Grid%cart)
 
@@ -1022,7 +1022,8 @@ contains
     end do
 
     ! Add contribution from periodic points
-    if (any(Grid%cart%periodic .and. Grid%properties%periodic_length > 0._rk)) then
+    if (Grid%cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC .and. &
+      any(Grid%cart%periodic .and. Grid%properties%periodic_length > 0._rk)) then
       do d = 1, Grid%cart%nd
         if (Grid%cart%periodic(d)) then
           idir = modulo((d+1)-1,MAX_ND) + 1
@@ -1674,12 +1675,20 @@ contains
     real(rk), dimension(Cart%nd), intent(in) :: Coords
     real(rk), dimension(Cart%nd) :: ExtendedCoords
 
+    integer, dimension(Cart%nd) :: PeriodStart, PeriodEnd
     real(rk), dimension(Cart%nd) :: PositiveAdjustment, NegativeAdjustment
 
+    PeriodStart = Cart%is(:Cart%nd)
+    if (Cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC) then
+      PeriodEnd = Cart%ie(:Cart%nd)
+    else
+      PeriodEnd = Cart%ie(:Cart%nd)-1
+    end if
+
     PositiveAdjustment = merge(PeriodicLength, 0._rk, Cart%periodic(:Cart%nd) .and. &
-      Point > Cart%ie(:Cart%nd))
+      Point > PeriodEnd)
     NegativeAdjustment = merge(PeriodicLength, 0._rk, Cart%periodic(:Cart%nd) .and. &
-      Point < Cart%is(:Cart%nd))
+      Point < PeriodStart)
 
     ExtendedCoords = Coords + PositiveAdjustment - NegativeAdjustment
 

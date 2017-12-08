@@ -35,10 +35,7 @@ program Blobs
   integer, dimension(:,:), pointer :: ReceiverPoints
   integer, dimension(MAX_ND) :: Point
   type(ovk_field_logical) :: Mask
-  type(ovk_cart) :: CartOverlap
-  type(ovk_field_real) :: XOverlap, YOverlap
   type(ovk_field_int) :: IBlank
-  type(ovk_field_int) :: IBlankOverlap
 
   allocate(RawArguments(command_argument_count()))
   do i = 1, size(RawArguments)
@@ -123,7 +120,7 @@ program Blobs
   ! Generate coordinates for blob #1
   call ovkEditGridCoords(Grid, 1, X)
   call ovkEditGridCoords(Grid, 2, Y)
-  do j = 1, NumPointsBlob(2)-1
+  do j = 1, NumPointsBlob(2)
     do i = 1, NumPointsBlob(1)
       U = real(i-1, kind=rk)/real(NumPointsBlob(1)-1, kind=rk)
       V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
@@ -154,7 +151,7 @@ program Blobs
   ! Generate coordinates for blob #2
   call ovkEditGridCoords(Grid, 1, X)
   call ovkEditGridCoords(Grid, 2, Y)
-  do j = 1, NumPointsBlob(2)-1
+  do j = 1, NumPointsBlob(2)
     do i = 1, NumPointsBlob(1)
       U = real(i-1, kind=rk)/real(NumPointsBlob(1)-1, kind=rk)
       V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
@@ -185,7 +182,7 @@ program Blobs
   ! Generate coordinates for blob #3
   call ovkEditGridCoords(Grid, 1, X)
   call ovkEditGridCoords(Grid, 2, Y)
-  do j = 1, NumPointsBlob(2)-1
+  do j = 1, NumPointsBlob(2)
     do i = 1, NumPointsBlob(1)
       U = real(i-1, kind=rk)/real(NumPointsBlob(1)-1, kind=rk)
       V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
@@ -233,6 +230,8 @@ program Blobs
 
     call ovkGetGrid(Domain, n, Grid)
     call ovkGetGridCart(Grid, Cart)
+    call ovkGetGridCoords(Grid, 1, X)
+    call ovkGetGridCoords(Grid, 2, Y)
     call ovkGetGridState(Grid, State)
 
     ! Use IBlank data to visualize status of grid points
@@ -260,16 +259,7 @@ program Blobs
     call ovkFilterState(State, OVK_ORPHAN_POINT, OVK_ALL, Mask)
     IBlank%values = merge(7, IBlank%values, Mask%values)
 
-    ! At the moment Overkit converts everything to no-overlap periodic internally, so
-    ! we will need to convert back
-    CartOverlap = ovkCartConvertPeriodicStorage(Cart, OVK_OVERLAP_PERIODIC)
-
-    call ovkExportGridCoords(Grid, 1, CartOverlap, XOverlap)
-    call ovkExportGridCoords(Grid, 2, CartOverlap, YOverlap)
-
-    call ovkExportField(IBlank, CartOverlap, IBlankOverlap)
-
-    call ovkWriteP3D(GridFile, n, XOverlap, YOverlap, IBlankOverlap)
+    call ovkWriteP3D(GridFile, n, X, Y, IBlank)
 
   end do
 

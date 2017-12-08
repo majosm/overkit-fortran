@@ -106,7 +106,7 @@ contains
 
     Overlap%logger => Logger
 
-    Overlap%cart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
+    Overlap%cart = Cart
 
     Overlap%bounds = ovk_bbox_(Cart%nd)
 
@@ -481,6 +481,8 @@ contains
         end do
       end do
     end do
+
+    call ovkFieldPeriodicFill(OverlappingMask)
 
   end subroutine ovkFindOverlappingPoints
 
