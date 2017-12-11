@@ -16,7 +16,6 @@ program Blobs
   integer :: NumPoints
   integer, dimension(2) :: NumPointsBackground
   integer, dimension(2) :: NumPointsBlob
-  real(rk), dimension(2) :: Length
   real(rk) :: SeparationScale
   type(ovk_domain) :: Domain
   type(ovk_domain_properties), pointer :: Properties
@@ -55,7 +54,6 @@ program Blobs
   NumPointsBackground = [NumPoints,NumPoints]
   NumPointsBlob = [NumPoints,2*NumPoints]
 
-  Length = 2._rk
   SeparationScale = 0.8_rk
 
   ! Initialize the domain
@@ -98,8 +96,8 @@ program Blobs
     do i = 1, NumPointsBackground(1)
       U = real(i-1,kind=rk)/real(NumPointsBackground(1)-1,kind=rk)
       V = real(j-1,kind=rk)/real(NumPointsBackground(2)-1,kind=rk)
-      X%values(i,j,1) = Length(1) * (U-0.5_rk)
-      Y%values(i,j,1) = Length(2) * (V-0.5_rk)
+      X%values(i,j,1) = 2._rk * (U-0.5_rk)
+      Y%values(i,j,1) = 2._rk * (V-0.5_rk)
     end do
   end do
   call ovkReleaseGridCoords(Grid, X)
@@ -126,10 +124,10 @@ program Blobs
       V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(3._rk*Theta) + 0.1_rk*sin(2._rk*Theta+Pi/4._rk))
-      RMax = 0.3_rk + 2._rk * RMin
+      RMax = 0.5_rk + RMin
       Radius = RMin * (RMax/RMin)**U
-      X%values(i,j,1) = -0.5_rk*SeparationScale + Radius * cos(Theta)
-      Y%values(i,j,1) = -0.2_rk*SeparationScale + Radius * sin(Theta)
+      X%values(i,j,1) = -0.425_rk*SeparationScale + Radius * cos(Theta)
+      Y%values(i,j,1) = -0.025_rk*SeparationScale + Radius * sin(Theta)
     end do
   end do
   call ovkReleaseGridCoords(Grid, X)
@@ -157,10 +155,10 @@ program Blobs
       V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(4._rk*Theta+Pi/4._rk) + 0.1_rk*sin(2._rk*Theta))
-      RMax = 0.4_rk + 2_rk * RMin
+      RMax = 0.5_rk + RMin
       Radius = RMin * (RMax/RMin)**U
-      X%values(i,j,1) = -0.1_rk*SeparationScale + Radius * cos(Theta)
-      Y%values(i,j,1) = 0.35_rk*SeparationScale + Radius * sin(Theta)
+      X%values(i,j,1) = 0.075_rk*SeparationScale + Radius * cos(Theta)
+      Y%values(i,j,1) = 0.425_rk*SeparationScale + Radius * sin(Theta)
     end do
   end do
   call ovkReleaseGridCoords(Grid, X)
@@ -188,10 +186,10 @@ program Blobs
       V = real(j-1, kind=rk)/real(NumPointsBlob(2)-1, kind=rk)
       Theta = 2._rk * Pi * V
       RMin = 0.1_rk * (1._rk + 0.2_rk*sin(5._rk*Theta+Pi/4._rk) + 0.1_rk*sin(3._rk*Theta))
-      RMax = 0.4_rk + 2_rk * RMin
+      RMax = 0.5_rk + RMin
       Radius = RMin * (RMax/RMin)**U
-      X%values(i,j,1) = 0.3_rk*SeparationScale + Radius * cos(Theta)
-      Y%values(i,j,1) = -0.3_rk*SeparationScale + Radius * sin(Theta)
+      X%values(i,j,1) = 0.375_rk*SeparationScale + Radius * cos(Theta)
+      Y%values(i,j,1) = -0.375_rk*SeparationScale + Radius * sin(Theta)
     end do
   end do
   call ovkReleaseGridCoords(Grid, X)
