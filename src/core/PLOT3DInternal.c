@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -74,8 +75,10 @@ void P3DInternalDetectGridFormat(char *FilePath, p3d_endian *Endian, p3d_format 
     *Endian = P3D_BIG_ENDIAN;
   }
 
-  int RecordSizeInt = *(int *)InitialBytes;
-  long long RecordSizeLongLong = *(long long *)InitialBytes;
+  int RecordSizeInt;
+  long long RecordSizeLongLong;
+  memcpy(&RecordSizeInt, InitialBytes, sizeof(int));
+  memcpy(&RecordSizeLongLong, InitialBytes, sizeof(long long));
   if (*Endian != P3DInternalMachineEndian()) {
     int RecordSizeIntCopy = RecordSizeInt;
     SwapEndian(&RecordSizeIntCopy, sizeof(int), 1, &RecordSizeInt);
