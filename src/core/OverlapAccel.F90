@@ -250,7 +250,7 @@ contains
 
     CellSizeDeviation = CellSizeDeviation/MeanCellSize
 
-    ! Don't want to generate a hash grid if the set of cells is highly uniform or very large
+    ! Don't want to generate a hash grid if the set of cells is highly non-uniform or very large
     LeafNode = (all(CellSizeDeviation <= MaxCellSizeDeviation) .and. NumOverlappingCells <= 2**26) &
       .or. Depth == MaxDepth
 
