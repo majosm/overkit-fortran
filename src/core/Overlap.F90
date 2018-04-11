@@ -232,6 +232,7 @@ contains
     type(ovk_bbox) :: Bounds
     type(ovk_field_large_int) :: OverlappingCells
     integer(lk) :: NumOverlappedPoints
+    type(ovk_field_large_int) :: OverlapIndices
     real(rk), dimension(OverlappedGrid%cart%nd) :: OverlappedCoords
     integer, dimension(MAX_ND) :: Cell
     real(rk), dimension(OverlappingGrid%cart%nd) :: CoordsInCell
@@ -251,6 +252,10 @@ contains
 
       OverlappingCells = ovk_field_large_int_(OverlappedGrid%cart)
 
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(Bounds, OverlapTolerance) &
+!$OMP&  SHARED(OverlappingGrid, OverlappedGrid, OverlapAccel, Overlap, OverlappingCells)
       do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
         do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
           do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
@@ -265,13 +270,15 @@ contains
                 if (ovkCartContains(OverlappingGrid%cell_cart, Cell)) then
                   Overlap%mask%values(i,j,k) = .true.
                   OverlappingCells%values(i,j,k) = ovkCartTupleToIndex(OverlappingGrid%cart, Cell)
-                  NumOverlappedPoints = NumOverlappedPoints + 1_lk
                 end if
               end if
             end if
           end do
         end do
       end do
+!$OMP END PARALLEL DO
+
+      NumOverlappedPoints = ovkCountMask(Overlap%mask)
 
     end if
 
@@ -286,11 +293,28 @@ contains
 
     if (NumOverlappedPoints > 0_lk) then
 
+      OverlapIndices = ovk_field_large_int_(Overlap%cart)
+
       l = 1_lk
       do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
         do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
           do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
             if (Overlap%mask%values(i,j,k)) then
+              OverlapIndices%values(i,j,k) = l
+              l = l + 1_lk
+            end if
+          end do
+        end do
+      end do
+
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  SHARED(OverlappingGrid, OverlappedGrid, OverlapAccel, Overlap, OverlappingCells, OverlapIndices)
+      do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
+        do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
+          do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
+            if (Overlap%mask%values(i,j,k)) then
+              l = OverlapIndices%values(i,j,k)
               do d = 1, OverlappedGrid%cart%nd
                 OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
               end do
@@ -303,11 +327,11 @@ contains
               Overlap%coords(:,l) = CoordsInCell
               Overlap%resolutions(l) = ovkGridResolution(OverlappingGrid, Cell, CoordsInCell)
               Overlap%edge_dists(l) = OverlappingGrid%cell_edge_dist%values(Cell(1),Cell(2),Cell(3))
-              l = l + 1_lk
             end if
           end do
         end do
       end do
+!$OMP END PARALLEL DO
 
     end if
 
@@ -422,6 +446,7 @@ contains
 
     integer :: i, j, k, m, n, o
     integer(lk) :: l
+    type(ovk_field_large_int) :: OverlapIndices
     integer, dimension(MAX_ND) :: CellLower
     integer, dimension(MAX_ND) :: CellUpper
     logical :: AwayFromEdge
@@ -429,8 +454,23 @@ contains
 
     OverlappingMask = ovk_field_logical_(OverlappingGrid%cart, .false.)
 
-    l = 1_lk
+    OverlapIndices = ovk_field_large_int_(OverlappedGrid%cart)
 
+    l = 1_lk
+    do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
+      do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
+        do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
+          if (Overlap%mask%values(i,j,k)) then
+            OverlapIndices%values(i,j,k) = l
+            l = l + 1_lk
+          end if
+        end do
+      end do
+    end do
+
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  SHARED(OverlappingGrid, OverlappedGrid, Overlap, OverlappedSubset, OverlapIndices, OverlappingMask)
     do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
       do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
         do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
@@ -438,6 +478,8 @@ contains
           if (Overlap%mask%values(i,j,k)) then
 
             if (OverlappedSubset%values(i,j,k)) then
+
+              l = OverlapIndices%values(i,j,k)
 
               CellLower = Overlap%cells(:,l)
               CellUpper(:OverlappingGrid%cart%nd) = CellLower(:OverlappingGrid%cart%nd)+1
@@ -474,13 +516,12 @@ contains
 
             end if
 
-            l = l + 1_lk
-
           end if
 
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
     call ovkFieldPeriodicFill(OverlappingMask)
 
@@ -496,6 +537,7 @@ contains
 
     integer :: i, j, k, m, n, o
     integer(lk) :: l
+    type(ovk_field_large_int) :: OverlapIndices
     integer, dimension(MAX_ND) :: CellLower
     integer, dimension(MAX_ND) :: CellUpper
     logical :: AwayFromEdge
@@ -503,13 +545,30 @@ contains
 
     OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
 
-    l = 1_lk
+    OverlapIndices = ovk_field_large_int_(OverlappedGrid%cart)
 
+    l = 1_lk
+    do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
+      do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
+        do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
+          if (Overlap%mask%values(i,j,k)) then
+            OverlapIndices%values(i,j,k) = l
+            l = l + 1_lk
+          end if
+        end do
+      end do
+    end do
+
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  SHARED(OverlappingGrid, OverlappedGrid, Overlap, OverlappingSubset, OverlapIndices, OverlappedMask)
     do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
       do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
         do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
 
           if (Overlap%mask%values(i,j,k)) then
+
+            l = OverlapIndices%values(i,j,k)
 
             CellLower = Overlap%cells(:,l)
             CellUpper(:OverlappingGrid%cart%nd) = CellLower(:OverlappingGrid%cart%nd)+1
@@ -552,13 +611,12 @@ contains
 
             end if
 
-            l = l + 1_lk
-
           end if
 
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
   end subroutine ovkFindOverlappedPoints
 

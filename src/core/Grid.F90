@@ -1089,6 +1089,9 @@ contains
     integer, dimension(MAX_ND) :: Vertex
     logical :: AwayFromEdge
 
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  SHARED(Grid)
     do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
         do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
@@ -1128,6 +1131,7 @@ contains
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
   end subroutine UpdateCellMask
 
@@ -1145,6 +1149,9 @@ contains
     integer :: NumCells
     logical :: AwayFromEdge
 
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  SHARED(Grid)
     do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
         do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
@@ -1180,8 +1187,12 @@ contains
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
     ! Compute the grid resolution at each point by averaging the sizes of neighboring cells
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  SHARED(Grid)
     do k = Grid%cart%is(3), Grid%cart%ie(3)
       do j = Grid%cart%is(2), Grid%cart%ie(2)
         do i = Grid%cart%is(1), Grid%cart%ie(1)
@@ -1231,6 +1242,7 @@ contains
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
   end subroutine UpdateResolution
 

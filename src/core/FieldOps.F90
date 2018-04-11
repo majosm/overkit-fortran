@@ -68,6 +68,10 @@ contains
     ! Points on inner edge will have Mask == .true., points on outer edge will have Mask == .false.
     EdgeValue = EdgeType == OVK_INNER_EDGE
 
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(Cart, EdgeCart, EdgeValue, BoundaryValue) &
+!$OMP&  SHARED(Mask, EdgeMask)
     do k = EdgeCart%is(3), EdgeCart%ie(3)
       do j = EdgeCart%is(2), EdgeCart%ie(2)
         do i = EdgeCart%is(1), EdgeCart%ie(1)
@@ -138,6 +142,7 @@ contains
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
   end subroutine ovkDetectEdge
 
@@ -199,6 +204,10 @@ contains
     Cart = Mask%cart
     EdgeCart = EdgeMask%cart
 
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(Cart, EdgeCart, FillDistance, FillValue) &
+!$OMP&  SHARED(Mask, EdgeMask)
     do k = EdgeCart%is(3), EdgeCart%ie(3)
       do j = EdgeCart%is(2), EdgeCart%ie(2)
         do i = EdgeCart%is(1), EdgeCart%ie(1)
@@ -235,6 +244,7 @@ contains
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
     call ovkFieldPeriodicFill(Mask)
 
@@ -566,6 +576,10 @@ contains
 
     call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskBoundaryValue, .true., CoverMask)
 
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(MaxDistance) &
+!$OMP&  SHARED(Mask, CoverMask, Distances)
     do k = Mask%cart%is(3), Mask%cart%ie(3)
       do j = Mask%cart%is(2), Mask%cart%ie(2)
         do i = Mask%cart%is(1), Mask%cart%ie(1)
@@ -581,9 +595,14 @@ contains
         end do
       end do
     end do
+!$OMP END PARALLEL DO
 
     do d = 1, MaxDistance-1
       call ovkDetectEdge(CoverMask, OVK_OUTER_EDGE, OVK_FALSE, .false., CoverEdgeMask)
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(d) &
+!$OMP&  SHARED(Mask, CoverEdgeMask, Distances)
       do k = Mask%cart%is(3), Mask%cart%ie(3)
         do j = Mask%cart%is(2), Mask%cart%ie(2)
           do i = Mask%cart%is(1), Mask%cart%ie(1)
@@ -597,6 +616,7 @@ contains
           end do
         end do
       end do
+!$OMP END PARALLEL DO
       CoverMask%values = CoverMask%values .or. CoverEdgeMask%values
     end do
 

@@ -91,6 +91,7 @@ contains
     real(rk) :: BinScale
     integer :: MaxDepth
     integer :: i, j, k, d
+    real(rk), dimension(MAX_ND) :: AccelLower, AccelUpper
     type(ovk_field_logical) :: GridCellOverlapMask
     type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper
     integer, dimension(MAX_ND) :: Cell
@@ -120,8 +121,16 @@ contains
     end do
 
     Accel%nd = Grid%cart%nd
-    Accel%bounds = ovk_bbox_(Grid%cart%nd)
 
+    AccelLower = Bounds%e
+    AccelUpper = Bounds%b
+
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(Bounds, MaxOverlapTolerance) &
+!$OMP&  SHARED(Grid, GridCellOverlapMask, GridCellLower, GridCellUpper) &
+!$OMP&  REDUCTION(min:AccelLower) &
+!$OMP&  REDUCTION(max:AccelUpper)
     do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
         do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
@@ -135,12 +144,16 @@ contains
                 GridCellLower(d)%values(i,j,k) = GridCellBounds%b(d)
                 GridCellUpper(d)%values(i,j,k) = GridCellBounds%e(d)
               end do
-              Accel%bounds = ovkBBUnion(Accel%bounds, GridCellBounds)
+              AccelLower = min(AccelLower, GridCellBounds%b)
+              AccelUpper = max(AccelUpper, GridCellBounds%e)
             end if
           end if
         end do
       end do
     end do
+!$OMP END PARALLEL DO
+
+    Accel%bounds = ovk_bbox_(Grid%cart%nd, AccelLower, AccelUpper)
 
     NumOverlappingCells = ovkCountMask(GridCellOverlapMask)
 
@@ -226,6 +239,8 @@ contains
     real(rk) :: CellVolume, MeanCellVolume, CellVolumeDeviation
     real(rk), dimension(CellCart%nd) :: CellSize, MeanCellSize
     real(rk) :: OccupiedVolume
+    real(rk), dimension(MAX_ND) :: CellLower, CellUpper
+    real(rk), dimension(MAX_ND) :: ReducedBoundsLower, ReducedBoundsUpper
     type(ovk_bbox) :: ReducedBounds
     real(rk), dimension(CellCart%nd) :: ReducedBoundsSize
     real(rk) :: ReducedBoundsVolume
@@ -275,16 +290,31 @@ contains
 
     CellVolumeDeviation = CellVolumeDeviation/MeanCellVolume
 
-    ReducedBounds = ovk_bbox_(CellCart%nd)
-    do l = 1, NumCells
+    ReducedBoundsLower(:CellCart%nd) = huge(0._rk)
+    ReducedBoundsLower(CellCart%nd+1:) = 0._rk
+    ReducedBoundsUpper(:CellCart%nd) = -huge(0._rk)
+    ReducedBoundsUpper(CellCart%nd+1:) = 0._rk
+
+! This isn't working with OpenMP for some reason
+! !$OMP PARALLEL DO &
+! !$OMP&  DEFAULT(PRIVATE) &
+! !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLower, AllCellUpper) &
+! !$OMP&  REDUCTION(min:ReducedBoundsLower) &
+! !$OMP&  REDUCTION(max:ReducedBoundsUpper)
+    do l = 1_lk, NumCells
       Cell = OverlappingCells(CellIndices(l),:)
-      CellBounds = ovk_bbox_(CellCart%nd)
       do d = 1, CellCart%nd
-        CellBounds%b(d) = AllCellLower(d)%values(Cell(1),Cell(2),Cell(3))
-        CellBounds%e(d) = AllCellUpper(d)%values(Cell(1),Cell(2),Cell(3))
+        CellLower(d) = AllCellLower(d)%values(Cell(1),Cell(2),Cell(3))
+        CellUpper(d) = AllCellUpper(d)%values(Cell(1),Cell(2),Cell(3))
       end do
-      ReducedBounds = ovkBBUnion(ReducedBounds, CellBounds)
+      CellLower(CellCart%nd+1:) = 0._rk
+      CellUpper(CellCart%nd+1:) = 0._rk
+      ReducedBoundsLower = min(ReducedBoundsLower, CellLower)
+      ReducedBoundsUpper = max(ReducedBoundsUpper, CellUpper)
     end do
+! !$OMP END PARALLEL DO
+
+    ReducedBounds = ovk_bbox_(CellCart%nd, ReducedBoundsLower, ReducedBoundsUpper)
     ReducedBoundsSize = ovkBBSize(ReducedBounds)
     ReducedBoundsVolume = product(ReducedBoundsSize)
 
@@ -330,6 +360,11 @@ contains
     else
 
       MeanCellSize = 0._rk
+! This isn't working with OpenMP for some reason
+! !$OMP PARALLEL DO &
+! !$OMP&  DEFAULT(PRIVATE) &
+! !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLower, AllCellUpper) &
+! !$OMP&  REDUCTION(+:MeanCellSize)
       do l = 1_lk, NumCells
         Cell = OverlappingCells(CellIndices(l),:)
         do d = 1, CellCart%nd
@@ -338,6 +373,7 @@ contains
         end do
         MeanCellSize = MeanCellSize + CellSize
       end do
+! !$OMP END PARALLEL DO
       MeanCellSize = MeanCellSize/real(NumCells,kind=rk)
 
       NumBins = max(int(ceiling(ReducedBoundsSize/(BinScale * MeanCellSize))),1)
