@@ -100,7 +100,7 @@ contains
     integer(lk), dimension(:), allocatable :: CellIndices
 
     MinCells = 10000
-    MinOccupiedVolumeFraction = 0.75_rk
+    MinOccupiedVolumeFraction = 0.5_rk
     MaxCellVolumeDeviation = 0.5_rk
     MaxHashGridSize = 2_lk**26
     BinScale = 0.5_rk**QualityAdjust
