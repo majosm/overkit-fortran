@@ -27,6 +27,11 @@ set(OVERKIT_SOURCES
 
 add_library(overkit ${OVERKIT_SOURCES})
 
+# OpenMP
+if(OPENMP)
+  target_link_libraries(overkit PUBLIC ${OpenMP_Fortran_LIB_NAMES} ${OpenMP_C_LIB_NAMES})
+endif()
+
 #================
 # Compiler flags
 #================

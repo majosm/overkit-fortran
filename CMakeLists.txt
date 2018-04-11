@@ -78,10 +78,16 @@ endif()
 # Build options
 option(TESTS "Enable tests" OFF)
 option(EXAMPLES "Build examples" OFF)
-option (BUILD_SHARED_LIBS "" OFF)
+option(BUILD_SHARED_LIBS "" OFF)
+option(OPENMP "Enable thread parallelism via OpenMP" OFF)
 
 if(NOT DEFINED BUILD_SHARED_LIBS)
   set(BUILD_SHARED_LIBS FALSE)
+endif()
+
+# OpenMP
+if(OPENMP)
+  find_package(OpenMP REQUIRED)
 endif()
 
 #======================
@@ -90,6 +96,17 @@ endif()
 
 set(EXTRA_Fortran_FLAGS "")
 set(EXTRA_C_FLAGS "")
+
+# OpenMP flags
+if(OPENMP)
+  if(DEFINED OpenMP_Fortran_FLAGS)
+    set(EXTRA_Fortran_FLAGS "${EXTRA_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
+  else()
+    message(STATUS "OpenMP Fortran flags not defined; using C flags")
+    set(EXTRA_Fortran_FLAGS "${EXTRA_Fortran_FLAGS} ${OpenMP_C_FLAGS}")
+  endif()
+set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} ${OpenMP_C_FLAGS}")
+endif()
 
 # GNU defaults to heap-allocating local arrays that have a size given by a function parameter.
 # These are used all over the place, but only for small arrays, so they should be
@@ -237,6 +254,7 @@ message(STATUS "Shared libraries:   ${BUILD_SHARED_LIBS}")
 message(STATUS "Install prefix:     ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "Examples:           ${EXAMPLES}")
 message(STATUS "Tests:              ${TESTS}")
+message(STATUS "OpenMP support:     ${OPENMP}")
 message(STATUS "")
 if(GLOBAL_WARNING_FLAG)
   message(STATUS "**** Warnings were produced. See details above. **** ")
