@@ -256,7 +256,6 @@ contains
     type(ovk_field_large_int) :: BinCellsStart, BinCellsEnd
     integer(lk), dimension(:), allocatable :: BinCells
     type(ovk_field_int) :: NumBinElements
-    type(ovk_bbox) :: CellBounds
     integer(lk) :: BinStart, BinEnd
 
     nullify(Node%hash_grid)
