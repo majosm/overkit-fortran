@@ -417,7 +417,8 @@ contains
             call ovkFindOverlappingPoints(Grid_n, Grid_m, Overlap_nm, EdgeMask2, OverlappingMask)
             EdgeMask1%values = EdgeMask1%values .and. .not. OverlappingMask%values
             i = 0
-            do while (any(EdgeMask1%values))
+            ! Explicit conversion to logical in order to work around GCC 4.7 bug
+            do while (logical(any(EdgeMask1%values)))
               call ovkDilate(OverlappingMask, 1, OVK_FALSE)
               EdgeMask1%values = EdgeMask1%values .and. .not. OverlappingMask%values
               i = i + 1
