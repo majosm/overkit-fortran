@@ -298,7 +298,7 @@ contains
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
-    integer :: m, n
+    integer :: i, j, k, m, n
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:), pointer :: InferBoundaries
@@ -328,9 +328,15 @@ contains
           end if
         end do
         call ovkEditGridState(Grid, State)
-        where (InferredBoundaryMask%values)
-          State%values = ior(State%values, OVK_DOMAIN_BOUNDARY_POINT)
-        end where
+        do k = Grid%cart%is(3), Grid%cart%ie(3)
+          do j = Grid%cart%is(2), Grid%cart%ie(2)
+            do i = Grid%cart%is(1), Grid%cart%ie(1)
+              if (InferredBoundaryMask%values(i,j,k)) then
+                State%values(i,j,k) = ior(State%values(i,j,k), OVK_DOMAIN_BOUNDARY_POINT)
+              end if
+            end do
+          end do
+        end do
         call ovkReleaseGridState(Grid, State)
         if (Domain%logger%verbose) then
           NumBoundaryPoints = ovkCountMask(InferredBoundaryMask)
@@ -635,7 +641,7 @@ contains
     type(ovk_domain), intent(in) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
-    integer :: n
+    integer :: i, j, k, n
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:), pointer :: FringeSize
@@ -674,9 +680,15 @@ contains
         Grid%cart%is(1):Grid%cart%ie(1),Grid%cart%is(2):Grid%cart%ie(2), &
         Grid%cart%is(3):Grid%cart%ie(3))
       call ovkEditGridState(Grid, State)
-      where (ReceiverMask%values)
-        State%values = ior(State%values, OVK_RECEIVER_POINT)
-      end where
+      do k = Grid%cart%is(3), Grid%cart%ie(3)
+        do j = Grid%cart%is(2), Grid%cart%ie(2)
+          do i = Grid%cart%is(1), Grid%cart%ie(1)
+            if (ReceiverMask%values(i,j,k)) then
+              State%values(i,j,k) = ior(State%values(i,j,k), OVK_RECEIVER_POINT)
+            end if
+          end do
+        end do
+      end do
       call ovkReleaseGridState(Grid, State)
       if (Domain%logger%verbose) then
         NumReceivers = ovkCountMask(ReceiverMask)
@@ -813,9 +825,16 @@ contains
       OrphanMask = ovk_field_logical_(Grid%cart)
       OrphanMask%values = ReceiverMask%values .and. DonorGridIDs(n)%values == 0
       call ovkEditGridState(Grid, State)
-      where (OrphanMask%values)
-        State%values = ior(iand(State%values, not(OVK_RECEIVER_POINT)), OVK_ORPHAN_POINT)
-      end where
+      do k = Grid%cart%is(3), Grid%cart%ie(3)
+        do j = Grid%cart%is(2), Grid%cart%ie(2)
+          do i = Grid%cart%is(1), Grid%cart%ie(1)
+            if (OrphanMask%values(i,j,k)) then
+              State%values(i,j,k) = ior(iand(State%values(i,j,k), not(OVK_RECEIVER_POINT)), &
+                OVK_ORPHAN_POINT)
+            end if
+          end do
+        end do
+      end do
       call ovkReleaseGridState(Grid, State)
       if (Domain%logger%verbose) then
         NumWarnings = 0
