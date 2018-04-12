@@ -126,7 +126,7 @@ void P3DInternalDetectGridFormat(char *FilePath, p3d_endian *Endian, p3d_format 
   // The next record contains grid 1
   // Use the first record wrapper to figure out whether the grid has IBlank or not
   ReadRecordWrapper(*Endian, *Format, &RecordWrapper, GridFile);
-  GridSize = NumPointsAll[0]*NumPointsAll[1]*NumPointsAll[2];
+  GridSize = (size_t)NumPointsAll[0]*(size_t)NumPointsAll[1]*(size_t)NumPointsAll[2];
   *WithIBlank = RecordWrapper > sizeof(double)*(*NumDims)*GridSize;
 
   free(NumPointsAll);
@@ -202,7 +202,7 @@ p3d_offset P3DInternalGetGridOffset(p3d_format Format, int NumDims, int NumGrids
   // Previous grid records
   for (m = 0; m < GridID; ++m) {
     NumPoints = NumPointsAll + 3*m;
-    GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
+    GridSize = (size_t)NumPoints[0]*(size_t)NumPoints[1]*(size_t)NumPoints[2];
     Offset += RecordWrapperSize;
     Offset += sizeof(double)*NumDims*GridSize;
     if (WithIBlank) {
@@ -259,7 +259,7 @@ void P3DInternalCreateGridFile(char *FilePath, p3d_endian Endian, p3d_format For
   for (m = 0; m < NumGrids; ++m) {
 
     NumPoints = NumPointsAll + 3*m;
-    GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
+    GridSize = (size_t)NumPoints[0]*(size_t)NumPoints[1]*(size_t)NumPoints[2];
 
     NumBytes = 0;
     NumBytes += RecordWrapperSize;
@@ -309,7 +309,7 @@ void P3DInternalReadSingleGrid(char *FilePath, p3d_endian Endian, p3d_format For
   }
 
   // Read the grid data
-  GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
+  GridSize = (size_t)NumPoints[0]*(size_t)NumPoints[1]*(size_t)NumPoints[2];
   fseek(GridFile, RecordWrapperSize, SEEK_CUR);
   fread_endian(Endian, X, sizeof(double), GridSize, GridFile);
   fread_endian(Endian, Y, sizeof(double), GridSize, GridFile);
@@ -376,7 +376,7 @@ void P3DInternalWriteSingleGrid(char *FilePath, p3d_endian Endian, p3d_format Fo
   }
 
   // Write the grid data
-  GridSize = NumPoints[0]*NumPoints[1]*NumPoints[2];
+  GridSize = (size_t)NumPoints[0]*(size_t)NumPoints[1]*(size_t)NumPoints[2];
   RecordSize = sizeof(double)*NumDims*GridSize;
   if (WithIBlank == 1) RecordSize += sizeof(int)*GridSize;
   WriteRecordWrapper(Endian, Format, RecordSize, GridFile);
