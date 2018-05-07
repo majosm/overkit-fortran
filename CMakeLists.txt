@@ -217,10 +217,11 @@ write_basic_package_version_file("${CMAKE_BINARY_DIR}/OverkitConfigVersion.cmake
   VERSION ${Overkit_VERSION}
   COMPATIBILITY SameMajorVersion
 )
-
-export(EXPORT OverkitTargets
-  FILE "${CMAKE_BINARY_DIR}/OverkitTargets.cmake"
-)
+if(CMAKE_MAJOR_VERSION GREATER 3)
+  export(EXPORT OverkitTargets FILE "${CMAKE_BINARY_DIR}/OverkitTargets.cmake")
+else()
+  export(TARGETS overkit FILE "${CMAKE_BINARY_DIR}/OverkitTargets.cmake")
+endif()
 
 configure_file(config/OverkitConfig.cmake
   "${CMAKE_BINARY_DIR}/OverkitConfig.cmake"
