@@ -135,7 +135,7 @@ program Blobs
 
   ! Inner radial boundary on blob #1
   call ovkEditGridInitialState(Grid, State)
-  State%values(1,1:NumPointsBlob(2)-1,1) = ior(OVK_GRID_POINT, OVK_DOMAIN_BOUNDARY_POINT)
+  State%values(1,1:NumPointsBlob(2)-1,1) = OVK_DOMAIN_BOUNDARY_POINT
   call ovkReleaseGridInitialState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
@@ -166,7 +166,7 @@ program Blobs
 
   ! Inner radial boundary on blob #2
   call ovkEditGridInitialState(Grid, State)
-  State%values(1,1:NumPointsBlob(2)-1,1) = ior(OVK_GRID_POINT, OVK_DOMAIN_BOUNDARY_POINT)
+  State%values(1,1:NumPointsBlob(2)-1,1) = OVK_DOMAIN_BOUNDARY_POINT
   call ovkReleaseGridInitialState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
@@ -197,7 +197,7 @@ program Blobs
 
   ! Inner radial boundary on blob #3
   call ovkEditGridInitialState(Grid, State)
-  State%values(1,1:NumPointsBlob(2)-1,1) = ior(OVK_GRID_POINT, OVK_DOMAIN_BOUNDARY_POINT)
+  State%values(1,1:NumPointsBlob(2)-1,1) = OVK_DOMAIN_BOUNDARY_POINT
   call ovkReleaseGridInitialState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
@@ -230,15 +230,14 @@ program Blobs
     call ovkGetGridCart(Grid, Cart)
     call ovkGetGridCoords(Grid, 1, X)
     call ovkGetGridCoords(Grid, 2, Y)
-    call ovkGetGridState(Grid, State)
 
     ! Use IBlank data to visualize status of grid points
-    IBlank = ovk_field_int_(Cart)
-
     ! IBlank == 1 => Normal
+    IBlank = ovk_field_int_(Cart, 1)
+
     ! IBlank == 0 => Hole
-    call ovkFilterState(State, OVK_GRID_POINT, OVK_ALL, Mask)
-    IBlank%values = merge(1, 0, Mask%values)
+    call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
+    IBlank%values = merge(0, IBlank%values, Mask%values)
 
     ! IBlank == -N => Receives from grid N
     do m = 1, 4
@@ -254,7 +253,7 @@ program Blobs
     end do
 
     ! IBlank == 7 => Orphan
-    call ovkFilterState(State, OVK_ORPHAN_POINT, OVK_ALL, Mask)
+    call ovkFilterGridState(Grid, OVK_STATE_ORPHAN, OVK_ALL, Mask)
     IBlank%values = merge(7, IBlank%values, Mask%values)
 
     call ovkWriteP3D(GridFile, n, X, Y, IBlank)

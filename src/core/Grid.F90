@@ -31,6 +31,8 @@ module ovkGrid
   public :: ovkGetGridState
   public :: ovkEditGridState
   public :: ovkReleaseGridState
+  public :: ovkFilterGridInitialState
+  public :: ovkFilterGridState
   public :: ovkGridCellExists
   public :: ovkGridCellBounds
   public :: ovkOverlapsGridCell
@@ -52,20 +54,20 @@ module ovkGrid
   public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
   public :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_CURVILINEAR
-  public :: OVK_HOLE_POINT
-  public :: OVK_GRID_POINT
+  public :: OVK_STATE_GRID
+  public :: OVK_STATE_INTERIOR
+  public :: OVK_STATE_BOUNDARY
+  public :: OVK_STATE_DOMAIN_BOUNDARY
+  public :: OVK_STATE_INTERNAL_BOUNDARY
+  public :: OVK_STATE_HOLE
+  public :: OVK_STATE_BOUNDARY_HOLE
+  public :: OVK_STATE_OVERLAP_HOLE
+  public :: OVK_STATE_RECEIVER
+  public :: OVK_STATE_ORPHAN
+  public :: OVK_INTERIOR_POINT
   public :: OVK_DOMAIN_BOUNDARY_POINT
   public :: OVK_INTERNAL_BOUNDARY_POINT
-  public :: OVK_RECEIVER_POINT
-  public :: OVK_ORPHAN_POINT
-  public :: OVK_BOUNDARY_POINT
-  public :: OVK_INTERIOR_POINT
-  public :: OVK_HOLE_CELL
-  public :: OVK_GRID_CELL
-  public :: OVK_DOMAIN_BOUNDARY_CELL
-  public :: OVK_INTERNAL_BOUNDARY_CELL
-  public :: OVK_BOUNDARY_CELL
-  public :: OVK_INTERIOR_CELL
+  public :: OVK_HOLE_POINT
 
   ! Internal
   public :: ovk_grid_
@@ -132,23 +134,23 @@ module ovkGrid
   integer, parameter :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR = 4
   integer, parameter :: OVK_GRID_GEOMETRY_CURVILINEAR = 5
 
-  integer, parameter :: OVK_HOLE_POINT = ishft(1,0)
-  integer, parameter :: OVK_GRID_POINT = ishft(1,1)
-  integer, parameter :: OVK_DOMAIN_BOUNDARY_POINT = ishft(1,2)
-  integer, parameter :: OVK_INTERNAL_BOUNDARY_POINT = ishft(1,3)
-  integer, parameter :: OVK_RECEIVER_POINT = ishft(1,4)
-  integer, parameter :: OVK_ORPHAN_POINT = ishft(1,5)
-  integer, parameter :: OVK_BOUNDARY_POINT = ior(OVK_DOMAIN_BOUNDARY_POINT, &
-    OVK_INTERNAL_BOUNDARY_POINT)
-  integer, parameter :: OVK_INTERIOR_POINT = iand(OVK_GRID_POINT,not(OVK_BOUNDARY_POINT))
+  integer, parameter :: OVK_STATE_GRID = ishft(1,0)
+  integer, parameter :: OVK_STATE_INTERIOR = ishft(1,1)
+  integer, parameter :: OVK_STATE_BOUNDARY = ishft(1,2)
+  integer, parameter :: OVK_STATE_DOMAIN_BOUNDARY = ishft(1,3)
+  integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(1,4)
+  integer, parameter :: OVK_STATE_HOLE = ishft(1,5)
+  integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(1,6)
+  integer, parameter :: OVK_STATE_OVERLAP_HOLE = ishft(1,7)
+  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,8)
+  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,9)
 
-  integer, parameter :: OVK_HOLE_CELL = ishft(1,0)
-  integer, parameter :: OVK_GRID_CELL = ishft(1,1)
-  integer, parameter :: OVK_DOMAIN_BOUNDARY_CELL = ishft(1,2)
-  integer, parameter :: OVK_INTERNAL_BOUNDARY_CELL = ishft(1,3)
-  integer, parameter :: OVK_BOUNDARY_CELL = ior(OVK_DOMAIN_BOUNDARY_CELL, &
-    OVK_INTERNAL_BOUNDARY_CELL)
-  integer, parameter :: OVK_INTERIOR_CELL = iand(OVK_GRID_CELL,not(OVK_BOUNDARY_CELL))
+  integer, parameter :: OVK_INTERIOR_POINT = ior(OVK_STATE_GRID,OVK_STATE_INTERIOR)
+  integer, parameter :: OVK_DOMAIN_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
+    OVK_STATE_DOMAIN_BOUNDARY))
+  integer, parameter :: OVK_INTERNAL_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
+    OVK_STATE_INTERNAL_BOUNDARY))
+  integer, parameter :: OVK_HOLE_POINT = OVK_STATE_HOLE
 
 contains
 
@@ -225,12 +227,12 @@ contains
     Grid%coords_edit_ref_count = 0
 
     allocate(Grid%init_state)
-    Grid%init_state = ovk_field_int_(Grid%cart, OVK_GRID_POINT)
+    Grid%init_state = ovk_field_int_(Grid%cart, OVK_INTERIOR_POINT)
 
     Grid%init_state_edit_ref_count = 0
 
     allocate(Grid%state)
-    Grid%state = ovk_field_int_(Grid%cart, OVK_GRID_POINT)
+    Grid%state = ovk_field_int_(Grid%cart, OVK_INTERIOR_POINT)
 
     nullify(Grid%prev_state)
 
@@ -652,8 +654,8 @@ contains
             do j = Grid%cart%is(2), Grid%cart%ie(2)
               do i = Grid%cart%is(1), Grid%cart%ie(1)
                 if (State%values(i,j,k) /= PrevState%values(i,j,k)) then
-                  StateValue = iand(State%values(i,j,k),OVK_GRID_POINT)
-                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_GRID_POINT)
+                  StateValue = iand(State%values(i,j,k),OVK_STATE_GRID)
+                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_STATE_GRID)
                   if (StateValue /= PrevStateValue) then
                     ModifiedMask = .true.
                     exit L1
@@ -669,8 +671,8 @@ contains
             do j = Grid%cart%is(2), Grid%cart%ie(2)
               do i = Grid%cart%is(1), Grid%cart%ie(1)
                 if (State%values(i,j,k) /= PrevState%values(i,j,k)) then
-                  StateValue = iand(State%values(i,j,k),OVK_DOMAIN_BOUNDARY_POINT)
-                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_DOMAIN_BOUNDARY_POINT)
+                  StateValue = iand(State%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
+                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
                   if (StateValue /= PrevStateValue) then
                     ModifiedBoundaryMask = .true.
                     exit L2
@@ -686,8 +688,8 @@ contains
             do j = Grid%cart%is(2), Grid%cart%ie(2)
               do i = Grid%cart%is(1), Grid%cart%ie(1)
                 if (State%values(i,j,k) /= PrevState%values(i,j,k)) then
-                  StateValue = iand(State%values(i,j,k),OVK_INTERNAL_BOUNDARY_POINT)
-                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_INTERNAL_BOUNDARY_POINT)
+                  StateValue = iand(State%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
+                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
                   if (StateValue /= PrevStateValue) then
                     ModifiedInternalBoundaryMask = .true.
                     exit L3
@@ -744,6 +746,68 @@ contains
     nullify(State)
 
   end subroutine ovkReleaseGridState
+
+  subroutine ovkFilterGridInitialState(Grid, StateBits, FilterMode, MatchingMask)
+
+    type(ovk_grid), intent(in) :: Grid
+    integer, intent(in) :: StateBits
+    integer, intent(in) :: FilterMode
+    type(ovk_field_logical), intent(out) :: MatchingMask
+
+    call FilterState(Grid%init_state, StateBits, FilterMode, MatchingMask)
+
+  end subroutine ovkFilterGridInitialState
+
+  subroutine ovkFilterGridState(Grid, StateBits, FilterMode, MatchingMask)
+
+    type(ovk_grid), intent(in) :: Grid
+    integer, intent(in) :: StateBits
+    integer, intent(in) :: FilterMode
+    type(ovk_field_logical), intent(out) :: MatchingMask
+
+    call FilterState(Grid%state, StateBits, FilterMode, MatchingMask)
+
+  end subroutine ovkFilterGridState
+
+  subroutine FilterState(State, StateBits, FilterMode, MatchingMask)
+
+    type(ovk_field_int), intent(in) :: State
+    integer, intent(in) :: StateBits
+    integer, intent(in) :: FilterMode
+    type(ovk_field_logical), intent(out) :: MatchingMask
+
+    integer :: i, j, k
+
+    MatchingMask = ovk_field_logical_(State%cart)
+
+    select case (FilterMode)
+    case (OVK_NONE)
+      do k = State%cart%is(3), State%cart%ie(3)
+        do j = State%cart%is(2), State%cart%ie(2)
+          do i = State%cart%is(1), State%cart%ie(1)
+            MatchingMask%values(i,j,k) = iand(State%values(i,j,k), StateBits) == 0
+          end do
+        end do
+      end do
+    case (OVK_ANY)
+      do k = State%cart%is(3), State%cart%ie(3)
+        do j = State%cart%is(2), State%cart%ie(2)
+          do i = State%cart%is(1), State%cart%ie(1)
+            MatchingMask%values(i,j,k) = iand(State%values(i,j,k), StateBits) /= 0
+          end do
+        end do
+      end do
+    case (OVK_ALL)
+      do k = State%cart%is(3), State%cart%ie(3)
+        do j = State%cart%is(2), State%cart%ie(2)
+          do i = State%cart%is(1), State%cart%ie(1)
+            MatchingMask%values(i,j,k) = iand(State%values(i,j,k), StateBits) == StateBits
+          end do
+        end do
+      end do
+    end select
+
+  end subroutine FilterState
 
   function EditingProperties(Grid) result(Editing)
 
@@ -940,8 +1004,8 @@ contains
       do j = Grid%cart%is(2), Grid%cart%ie(2)
         do i = Grid%cart%is(1), Grid%cart%ie(1)
           if (InitState%values(i,j,k) /= State%values(i,j,k)) then
-            InitStateValue = iand(InitState%values(i,j,k),OVK_GRID_POINT)
-            StateValue = iand(State%values(i,j,k),OVK_GRID_POINT)
+            InitStateValue = iand(InitState%values(i,j,k),OVK_STATE_GRID)
+            StateValue = iand(State%values(i,j,k),OVK_STATE_GRID)
             if (InitStateValue /= StateValue) then
               ModifiedMask = .true.
               exit L1
@@ -957,8 +1021,8 @@ contains
       do j = Grid%cart%is(2), Grid%cart%ie(2)
         do i = Grid%cart%is(1), Grid%cart%ie(1)
           if (InitState%values(i,j,k) /= State%values(i,j,k)) then
-            InitStateValue = iand(InitState%values(i,j,k),OVK_DOMAIN_BOUNDARY_POINT)
-            StateValue = iand(State%values(i,j,k),OVK_DOMAIN_BOUNDARY_POINT)
+            InitStateValue = iand(InitState%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
+            StateValue = iand(State%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
             if (InitStateValue /= StateValue) then
               ModifiedBoundaryMask = .true.
               exit L2
@@ -974,8 +1038,8 @@ contains
       do j = Grid%cart%is(2), Grid%cart%ie(2)
         do i = Grid%cart%is(1), Grid%cart%ie(1)
           if (InitState%values(i,j,k) /= State%values(i,j,k)) then
-            InitStateValue = iand(InitState%values(i,j,k),OVK_INTERNAL_BOUNDARY_POINT)
-            StateValue = iand(State%values(i,j,k),OVK_INTERNAL_BOUNDARY_POINT)
+            InitStateValue = iand(InitState%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
+            StateValue = iand(State%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
             if (InitStateValue /= StateValue) then
               ModifiedInternalBoundaryMask = .true.
               exit L3
@@ -1059,7 +1123,7 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    call ovkFilterState(Grid%state, OVK_GRID_POINT, OVK_ALL, Grid%mask)
+    call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_ALL, Grid%mask)
 
   end subroutine UpdateMask
 
@@ -1067,7 +1131,7 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    call ovkFilterState(Grid%state, OVK_DOMAIN_BOUNDARY_POINT, OVK_ALL, Grid%boundary_mask)
+    call ovkFilterGridState(Grid, OVK_STATE_DOMAIN_BOUNDARY, OVK_ALL, Grid%boundary_mask)
 
   end subroutine UpdateBoundaryMask
 
@@ -1075,7 +1139,7 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    call ovkFilterState(Grid%state, OVK_INTERNAL_BOUNDARY_POINT, OVK_ALL, &
+    call ovkFilterGridState(Grid, OVK_STATE_INTERNAL_BOUNDARY, OVK_ALL, &
       Grid%internal_boundary_mask)
 
   end subroutine UpdateInternalBoundaryMask

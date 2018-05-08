@@ -140,7 +140,6 @@ module Overkit
   public :: ovkThreshold
   public :: ovkDistanceField
   public :: ovkCountMask
-  public :: ovkFilterState
   public :: OVK_INNER_EDGE, OVK_OUTER_EDGE
 
   ! ovkGeometry
@@ -220,6 +219,8 @@ module Overkit
   public :: ovkGetGridState
   public :: ovkEditGridState
   public :: ovkReleaseGridState
+  public :: ovkFilterGridInitialState
+  public :: ovkFilterGridState
   public :: ovkGridCellExists
   public :: ovkGridCellBounds
   public :: ovkOverlapsGridCell
@@ -241,20 +242,20 @@ module Overkit
   public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
   public :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_CURVILINEAR
-  public :: OVK_HOLE_POINT
-  public :: OVK_GRID_POINT
+  public :: OVK_STATE_GRID
+  public :: OVK_STATE_INTERIOR
+  public :: OVK_STATE_BOUNDARY
+  public :: OVK_STATE_DOMAIN_BOUNDARY
+  public :: OVK_STATE_INTERNAL_BOUNDARY
+  public :: OVK_STATE_HOLE
+  public :: OVK_STATE_BOUNDARY_HOLE
+  public :: OVK_STATE_OVERLAP_HOLE
+  public :: OVK_STATE_RECEIVER
+  public :: OVK_STATE_ORPHAN
+  public :: OVK_INTERIOR_POINT
   public :: OVK_DOMAIN_BOUNDARY_POINT
   public :: OVK_INTERNAL_BOUNDARY_POINT
-  public :: OVK_RECEIVER_POINT
-  public :: OVK_ORPHAN_POINT
-  public :: OVK_BOUNDARY_POINT
-  public :: OVK_INTERIOR_POINT
-  public :: OVK_HOLE_CELL
-  public :: OVK_GRID_CELL
-  public :: OVK_DOMAIN_BOUNDARY_CELL
-  public :: OVK_INTERNAL_BOUNDARY_CELL
-  public :: OVK_BOUNDARY_CELL
-  public :: OVK_INTERIOR_CELL
+  public :: OVK_HOLE_POINT
 
   ! ovkOverlap
   public :: ovk_overlap

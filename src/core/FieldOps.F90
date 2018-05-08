@@ -19,7 +19,6 @@ module ovkFieldOps
   public :: ovkThreshold
   public :: ovkDistanceField
   public :: ovkCountMask
-  public :: ovkFilterState
   public :: OVK_INNER_EDGE, OVK_OUTER_EDGE
 
   integer, parameter :: OVK_INNER_EDGE = 1
@@ -641,45 +640,5 @@ contains
     end do
 
   end function ovkCountMask
-
-  subroutine ovkFilterState(State, FilterFlags, FilterCondition, FilterMask)
-
-    type(ovk_field_int), intent(in) :: State
-    integer, intent(in) :: FilterFlags
-    integer, intent(in) :: FilterCondition
-    type(ovk_field_logical), intent(out) :: FilterMask
-
-    integer :: i, j, k
-
-    FilterMask = ovk_field_logical_(State%cart)
-
-    select case (FilterCondition)
-    case (OVK_NONE)
-      do k = State%cart%is(3), State%cart%ie(3)
-        do j = State%cart%is(2), State%cart%ie(2)
-          do i = State%cart%is(1), State%cart%ie(1)
-            FilterMask%values(i,j,k) = iand(State%values(i,j,k), FilterFlags) == 0
-          end do
-        end do
-      end do
-    case (OVK_ANY)
-      do k = State%cart%is(3), State%cart%ie(3)
-        do j = State%cart%is(2), State%cart%ie(2)
-          do i = State%cart%is(1), State%cart%ie(1)
-            FilterMask%values(i,j,k) = iand(State%values(i,j,k), FilterFlags) /= 0
-          end do
-        end do
-      end do
-    case (OVK_ALL)
-      do k = State%cart%is(3), State%cart%ie(3)
-        do j = State%cart%is(2), State%cart%ie(2)
-          do i = State%cart%is(1), State%cart%ie(1)
-            FilterMask%values(i,j,k) = iand(State%values(i,j,k), FilterFlags) == FilterFlags
-          end do
-        end do
-      end do
-    end select
-
-  end subroutine ovkFilterState
 
 end module ovkFieldOps

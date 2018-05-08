@@ -332,7 +332,7 @@ contains
           do j = Grid%cart%is(2), Grid%cart%ie(2)
             do i = Grid%cart%is(1), Grid%cart%ie(1)
               if (InferredBoundaryMask%values(i,j,k)) then
-                State%values(i,j,k) = ior(State%values(i,j,k), OVK_DOMAIN_BOUNDARY_POINT)
+                State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_DOMAIN_BOUNDARY)
               end if
             end do
           end do
@@ -359,7 +359,7 @@ contains
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
-    integer :: i, j, m, n
+    integer :: i, j, k, m, n
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -370,11 +370,11 @@ contains
     integer, dimension(:,:), pointer :: FringePadding
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
-    type(ovk_field_logical), dimension(:), allocatable :: CutMasks
+    type(ovk_field_logical), dimension(:), allocatable :: BoundaryHoleMasks
+    type(ovk_field_logical), dimension(:), allocatable :: OverlapHoleMasks
     type(ovk_field_logical) :: EdgeMask1, EdgeMask2
     type(ovk_field_logical) :: BoundaryMask
     type(ovk_field_logical) :: InteriorMask
-    type(ovk_field_logical) :: ExteriorMask
     integer(lk) :: NumRemoved
     type(ovk_field_logical) :: OverlappingMask
     type(ovk_field_logical) :: CoarseMask_m, CoarseMask_n
@@ -401,11 +401,13 @@ contains
     FringeSize => ReducedDomainInfo%fringe_size
     FringePadding => ReducedDomainInfo%fringe_padding
 
-    allocate(CutMasks(NumGrids))
+    allocate(BoundaryHoleMasks(NumGrids))
+    allocate(OverlapHoleMasks(NumGrids))
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
-      CutMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
+      BoundaryHoleMasks(n) = ovk_field_logical_(Grid_n%cart)
+      OverlapHoleMasks(n) = ovk_field_logical_(Grid_n%cart)
     end do
 
     do n = 1, NumGrids
@@ -450,12 +452,12 @@ contains
           BoundaryMask%values = BoundaryMask%values .and. EdgeMask1%values
           InteriorMask%values = InteriorMask%values .or. BoundaryMask%values
           call ovkDetectEdge(InteriorMask, OVK_INNER_EDGE, OVK_FALSE, .false., BoundaryMask)
-          call ovkDetectEdge(BoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, .false., ExteriorMask)
-          ExteriorMask%values = ExteriorMask%values .and. .not. InteriorMask%values
-          call ovkFloodFill(ExteriorMask, BoundaryMask)
-          CutMasks(n)%values = CutMasks(n)%values .or. ExteriorMask%values
+          call ovkDetectEdge(BoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, .false., CutMask)
+          CutMask%values = CutMask%values .and. .not. InteriorMask%values
+          call ovkFloodFill(CutMask, BoundaryMask)
+          BoundaryHoleMasks(n)%values = CutMask%values
           if (Domain%logger%verbose) then
-            NumRemoved = ovkCountMask(ExteriorMask)
+            NumRemoved = ovkCountMask(BoundaryHoleMasks(n))
             if (NumRemoved > 0_lk) then
               write (*, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
                 " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
@@ -550,9 +552,9 @@ contains
       Grid_n => Domain%grid(IndexToID(n))
       if (any(OverlapHoleCutting(:,n))) then
         CoarseMask = ovk_field_logical_(Grid_n%cart)
-        CoarseMask%values = .not. FineMasks(n)%values .or. CutMasks(n)%values
+        CoarseMask%values = .not. FineMasks(n)%values .or. BoundaryHoleMasks(n)%values
         CutMask = ovk_field_logical_(Grid_n%cart)
-        CutMask%values = (Grid_n%mask%values .and. CoarseMask%values)
+        CutMask%values = Grid_n%mask%values .and. CoarseMask%values
         call ovkDetectEdge(CoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., CoarseEdgeMask)
         do m = 1, NumGrids
           Grid_m => Domain%grid(IndexToID(m))
@@ -568,9 +570,10 @@ contains
               (Overlap_mn%mask%values .and. PaddingEdgeMask%values)
           end if
         end do
-        CutMasks(n)%values = CutMasks(n)%values .or. CutMask%values
+        CutMask%values = CutMask%values .and. .not. BoundaryHoleMasks(n)%values
+        OverlapHoleMasks(n)%values = CutMask%values
         if (Domain%logger%verbose) then
-          NumRemoved = ovkCountMask(CutMask)
+          NumRemoved = ovkCountMask(OverlapHoleMasks(n))
           if (NumRemoved > 0_lk) then
             write (*, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
               " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
@@ -591,7 +594,21 @@ contains
       if (any(OverlapHoleCutting(:,n)) .or. any(BoundaryHoleCutting(:,n))) then
         Grid_n => Domain%grid(IndexToID(n))
         call ovkEditGridState(Grid_n, State)
-        State%values = merge(OVK_HOLE_POINT, State%values, CutMasks(n)%values)
+        do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+          do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+            do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
+              if (BoundaryHoleMasks(n)%values(i,j,k) .or. OverlapHoleMasks(n)%values(i,j,k)) then
+                State%values(i,j,k) = OVK_STATE_HOLE
+                if (BoundaryHoleMasks(n)%values(i,j,k)) then
+                  State%values(i,j,k) = ior(State%values(i,j,k),OVK_STATE_BOUNDARY_HOLE)
+                end if
+                if (OverlapHoleMasks(n)%values(i,j,k)) then
+                  State%values(i,j,k) = ior(State%values(i,j,k),OVK_STATE_OVERLAP_HOLE)
+                end if
+              end if
+            end do
+          end do
+        end do
         call ovkReleaseGridState(Grid_n, State)
         if (Domain%logger%verbose) then
           write (*, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%properties%id)), "."
@@ -684,7 +701,7 @@ contains
         do j = Grid%cart%is(2), Grid%cart%ie(2)
           do i = Grid%cart%is(1), Grid%cart%ie(1)
             if (ReceiverMask%values(i,j,k)) then
-              State%values(i,j,k) = ior(State%values(i,j,k), OVK_RECEIVER_POINT)
+              State%values(i,j,k) = ior(State%values(i,j,k),OVK_STATE_RECEIVER)
             end if
           end do
         end do
@@ -752,7 +769,7 @@ contains
         do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
             do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-              IsReceiver = iand(Grid_n%state%values(i,j,k), OVK_RECEIVER_POINT) /= 0
+              IsReceiver = iand(Grid_n%state%values(i,j,k),OVK_STATE_RECEIVER) /= 0
               if (IsReceiver .and. Overlap%mask%values(i,j,k)) then
                 if (DonorGridIDs(n)%values(i,j,k) == 0) then
                   DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
@@ -821,7 +838,7 @@ contains
 
     do n = 1, NumGrids
       Grid => Domain%grid(IndexToID(n))
-      call ovkFilterState(Grid%state, OVK_RECEIVER_POINT, OVK_ALL, ReceiverMask)
+      call ovkFilterGridState(Grid, OVK_STATE_RECEIVER, OVK_ALL, ReceiverMask)
       OrphanMask = ovk_field_logical_(Grid%cart)
       OrphanMask%values = ReceiverMask%values .and. DonorGridIDs(n)%values == 0
       call ovkEditGridState(Grid, State)
@@ -829,8 +846,8 @@ contains
         do j = Grid%cart%is(2), Grid%cart%ie(2)
           do i = Grid%cart%is(1), Grid%cart%ie(1)
             if (OrphanMask%values(i,j,k)) then
-              State%values(i,j,k) = ior(iand(State%values(i,j,k), not(OVK_RECEIVER_POINT)), &
-                OVK_ORPHAN_POINT)
+              State%values(i,j,k) = ior(iand(State%values(i,j,k),not(OVK_STATE_RECEIVER)), &
+                OVK_STATE_ORPHAN)
             end if
           end do
         end do
@@ -914,7 +931,7 @@ contains
 
       Grid_n => Domain%grid(IndexToID(n))
 
-      call ovkFilterState(Grid_n%state, OVK_RECEIVER_POINT, OVK_ALL, ReceiverMask)
+      call ovkFilterGridState(Grid_n, OVK_STATE_RECEIVER, OVK_ALL, ReceiverMask)
 
       NumConnections = 0_lk
       do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)

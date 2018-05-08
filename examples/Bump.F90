@@ -152,9 +152,9 @@ program Bump
   call ovkEditGridInitialState(Grid, State)
   select case (NumDims)
   case (2)
-    State%values(:,1,1) = ior(State%values(:,1,1), OVK_DOMAIN_BOUNDARY_POINT)
+    State%values(:,1,1) = OVK_DOMAIN_BOUNDARY_POINT
   case (3)
-    State%values(:,:,1) = ior(State%values(:,:,1), OVK_DOMAIN_BOUNDARY_POINT)
+    State%values(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
   end select
   call ovkReleaseGridInitialState(Grid, State)
 
@@ -207,9 +207,9 @@ program Bump
   call ovkEditGridInitialState(Grid, State)
   select case (NumDims)
   case (2)
-    State%values(:,1,1) = ior(State%values(:,1,1), OVK_DOMAIN_BOUNDARY_POINT)
+    State%values(:,1,1) = OVK_DOMAIN_BOUNDARY_POINT
   case (3)
-    State%values(:,:,1) = ior(State%values(:,:,1), OVK_DOMAIN_BOUNDARY_POINT)
+    State%values(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
   end select
   call ovkReleaseGridInitialState(Grid, State)
 
@@ -244,15 +244,14 @@ program Bump
     if (NumDims == 3) then
       call ovkGetGridCoords(Grid, 3, Z)
     end if
-    call ovkGetGridState(Grid, State)
 
     ! Use IBlank data to visualize status of grid points
-    IBlank = ovk_field_int_(Cart)
-
     ! IBlank == 1 => Normal
+    IBlank = ovk_field_int_(Cart, 1)
+
     ! IBlank == 0 => Hole
-    call ovkFilterState(State, OVK_GRID_POINT, OVK_ALL, Mask)
-    IBlank%values = merge(1, 0, Mask%values)
+    call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
+    IBlank%values = merge(0, IBlank%values, Mask%values)
 
     ! IBlank == -N => Receives from grid N
     do m = 1, 2
@@ -268,7 +267,7 @@ program Bump
     end do
 
     ! IBlank == 7 => Orphan
-    call ovkFilterState(State, OVK_ORPHAN_POINT, OVK_ALL, Mask)
+    call ovkFilterGridState(Grid, OVK_STATE_ORPHAN, OVK_ALL, Mask)
     IBlank%values = merge(7, IBlank%values, Mask%values)
 
     if (NumDims == 2) then
