@@ -212,14 +212,10 @@ module Overkit
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
   public :: ovkReleaseGridCoords
-  public :: ovkGetGridInitialState
-  public :: ovkEditGridInitialState
-  public :: ovkReleaseGridInitialState
-  public :: ovkUpdateGridInitialState
   public :: ovkGetGridState
   public :: ovkEditGridState
   public :: ovkReleaseGridState
-  public :: ovkFilterGridInitialState
+  public :: ovkResetGridState
   public :: ovkFilterGridState
   public :: ovkGridCellExists
   public :: ovkGridCellBounds
@@ -246,6 +242,7 @@ module Overkit
   public :: OVK_STATE_INTERIOR
   public :: OVK_STATE_BOUNDARY
   public :: OVK_STATE_DOMAIN_BOUNDARY
+  public :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY
   public :: OVK_STATE_INTERNAL_BOUNDARY
   public :: OVK_STATE_HOLE
   public :: OVK_STATE_BOUNDARY_HOLE

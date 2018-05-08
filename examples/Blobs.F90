@@ -134,9 +134,9 @@ program Blobs
   call ovkReleaseGridCoords(Grid, Y)
 
   ! Inner radial boundary on blob #1
-  call ovkEditGridInitialState(Grid, State)
-  State%values(1,1:NumPointsBlob(2)-1,1) = OVK_DOMAIN_BOUNDARY_POINT
-  call ovkReleaseGridInitialState(Grid, State)
+  call ovkEditGridState(Grid, State)
+  State%values(1,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+  call ovkReleaseGridState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
 
@@ -165,9 +165,9 @@ program Blobs
   call ovkReleaseGridCoords(Grid, Y)
 
   ! Inner radial boundary on blob #2
-  call ovkEditGridInitialState(Grid, State)
-  State%values(1,1:NumPointsBlob(2)-1,1) = OVK_DOMAIN_BOUNDARY_POINT
-  call ovkReleaseGridInitialState(Grid, State)
+  call ovkEditGridState(Grid, State)
+  State%values(1,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+  call ovkReleaseGridState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
 
@@ -196,9 +196,9 @@ program Blobs
   call ovkReleaseGridCoords(Grid, Y)
 
   ! Inner radial boundary on blob #3
-  call ovkEditGridInitialState(Grid, State)
-  State%values(1,1:NumPointsBlob(2)-1,1) = OVK_DOMAIN_BOUNDARY_POINT
-  call ovkReleaseGridInitialState(Grid, State)
+  call ovkEditGridState(Grid, State)
+  State%values(1,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+  call ovkReleaseGridState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
 

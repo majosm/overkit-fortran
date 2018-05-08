@@ -303,6 +303,7 @@ contains
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:), pointer :: InferBoundaries
     type(ovk_field_logical) :: InferredBoundaryMask
+    type(ovk_field_logical) :: InitialBoundaryMask
     type(ovk_grid), pointer :: Grid
     type(ovk_overlap), pointer :: Overlap
     type(ovk_field_int), pointer :: State
@@ -327,12 +328,16 @@ contains
               Overlap%mask%values
           end if
         end do
+        call ovkFilterGridState(Grid, OVK_STATE_DOMAIN_BOUNDARY, OVK_ALL, InitialBoundaryMask)
+        InferredBoundaryMask%values = InferredBoundaryMask%values .and. .not. &
+          InitialBoundaryMask%values
         call ovkEditGridState(Grid, State)
         do k = Grid%cart%is(3), Grid%cart%ie(3)
           do j = Grid%cart%is(2), Grid%cart%ie(2)
             do i = Grid%cart%is(1), Grid%cart%ie(1)
               if (InferredBoundaryMask%values(i,j,k)) then
-                State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_DOMAIN_BOUNDARY)
+                State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_DOMAIN_BOUNDARY, &
+                  OVK_STATE_INFERRED_DOMAIN_BOUNDARY))
               end if
             end do
           end do
@@ -372,6 +377,7 @@ contains
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
     type(ovk_field_logical), dimension(:), allocatable :: BoundaryHoleMasks
     type(ovk_field_logical), dimension(:), allocatable :: OverlapHoleMasks
+    type(ovk_field_logical) :: InitialHoleMask
     type(ovk_field_logical) :: EdgeMask1, EdgeMask2
     type(ovk_field_logical) :: BoundaryMask
     type(ovk_field_logical) :: InteriorMask
@@ -415,6 +421,7 @@ contains
       if (any(BoundaryHoleCutting(:,n))) then
         BoundaryMask = ovk_field_logical_(Grid_n%cart, .false.)
         InteriorMask = ovk_field_logical_(Grid_n%cart, .false.)
+        call ovkFilterGridState(Grid_n, OVK_STATE_HOLE, OVK_ALL, InitialHoleMask)
         do m = 1, NumGrids
           Grid_m => Domain%grid(IndexToID(m))
           Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
@@ -455,6 +462,7 @@ contains
           call ovkDetectEdge(BoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, .false., CutMask)
           CutMask%values = CutMask%values .and. .not. InteriorMask%values
           call ovkFloodFill(CutMask, BoundaryMask)
+          CutMask%values = CutMask%values .and. .not. InitialHoleMask%values
           BoundaryHoleMasks(n)%values = CutMask%values
           if (Domain%logger%verbose) then
             NumRemoved = ovkCountMask(BoundaryHoleMasks(n))
@@ -598,7 +606,8 @@ contains
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
             do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
               if (BoundaryHoleMasks(n)%values(i,j,k) .or. OverlapHoleMasks(n)%values(i,j,k)) then
-                State%values(i,j,k) = OVK_STATE_HOLE
+                State%values(i,j,k) = ior(iand(State%values(i,j,k),not(OVK_STATE_GRID)), &
+                  OVK_STATE_HOLE)
                 if (BoundaryHoleMasks(n)%values(i,j,k)) then
                   State%values(i,j,k) = ior(State%values(i,j,k),OVK_STATE_BOUNDARY_HOLE)
                 end if

@@ -24,14 +24,10 @@ module ovkGrid
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
   public :: ovkReleaseGridCoords
-  public :: ovkGetGridInitialState
-  public :: ovkEditGridInitialState
-  public :: ovkReleaseGridInitialState
-  public :: ovkUpdateGridInitialState
   public :: ovkGetGridState
   public :: ovkEditGridState
   public :: ovkReleaseGridState
-  public :: ovkFilterGridInitialState
+  public :: ovkResetGridState
   public :: ovkFilterGridState
   public :: ovkGridCellExists
   public :: ovkGridCellBounds
@@ -58,6 +54,7 @@ module ovkGrid
   public :: OVK_STATE_INTERIOR
   public :: OVK_STATE_BOUNDARY
   public :: OVK_STATE_DOMAIN_BOUNDARY
+  public :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY
   public :: OVK_STATE_INTERNAL_BOUNDARY
   public :: OVK_STATE_HOLE
   public :: OVK_STATE_BOUNDARY_HOLE
@@ -112,8 +109,6 @@ module ovkGrid
     type(ovk_cart) :: cell_cart
     type(ovk_field_real), dimension(:), pointer :: coords
     integer :: coords_edit_ref_count
-    type(ovk_field_int), pointer :: init_state
-    integer :: init_state_edit_ref_count
     type(ovk_field_int), pointer :: state
     type(ovk_field_int), pointer :: prev_state
     integer :: state_edit_ref_count
@@ -138,12 +133,13 @@ module ovkGrid
   integer, parameter :: OVK_STATE_INTERIOR = ishft(1,1)
   integer, parameter :: OVK_STATE_BOUNDARY = ishft(1,2)
   integer, parameter :: OVK_STATE_DOMAIN_BOUNDARY = ishft(1,3)
-  integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(1,4)
-  integer, parameter :: OVK_STATE_HOLE = ishft(1,5)
-  integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(1,6)
-  integer, parameter :: OVK_STATE_OVERLAP_HOLE = ishft(1,7)
-  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,8)
-  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,9)
+  integer, parameter :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY = ishft(1,4)
+  integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(1,5)
+  integer, parameter :: OVK_STATE_HOLE = ishft(1,6)
+  integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(1,7)
+  integer, parameter :: OVK_STATE_OVERLAP_HOLE = ishft(1,8)
+  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,9)
+  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,10)
 
   integer, parameter :: OVK_INTERIOR_POINT = ior(OVK_STATE_GRID,OVK_STATE_INTERIOR)
   integer, parameter :: OVK_DOMAIN_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
@@ -167,8 +163,6 @@ contains
     Grid%cell_cart = ovk_cart_()
     nullify(Grid%coords)
     Grid%coords_edit_ref_count = 0
-    nullify(Grid%init_state)
-    Grid%init_state_edit_ref_count = 0
     nullify(Grid%state)
     Grid%state_edit_ref_count = 0
     nullify(Grid%prev_state)
@@ -226,11 +220,6 @@ contains
 
     Grid%coords_edit_ref_count = 0
 
-    allocate(Grid%init_state)
-    Grid%init_state = ovk_field_int_(Grid%cart, OVK_INTERIOR_POINT)
-
-    Grid%init_state_edit_ref_count = 0
-
     allocate(Grid%state)
     Grid%state = ovk_field_int_(Grid%cart, OVK_INTERIOR_POINT)
 
@@ -270,7 +259,6 @@ contains
     if (.not. GridExists(Grid)) return
 
     deallocate(Grid%coords)
-    deallocate(Grid%init_state)
     deallocate(Grid%state)
     if (associated(Grid%prev_state)) deallocate(Grid%prev_state)
 
@@ -326,8 +314,6 @@ contains
       if (OVK_DEBUG) then
         if (EditingCoords(Grid)) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing coordinates."
-        else if (EditingInitialState(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing initial state."
         else if (EditingState(Grid)) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing state."
         end if
@@ -460,7 +446,7 @@ contains
       if (Success) then
         if (EndEdit) then
           Grid%edits%coords = .true.
-          if (.not. EditingInitialState(Grid) .and. .not. EditingState(Grid)) then
+          if (.not. EditingState(Grid)) then
             call UpdateBounds(Grid)
             call UpdateResolution(Grid)
           end if
@@ -485,108 +471,6 @@ contains
     nullify(Coords)
 
   end subroutine ovkReleaseGridCoords
-
-  subroutine ovkGetGridInitialState(Grid, State)
-
-    type(ovk_grid), intent(in) :: Grid
-    type(ovk_field_int), pointer, intent(out) :: State
-
-    State => Grid%init_state
-
-  end subroutine ovkGetGridInitialState
-
-  subroutine ovkEditGridInitialState(Grid, State)
-
-    type(ovk_grid), intent(inout) :: Grid
-    type(ovk_field_int), pointer, intent(out) :: State
-
-    logical :: Success, StartEdit
-
-    call TryEditInitialState(Grid, Success, StartEdit)
-
-    if (Success) then
-      State => Grid%init_state
-    else
-      if (OVK_DEBUG) then
-        if (EditingProperties(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit initial state while editing properties."
-        else if (EditingState(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit initial state while editing state."
-        end if
-        stop 1
-      end if
-      nullify(State)
-    end if
-
-  end subroutine ovkEditGridInitialState
-
-  subroutine ovkReleaseGridInitialState(Grid, State)
-
-    type(ovk_grid), intent(inout) :: Grid
-    type(ovk_field_int), pointer, intent(inout) :: State
-
-    logical :: Success, EndEdit
-
-    if (associated(State, Grid%init_state)) then
-
-      call TryReleaseInitialState(Grid, Success, EndEdit)
-
-      if (Success) then
-        if (EndEdit) then
-          call ResetState(Grid)
-        end if
-      else
-        if (OVK_DEBUG) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Unable to release initial state; not currently ", &
-            "being edited."
-          stop 1
-        end if
-      end if
-
-    else
-
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Unable to release initial state; invalid pointer."
-        stop 1
-      end if
-
-    end if
-
-    nullify(State)
-
-  end subroutine ovkReleaseGridInitialState
-
-  subroutine ovkUpdateGridInitialState(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    logical :: Success
-
-    Success = &
-      .not. EditingProperties(Grid) .and. &
-      .not. EditingInitialState(Grid) .and. &
-      .not. EditingState(Grid)
-
-    if (Success) then
-
-      Grid%init_state%values = Grid%state%values
-
-    else
-
-      if (OVK_DEBUG) then
-        if (EditingProperties(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot update initial state while editing properties."
-        else if (EditingInitialState(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot update initial state while editing it."
-        else if (EditingState(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot update initial state while editing state."
-        end if
-        stop 1
-      end if
-
-    end if
-
-  end subroutine ovkUpdateGridInitialState
 
   subroutine ovkGetGridState(Grid, State)
 
@@ -614,8 +498,6 @@ contains
       if (OVK_DEBUG) then
         if (EditingProperties(Grid)) then
           write (ERROR_UNIT, '(a)') "ERROR: Cannot edit state while editing properties."
-        else if (EditingInitialState(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit state while editing initial state."
         end if
         stop 1
       end if
@@ -747,16 +629,40 @@ contains
 
   end subroutine ovkReleaseGridState
 
-  subroutine ovkFilterGridInitialState(Grid, StateBits, FilterMode, MatchingMask)
+  subroutine ovkResetGridState(Grid)
 
-    type(ovk_grid), intent(in) :: Grid
-    integer, intent(in) :: StateBits
-    integer, intent(in) :: FilterMode
-    type(ovk_field_logical), intent(out) :: MatchingMask
+    type(ovk_grid), intent(inout) :: Grid
 
-    call FilterState(Grid%init_state, StateBits, FilterMode, MatchingMask)
+    integer :: i, j, k
+    type(ovk_field_int), pointer :: State
+    integer :: Value
 
-  end subroutine ovkFilterGridInitialState
+    call ovkEditGridState(Grid, State)
+
+    do k = Grid%cart%is(3), Grid%cart%ie(3)
+      do j = Grid%cart%is(2), Grid%cart%ie(2)
+        do i = Grid%cart%is(1), Grid%cart%ie(1)
+          if (iand(State%values(i,j,k),OVK_STATE_INFERRED_DOMAIN_BOUNDARY) /= 0) then
+            State%values(i,j,k) = iand(State%values(i,j,k),not(ior(OVK_STATE_DOMAIN_BOUNDARY, &
+              OVK_STATE_INFERRED_DOMAIN_BOUNDARY)))
+          end if
+          if (iand(State%values(i,j,k),OVK_STATE_BOUNDARY_HOLE) /= 0) then
+            State%values(i,j,k) = ior(iand(State%values(i,j,k),not(ior(OVK_STATE_HOLE, &
+              OVK_STATE_BOUNDARY_HOLE))),OVK_STATE_GRID)
+          end if
+          if (iand(State%values(i,j,k),OVK_STATE_OVERLAP_HOLE) /= 0) then
+            State%values(i,j,k) = ior(iand(State%values(i,j,k),not(ior(OVK_STATE_HOLE, &
+              OVK_STATE_OVERLAP_HOLE))),OVK_STATE_GRID)
+          end if
+          State%values(i,j,k) = iand(State%values(i,j,k),not(ior(OVK_STATE_RECEIVER, &
+            OVK_STATE_ORPHAN)))
+        end do
+      end do
+    end do
+
+    call ovkReleaseGridState(Grid, State)
+
+  end subroutine ovkResetGridState
 
   subroutine ovkFilterGridState(Grid, StateBits, FilterMode, MatchingMask)
 
@@ -765,18 +671,10 @@ contains
     integer, intent(in) :: FilterMode
     type(ovk_field_logical), intent(out) :: MatchingMask
 
-    call FilterState(Grid%state, StateBits, FilterMode, MatchingMask)
-
-  end subroutine ovkFilterGridState
-
-  subroutine FilterState(State, StateBits, FilterMode, MatchingMask)
-
-    type(ovk_field_int), intent(in) :: State
-    integer, intent(in) :: StateBits
-    integer, intent(in) :: FilterMode
-    type(ovk_field_logical), intent(out) :: MatchingMask
-
     integer :: i, j, k
+    type(ovk_field_int), pointer :: State
+
+    State => Grid%state
 
     MatchingMask = ovk_field_logical_(State%cart)
 
@@ -807,7 +705,7 @@ contains
       end do
     end select
 
-  end subroutine FilterState
+  end subroutine ovkFilterGridState
 
   function EditingProperties(Grid) result(Editing)
 
@@ -827,15 +725,6 @@ contains
 
   end function EditingCoords
 
-  function EditingInitialState(Grid) result(Editing)
-
-    type(ovk_grid), intent(in) :: Grid
-    logical :: Editing
-
-    Editing = Grid%init_state_edit_ref_count > 0
-
-  end function EditingInitialState
-
   function EditingState(Grid) result(Editing)
 
     type(ovk_grid), intent(in) :: Grid
@@ -853,7 +742,6 @@ contains
 
     Success = &
       .not. EditingCoords(Grid) .and. &
-      .not. EditingInitialState(Grid) .and. &
       .not. EditingState(Grid)
 
     if (Success) then
@@ -916,47 +804,13 @@ contains
 
   end subroutine TryReleaseCoords
 
-  subroutine TryEditInitialState(Grid, Success, StartEdit)
-
-    type(ovk_grid), intent(inout) :: Grid
-    logical, intent(out) :: Success
-    logical, intent(out) :: StartEdit
-
-    Success = .not. EditingProperties(Grid) .and. .not. EditingState(Grid)
-
-    if (Success) then
-      StartEdit = Grid%init_state_edit_ref_count == 0
-      Grid%init_state_edit_ref_count = Grid%init_state_edit_ref_count + 1
-    else
-      StartEdit = .false.
-    end if
-
-  end subroutine TryEditInitialState
-
-  subroutine TryReleaseInitialState(Grid, Success, EndEdit)
-
-    type(ovk_grid), intent(inout) :: Grid
-    logical, intent(out) :: Success
-    logical, intent(out) :: EndEdit
-
-    Success = EditingInitialState(Grid)
-
-    if (Success) then
-      Grid%init_state_edit_ref_count = Grid%init_state_edit_ref_count - 1
-      EndEdit = Grid%init_state_edit_ref_count == 0
-    else
-      EndEdit = .false.
-    end if
-
-  end subroutine TryReleaseInitialState
-
   subroutine TryEditState(Grid, Success, StartEdit)
 
     type(ovk_grid), intent(inout) :: Grid
     logical, intent(out) :: Success
     logical, intent(out) :: StartEdit
 
-    Success = .not. EditingProperties(Grid) .and. .not. EditingInitialState(Grid)
+    Success = .not. EditingProperties(Grid)
 
     if (Success) then
       StartEdit = Grid%state_edit_ref_count == 0
@@ -983,96 +837,6 @@ contains
     end if
 
   end subroutine TryReleaseState
-
-  subroutine ResetState(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    integer :: i, j, k
-    type(ovk_field_int), pointer :: State, InitState
-    logical :: ModifiedMask
-    logical :: ModifiedBoundaryMask
-    logical :: ModifiedInternalBoundaryMask
-    integer :: InitStateValue, StateValue
-
-    State => Grid%state
-    InitState => Grid%init_state
-
-    ModifiedMask = .false.
-    L1: &
-    do k = Grid%cart%is(3), Grid%cart%ie(3)
-      do j = Grid%cart%is(2), Grid%cart%ie(2)
-        do i = Grid%cart%is(1), Grid%cart%ie(1)
-          if (InitState%values(i,j,k) /= State%values(i,j,k)) then
-            InitStateValue = iand(InitState%values(i,j,k),OVK_STATE_GRID)
-            StateValue = iand(State%values(i,j,k),OVK_STATE_GRID)
-            if (InitStateValue /= StateValue) then
-              ModifiedMask = .true.
-              exit L1
-            end if
-          end if
-        end do
-      end do
-    end do L1
-
-    ModifiedBoundaryMask = .false.
-    L2: &
-    do k = Grid%cart%is(3), Grid%cart%ie(3)
-      do j = Grid%cart%is(2), Grid%cart%ie(2)
-        do i = Grid%cart%is(1), Grid%cart%ie(1)
-          if (InitState%values(i,j,k) /= State%values(i,j,k)) then
-            InitStateValue = iand(InitState%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
-            StateValue = iand(State%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
-            if (InitStateValue /= StateValue) then
-              ModifiedBoundaryMask = .true.
-              exit L2
-            end if
-          end if
-        end do
-      end do
-    end do L2
-
-    ModifiedInternalBoundaryMask = .false.
-    L3: &
-    do k = Grid%cart%is(3), Grid%cart%ie(3)
-      do j = Grid%cart%is(2), Grid%cart%ie(2)
-        do i = Grid%cart%is(1), Grid%cart%ie(1)
-          if (InitState%values(i,j,k) /= State%values(i,j,k)) then
-            InitStateValue = iand(InitState%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
-            StateValue = iand(State%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
-            if (InitStateValue /= StateValue) then
-              ModifiedInternalBoundaryMask = .true.
-              exit L3
-            end if
-          end if
-        end do
-      end do
-    end do L3
-
-    Grid%state%values = Grid%init_state%values
-
-    if (ModifiedMask) then
-      call UpdateMask(Grid)
-      call UpdateCellMask(Grid)
-      call UpdateCellEdgeDistance(Grid)
-      if (.not. EditingCoords(Grid)) then
-        call UpdateBounds(Grid)
-        call UpdateResolution(Grid)
-      end if
-      Grid%edits%mask = .true.
-    end if
-
-    if (ModifiedBoundaryMask) then
-      call UpdateBoundaryMask(Grid)
-      Grid%edits%boundary_mask = .true.
-    end if
-
-    if (ModifiedInternalBoundaryMask) then
-      call UpdateInternalBoundaryMask(Grid)
-      Grid%edits%internal_boundary_mask = .true.
-    end if
-
-  end subroutine ResetState
 
   subroutine UpdateBounds(Grid)
 

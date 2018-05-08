@@ -149,14 +149,14 @@ program Bump
   deallocate(XYZ)
 
   ! Lower edge boundary on background grid
-  call ovkEditGridInitialState(Grid, State)
+  call ovkEditGridState(Grid, State)
   select case (NumDims)
   case (2)
     State%values(:,1,1) = OVK_DOMAIN_BOUNDARY_POINT
   case (3)
     State%values(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
   end select
-  call ovkReleaseGridInitialState(Grid, State)
+  call ovkReleaseGridState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
 
@@ -204,14 +204,14 @@ program Bump
   deallocate(XYZ)
 
   ! Lower edge boundary on bump grid
-  call ovkEditGridInitialState(Grid, State)
+  call ovkEditGridState(Grid, State)
   select case (NumDims)
   case (2)
     State%values(:,1,1) = OVK_DOMAIN_BOUNDARY_POINT
   case (3)
     State%values(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
   end select
-  call ovkReleaseGridInitialState(Grid, State)
+  call ovkReleaseGridState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
 
