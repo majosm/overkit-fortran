@@ -59,8 +59,8 @@ module ovkDomain
   public :: ovkSetDomainPropertyInterpScheme
   public :: ovkGetDomainPropertyFringeSize
   public :: ovkSetDomainPropertyFringeSize
-  public :: ovkGetDomainPropertyFringePadding
-  public :: ovkSetDomainPropertyFringePadding
+  public :: ovkGetDomainPropertyInterfacePadding
+  public :: ovkSetDomainPropertyInterfacePadding
 
   ! Internal
   public :: ovk_domain_
@@ -86,7 +86,7 @@ module ovkDomain
     integer, dimension(:,:), allocatable :: connection_type
     integer, dimension(:,:), allocatable :: interp_scheme
     integer, dimension(:), allocatable :: fringe_size
-    integer, dimension(:,:), allocatable :: fringe_padding
+    integer, dimension(:,:), allocatable :: interface_padding
   end type ovk_domain_properties
 
   type t_domain_edits
@@ -430,7 +430,7 @@ contains
           do n = 1, NumGrids
             do m = 1, NumGrids
               if (Properties%connection_type(m,n) /= PrevProperties%connection_type(m,n) .or. &
-                Properties%fringe_padding(m,n) /= PrevProperties%fringe_padding(m,n)) then
+                Properties%interface_padding(m,n) /= PrevProperties%interface_padding(m,n)) then
                 Edits%hole_dependencies(n) = .true.
                 Edits%connectivity_dependencies(:,:) = .true.
               end if
@@ -1524,8 +1524,8 @@ contains
     allocate(Properties%fringe_size(NumGrids))
     Properties%fringe_size = 0
 
-    allocate(Properties%fringe_padding(NumGrids,NumGrids))
-    Properties%fringe_padding = 0
+    allocate(Properties%interface_padding(NumGrids,NumGrids))
+    Properties%interface_padding = 0
 
   end function ovk_domain_properties_
 
@@ -1899,30 +1899,30 @@ contains
 
   end subroutine ovkSetDomainPropertyFringeSize
 
-  subroutine ovkGetDomainPropertyFringePadding(Properties, DonorGridID, ReceiverGridID, &
-    FringePadding)
+  subroutine ovkGetDomainPropertyInterfacePadding(Properties, DonorGridID, ReceiverGridID, &
+    InterfacePadding)
 
     type(ovk_domain_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(out) :: FringePadding
+    integer, intent(out) :: InterfacePadding
 
-    FringePadding = Properties%fringe_padding(DonorGridID,ReceiverGridID)
+    InterfacePadding = Properties%interface_padding(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetDomainPropertyFringePadding
+  end subroutine ovkGetDomainPropertyInterfacePadding
 
-  subroutine ovkSetDomainPropertyFringePadding(Properties, DonorGridID, ReceiverGridID, &
-    FringePadding)
+  subroutine ovkSetDomainPropertyInterfacePadding(Properties, DonorGridID, ReceiverGridID, &
+    InterfacePadding)
 
     type(ovk_domain_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(in) :: FringePadding
+    integer, intent(in) :: InterfacePadding
 
     integer :: m, n
     integer :: ms, me, ns, ne
 
     if (OVK_DEBUG) then
-      if (FringePadding < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Fringe padding must be nonnegative."
+      if (InterfacePadding < 0) then
+        write (ERROR_UNIT, '(a)') "ERROR: Interface padding must be nonnegative."
         stop 1
       end if
     end if
@@ -1932,11 +1932,11 @@ contains
 
     do n = ns, ne
       do m = ms, me
-        Properties%fringe_padding(m,n) = FringePadding
+        Properties%interface_padding(m,n) = InterfacePadding
       end do
     end do
 
-  end subroutine ovkSetDomainPropertyFringePadding
+  end subroutine ovkSetDomainPropertyInterfacePadding
 
   subroutine GridIDRange(NumGrids, GridID, StartID, EndID)
 
@@ -1978,7 +1978,7 @@ contains
 
     do m = 1, Properties%ngrids
       if (Properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-        MaxEdgeDistance = max(MaxEdgeDistance, Properties%fringe_padding(m,n))
+        MaxEdgeDistance = max(MaxEdgeDistance, Properties%interface_padding(m,n))
       end if
     end do
 

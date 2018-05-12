@@ -108,7 +108,7 @@ program Bump
   call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
   call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, InterpScheme)
   call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
-  call ovkSetDomainPropertyFringePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
+  call ovkSetDomainPropertyInterfacePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
 
   call ovkReleaseDomainProperties(Domain, Properties)
 

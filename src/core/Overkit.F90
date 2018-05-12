@@ -115,8 +115,8 @@ module Overkit
   public :: ovkSetDomainPropertyInterpScheme
   public :: ovkGetDomainPropertyFringeSize
   public :: ovkSetDomainPropertyFringeSize
-  public :: ovkGetDomainPropertyFringePadding
-  public :: ovkSetDomainPropertyFringePadding
+  public :: ovkGetDomainPropertyInterfacePadding
+  public :: ovkSetDomainPropertyInterfacePadding
 
   ! ovkField
   public :: ovk_field_int
