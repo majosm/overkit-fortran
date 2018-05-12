@@ -59,7 +59,7 @@ program Bump
 
   call GetOptionValue(Options(1), NumDims, 2)
   if (NumDims /= 2 .and. NumDims /= 3) then
-    write (ERROR_UNIT, '(3a)') "ERROR: Invalid grid dimension ", NumDims, "."
+    write (ERROR_UNIT, '(a,i0,a)') "ERROR: Invalid grid dimension ", NumDims, "."
     stop 1
   end if
 
