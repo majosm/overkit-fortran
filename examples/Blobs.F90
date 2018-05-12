@@ -12,8 +12,9 @@ program Blobs
   character(len=256), dimension(:), allocatable :: RawArguments
   character(len=256) :: Usage
   character(len=256) :: Description
-  type(t_cmd_opt), dimension(1) :: Options
+  type(t_cmd_opt), dimension(2) :: Options
   integer :: NumPoints
+  character(len=64) :: VisMode
   integer, dimension(2) :: NumPointsBackground
   integer, dimension(2) :: NumPointsBlob
   real(rk) :: SeparationScale
@@ -46,10 +47,18 @@ program Blobs
     "blob-like holes in it."
   Options(1) = t_cmd_opt_("size", "N", CMD_OPT_INTEGER, "Size of background grid in each " // &
     "direction (other grids are proportional) [ Default: 81 ]")
+  Options(2) = t_cmd_opt_("vis-mode", "V", CMD_OPT_STRING, "How to set IBlank of output file " // &
+    "for visualization (fringe or state) [ Default: fringe ]")
 
   call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
 
   call GetOptionValue(Options(1), NumPoints, 81)
+
+  call GetOptionValue(Options(2), VisMode, "fringe")
+  if (VisMode /= "fringe" .and. VisMode /= "state") then
+    write (ERROR_UNIT, '(3a)') "ERROR: Invalid visualization mode '", trim(VisMode), "'."
+    stop 1
+  end if
 
   NumPointsBackground = [NumPoints,NumPoints]
   NumPointsBlob = [NumPoints,2*NumPoints]
@@ -232,29 +241,60 @@ program Blobs
     call ovkGetGridCoords(Grid, 2, Y)
 
     ! Use IBlank data to visualize status of grid points
-    ! IBlank == 1 => Normal
-    IBlank = ovk_field_int_(Cart, 1)
 
-    ! IBlank == 0 => Hole
-    call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
-    IBlank%values = merge(0, IBlank%values, Mask%values)
+    select case (VisMode)
+    case ("fringe")
 
-    ! IBlank == -N => Receives from grid N
-    do m = 1, 4
-      call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
-      if (ConnectionType /= OVK_CONNECTION_NONE) then
-        call ovkGetConnectivity(Domain, m, n, Connectivity)
-        call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
-        do i = 1, size(ReceiverPoints,2)
-          Point = ReceiverPoints(:,i)
-          IBlank%values(Point(1),Point(2),Point(3)) = -m
-        end do
-      end if
-    end do
+      ! IBlank == 1 => Normal
+      IBlank = ovk_field_int_(Cart, 1)
 
-    ! IBlank == 7 => Orphan
-    call ovkFilterGridState(Grid, OVK_STATE_ORPHAN, OVK_ALL, Mask)
-    IBlank%values = merge(7, IBlank%values, Mask%values)
+      ! IBlank == 0 => Hole
+      call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
+      IBlank%values = merge(0, IBlank%values, Mask%values)
+
+      ! IBlank == -N => Receives from grid N
+      do m = 1, 4
+        call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
+        if (ConnectionType /= OVK_CONNECTION_NONE) then
+          call ovkGetConnectivity(Domain, m, n, Connectivity)
+          call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
+          do i = 1, size(ReceiverPoints,2)
+            Point = ReceiverPoints(:,i)
+            IBlank%values(Point(1),Point(2),Point(3)) = -m
+          end do
+        end if
+      end do
+
+      ! IBlank == 7 => Orphan
+      call ovkFilterGridState(Grid, OVK_STATE_ORPHAN, OVK_ALL, Mask)
+      IBlank%values = merge(7, IBlank%values, Mask%values)
+
+    case ("state")
+
+      ! IBlank == 1 => Normal
+      IBlank = ovk_field_int_(Cart, 1)
+
+      ! IBlank == 2 => Domain boundary
+      call ovkFilterGridState(Grid, OVK_STATE_DOMAIN_BOUNDARY, OVK_ALL, Mask)
+      IBlank%values = merge(2, IBlank%values, Mask%values)
+
+      ! IBlank == 3 => Boundary hole
+      call ovkFilterGridState(Grid, OVK_STATE_BOUNDARY_HOLE, OVK_ALL, Mask)
+      IBlank%values = merge(3, IBlank%values, Mask%values)
+
+      ! IBlank == 4 => Overlap hole
+      call ovkFilterGridState(Grid, OVK_STATE_OVERLAP_HOLE, OVK_ALL, Mask)
+      IBlank%values = merge(4, IBlank%values, Mask%values)
+
+      ! IBlank == 5 => Receiver
+      call ovkFilterGridState(Grid, OVK_STATE_RECEIVER, OVK_ALL, Mask)
+      IBlank%values = merge(5, IBlank%values, Mask%values)
+
+      ! IBlank == 6 => Orphan
+      call ovkFilterGridState(Grid, OVK_STATE_ORPHAN, OVK_ALL, Mask)
+      IBlank%values = merge(6, IBlank%values, Mask%values)
+
+    end select
 
     call ovkWriteP3D(GridFile, n, X, Y, IBlank)
 
