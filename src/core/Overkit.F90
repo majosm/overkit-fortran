@@ -135,7 +135,7 @@ module Overkit
   public :: ovkDilate
   public :: ovkErode
   public :: ovkConnectedComponents
-  public :: ovkFloodFill
+  public :: ovkFlood
   public :: ovkThreshold
   public :: ovkDistanceField
   public :: ovkCountMask

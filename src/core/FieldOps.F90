@@ -15,7 +15,7 @@ module ovkFieldOps
   public :: ovkDilate
   public :: ovkErode
   public :: ovkConnectedComponents
-  public :: ovkFloodFill
+  public :: ovkFlood
   public :: ovkThreshold
   public :: ovkDistanceField
   public :: ovkCountMask
@@ -395,7 +395,7 @@ contains
 
   end subroutine ovkConnectedComponents
 
-  subroutine ovkFloodFill(Mask, BarrierMask)
+  subroutine ovkFlood(Mask, BarrierMask)
 
     type(ovk_field_logical), intent(inout) :: Mask
     type(ovk_field_logical), intent(in) :: BarrierMask
@@ -404,7 +404,7 @@ contains
     type(ovk_field_logical) :: NonBarrierMask
     integer :: NumComponents
     type(ovk_field_int) :: ComponentLabels
-    logical, dimension(:), allocatable :: IsFillComponent
+    logical, dimension(:), allocatable :: IsFloodComponent
     integer :: Label
 
     NonBarrierMask = ovk_field_logical_(Mask%cart)
@@ -412,15 +412,15 @@ contains
 
     call ovkConnectedComponents(NonBarrierMask, NumComponents, ComponentLabels)
 
-    allocate(IsFillComponent(NumComponents))
-    IsFillComponent = .false.
+    allocate(IsFloodComponent(NumComponents))
+    IsFloodComponent = .false.
 
     do k = Mask%cart%is(3), Mask%cart%ie(3)
       do j = Mask%cart%is(2), Mask%cart%ie(2)
         do i = Mask%cart%is(1), Mask%cart%ie(1)
           if (Mask%values(i,j,k) .and. .not. BarrierMask%values(i,j,k)) then
             Label = ComponentLabels%values(i,j,k)
-            IsFillComponent(Label) = .true.
+            IsFloodComponent(Label) = .true.
           end if
         end do
       end do
@@ -431,7 +431,7 @@ contains
         do i = Mask%cart%is(1), Mask%cart%ie(1)
           if (.not. BarrierMask%values(i,j,k)) then
             Label = ComponentLabels%values(i,j,k)
-            if (IsFillComponent(Label)) then
+            if (IsFloodComponent(Label)) then
               Mask%values(i,j,k) = .true.
             end if
           end if
@@ -439,7 +439,7 @@ contains
       end do
     end do
 
-  end subroutine ovkFloodFill
+  end subroutine ovkFlood
 
   subroutine ovkThreshold_Integer(Field, ThresholdMask, Lower, Upper)
 

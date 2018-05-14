@@ -453,7 +453,7 @@ contains
         end do
         if (any(InteriorMask%values)) then
           BoundaryMask%values = BoundaryMask%values .or. Grid_n%boundary_mask%values
-          call ovkFloodFill(InteriorMask, BoundaryMask)
+          call ovkFlood(InteriorMask, BoundaryMask)
           call ovkDetectEdge(Grid_n%mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask1)
           call ovkDetectEdge(InteriorMask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask2)
           SpuriousBoundaryMask = ovk_field_logical_(Grid_n%cart)
