@@ -512,23 +512,15 @@ contains
           call FindCoarsePoints(Grid_n, Overlap_mn, CoarseMask_n)
           ! If any coarse points on grid m are overlapped by coarse points on grid n, change
           ! them to fine
-
-
-          ! This seems weird -- check it
-
-
-
           if (any(CoarseMask_m%values)) then
             call ovkFindOverlappedPoints(Grid_n, Grid_m, Overlap_nm, CoarseMask_n, &
               OverlappedMask_m)
-            OverlappedMask_m%values = OverlappedMask_m%values .and. CoarseMask_m%values
-            FineMasks(m)%values = FineMasks(m)%values .or. OverlappedMask_m%values
+            CoarseMask_m%values = CoarseMask_m%values .and. .not. OverlappedMask_m%values
           end if
           if (any(CoarseMask_n%values)) then
             call ovkFindOverlappedPoints(Grid_m, Grid_n, Overlap_mn, CoarseMask_m, &
               OverlappedMask_n)
-            OverlappedMask_n%values = OverlappedMask_n%values .and. CoarseMask_n%values
-            FineMasks(n)%values = FineMasks(n)%values .or. OverlappedMask_n%values
+            CoarseMask_n%values = CoarseMask_n%values .and. .not. OverlappedMask_n%values
           end if
           FineMasks(m)%values = FineMasks(m)%values .and. .not. CoarseMask_m%values
           PairwiseFineMasks(n,m)%values = PairwiseFineMasks(n,m)%values .and. .not. &
@@ -536,10 +528,6 @@ contains
           FineMasks(n)%values = FineMasks(n)%values .and. .not. CoarseMask_n%values
           PairwiseFineMasks(m,n)%values = PairwiseFineMasks(m,n)%values .and. .not. &
             CoarseMask_n%values
-
-
-
-
         else if (OverlapHoleCutting(m,n)) then
           ! Behave as if grid m is finer everywhere
           FineMasks(n)%values = FineMasks(n)%values .and. .not. Overlap_mn%mask%values
