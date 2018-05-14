@@ -92,7 +92,6 @@ module Overkit
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
   public :: ovkReleaseConnectivity
-  public :: ovkGetDebugField
   public :: ovkGetDomainPropertyDimension
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
@@ -249,6 +248,11 @@ module Overkit
   public :: OVK_STATE_OVERLAP_HOLE
   public :: OVK_STATE_RECEIVER
   public :: OVK_STATE_ORPHAN
+  public :: OVK_STATE_DEBUG1
+  public :: OVK_STATE_DEBUG2
+  public :: OVK_STATE_DEBUG3
+  public :: OVK_STATE_DEBUG4
+  public :: OVK_STATE_DEBUG5
   public :: OVK_INTERIOR_POINT
   public :: OVK_DOMAIN_BOUNDARY_POINT
   public :: OVK_INTERNAL_BOUNDARY_POINT

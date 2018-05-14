@@ -36,7 +36,6 @@ module ovkDomain
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
   public :: ovkReleaseConnectivity
-  public :: ovkGetDebugField
   public :: ovkGetDomainPropertyDimension
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
@@ -108,7 +107,6 @@ module ovkDomain
     integer, dimension(:,:), allocatable :: overlap_edit_ref_counts
     type(ovk_connectivity), dimension(:,:), pointer :: connectivity
     integer, dimension(:,:), allocatable :: connectivity_edit_ref_counts
-    type(ovk_field_int), dimension(:), pointer :: debug_fields
   end type ovk_domain
 
 contains
@@ -125,7 +123,6 @@ contains
     nullify(Domain%grid)
     nullify(Domain%overlap)
     nullify(Domain%connectivity)
-    nullify(Domain%debug_fields)
 
   end function ovk_domain_
 
@@ -187,11 +184,6 @@ contains
     allocate(Domain%connectivity_edit_ref_counts(NumGrids,NumGrids))
     Domain%connectivity_edit_ref_counts = 0
 
-    allocate(Domain%debug_fields(NumGrids))
-    do m = 1, NumGrids
-      Domain%debug_fields(m) = ovk_field_int_()
-    end do
-
   end subroutine ovkCreateDomain
 
   subroutine ovkDestroyDomain(Domain)
@@ -232,8 +224,6 @@ contains
     deallocate(Domain%connectivity)
 
     deallocate(Domain%connectivity_edit_ref_counts)
-
-    deallocate(Domain%debug_fields)
 
     deallocate(Domain%edits)
 
@@ -579,8 +569,6 @@ contains
           end if
         end do
 
-        Domain%debug_fields(GridID) = ovk_field_int_(Domain%grid(GridID)%cart, 0)
-
         Edits => Domain%edits
 
         Edits%overlap_dependencies(GridID,:) = .true.
@@ -652,8 +640,6 @@ contains
             call DestroyConnectivity(Domain%connectivity(GridID,m))
           end if
         end do
-
-        Domain%debug_fields(GridID) = ovk_field_int_()
 
         Edits => Domain%edits
 
@@ -1106,24 +1092,6 @@ contains
     nullify(Connectivity)
 
   end subroutine ovkReleaseConnectivity
-
-  subroutine ovkGetDebugField(Domain, GridID, DebugField)
-
-    type(ovk_domain), intent(in) :: Domain
-    integer, intent(in) :: GridID
-    type(ovk_field_int), pointer, intent(out) :: DebugField
-
-    if (ovkGridExists(Domain, GridID)) then
-      DebugField => Domain%debug_fields(GridID)
-    else
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Unable to retrieve debug field; does not exist."
-        stop 1
-      end if
-      nullify(DebugField)
-    end if
-
-  end subroutine ovkGetDebugField
 
   function EditingProperties(Domain) result(Editing)
 

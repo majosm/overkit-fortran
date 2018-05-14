@@ -61,6 +61,11 @@ module ovkGrid
   public :: OVK_STATE_OVERLAP_HOLE
   public :: OVK_STATE_RECEIVER
   public :: OVK_STATE_ORPHAN
+  public :: OVK_STATE_DEBUG1
+  public :: OVK_STATE_DEBUG2
+  public :: OVK_STATE_DEBUG3
+  public :: OVK_STATE_DEBUG4
+  public :: OVK_STATE_DEBUG5
   public :: OVK_INTERIOR_POINT
   public :: OVK_DOMAIN_BOUNDARY_POINT
   public :: OVK_INTERNAL_BOUNDARY_POINT
@@ -140,6 +145,11 @@ module ovkGrid
   integer, parameter :: OVK_STATE_OVERLAP_HOLE = ishft(1,8)
   integer, parameter :: OVK_STATE_RECEIVER = ishft(1,9)
   integer, parameter :: OVK_STATE_ORPHAN = ishft(1,10)
+  integer, parameter :: OVK_STATE_DEBUG1 = ishft(1,11)
+  integer, parameter :: OVK_STATE_DEBUG2 = ishft(1,12)
+  integer, parameter :: OVK_STATE_DEBUG3 = ishft(1,13)
+  integer, parameter :: OVK_STATE_DEBUG4 = ishft(1,14)
+  integer, parameter :: OVK_STATE_DEBUG5 = ishft(1,15)
 
   integer, parameter :: OVK_INTERIOR_POINT = ior(OVK_STATE_GRID,OVK_STATE_INTERIOR)
   integer, parameter :: OVK_DOMAIN_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
