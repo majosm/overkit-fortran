@@ -387,10 +387,7 @@ contains
     type(ovk_field_logical) :: OverlappedMask_m, OverlappedMask_n
     type(ovk_field_logical), dimension(:), allocatable :: FineMasks
     type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseFineMasks
-    type(ovk_field_logical) :: CoarseMask
-    type(ovk_field_logical) :: CoarseEdgeMask
-    type(ovk_field_logical) :: PairwiseCoarseMask
-    type(ovk_field_logical) :: PaddingEdgeMask
+    integer :: MinPadding, MaxPadding
     type(ovk_field_logical) :: CutMask
     type(ovk_field_int), pointer :: State
 
@@ -487,10 +484,13 @@ contains
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
       if (any(OverlapHoleCutting(:,n))) then
-        FineMasks(n) = Grid_n%mask
+        FineMasks(n) = ovk_field_logical_(Grid_n%cart)
+        FineMasks(n)%values = Grid_n%mask%values .and. .not. BoundaryHoleMasks(n)%values
         do m = 1, NumGrids
           if (OverlapHoleCutting(m,n)) then
-            PairwiseFineMasks(m,n) = Grid_n%mask
+            PairwiseFineMasks(m,n) = ovk_field_logical_(Grid_n%cart)
+            PairwiseFineMasks(m,n)%values = Grid_n%mask%values .and. .not. &
+              BoundaryHoleMasks(n)%values
           else
             PairwiseFineMasks(m,n) = ovk_field_logical_(NumDims)
           end if
@@ -545,27 +545,26 @@ contains
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
       if (any(OverlapHoleCutting(:,n))) then
-        CoarseMask = ovk_field_logical_(Grid_n%cart)
-        CoarseMask%values = .not. FineMasks(n)%values .or. BoundaryHoleMasks(n)%values
-        CutMask = ovk_field_logical_(Grid_n%cart)
-        CutMask%values = Grid_n%mask%values .and. CoarseMask%values
-        call ovkDetectEdge(CoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., CoarseEdgeMask)
+        MinPadding = huge(0)
+        MaxPadding = 0
         do m = 1, NumGrids
-          Grid_m => Domain%grid(IndexToID(m))
-          Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
           if (OverlapHoleCutting(m,n) .and. ConnectionType(m,n) == OVK_CONNECTION_FRINGE) then
-            PairwiseCoarseMask = ovk_field_logical_(Grid_n%cart)
-            PairwiseCoarseMask%values = .not. PairwiseFineMasks(m,n)%values
-            call ovkDetectEdge(PairwiseCoarseMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., &
-              PaddingEdgeMask)
-            PaddingEdgeMask%values = PaddingEdgeMask%values .and. CoarseEdgeMask%values
-            call ovkDilate(PaddingEdgeMask, FringeSize(n)+InterfacePadding(m,n), OVK_FALSE)
-            CutMask%values = CutMask%values .and. .not. &
-              (Overlap_mn%mask%values .and. PaddingEdgeMask%values)
+            MinPadding = min(MinPadding, InterfacePadding(m,n))
+            MaxPadding = max(MaxPadding, InterfacePadding(m,n))
           end if
         end do
-        CutMask%values = CutMask%values .and. .not. BoundaryHoleMasks(n)%values
-        OverlapHoleMasks(n)%values = CutMask%values
+        CutMask = ovk_field_logical_(Grid_n%cart, .false.)
+        do m = 1, NumGrids
+          Grid_m => Domain%grid(IndexToID(m))
+          if (OverlapHoleCutting(m,n) .and. ConnectionType(m,n) == OVK_CONNECTION_FRINGE) then
+            if (InterfacePadding(m,n) > MinPadding) then
+              call ovkDilate(PairwiseFineMasks(m,n), InterfacePadding(m,n)-MinPadding, OVK_FALSE)
+            end if
+            CutMask%values = CutMask%values .or. .not. PairwiseFineMasks(m,n)%values
+          end if
+        end do
+        call ovkErode(CutMask, FringeSize(n)+MinPadding, OVK_TRUE)
+        OverlapHoleMasks(n)%values = CutMask%values .and. .not. BoundaryHoleMasks(n)%values
         if (Domain%logger%verbose) then
           NumRemoved = ovkCountMask(OverlapHoleMasks(n))
           if (NumRemoved > 0_lk) then
