@@ -14,7 +14,6 @@ link_libraries(overkit-support overkit)
 
 add_executable(Blobs Blobs.F90)
 add_executable(Bump Bump.F90)
-#add_executable(Airfoil Airfoil.F90)
-#add_executable(Sphere Sphere.F90)
+add_executable(Inlet Inlet.F90)
 
 endif()
