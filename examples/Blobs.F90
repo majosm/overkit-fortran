@@ -60,11 +60,6 @@ program Blobs
     stop 1
   end if
 
-  NumPointsBackground = [NumPoints,NumPoints]
-  NumPointsBlob = [NumPoints,2*NumPoints]
-
-  SeparationScale = 0.8_rk
-
   ! Initialize the domain
   call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, Verbose=.true.)
 
@@ -92,6 +87,8 @@ program Blobs
   ! Background grid
   !=================
 
+  NumPointsBackground = [NumPoints,NumPoints]
+
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
   call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, &
@@ -117,6 +114,9 @@ program Blobs
   !============
   ! Blob grids
   !============
+
+  NumPointsBlob = [NumPoints,2*NumPoints]
+  SeparationScale = 0.8_rk
 
   ! Initialize grid data structure for blob #1
   ! Periodic in the angular direction, with the last set of points being equal to the first

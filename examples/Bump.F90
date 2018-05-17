@@ -77,17 +77,6 @@ program Bump
     stop 1
   end select
 
-  NumPointsBackground(:NumDims-1) = N
-  NumPointsBackground(NumDims) = N/2
-  NumPointsBackground(NumDims+1:) = 1
-
-  NumPointsBump(:NumDims-1) = N
-  NumPointsBump(NumDims) = (3*N)/4
-  NumPointsBump(NumDims+1:) = 1
-
-  Length(:NumDims-1) = 2._rk
-  Length(NumDims) = 1._rk
-
   ! Initialize the problem
   call ovkCreateDomain(Domain, NumDims=NumDims, NumGrids=2, Verbose=.true.)
 
@@ -115,6 +104,13 @@ program Bump
   !=================
   ! Background grid
   !=================
+
+  NumPointsBackground(:NumDims-1) = N
+  NumPointsBackground(NumDims) = N/2
+  NumPointsBackground(NumDims+1:) = 1
+
+  Length(:NumDims-1) = 2._rk
+  Length(NumDims) = 1._rk
 
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
@@ -163,6 +159,10 @@ program Bump
   !===========
   ! Bump grid
   !===========
+
+  NumPointsBump(:NumDims-1) = N
+  NumPointsBump(NumDims) = (3*N)/4
+  NumPointsBump(NumDims+1:) = 1
 
   ! Initialize grid data structure for bump grid
   call ovkCreateGrid(Domain, 2, NumPoints=NumPointsBump)
