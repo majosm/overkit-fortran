@@ -164,7 +164,6 @@ program Inlet
   ! Overset assembly
   !==================
 
-  ! Perform overset assembly
   call ovkAssemble(Domain)
 
   !========

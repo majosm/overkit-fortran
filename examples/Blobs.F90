@@ -215,7 +215,6 @@ program Blobs
   ! Overset assembly
   !==================
 
-  ! Perform overset assembly
   call ovkAssemble(Domain)
 
   !========

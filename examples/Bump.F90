@@ -219,7 +219,6 @@ program Bump
   ! Overset assembly
   !==================
 
-  ! Perform overset assembly
   call ovkAssemble(Domain)
 
   !========
