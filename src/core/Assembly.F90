@@ -321,6 +321,9 @@ contains
       Grid => Domain%grid(IndexToID(n))
       if (InferBoundaries(n)) then
         call ovkDetectEdge(Grid%mask, OVK_INNER_EDGE, OVK_FALSE, .false., InferredBoundaryMask)
+        call ovkFilterGridState(Grid, OVK_STATE_DOMAIN_BOUNDARY, OVK_ALL, InitialBoundaryMask)
+        InferredBoundaryMask%values = InferredBoundaryMask%values .and. .not. &
+          InitialBoundaryMask%values
         do m = 1, NumGrids
           Overlap => Domain%overlap(IndexToID(m),IndexToID(n))
           if (OverlapExists(Overlap)) then
@@ -328,9 +331,6 @@ contains
               Overlap%mask%values
           end if
         end do
-        call ovkFilterGridState(Grid, OVK_STATE_DOMAIN_BOUNDARY, OVK_ALL, InitialBoundaryMask)
-        InferredBoundaryMask%values = InferredBoundaryMask%values .and. .not. &
-          InitialBoundaryMask%values
         call ovkEditGridState(Grid, State)
         do k = Grid%cart%is(3), Grid%cart%ie(3)
           do j = Grid%cart%is(2), Grid%cart%ie(2)
