@@ -58,8 +58,8 @@ module ovkDomain
   public :: ovkSetDomainPropertyInterpScheme
   public :: ovkGetDomainPropertyFringeSize
   public :: ovkSetDomainPropertyFringeSize
-  public :: ovkGetDomainPropertyInterfacePadding
-  public :: ovkSetDomainPropertyInterfacePadding
+  public :: ovkGetDomainPropertyEdgePadding
+  public :: ovkSetDomainPropertyEdgePadding
 
   ! Internal
   public :: ovk_domain_
@@ -85,7 +85,7 @@ module ovkDomain
     integer, dimension(:,:), allocatable :: connection_type
     integer, dimension(:,:), allocatable :: interp_scheme
     integer, dimension(:), allocatable :: fringe_size
-    integer, dimension(:,:), allocatable :: interface_padding
+    integer, dimension(:,:), allocatable :: edge_padding
   end type ovk_domain_properties
 
   type t_domain_edits
@@ -420,7 +420,7 @@ contains
           do n = 1, NumGrids
             do m = 1, NumGrids
               if (Properties%connection_type(m,n) /= PrevProperties%connection_type(m,n) .or. &
-                Properties%interface_padding(m,n) /= PrevProperties%interface_padding(m,n)) then
+                Properties%edge_padding(m,n) /= PrevProperties%edge_padding(m,n)) then
                 Edits%hole_dependencies(n) = .true.
                 Edits%connectivity_dependencies(:,:) = .true.
               end if
@@ -1492,8 +1492,8 @@ contains
     allocate(Properties%fringe_size(NumGrids))
     Properties%fringe_size = 0
 
-    allocate(Properties%interface_padding(NumGrids,NumGrids))
-    Properties%interface_padding = 0
+    allocate(Properties%edge_padding(NumGrids,NumGrids))
+    Properties%edge_padding = 0
 
   end function ovk_domain_properties_
 
@@ -1867,30 +1867,28 @@ contains
 
   end subroutine ovkSetDomainPropertyFringeSize
 
-  subroutine ovkGetDomainPropertyInterfacePadding(Properties, DonorGridID, ReceiverGridID, &
-    InterfacePadding)
+  subroutine ovkGetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, EdgePadding)
 
     type(ovk_domain_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(out) :: InterfacePadding
+    integer, intent(out) :: EdgePadding
 
-    InterfacePadding = Properties%interface_padding(DonorGridID,ReceiverGridID)
+    EdgePadding = Properties%edge_padding(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetDomainPropertyInterfacePadding
+  end subroutine ovkGetDomainPropertyEdgePadding
 
-  subroutine ovkSetDomainPropertyInterfacePadding(Properties, DonorGridID, ReceiverGridID, &
-    InterfacePadding)
+  subroutine ovkSetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, EdgePadding)
 
     type(ovk_domain_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(in) :: InterfacePadding
+    integer, intent(in) :: EdgePadding
 
     integer :: m, n
     integer :: ms, me, ns, ne
 
     if (OVK_DEBUG) then
-      if (InterfacePadding < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Interface padding must be nonnegative."
+      if (EdgePadding < 0) then
+        write (ERROR_UNIT, '(a)') "ERROR: Edge padding must be nonnegative."
         stop 1
       end if
     end if
@@ -1900,11 +1898,11 @@ contains
 
     do n = ns, ne
       do m = ms, me
-        Properties%interface_padding(m,n) = InterfacePadding
+        Properties%edge_padding(m,n) = EdgePadding
       end do
     end do
 
-  end subroutine ovkSetDomainPropertyInterfacePadding
+  end subroutine ovkSetDomainPropertyEdgePadding
 
   subroutine GridIDRange(NumGrids, GridID, StartID, EndID)
 
@@ -1945,9 +1943,13 @@ contains
     MaxEdgeDistance = 0
 
     do m = 1, Properties%ngrids
-      if (Properties%connection_type(m,n) == OVK_CONNECTION_FRINGE) then
-        MaxEdgeDistance = max(MaxEdgeDistance, Properties%interface_padding(m,n))
-      end if
+      select case (Properties%connection_type(m,n))
+      case (OVK_CONNECTION_FRINGE)
+        MaxEdgeDistance = max(MaxEdgeDistance, Properties%edge_padding(m,n) + &
+          Properties%fringe_size(n))
+      case (OVK_CONNECTION_FULL)
+        MaxEdgeDistance = max(MaxEdgeDistance, Properties%edge_padding(m,n))
+      end select
     end do
 
     ! A little extra

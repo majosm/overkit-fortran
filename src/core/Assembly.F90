@@ -33,7 +33,7 @@ module ovkAssembly
     integer, dimension(:,:), pointer :: connection_type
     integer, dimension(:,:), pointer :: interp_scheme
     integer, dimension(:), pointer :: fringe_size
-    integer, dimension(:,:), pointer :: interface_padding
+    integer, dimension(:,:), pointer :: edge_padding
   end type t_reduced_domain_info
 
 contains
@@ -100,7 +100,7 @@ contains
     integer, dimension(:,:), pointer :: ConnectionType
     integer, dimension(:,:), pointer :: InterpScheme
     integer, dimension(:), pointer :: FringeSize
-    integer, dimension(:,:), pointer :: InterfacePadding
+    integer, dimension(:,:), pointer :: EdgePadding
 
     call PrintDomainSummary(Domain)
 
@@ -168,11 +168,11 @@ contains
     allocate(ReducedDomainInfo%connection_type(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%interp_scheme(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%fringe_size(NumGrids))
-    allocate(ReducedDomainInfo%interface_padding(NumGrids,NumGrids))
+    allocate(ReducedDomainInfo%edge_padding(NumGrids,NumGrids))
     ConnectionType => ReducedDomainInfo%connection_type
     InterpScheme => ReducedDomainInfo%interp_scheme
     FringeSize => ReducedDomainInfo%fringe_size
-    InterfacePadding => ReducedDomainInfo%interface_padding
+    EdgePadding => ReducedDomainInfo%edge_padding
 
     do n = 1, NumGrids
       q = IndexToID(n)
@@ -181,7 +181,7 @@ contains
         p = IndexToID(m)
         ConnectionType(m,n) = Domain%properties%connection_type(p,q)
         InterpScheme(m,n) = Domain%properties%interp_scheme(p,q)
-        InterfacePadding(m,n) = Domain%properties%interface_padding(p,q)
+        EdgePadding(m,n) = Domain%properties%edge_padding(p,q)
       end do
     end do
 
@@ -372,7 +372,7 @@ contains
     logical, dimension(:,:), pointer :: OverlapHoleCutting
     integer, dimension(:,:), pointer :: ConnectionType
     integer, dimension(:), pointer :: FringeSize
-    integer, dimension(:,:), pointer :: InterfacePadding
+    integer, dimension(:,:), pointer :: EdgePadding
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
     type(ovk_field_logical), dimension(:), allocatable :: GridMasks
@@ -404,7 +404,7 @@ contains
     OverlapHoleCutting => ReducedDomainInfo%overlap_hole_cutting
     ConnectionType => ReducedDomainInfo%connection_type
     FringeSize => ReducedDomainInfo%fringe_size
-    InterfacePadding => ReducedDomainInfo%interface_padding
+    EdgePadding => ReducedDomainInfo%edge_padding
 
     allocate(GridMasks(NumGrids))
     allocate(BoundaryHoleMasks(NumGrids))
@@ -533,7 +533,7 @@ contains
           do m = 1, NumGrids
             if (OverlapHoleCutting(m,n)) then
               if (ConnectionType(m,n) == OVK_CONNECTION_FRINGE) then
-                MinPadding = min(MinPadding, InterfacePadding(m,n))
+                MinPadding = min(MinPadding, EdgePadding(m,n))
               else
                 MinPadding = 0
               end if
@@ -554,10 +554,10 @@ contains
         do m = 1, NumGrids
           if (OverlapHoleCutting(m,n)) then
             if (ConnectionType(m,n) == OVK_CONNECTION_FRINGE .and. &
-              InterfacePadding(m,n) > MinPadding) then
+              EdgePadding(m,n) > MinPadding) then
               call ovkDetectEdge(CoarseMasks(m,n), OVK_OUTER_EDGE, OVK_MIRROR, .false., PaddingMask)
               PaddingMask%values = PaddingMask%values .and. CoarseEdgeMask%values
-              call ovkDilate(PaddingMask, InterfacePadding(m,n)-MinPadding, OVK_FALSE)
+              call ovkDilate(PaddingMask, EdgePadding(m,n)-MinPadding, OVK_FALSE)
               CutMask%values = CutMask%values .or. (CoarseMasks(m,n)%values .and. .not. &
                 PaddingMask%values)
             else
@@ -729,7 +729,7 @@ contains
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:,:), pointer :: ConnectionType
     integer, dimension(:), pointer :: FringeSize
-    integer, dimension(:,:), pointer :: InterfacePadding
+    integer, dimension(:,:), pointer :: EdgePadding
     integer(lk) :: l
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
@@ -750,7 +750,7 @@ contains
     IndexToID => ReducedDomainInfo%index_to_id
     ConnectionType => ReducedDomainInfo%connection_type
     FringeSize => ReducedDomainInfo%fringe_size
-    InterfacePadding => ReducedDomainInfo%interface_padding
+    EdgePadding => ReducedDomainInfo%edge_padding
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
@@ -770,11 +770,11 @@ contains
                 if (DonorGridIDs(n)%values(i,j,k) == 0) then
                   DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
                   DonorEdgeDistance%values(i,j,k) = real(Overlap%edge_dists(l),kind=rk)/ &
-                    real(max(FringeSize(m)+InterfacePadding(n,m),1),kind=rk)
+                    real(max(FringeSize(m)+EdgePadding(n,m),1),kind=rk)
                   DonorResolution%values(i,j,k) = Overlap%resolutions(l)
                 else
                   EdgeDistance = real(Overlap%edge_dists(l),kind=rk)/ &
-                    real(max(FringeSize(m)+InterfacePadding(n,m),1),kind=rk)
+                    real(max(FringeSize(m)+EdgePadding(n,m),1),kind=rk)
                   Resolution = Overlap%resolutions(l)
                   if (EdgeDistance > 1._rk-TOLERANCE .and. DonorEdgeDistance%values(i,j,k) > &
                     1._rk-TOLERANCE) then
@@ -1058,7 +1058,7 @@ contains
     deallocate(ReducedDomainInfo%connection_type)
     deallocate(ReducedDomainInfo%interp_scheme)
     deallocate(ReducedDomainInfo%fringe_size)
-    deallocate(ReducedDomainInfo%interface_padding)
+    deallocate(ReducedDomainInfo%edge_padding)
 
     call ResetDomainEdits(Domain)
 
