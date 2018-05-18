@@ -1747,8 +1747,8 @@ contains
     integer, intent(out) :: ConnectionType
 
     if (OVK_DEBUG) then
-      if (ConnectionType == OVK_CONNECTION_FULL_GRID) then
-        write (ERROR_UNIT, '(a)') "ERROR: OVK_CONNECTION_FULL_GRID is not yet supported."
+      if (ConnectionType == OVK_CONNECTION_FULL) then
+        write (ERROR_UNIT, '(a)') "ERROR: OVK_CONNECTION_FULL is not yet supported."
         stop 1
       end if
     end if
@@ -1772,7 +1772,7 @@ contains
       ValidValue = &
         ConnectionType == OVK_CONNECTION_NONE .or. &
         ConnectionType == OVK_CONNECTION_FRINGE .or. &
-        ConnectionType == OVK_CONNECTION_FULL_GRID
+        ConnectionType == OVK_CONNECTION_FULL
       if (.not. ValidValue) then
         write (ERROR_UNIT, '(a)') "ERROR: Invalid connection type."
         stop 1

@@ -15,5 +15,6 @@ link_libraries(overkit-support overkit)
 add_executable(Blobs Blobs.F90)
 add_executable(Bump Bump.F90)
 add_executable(Inlet Inlet.F90)
+add_executable(Circle Circle.F90)
 
 endif()

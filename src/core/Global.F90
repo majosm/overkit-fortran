@@ -25,7 +25,7 @@ module ovkGlobal
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_P3D_STANDARD, OVK_P3D_EXTENDED
   public :: OVK_ALL_GRIDS
-  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_FRINGE, OVK_CONNECTION_FULL_GRID
+  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_FRINGE, OVK_CONNECTION_FULL
   public :: OVK_INTERP_LINEAR, OVK_INTERP_CUBIC
 
   ! Internal
@@ -79,7 +79,7 @@ module ovkGlobal
 
   integer, parameter :: OVK_CONNECTION_NONE = 0
   integer, parameter :: OVK_CONNECTION_FRINGE = 1
-  integer, parameter :: OVK_CONNECTION_FULL_GRID = 2
+  integer, parameter :: OVK_CONNECTION_FULL = 2
 
   integer, parameter :: OVK_INTERP_LINEAR = 1
   integer, parameter :: OVK_INTERP_CUBIC = 2
