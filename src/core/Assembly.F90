@@ -230,16 +230,12 @@ contains
     end do
 
     do m = 1, NumGrids
-
       Grid_m => Domain%grid(IndexToID(m))
-
       if (any(Overlappable(m,:))) then
-
         if (Domain%logger%verbose) then
           write (*, '(3a)') "* Generating overlap search accelerator on grid ", &
             trim(IntToString(Grid_m%properties%id)), "..."
         end if
-
         AccelBounds = ovk_bbox_(NumDims)
         AccelMaxOverlapTolerance = 0._rk
         do n = 1, NumGrids
@@ -248,26 +244,18 @@ contains
             AccelMaxOverlapTolerance = max(AccelMaxOverlapTolerance, OverlapTolerance(m,n))
           end if
         end do
-
         call GenerateOverlapAccel(Grid_m, OverlapAccel, AccelBounds, AccelMaxOverlapTolerance, &
           OverlapAccelQualityAdjust(m))
-
         if (Domain%logger%verbose) then
           write (*, '(3a)') "* Finished generating overlap search accelerator on grid ", &
             trim(IntToString(Grid_m%properties%id)), "."
         end if
-
         do n = 1, NumGrids
-
           Grid_n => Domain%grid(IndexToID(n))
-
           if (Overlappable(m,n)) then
-
             Overlap => Domain%overlap(Grid_m%properties%id, Grid_n%properties%id)
-
             call DetectOverlap(Grid_m, Grid_n, OverlapAccel, Bounds(m,n), OverlapTolerance(m,n), &
               Overlap)
-
             if (Domain%logger%verbose) then
               if (Overlap%properties%noverlap > 0_lk) then
                 write (*, '(7a)') "* Detected ", trim(LargeIntToString( &
@@ -276,15 +264,10 @@ contains
                   trim(IntToString(Grid_m%properties%id)), "."
               end if
             end if
-
           end if
-
         end do
-
         call DestroyOverlapAccel(OverlapAccel)
-
       end if
-
     end do
 
     if (Domain%logger%verbose) then
