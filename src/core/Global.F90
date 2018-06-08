@@ -20,6 +20,7 @@ module ovkGlobal
   public :: OVK_TRUE, OVK_FALSE
   public :: OVK_NONE, OVK_ANY, OVK_ALL
   public :: OVK_NO_ERROR, OVK_IO_ERROR
+  public :: OVK_AUTO
   public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
@@ -63,6 +64,8 @@ module ovkGlobal
 
   integer, parameter :: OVK_NO_ERROR = 0
   integer, parameter :: OVK_IO_ERROR = 1
+
+  integer, parameter :: OVK_AUTO = 2
 
   integer, parameter :: OVK_MIRROR = 2
 

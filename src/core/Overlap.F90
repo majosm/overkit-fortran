@@ -26,8 +26,6 @@ module ovkOverlap
   public :: ovkGetOverlapMask
   public :: ovkGetOverlapCells
   public :: ovkGetOverlapCoords
-  public :: ovkGetOverlapResolutions
-  public :: ovkGetOverlapEdgeDistances
   public :: ovkFindOverlappingPoints
   public :: ovkFindOverlappedPoints
   public :: ovkOverlapCollect
@@ -79,8 +77,6 @@ module ovkOverlap
     type(ovk_field_logical), pointer :: mask
     integer, dimension(:,:), pointer :: cells
     real(rk), dimension(:,:), pointer :: coords
-    real(rk), dimension(:), pointer :: resolutions
-    integer, dimension(:), pointer :: edge_dists
   end type ovk_overlap
 
   interface ovkOverlapCollect
@@ -121,8 +117,6 @@ contains
     nullify(Overlap%mask)
     nullify(Overlap%cells)
     nullify(Overlap%coords)
-    nullify(Overlap%resolutions)
-    nullify(Overlap%edge_dists)
 
   end function ovk_overlap_
 
@@ -152,8 +146,6 @@ contains
 
     allocate(Overlap%cells(MAX_ND,0))
     allocate(Overlap%coords(Cart%nd,0))
-    allocate(Overlap%resolutions(0))
-    allocate(Overlap%edge_dists(0))
 
   end subroutine CreateOverlap
 
@@ -167,8 +159,6 @@ contains
 
     deallocate(Overlap%cells)
     deallocate(Overlap%coords)
-    deallocate(Overlap%resolutions)
-    deallocate(Overlap%edge_dists)
 
     deallocate(Overlap%properties)
 
@@ -237,24 +227,6 @@ contains
 
   end subroutine ovkGetOverlapCoords
 
-  subroutine ovkGetOverlapResolutions(Overlap, Resolutions)
-
-    type(ovk_overlap), intent(in) :: Overlap
-    real(rk), dimension(:), pointer, intent(out) :: Resolutions
-
-    Resolutions => Overlap%resolutions
-
-  end subroutine ovkGetOverlapResolutions
-
-  subroutine ovkGetOverlapEdgeDistances(Overlap, EdgeDistances)
-
-    type(ovk_overlap), intent(in) :: Overlap
-    integer, dimension(:), pointer, intent(out) :: EdgeDistances
-
-    EdgeDistances => Overlap%edge_dists
-
-  end subroutine ovkGetOverlapEdgeDistances
-
   subroutine DetectOverlap(OverlappingGrid, OverlappedGrid, OverlapAccel, OverlapBounds, &
     OverlapTolerance, Overlap)
 
@@ -278,8 +250,6 @@ contains
 
     deallocate(Overlap%cells)
     deallocate(Overlap%coords)
-    deallocate(Overlap%resolutions)
-    deallocate(Overlap%edge_dists)
 
     Bounds = ovkBBScale(OverlapBounds, 1._rk + OverlapTolerance)
 
@@ -323,8 +293,6 @@ contains
 
     allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
     allocate(Overlap%coords(Overlap%cart%nd,NumOverlappedPoints))
-    allocate(Overlap%resolutions(NumOverlappedPoints))
-    allocate(Overlap%edge_dists(NumOverlappedPoints))
 
     Overlap%bounds = ovk_bbox_(Overlap%cart%nd)
 
@@ -362,8 +330,6 @@ contains
               CoordsInCell = ovkCoordsInGridCell(OverlappingGrid, Cell, OverlappedCoords)
               Overlap%cells(:,l) = Cell
               Overlap%coords(:,l) = CoordsInCell
-              Overlap%resolutions(l) = ovkGridResolution(OverlappingGrid, Cell, CoordsInCell)
-              Overlap%edge_dists(l) = OverlappingGrid%cell_edge_dist%values(Cell(1),Cell(2),Cell(3))
             end if
           end do
         end do
@@ -382,15 +348,11 @@ contains
 
     deallocate(Overlap%cells)
     deallocate(Overlap%coords)
-    deallocate(Overlap%resolutions)
-    deallocate(Overlap%edge_dists)
 
     Overlap%properties%noverlap = 0_lk
 
     allocate(Overlap%cells(MAX_ND,0))
     allocate(Overlap%coords(Overlap%cart%nd,0))
-    allocate(Overlap%resolutions(0))
-    allocate(Overlap%edge_dists(0))
 
     Overlap%bounds = ovk_bbox_(Overlap%cart%nd)
 
@@ -406,20 +368,15 @@ contains
     type(ovk_field_logical) :: OldOverlapMask
     integer, dimension(:,:), pointer :: OldCells
     real(rk), dimension(:,:), pointer :: OldCoords
-    real(rk), dimension(:), pointer :: OldResolutions
-    integer, dimension(:), pointer :: OldEdgeDistances
     type(ovk_field_logical) :: HoleMask
     type(ovk_field_logical) :: OverlappedByHoleMask
     integer(lk) :: NumOverlappedPoints
-    integer, dimension(MAX_ND) :: Cell
 
     if (Overlap%properties%noverlap == 0_lk) return
 
     OldOverlapMask = Overlap%mask
     OldCells => Overlap%cells
     OldCoords => Overlap%coords
-    OldResolutions => Overlap%resolutions
-    OldEdgeDistances => Overlap%edge_dists
 
     HoleMask = ovk_field_logical_(OverlappingGrid%cart)
     HoleMask%values = .not. OverlappingGrid%mask%values
@@ -434,8 +391,6 @@ contains
 
     allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
     allocate(Overlap%coords(OverlappedGrid%cart%nd,NumOverlappedPoints))
-    allocate(Overlap%resolutions(NumOverlappedPoints))
-    allocate(Overlap%edge_dists(NumOverlappedPoints))
 
     Overlap%properties%noverlap = NumOverlappedPoints
 
@@ -448,24 +403,9 @@ contains
             if (Overlap%mask%values(i,j,k)) then
               Overlap%cells(:,l) = OldCells(:,l_old)
               Overlap%coords(:,l) = OldCoords(:,l_old)
-              Overlap%resolutions(l) = OldResolutions(l_old)
-              Overlap%edge_dists(l) = OldEdgeDistances(l_old)
               l = l + 1_lk
             end if
             l_old = l_old + 1_lk
-          end if
-        end do
-      end do
-    end do
-
-    l = 1_lk
-    do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
-      do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
-        do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
-          if (Overlap%mask%values(i,j,k)) then
-            Cell = Overlap%cells(:,l)
-            Overlap%edge_dists(l) = OverlappingGrid%cell_edge_dist%values(Cell(1),Cell(2),Cell(3))
-            l = l + 1_lk
           end if
         end do
       end do

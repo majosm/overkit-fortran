@@ -73,13 +73,13 @@ program Blobs
 
   ! Indicate which grids can cut each other
   call ovkSetDomainPropertyBoundaryHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetDomainPropertyOverlapHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 
   ! Indicate which grids can communicate and how
   call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
   call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_LINEAR)
   call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
   call ovkSetDomainPropertyEdgePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 
   call ovkReleaseDomainProperties(Domain, Properties)
 
@@ -281,8 +281,8 @@ program Blobs
       call ovkFilterGridState(Grid, OVK_STATE_BOUNDARY_HOLE, OVK_ALL, Mask)
       IBlank%values = merge(3, IBlank%values, Mask%values)
 
-      ! IBlank == 4 => Overlap hole
-      call ovkFilterGridState(Grid, OVK_STATE_OVERLAP_HOLE, OVK_ALL, Mask)
+      ! IBlank == 4 => Overlap minimized
+      call ovkFilterGridState(Grid, OVK_STATE_OVERLAP_MINIMIZED, OVK_ALL, Mask)
       IBlank%values = merge(4, IBlank%values, Mask%values)
 
       ! IBlank == 5 => Receiver

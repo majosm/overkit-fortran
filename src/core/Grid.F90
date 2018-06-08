@@ -58,7 +58,8 @@ module ovkGrid
   public :: OVK_STATE_INTERNAL_BOUNDARY
   public :: OVK_STATE_HOLE
   public :: OVK_STATE_BOUNDARY_HOLE
-  public :: OVK_STATE_OVERLAP_HOLE
+  public :: OVK_STATE_OCCLUDED
+  public :: OVK_STATE_OVERLAP_MINIMIZED
   public :: OVK_STATE_RECEIVER
   public :: OVK_STATE_ORPHAN
   public :: OVK_STATE_DEBUG1
@@ -137,14 +138,15 @@ module ovkGrid
   integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(1,5)
   integer, parameter :: OVK_STATE_HOLE = ishft(1,6)
   integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(1,7)
-  integer, parameter :: OVK_STATE_OVERLAP_HOLE = ishft(1,8)
-  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,9)
-  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,10)
-  integer, parameter :: OVK_STATE_DEBUG1 = ishft(1,11)
-  integer, parameter :: OVK_STATE_DEBUG2 = ishft(1,12)
-  integer, parameter :: OVK_STATE_DEBUG3 = ishft(1,13)
-  integer, parameter :: OVK_STATE_DEBUG4 = ishft(1,14)
-  integer, parameter :: OVK_STATE_DEBUG5 = ishft(1,15)
+  integer, parameter :: OVK_STATE_OCCLUDED = ishft(1,8)
+  integer, parameter :: OVK_STATE_OVERLAP_MINIMIZED = ishft(1,9)
+  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,10)
+  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,11)
+  integer, parameter :: OVK_STATE_DEBUG1 = ishft(1,12)
+  integer, parameter :: OVK_STATE_DEBUG2 = ishft(1,13)
+  integer, parameter :: OVK_STATE_DEBUG3 = ishft(1,14)
+  integer, parameter :: OVK_STATE_DEBUG4 = ishft(1,15)
+  integer, parameter :: OVK_STATE_DEBUG5 = ishft(1,16)
 
   integer, parameter :: OVK_INTERIOR_POINT = ior(OVK_STATE_GRID,OVK_STATE_INTERIOR)
   integer, parameter :: OVK_DOMAIN_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
@@ -635,27 +637,33 @@ contains
 
     integer :: i, j, k
     type(ovk_field_int), pointer :: State
-    integer :: Value
+    integer :: AssemblyStates
 
     call ovkEditGridState(Grid, State)
+
+    AssemblyStates = 0
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_INFERRED_DOMAIN_BOUNDARY)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_BOUNDARY_HOLE)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_OCCLUDED)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_OVERLAP_MINIMIZED)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_RECEIVER)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_ORPHAN)
 
     do k = Grid%cart%is(3), Grid%cart%ie(3)
       do j = Grid%cart%is(2), Grid%cart%ie(2)
         do i = Grid%cart%is(1), Grid%cart%ie(1)
+          ! Reset inferred boundaries
           if (iand(State%values(i,j,k),OVK_STATE_INFERRED_DOMAIN_BOUNDARY) /= 0) then
-            State%values(i,j,k) = iand(State%values(i,j,k),not(ior(OVK_STATE_DOMAIN_BOUNDARY, &
-              OVK_STATE_INFERRED_DOMAIN_BOUNDARY)))
+            State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_DOMAIN_BOUNDARY))
           end if
-          if (iand(State%values(i,j,k),OVK_STATE_BOUNDARY_HOLE) /= 0) then
-            State%values(i,j,k) = ior(iand(State%values(i,j,k),not(ior(OVK_STATE_HOLE, &
-              OVK_STATE_BOUNDARY_HOLE))),OVK_STATE_GRID)
+          ! Reset holes
+          if (iand(State%values(i,j,k),ior(OVK_STATE_BOUNDARY_HOLE, OVK_STATE_OVERLAP_MINIMIZED)) &
+            /= 0) then
+            State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_HOLE))
+            State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_GRID)
           end if
-          if (iand(State%values(i,j,k),OVK_STATE_OVERLAP_HOLE) /= 0) then
-            State%values(i,j,k) = ior(iand(State%values(i,j,k),not(ior(OVK_STATE_HOLE, &
-              OVK_STATE_OVERLAP_HOLE))),OVK_STATE_GRID)
-          end if
-          State%values(i,j,k) = iand(State%values(i,j,k),not(ior(OVK_STATE_RECEIVER, &
-            OVK_STATE_ORPHAN)))
+          ! Remove other assembly states
+          State%values(i,j,k) = iand(State%values(i,j,k),not(AssemblyStates))
         end do
       end do
     end do
@@ -1143,13 +1151,13 @@ contains
         end do
       end do
     else
+      AdjustedVertex = 1
       l = 1
       do k = VertexLower(3), VertexUpper(3)
         do j = VertexLower(2), VertexUpper(2)
           do i = VertexLower(1), VertexUpper(1)
             Vertex = [i,j,k]
             AdjustedVertex(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
-            AdjustedVertex(Grid%cart%nd+1:) = 1
             do m = 1, Grid%cart%nd
               PrincipalCoords(m) = Grid%coords(m)%values(AdjustedVertex(1),AdjustedVertex(2), &
                 AdjustedVertex(3))

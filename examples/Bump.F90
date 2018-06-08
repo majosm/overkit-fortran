@@ -91,13 +91,13 @@ program Bump
 
   ! Indicate which grids can cut each other
   call ovkSetDomainPropertyBoundaryHoleCutting(Properties, 2, 1, .true.)
-  call ovkSetDomainPropertyOverlapHoleCutting(Properties, 2, 1, .true.)
 
   ! Indicate which grids can communicate and how
   call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
   call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, InterpScheme)
   call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
   call ovkSetDomainPropertyEdgePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
+  call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 
   call ovkReleaseDomainProperties(Domain, Properties)
 

@@ -117,8 +117,8 @@ module Overkit
   public :: ovkSetDomainPropertyInferBoundaries
   public :: ovkGetDomainPropertyBoundaryHoleCutting
   public :: ovkSetDomainPropertyBoundaryHoleCutting
-  public :: ovkGetDomainPropertyOverlapHoleCutting
-  public :: ovkSetDomainPropertyOverlapHoleCutting
+  public :: ovkGetDomainPropertyOccludes
+  public :: ovkSetDomainPropertyOccludes
   public :: ovkGetDomainPropertyConnectionType
   public :: ovkSetDomainPropertyConnectionType
   public :: ovkGetDomainPropertyInterpScheme
@@ -127,6 +127,8 @@ module Overkit
   public :: ovkSetDomainPropertyFringeSize
   public :: ovkGetDomainPropertyEdgePadding
   public :: ovkSetDomainPropertyEdgePadding
+  public :: ovkGetDomainPropertyOverlapMinimization
+  public :: ovkSetDomainPropertyOverlapMinimization
 
   ! ovkField
   public :: ovk_field_int
@@ -205,6 +207,7 @@ module Overkit
   public :: OVK_TRUE, OVK_FALSE
   public :: OVK_NONE, OVK_ANY, OVK_ALL
   public :: OVK_NO_ERROR, OVK_IO_ERROR
+  public :: OVK_AUTO
   public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
@@ -257,7 +260,8 @@ module Overkit
   public :: OVK_STATE_INTERNAL_BOUNDARY
   public :: OVK_STATE_HOLE
   public :: OVK_STATE_BOUNDARY_HOLE
-  public :: OVK_STATE_OVERLAP_HOLE
+  public :: OVK_STATE_OVERLAP_MINIMIZED
+  public :: OVK_STATE_OCCLUDED
   public :: OVK_STATE_RECEIVER
   public :: OVK_STATE_ORPHAN
   public :: OVK_STATE_DEBUG1
@@ -279,8 +283,6 @@ module Overkit
   public :: ovkGetOverlapMask
   public :: ovkGetOverlapCells
   public :: ovkGetOverlapCoords
-  public :: ovkGetOverlapResolutions
-  public :: ovkGetOverlapEdgeDistances
   public :: ovkFindOverlappingPoints
   public :: ovkFindOverlappedPoints
   public :: ovkOverlapCollect
