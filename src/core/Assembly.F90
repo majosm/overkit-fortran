@@ -633,6 +633,34 @@ contains
 
   end subroutine CutHoles
 
+  subroutine FindCoarsePoints(OverlappedGrid, Overlap, CoarseMask)
+
+    type(ovk_grid), intent(in) :: OverlappedGrid
+    type(ovk_overlap), intent(in) :: Overlap
+    type(ovk_field_logical), intent(out) :: CoarseMask
+
+    integer :: i, j, k
+    integer(lk) :: l
+
+    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+
+    CoarseMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
+
+    l = 1_lk
+    do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
+      do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
+        do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
+          if (Overlap%mask%values(i,j,k)) then
+            CoarseMask%values(i,j,k) = OverlappedGrid%resolution%values(i,j,k) < &
+              (1._rk-TOLERANCE) * Overlap%resolutions(l)
+            l = l + 1_lk
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine FindCoarsePoints
+
   subroutine GenerateConnectivity(Domain, ReducedDomainInfo)
 
     type(ovk_domain), intent(inout) :: Domain
