@@ -292,9 +292,6 @@ contains
     integer :: NumGrids
     logical :: Success, EndEdit
     type(ovk_domain_properties), pointer :: PrevProperties
-    integer :: MaxEdgeDistance, PrevMaxEdgeDistance
-    type(ovk_grid), pointer :: Grid
-    type(ovk_grid_properties), pointer :: GridProperties
     type(t_domain_edits), pointer :: Edits
     type(ovk_connectivity), pointer :: Connectivity
     type(ovk_connectivity_properties), pointer :: ConnectivityProperties
@@ -328,20 +325,6 @@ contains
                 Domain%properties%connection_type(m,n) = OVK_CONNECTION_NONE
               end if
             end do
-          end do
-
-          do n = 1, NumGrids
-            if (ovkGridExists(Domain, n)) then
-              MaxEdgeDistance = GetMaxEdgeDistance(Properties, n)
-              PrevMaxEdgeDistance = GetMaxEdgeDistance(PrevProperties, n)
-              if (MaxEdgeDistance /= PrevMaxEdgeDistance) then
-                call ovkEditGrid(Domain, n, Grid)
-                call ovkEditGridProperties(Grid, GridProperties)
-                call SetGridPropertyMaxEdgeDistance(GridProperties, MaxEdgeDistance)
-                call ovkReleaseGridProperties(Grid, GridProperties)
-                call ovkReleaseGrid(Domain, Grid)
-              end if
-            end if
           end do
 
           do n = 1, NumGrids
@@ -500,7 +483,6 @@ contains
     integer :: GeometryType_
     logical :: Success
     type(ovk_cart) :: Cart
-    integer :: MaxEdgeDistance
     integer :: MaxDonorSize
     type(t_domain_edits), pointer :: Edits
 
@@ -540,10 +522,9 @@ contains
       if (Success) then
 
         Cart = ovk_cart_(Domain%properties%nd, NumPoints, Periodic_, PeriodicStorage_)
-        MaxEdgeDistance = GetMaxEdgeDistance(Domain%properties, GridID)
 
         call CreateGrid(Domain%grid(GridID), GridID, Domain%logger, Cart, PeriodicLength_, &
-          GeometryType_, MaxEdgeDistance)
+          GeometryType_)
 
         do m = 1, Domain%properties%ngrids
           if (Domain%properties%overlappable(m,GridID)) then
@@ -1929,33 +1910,6 @@ contains
     ValidID = GridID >= 1 .and. GridID <= Domain%properties%ngrids
 
   end function ValidID
-
-  function GetMaxEdgeDistance(Properties, GridID) result(MaxEdgeDistance)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: GridID
-    integer :: MaxEdgeDistance
-
-    integer :: m, n
-
-    n = GridID
-
-    MaxEdgeDistance = 0
-
-    do m = 1, Properties%ngrids
-      select case (Properties%connection_type(m,n))
-      case (OVK_CONNECTION_FRINGE)
-        MaxEdgeDistance = max(MaxEdgeDistance, Properties%edge_padding(m,n) + &
-          Properties%fringe_size(n))
-      case (OVK_CONNECTION_FULL)
-        MaxEdgeDistance = max(MaxEdgeDistance, Properties%edge_padding(m,n))
-      end select
-    end do
-
-    ! A little extra
-    MaxEdgeDistance = MaxEdgeDistance + 2
-
-  end function GetMaxEdgeDistance
 
   function GetMaxDonorSize(Properties, DonorGridID, ReceiverGridID) result(MaxDonorSize)
 

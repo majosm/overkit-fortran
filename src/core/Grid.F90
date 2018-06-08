@@ -79,8 +79,6 @@ module ovkGrid
   public :: GridExists
   public :: GetGridEdits
   public :: ResetGridEdits
-  public :: GetGridPropertyMaxEdgeDistance
-  public :: SetGridPropertyMaxEdgeDistance
 
   type ovk_grid_properties
     type(t_noconstruct) :: noconstruct
@@ -92,8 +90,6 @@ module ovkGrid
     integer :: periodic_storage
     real(rk), dimension(MAX_ND) :: periodic_length
     integer :: geometry_type
-    ! Internal
-    integer :: max_edge_dist
   end type ovk_grid_properties
 
   type t_grid_edits
@@ -124,7 +120,6 @@ module ovkGrid
     type(ovk_field_logical) :: cell_mask
     type(ovk_field_real) :: cell_volumes
     type(ovk_field_real) :: resolution
-    type(ovk_field_int) :: edge_dist
     type(ovk_field_int) :: cell_edge_dist
   end type ovk_grid
 
@@ -187,7 +182,7 @@ contains
 
   end function ovk_grid_
 
-  subroutine CreateGrid(Grid, ID, Logger, Cart, PeriodicLength, GeometryType, MaxEdgeDistance)
+  subroutine CreateGrid(Grid, ID, Logger, Cart, PeriodicLength, GeometryType)
 
     type(ovk_grid), intent(out) :: Grid
     integer, intent(in) :: ID
@@ -195,7 +190,6 @@ contains
     type(ovk_cart), intent(in) :: Cart
     real(rk), dimension(Cart%nd), intent(in) :: PeriodicLength
     integer, intent(in) :: GeometryType
-    integer, intent(in) :: MaxEdgeDistance
 
     integer :: d
     type(ovk_cart) :: CellEdgeDistCart
@@ -208,7 +202,6 @@ contains
     Grid%properties%periodic_storage = Cart%periodic_storage
     Grid%properties%periodic_length(:Cart%nd) = PeriodicLength
     Grid%properties%geometry_type = GeometryType
-    Grid%properties%max_edge_dist = MaxEdgeDistance
 
     nullify(Grid%prev_properties)
 
@@ -350,9 +343,6 @@ contains
         if (EndEdit) then
           PrevProperties => Grid%prev_properties
           nullify(Grid%prev_properties)
-          if (Properties%max_edge_dist /= PrevProperties%max_edge_dist) then
-            call UpdateCellEdgeDistance(Grid)
-          end if
           deallocate(PrevProperties)
         end if
       else
@@ -1601,7 +1591,6 @@ contains
     Properties%periodic_storage = OVK_NO_OVERLAP_PERIODIC
     Properties%periodic_length = 0._rk
     Properties%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
-    Properties%max_edge_dist = 1
 
   end function ovk_grid_properties_
 
@@ -1667,24 +1656,6 @@ contains
     GeometryType = Properties%geometry_type
 
   end subroutine ovkGetGridPropertyGeometryType
-
-  subroutine GetGridPropertyMaxEdgeDistance(Properties, MaxEdgeDist)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    integer, intent(out) :: MaxEdgeDist
-
-    MaxEdgeDist = Properties%max_edge_dist
-
-  end subroutine GetGridPropertyMaxEdgeDistance
-
-  subroutine SetGridPropertyMaxEdgeDistance(Properties, MaxEdgeDist)
-
-    type(ovk_grid_properties), intent(inout) :: Properties
-    integer, intent(in) :: MaxEdgeDist
-
-    Properties%max_edge_dist = MaxEdgeDist
-
-  end subroutine SetGridPropertyMaxEdgeDistance
 
   function t_grid_edits_(NumDims) result(Edits)
 
