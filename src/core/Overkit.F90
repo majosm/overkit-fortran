@@ -3,6 +3,7 @@
 
 module Overkit
 
+  use ovkArray
   use ovkAssembly
   use ovkBoundingBox
   use ovkCart
@@ -23,6 +24,16 @@ module Overkit
   ! General
   public :: operator (==)
   public :: operator (/=)
+
+  ! ovkArray
+  public :: ovk_array_int
+  public :: ovk_array_int_
+  public :: ovk_array_large_int
+  public :: ovk_array_large_int_
+  public :: ovk_array_real
+  public :: ovk_array_real_
+  public :: ovk_array_logical
+  public :: ovk_array_logical_
 
   ! ovkAssembly
   public :: ovkAssemble

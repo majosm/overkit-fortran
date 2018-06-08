@@ -6,6 +6,7 @@
 #=================
 
 set(OVERKIT_SOURCES
+  Array.F90
   Assembly.F90
   BoundingBox.F90
   Cart.F90
