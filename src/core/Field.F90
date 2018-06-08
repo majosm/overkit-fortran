@@ -86,9 +86,9 @@ module ovkField
     module procedure ovk_field_logical_Assigned_Values_Scalar
     module procedure ovk_field_logical_Assigned_Values_Rank2
     module procedure ovk_field_logical_Assigned_Values_Rank3
-    module procedure ovk_field_logical_Assigned_Values_Scalar_1Byte
-    module procedure ovk_field_logical_Assigned_Values_Rank2_1Byte
-    module procedure ovk_field_logical_Assigned_Values_Rank3_1Byte
+    module procedure ovk_field_logical_Assigned_Values_1Byte_Scalar
+    module procedure ovk_field_logical_Assigned_Values_1Byte_Rank2
+    module procedure ovk_field_logical_Assigned_Values_1Byte_Rank3
   end interface ovk_field_logical_
 
   interface operator (==)
@@ -304,7 +304,7 @@ contains
 
   end function ovk_field_logical_Assigned_Values_Scalar
 
-  pure function ovk_field_logical_Assigned_Values_Scalar_1Byte(Cart, Value) result(Field)
+  pure function ovk_field_logical_Assigned_Values_1Byte_Scalar(Cart, Value) result(Field)
 
     type(ovk_cart), intent(in) :: Cart
     logical(bk), intent(in) :: Value
@@ -317,7 +317,7 @@ contains
 
     Field%values = Value
 
-  end function ovk_field_logical_Assigned_Values_Scalar_1Byte
+  end function ovk_field_logical_Assigned_Values_1Byte_Scalar
 
   pure function ovk_field_int_Assigned_Values_Rank2(Cart, Values) result(Field)
 
@@ -383,7 +383,7 @@ contains
 
   end function ovk_field_logical_Assigned_Values_Rank2
 
-  pure function ovk_field_logical_Assigned_Values_Rank2_1Byte(Cart, Values) result(Field)
+  pure function ovk_field_logical_Assigned_Values_1Byte_Rank2(Cart, Values) result(Field)
 
     type(ovk_cart), intent(in) :: Cart
     logical(bk), dimension(:,:), intent(in) :: Values
@@ -397,7 +397,7 @@ contains
     Field%values(:,:,1) = Values(:Field%cart%ie(1)-Field%cart%is(1)+1, &
       :Field%cart%ie(2)-Field%cart%is(2)+1)
 
-  end function ovk_field_logical_Assigned_Values_Rank2_1Byte
+  end function ovk_field_logical_Assigned_Values_1Byte_Rank2
 
   pure function ovk_field_int_Assigned_Values_Rank3(Cart, Values) result(Field)
 
@@ -463,7 +463,7 @@ contains
 
   end function ovk_field_logical_Assigned_Values_Rank3
 
-  pure function ovk_field_logical_Assigned_Values_Rank3_1Byte(Cart, Values) result(Field)
+  pure function ovk_field_logical_Assigned_Values_1Byte_Rank3(Cart, Values) result(Field)
 
     type(ovk_cart), intent(in) :: Cart
     logical(bk), dimension(:,:,:), intent(in) :: Values
@@ -477,7 +477,7 @@ contains
     Field%values = Values(:Field%cart%ie(1)-Field%cart%is(1)+1, &
       :Field%cart%ie(2)-Field%cart%is(2)+1,:Field%cart%ie(3)-Field%cart%is(3)+1)
 
-  end function ovk_field_logical_Assigned_Values_Rank3_1Byte
+  end function ovk_field_logical_Assigned_Values_1Byte_Rank3
 
   pure function ovk_field_int_Equal(LeftField, RightField) result(Equal)
 
