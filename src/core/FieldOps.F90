@@ -546,20 +546,21 @@ contains
 
   end subroutine ovkThreshold_Real
 
-  subroutine ovkDistanceField(Mask, MaxDistance, BoundaryValue, Distances)
+  subroutine ovkDistanceField(Mask, BoundaryValue, Distances)
 
     type(ovk_field_logical), intent(in) :: Mask
-    integer, intent(in) :: MaxDistance
     integer, intent(in) :: BoundaryValue
     type(ovk_field_int), intent(out) :: Distances
 
-    integer :: i, j, k, d
+    integer :: i, j, k, m, n, o
     type(ovk_field_logical) :: NonMask
     integer :: NonMaskBoundaryValue
-    type(ovk_field_logical) :: CoverMask
-    type(ovk_field_logical) :: CoverEdgeMask
-
-    Distances = ovk_field_int_(Mask%cart)
+    type(ovk_field_logical) :: EdgeMask
+    type(ovk_cart) :: ExtendedCart
+    type(ovk_field_int) :: ExtendedDistances
+    integer, dimension(MAX_ND) :: Point
+    logical :: ContainsPoint
+    integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
 
     NonMask = ovk_field_logical_(Mask%cart)
     NonMask%values = .not. Mask%values
@@ -573,50 +574,131 @@ contains
       NonMaskBoundaryValue = OVK_MIRROR
     end select
 
-    call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskBoundaryValue, .true., CoverMask)
+    call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskBoundaryValue, .true., EdgeMask)
 
-!$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(MaxDistance) &
-!$OMP&  SHARED(Mask, CoverMask, Distances)
-    do k = Mask%cart%is(3), Mask%cart%ie(3)
-      do j = Mask%cart%is(2), Mask%cart%ie(2)
-        do i = Mask%cart%is(1), Mask%cart%ie(1)
-          if (Mask%values(i,j,k)) then
-            if (CoverMask%values(i,j,k)) then
-              Distances%values(i,j,k) = 0
-            else
-              Distances%values(i,j,k) = -MaxDistance
-            end if
+    ExtendedCart = ovk_cart_(Mask%cart%nd)
+    ExtendedCart%is(:Mask%cart%nd) = Mask%cart%is(:Mask%cart%nd)-1
+    ExtendedCart%ie(:Mask%cart%nd) = Mask%cart%ie(:Mask%cart%nd)+1
+
+    ExtendedDistances = ovk_field_int_(ExtendedCart)
+
+    do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+      do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+        do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+          Point = [i,j,k]
+          if (ovkCartContains(EdgeMask%cart, Point)) then
+            ContainsPoint = .true.
           else
-            Distances%values(i,j,k) = MaxDistance
+            Point(:Mask%cart%nd) = ovkCartPeriodicAdjust(EdgeMask%cart, Point)
+            if (ovkCartContains(EdgeMask%cart, Point)) then
+              ContainsPoint = .true.
+            else
+              ContainsPoint = .false.
+            end if
+          end if
+          if (ContainsPoint) then
+            ExtendedDistances%values(i,j,k) = merge(0, huge(0)-1, EdgeMask%values(Point(1), &
+              Point(2),Point(3)))
+          else
+            ExtendedDistances%values(i,j,k) = huge(0)-1
           end if
         end do
       end do
     end do
-!$OMP END PARALLEL DO
 
-    do d = 1, MaxDistance-1
-      call ovkDetectEdge(CoverMask, OVK_OUTER_EDGE, OVK_FALSE, .false., CoverEdgeMask)
-!$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(d) &
-!$OMP&  SHARED(Mask, CoverEdgeMask, Distances)
+    NeighborLower(:Mask%cart%nd) = -1
+    NeighborLower(Mask%cart%nd+1:) = 0
+    NeighborUpper(:Mask%cart%nd) = 1
+    NeighborUpper(Mask%cart%nd+1:) = 0
+
+    select case (Mask%cart%nd)
+    case (2)
+      ! Forward pass
+      do j = Mask%cart%is(2), Mask%cart%ie(2)
+        do i = Mask%cart%is(1), Mask%cart%ie(1)
+          n = -1
+          do m = NeighborLower(1), NeighborUpper(1)
+            ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+              ExtendedDistances%values(i+m,j+n,1)+1)
+          end do
+          n = 0; m = -1
+          ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+            ExtendedDistances%values(i+m,j+n,1)+1)
+        end do
+      end do
+      ! Backward pass
+      do j = Mask%cart%ie(2), Mask%cart%is(2), -1
+        do i = Mask%cart%ie(1), Mask%cart%is(1), -1
+          n = 1
+          do m = NeighborLower(1), NeighborUpper(1)
+            ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+              ExtendedDistances%values(i+m,j+n,1)+1)
+          end do
+          n = 0; m = 1
+          ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+            ExtendedDistances%values(i+m,j+n,1)+1)
+        end do
+      end do
+    case (3)
+      ! Forward pass
       do k = Mask%cart%is(3), Mask%cart%ie(3)
         do j = Mask%cart%is(2), Mask%cart%ie(2)
           do i = Mask%cart%is(1), Mask%cart%ie(1)
-            if (CoverEdgeMask%values(i,j,k)) then
-              if (Mask%values(i,j,k)) then
-                Distances%values(i,j,k) = -d
-              else
-                Distances%values(i,j,k) = d
-              end if
-            end if
+            o = -1
+            do n = NeighborLower(2), NeighborUpper(2)
+              do m = NeighborLower(1), NeighborUpper(1)
+                ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                  ExtendedDistances%values(i+m,j+n,k+o)+1)
+              end do
+            end do
+            o = 0; n = -1
+            do m = NeighborLower(1), NeighborUpper(1)
+              ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                ExtendedDistances%values(i+m,j+n,k+o)+1)
+            end do
+            o = 0; n = 0; m = -1
+            ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+              ExtendedDistances%values(i+m,j+n,k+o)+1)
           end do
         end do
       end do
-!$OMP END PARALLEL DO
-      CoverMask%values = CoverMask%values .or. CoverEdgeMask%values
+      ! Backward pass
+      do k = Mask%cart%ie(3), Mask%cart%is(3), -1
+        do j = Mask%cart%ie(2), Mask%cart%is(2), -1
+          do i = Mask%cart%ie(1), Mask%cart%is(1), -1
+            o = 1
+            do n = NeighborLower(2), NeighborUpper(2)
+              do m = NeighborLower(1), NeighborUpper(1)
+                ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                  ExtendedDistances%values(i+m,j+n,k+o)+1)
+              end do
+            end do
+            o = 0; n = 1
+            do m = NeighborLower(1), NeighborUpper(1)
+              ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                ExtendedDistances%values(i+m,j+n,k+o)+1)
+            end do
+            o = 0; n = 0; m = 1
+            ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+              ExtendedDistances%values(i+m,j+n,k+o)+1)
+          end do
+        end do
+      end do
+    end select
+
+    Distances = ovk_field_int_(Mask%cart)
+
+    Distances%values = ExtendedDistances%values(Mask%cart%is(1):Mask%cart%ie(1), &
+      Mask%cart%is(2):Mask%cart%ie(2),Mask%cart%is(3):Mask%cart%ie(3))
+
+    do k = Mask%cart%is(3), Mask%cart%ie(3)
+      do j = Mask%cart%is(2), Mask%cart%ie(2)
+        do i = Mask%cart%is(1), Mask%cart%ie(1)
+          if (Mask%values(i,j,k)) then
+            Distances%values(i,j,k) = -Distances%values(i,j,k)
+          end if
+        end do
+      end do
     end do
 
   end subroutine ovkDistanceField

@@ -1095,7 +1095,7 @@ contains
       Grid%cell_cart%is(2):Grid%cell_cart%ie(2),Grid%cell_cart%is(3):Grid%cell_cart%ie(3)) = &
       .not. Grid%cell_mask%values
 
-    call ovkDistanceField(NotMask, Grid%properties%max_edge_dist, OVK_TRUE, Grid%cell_edge_dist)
+    call ovkDistanceField(NotMask, OVK_TRUE, Grid%cell_edge_dist)
 
   end subroutine UpdateCellEdgeDistance
 
