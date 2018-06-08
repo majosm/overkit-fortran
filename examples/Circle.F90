@@ -206,7 +206,7 @@ contains
     NumPointsAll(:,2) = NumPointsCylinder
 
     ! Write a PLOT3D grid file
-    call ovkCreateP3D(GridFile, "grid_cylinder.xyz", NumDims=2, NumGrids=2, &
+    call ovkCreateP3D(GridFile, "circle_cylinder.xyz", NumDims=2, NumGrids=2, &
       NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
 
     call ovkGetDomainProperties(Domain, Properties)
@@ -467,7 +467,7 @@ contains
     NumPointsAll(:,4) = NumPointsBlock
 
     ! Write a PLOT3D grid file
-    call ovkCreateP3D(GridFile, "grid_block.xyz", NumDims=2, NumGrids=4, &
+    call ovkCreateP3D(GridFile, "circle_block.xyz", NumDims=2, NumGrids=4, &
       NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
 
     call ovkGetDomainProperties(Domain, Properties)
@@ -686,7 +686,7 @@ contains
     NumPointsAll(:,6) = NumPointsBlock
 
     ! Write a PLOT3D grid file
-    call ovkCreateP3D(GridFile, "grid_remap.xyz", NumDims=2, NumGrids=6, &
+    call ovkCreateP3D(GridFile, "circle_remap.xyz", NumDims=2, NumGrids=6, &
       NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
 
     call ovkGetDomainProperties(Domain, Properties)

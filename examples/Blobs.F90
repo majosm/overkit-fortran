@@ -227,7 +227,7 @@ program Blobs
   NumPointsAll(:,4) = NumPointsBlob
 
   ! Write a PLOT3D grid file
-  call ovkCreateP3D(GridFile, "grid.xyz", NumDims=2, NumGrids=4, NumPointsAll=NumPointsAll, &
+  call ovkCreateP3D(GridFile, "blobs.xyz", NumDims=2, NumGrids=4, NumPointsAll=NumPointsAll, &
     WithIBlank=.true., Verbose=.true.)
 
   call ovkGetDomainProperties(Domain, Properties)

@@ -229,7 +229,7 @@ program Bump
   NumPointsAll(:,2) = NumPointsBump
 
   ! Write a PLOT3D grid file with IBlank to visualize the result
-  call ovkCreateP3D(GridFile, "grid.xyz", NumDims=NumDims, NumGrids=2, NumPointsAll=NumPointsAll, &
+  call ovkCreateP3D(GridFile, "bump.xyz", NumDims=NumDims, NumGrids=2, NumPointsAll=NumPointsAll, &
     WithIBlank=.true.)
 
   call ovkGetDomainProperties(Domain, Properties)

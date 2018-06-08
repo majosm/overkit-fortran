@@ -174,7 +174,7 @@ program Inlet
   NumPointsAll(:,2) = NumPointsInlet
 
   ! Write a PLOT3D grid file
-  call ovkCreateP3D(GridFile, "grid.xyz", NumDims=2, NumGrids=2, NumPointsAll=NumPointsAll, &
+  call ovkCreateP3D(GridFile, "inlet.xyz", NumDims=2, NumGrids=2, NumPointsAll=NumPointsAll, &
     WithIBlank=.true., Verbose=.true.)
 
   call ovkGetDomainProperties(Domain, Properties)
