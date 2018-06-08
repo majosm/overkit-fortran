@@ -283,6 +283,8 @@ module Overkit
   public :: ovkGetOverlapEdgeDistances
   public :: ovkFindOverlappingPoints
   public :: ovkFindOverlappedPoints
+  public :: ovkOverlapCollect
+  public :: ovkOverlapDisperse
   public :: ovkGetOverlapPropertyOverlappingGridID
   public :: ovkGetOverlapPropertyOverlappedGridID
   public :: ovkGetOverlapPropertyDimension
@@ -290,6 +292,15 @@ module Overkit
   public :: ovkGetOverlapPropertyPeriodicity
   public :: ovkGetOverlapPropertyPeriodicStorage
   public :: ovkGetOverlapPropertyNumOverlapped
+  public :: OVK_COLLECT_SIMPLE
+  public :: OVK_COLLECT_MIN
+  public :: OVK_COLLECT_MAX
+  public :: OVK_COLLECT_NONE
+  public :: OVK_COLLECT_ANY
+  public :: OVK_COLLECT_NOT_ALL
+  public :: OVK_COLLECT_ALL
+  public :: OVK_COLLECT_INTERPOLATE
+  public :: OVK_DISPERSE_OVERWRITE
 
   ! ovkPLOT3D
   public :: ovk_plot3d_grid_file
