@@ -21,6 +21,7 @@ module ovkField
   public :: operator (==)
   public :: operator (/=)
   public :: ovkFieldPeriodicFill
+  public :: ovkGetFieldPatch
   public :: ovkExportField
   public :: ovkPrintField
 
@@ -111,6 +112,19 @@ module ovkField
     module procedure ovkFieldPeriodicFill_Real
     module procedure ovkFieldPeriodicFill_Logical
   end interface ovkFieldPeriodicFill
+
+  interface ovkGetFieldPatch
+    module procedure ovkGetFieldPatch_Integer_Rank2
+    module procedure ovkGetFieldPatch_Integer_Rank3
+    module procedure ovkGetFieldPatch_LargeInteger_Rank2
+    module procedure ovkGetFieldPatch_LargeInteger_Rank3
+    module procedure ovkGetFieldPatch_Real_Rank2
+    module procedure ovkGetFieldPatch_Real_Rank3
+    module procedure ovkGetFieldPatch_Logical_Rank2
+    module procedure ovkGetFieldPatch_Logical_Rank3
+    module procedure ovkGetFieldPatch_Logical1Byte_Rank2
+    module procedure ovkGetFieldPatch_Logical1Byte_Rank3
+  end interface ovkGetFieldPatch
 
   interface ovkExportField
     module procedure ovkExportField_Integer
@@ -670,6 +684,346 @@ contains
     end if
 
   end subroutine ovkFieldPeriodicFill_Logical
+
+  subroutine ovkGetFieldPatch_Integer_Rank2(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_int), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    integer, dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2)), &
+      intent(out) :: PatchData
+
+    integer :: i, j
+    logical :: AwayFromEdge
+    integer, dimension(2) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          PatchData(i,j) = Field%values(i,j,1)
+        end do
+      end do
+    else
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          Point = [i,j]
+          Point = ovkCartPeriodicAdjust(Field%cart, Point)
+          PatchData(i,j) = Field%values(Point(1),Point(2),1)
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Integer_Rank2
+
+  subroutine ovkGetFieldPatch_LargeInteger_Rank2(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_large_int), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    integer(lk), dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2)), &
+      intent(out) :: PatchData
+
+    integer :: i, j
+    logical :: AwayFromEdge
+    integer, dimension(2) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          PatchData(i,j) = Field%values(i,j,1)
+        end do
+      end do
+    else
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          Point = [i,j]
+          Point = ovkCartPeriodicAdjust(Field%cart, Point)
+          PatchData(i,j) = Field%values(Point(1),Point(2),1)
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_LargeInteger_Rank2
+
+  subroutine ovkGetFieldPatch_Real_Rank2(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_real), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    real(rk), dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2)), &
+      intent(out) :: PatchData
+
+    integer :: i, j
+    logical :: AwayFromEdge
+    integer, dimension(2) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          PatchData(i,j) = Field%values(i,j,1)
+        end do
+      end do
+    else
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          Point = [i,j]
+          Point = ovkCartPeriodicAdjust(Field%cart, Point)
+          PatchData(i,j) = Field%values(Point(1),Point(2),1)
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Real_Rank2
+
+  subroutine ovkGetFieldPatch_Logical_Rank2(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_logical), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    logical, dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2)), &
+      intent(out) :: PatchData
+
+    integer :: i, j
+    logical :: AwayFromEdge
+    integer, dimension(2) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          PatchData(i,j) = Field%values(i,j,1)
+        end do
+      end do
+    else
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          Point = [i,j]
+          Point = ovkCartPeriodicAdjust(Field%cart, Point)
+          PatchData(i,j) = Field%values(Point(1),Point(2),1)
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Logical_Rank2
+
+  subroutine ovkGetFieldPatch_Logical1Byte_Rank2(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_logical), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    logical(bk), dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2)), &
+      intent(out) :: PatchData
+
+    integer :: i, j
+    logical :: AwayFromEdge
+    integer, dimension(2) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          PatchData(i,j) = Field%values(i,j,1)
+        end do
+      end do
+    else
+      do j = PatchBegin(2), PatchEnd(2)
+        do i = PatchBegin(1), PatchEnd(1)
+          Point = [i,j]
+          Point = ovkCartPeriodicAdjust(Field%cart, Point)
+          PatchData(i,j) = Field%values(Point(1),Point(2),1)
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Logical1Byte_Rank2
+
+  subroutine ovkGetFieldPatch_Integer_Rank3(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_int), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    integer, dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2), &
+      PatchBegin(3):PatchEnd(3)), intent(out) :: PatchData
+
+    integer :: i, j, k
+    logical :: AwayFromEdge
+    integer, dimension(3) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            PatchData(i,j,k) = Field%values(i,j,k)
+          end do
+        end do
+      end do
+    else
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            Point = [i,j,k]
+            Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+            PatchData(i,j,k) = Field%values(Point(1),Point(2),Point(3))
+          end do
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Integer_Rank3
+
+  subroutine ovkGetFieldPatch_LargeInteger_Rank3(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_large_int), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    integer(lk), dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2), &
+      PatchBegin(3):PatchEnd(3)), intent(out) :: PatchData
+
+    integer :: i, j, k
+    logical :: AwayFromEdge
+    integer, dimension(3) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            PatchData(i,j,k) = Field%values(i,j,k)
+          end do
+        end do
+      end do
+    else
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            Point = [i,j,k]
+            Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+            PatchData(i,j,k) = Field%values(Point(1),Point(2),Point(3))
+          end do
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_LargeInteger_Rank3
+
+  subroutine ovkGetFieldPatch_Real_Rank3(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_real), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    real(rk), dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2), &
+      PatchBegin(3):PatchEnd(3)), intent(out) :: PatchData
+
+    integer :: i, j, k
+    logical :: AwayFromEdge
+    integer, dimension(3) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            PatchData(i,j,k) = Field%values(i,j,k)
+          end do
+        end do
+      end do
+    else
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            Point = [i,j,k]
+            Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+            PatchData(i,j,k) = Field%values(Point(1),Point(2),Point(3))
+          end do
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Real_Rank3
+
+  subroutine ovkGetFieldPatch_Logical_Rank3(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_logical), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    logical, dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2), &
+      PatchBegin(3):PatchEnd(3)), intent(out) :: PatchData
+
+    integer :: i, j, k
+    logical :: AwayFromEdge
+    integer, dimension(3) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            PatchData(i,j,k) = Field%values(i,j,k)
+          end do
+        end do
+      end do
+    else
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            Point = [i,j,k]
+            Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+            PatchData(i,j,k) = Field%values(Point(1),Point(2),Point(3))
+          end do
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Logical_Rank3
+
+  subroutine ovkGetFieldPatch_Logical1Byte_Rank3(Field, PatchBegin, PatchEnd, PatchData)
+
+    type(ovk_field_logical), intent(in) :: Field
+    integer, dimension(:), intent(in) :: PatchBegin, PatchEnd
+    logical(bk), dimension(PatchBegin(1):PatchEnd(1),PatchBegin(2):PatchEnd(2), &
+      PatchBegin(3):PatchEnd(3)), intent(out) :: PatchData
+
+    integer :: i, j, k
+    logical :: AwayFromEdge
+    integer, dimension(3) :: Point
+
+    AwayFromEdge = ovkCartContains(Field%cart, PatchBegin) .and. &
+      ovkCartContains(Field%cart, PatchEnd)
+
+    if (AwayFromEdge) then
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            PatchData(i,j,k) = Field%values(i,j,k)
+          end do
+        end do
+      end do
+    else
+      do k = PatchBegin(3), PatchEnd(3)
+        do j = PatchBegin(2), PatchEnd(2)
+          do i = PatchBegin(1), PatchEnd(1)
+            Point = [i,j,k]
+            Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
+            PatchData(i,j,k) = Field%values(Point(1),Point(2),Point(3))
+          end do
+        end do
+      end do
+    end if
+
+  end subroutine ovkGetFieldPatch_Logical1Byte_Rank3
 
   subroutine ovkExportField_Integer(Field, ExportCart, ExportedField)
 

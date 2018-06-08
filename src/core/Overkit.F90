@@ -138,6 +138,7 @@ module Overkit
   public :: ovk_field_logical
   public :: ovk_field_logical_
   public :: ovkFieldPeriodicFill
+  public :: ovkGetFieldPatch
   public :: ovkExportField
   public :: ovkPrintField
 
