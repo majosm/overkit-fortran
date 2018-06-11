@@ -14,6 +14,7 @@ module ovkAssembly
   use ovkGeometry
   use ovkGlobal
   use ovkGrid
+  use ovkPLOT3D
   implicit none
 
   private
@@ -1074,5 +1075,47 @@ contains
     call ResetDomainEdits(Domain)
 
   end subroutine FinalizeAssembly
+
+  subroutine WriteGrids(Domain, IBlanks, FilePath)
+
+    type(ovk_domain), intent(in) :: Domain
+    type(ovk_field_int), dimension(:), intent(in) :: IBlanks
+    character(len=*), intent(in) :: FilePath
+
+    integer :: n
+    integer :: NumDims
+    integer :: NumGrids
+    integer, dimension(:,:), allocatable :: NumPointsAll
+    type(ovk_grid), pointer :: Grid
+    type(ovk_plot3d_grid_file) :: GridFile
+
+    NumDims = Domain%properties%nd
+    NumGrids = Domain%properties%ngrids
+
+    allocate(NumPointsAll(MAX_ND,NumGrids))
+    do n = 1, NumGrids
+      Grid => Domain%grid(n)
+      NumPointsAll(:,n) = ovkCartSize(Grid%cart)
+    end do
+
+    call ovkCreateP3D(GridFile, FilePath, NumDims=NumDims, NumGrids=NumGrids, &
+      NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
+
+    select case (NumDims)
+    case (2)
+      do n = 1, NumGrids
+        Grid => Domain%grid(n)
+        call ovkWriteP3D(GridFile, n, Grid%coords(1), Grid%coords(2), IBlanks(n))
+      end do
+    case (3)
+      do n = 1, NumGrids
+        Grid => Domain%grid(n)
+        call ovkWriteP3D(GridFile, n, Grid%coords(1), Grid%coords(2), Grid%coords(3), IBlanks(n))
+      end do
+    end select
+
+    call ovkCloseP3D(GridFile)
+
+  end subroutine WriteGrids
 
 end module ovkAssembly
