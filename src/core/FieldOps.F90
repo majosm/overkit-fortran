@@ -552,7 +552,7 @@ contains
     integer, intent(in) :: BoundaryValue
     type(ovk_field_int), intent(out) :: Distances
 
-    integer :: i, j, k, m, n, o
+    integer :: i, j, k, m, n, o, p
     type(ovk_field_logical) :: NonMask
     integer :: NonMaskBoundaryValue
     type(ovk_field_logical) :: EdgeMask
@@ -561,6 +561,7 @@ contains
     integer, dimension(MAX_ND) :: Point
     logical :: ContainsPoint
     integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
+    integer :: NumIters
 
     NonMask = ovk_field_logical_(Mask%cart)
     NonMask%values = .not. Mask%values
@@ -611,80 +612,88 @@ contains
     NeighborUpper(:Mask%cart%nd) = 1
     NeighborUpper(Mask%cart%nd+1:) = 0
 
-    select case (Mask%cart%nd)
-    case (2)
-      ! Forward pass
-      do j = Mask%cart%is(2), Mask%cart%ie(2)
-        do i = Mask%cart%is(1), Mask%cart%ie(1)
-          n = -1
-          do m = NeighborLower(1), NeighborUpper(1)
-            ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
-              ExtendedDistances%values(i+m,j+n,1)+1)
-          end do
-          n = 0; m = -1
-          ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
-            ExtendedDistances%values(i+m,j+n,1)+1)
-        end do
-      end do
-      ! Backward pass
-      do j = Mask%cart%ie(2), Mask%cart%is(2), -1
-        do i = Mask%cart%ie(1), Mask%cart%is(1), -1
-          n = 1
-          do m = NeighborLower(1), NeighborUpper(1)
-            ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
-              ExtendedDistances%values(i+m,j+n,1)+1)
-          end do
-          n = 0; m = 1
-          ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
-            ExtendedDistances%values(i+m,j+n,1)+1)
-        end do
-      end do
-    case (3)
-      ! Forward pass
-      do k = Mask%cart%is(3), Mask%cart%ie(3)
+    NumIters = merge(2, 1, any(Mask%cart%periodic))
+
+    do p = 1, NumIters
+      select case (Mask%cart%nd)
+      case (2)
+        ! Forward pass
         do j = Mask%cart%is(2), Mask%cart%ie(2)
           do i = Mask%cart%is(1), Mask%cart%ie(1)
-            o = -1
-            do n = NeighborLower(2), NeighborUpper(2)
-              do m = NeighborLower(1), NeighborUpper(1)
-                ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
-                  ExtendedDistances%values(i+m,j+n,k+o)+1)
-              end do
-            end do
-            o = 0; n = -1
+            n = -1
             do m = NeighborLower(1), NeighborUpper(1)
-              ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
-                ExtendedDistances%values(i+m,j+n,k+o)+1)
+              ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+                ExtendedDistances%values(i+m,j+n,1)+1)
             end do
-            o = 0; n = 0; m = -1
-            ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
-              ExtendedDistances%values(i+m,j+n,k+o)+1)
+            n = 0; m = -1
+            ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+              ExtendedDistances%values(i+m,j+n,1)+1)
           end do
         end do
-      end do
-      ! Backward pass
-      do k = Mask%cart%ie(3), Mask%cart%is(3), -1
+        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+        ! Backward pass
         do j = Mask%cart%ie(2), Mask%cart%is(2), -1
           do i = Mask%cart%ie(1), Mask%cart%is(1), -1
-            o = 1
-            do n = NeighborLower(2), NeighborUpper(2)
+            n = 1
+            do m = NeighborLower(1), NeighborUpper(1)
+              ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+                ExtendedDistances%values(i+m,j+n,1)+1)
+            end do
+            n = 0; m = 1
+            ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
+              ExtendedDistances%values(i+m,j+n,1)+1)
+          end do
+        end do
+        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+      case (3)
+        ! Forward pass
+        do k = Mask%cart%is(3), Mask%cart%ie(3)
+          do j = Mask%cart%is(2), Mask%cart%ie(2)
+            do i = Mask%cart%is(1), Mask%cart%ie(1)
+              o = -1
+              do n = NeighborLower(2), NeighborUpper(2)
+                do m = NeighborLower(1), NeighborUpper(1)
+                  ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                    ExtendedDistances%values(i+m,j+n,k+o)+1)
+                end do
+              end do
+              o = 0; n = -1
               do m = NeighborLower(1), NeighborUpper(1)
                 ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
                   ExtendedDistances%values(i+m,j+n,k+o)+1)
               end do
-            end do
-            o = 0; n = 1
-            do m = NeighborLower(1), NeighborUpper(1)
+              o = 0; n = 0; m = -1
               ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
                 ExtendedDistances%values(i+m,j+n,k+o)+1)
             end do
-            o = 0; n = 0; m = 1
-            ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
-              ExtendedDistances%values(i+m,j+n,k+o)+1)
           end do
         end do
-      end do
-    end select
+        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+        ! Backward pass
+        do k = Mask%cart%ie(3), Mask%cart%is(3), -1
+          do j = Mask%cart%ie(2), Mask%cart%is(2), -1
+            do i = Mask%cart%ie(1), Mask%cart%is(1), -1
+              o = 1
+              do n = NeighborLower(2), NeighborUpper(2)
+                do m = NeighborLower(1), NeighborUpper(1)
+                  ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                    ExtendedDistances%values(i+m,j+n,k+o)+1)
+                end do
+              end do
+              o = 0; n = 1
+              do m = NeighborLower(1), NeighborUpper(1)
+                ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                  ExtendedDistances%values(i+m,j+n,k+o)+1)
+              end do
+              o = 0; n = 0; m = 1
+              ExtendedDistances%values(i,j,k) = min(ExtendedDistances%values(i,j,k), &
+                ExtendedDistances%values(i+m,j+n,k+o)+1)
+            end do
+          end do
+        end do
+        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+      end select
+    end do
 
     Distances = ovk_field_int_(Mask%cart)
 
