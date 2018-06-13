@@ -52,14 +52,16 @@ module ovkDomain
   public :: ovkSetDomainPropertyBoundaryHoleCutting
   public :: ovkGetDomainPropertyOccludes
   public :: ovkSetDomainPropertyOccludes
+  public :: ovkGetDomainPropertyOcclusionPadding
+  public :: ovkSetDomainPropertyOcclusionPadding
+  public :: ovkGetDomainPropertyOcclusionSmoothing
+  public :: ovkSetDomainPropertyOcclusionSmoothing
   public :: ovkGetDomainPropertyConnectionType
   public :: ovkSetDomainPropertyConnectionType
   public :: ovkGetDomainPropertyInterpScheme
   public :: ovkSetDomainPropertyInterpScheme
   public :: ovkGetDomainPropertyFringeSize
   public :: ovkSetDomainPropertyFringeSize
-  public :: ovkGetDomainPropertyEdgePadding
-  public :: ovkSetDomainPropertyEdgePadding
   public :: ovkGetDomainPropertyOverlapMinimization
   public :: ovkSetDomainPropertyOverlapMinimization
 
@@ -82,12 +84,13 @@ module ovkDomain
     real(rk), dimension(:,:), allocatable :: overlap_tolerance
     real(rk), dimension(:), allocatable :: overlap_accel_quality_adjust
     logical, dimension(:), allocatable :: infer_boundaries
-    integer, dimension(:,:), allocatable :: occludes
     logical, dimension(:,:), allocatable :: boundary_hole_cutting
+    integer, dimension(:,:), allocatable :: occludes
+    integer, dimension(:,:), allocatable :: occlusion_padding
+    integer, dimension(:), allocatable :: occlusion_smoothing
     integer, dimension(:,:), allocatable :: connection_type
     integer, dimension(:,:), allocatable :: interp_scheme
     integer, dimension(:), allocatable :: fringe_size
-    integer, dimension(:,:), allocatable :: edge_padding
     logical, dimension(:,:), allocatable :: overlap_minimization
   end type ovk_domain_properties
 
@@ -320,24 +323,24 @@ contains
           do n = 1, NumGrids
             ! No self-intersections
             Domain%properties%overlappable(n,n) = .false.
-            ! No fringes => zero fringe size
-            if (.not. any(Domain%properties%connection_type(:,n) == OVK_CONNECTION_FRINGE)) then
-              Domain%properties%fringe_size(n) = 0
-            end if
+            ! No overlap => no hole cutting, no occlusion, no connectivity, no overlap minimization
             do m = 1, NumGrids
-              ! No overlap => no hole cutting, no occlusion, no connectivity, no overlap
-              ! minimization
               if (.not. Domain%properties%overlappable(m,n)) then
                 Domain%properties%boundary_hole_cutting(m,n) = .false.
                 Domain%properties%occludes(m,n) = OVK_FALSE
                 Domain%properties%connection_type(m,n) = OVK_CONNECTION_NONE
                 Domain%properties%overlap_minimization(m,n) = .false.
               end if
-              ! No connection => no edge padding
-              if (Domain%properties%connection_type(m,n) == OVK_CONNECTION_NONE) then
-                Domain%properties%edge_padding(m,n) = 0
+            end do
+            ! No occlusion => no occlusion padding or smoothing
+            do m = 1, NumGrids
+              if (Domain%properties%occludes(m,n) == OVK_FALSE) then
+                Domain%properties%occlusion_padding(m,n) = 0
               end if
             end do
+            if (all(Domain%properties%occludes(:,n) == OVK_FALSE)) then
+              Domain%properties%occlusion_smoothing(n) = 0
+            end if
           end do
 
           do n = 1, NumGrids
@@ -1483,6 +1486,12 @@ contains
     allocate(Properties%occludes(NumGrids,NumGrids))
     Properties%occludes = OVK_AUTO
 
+    allocate(Properties%occlusion_padding(NumGrids,NumGrids))
+    Properties%occlusion_padding = 0
+
+    allocate(Properties%occlusion_smoothing(NumGrids))
+    Properties%occlusion_smoothing = 0
+
     allocate(Properties%connection_type(NumGrids,NumGrids))
     Properties%connection_type = OVK_CONNECTION_NONE
 
@@ -1491,9 +1500,6 @@ contains
 
     allocate(Properties%fringe_size(NumGrids))
     Properties%fringe_size = 0
-
-    allocate(Properties%edge_padding(NumGrids,NumGrids))
-    Properties%edge_padding = 0
 
     allocate(Properties%overlap_minimization(NumGrids,NumGrids))
     Properties%overlap_minimization = .false.
@@ -1742,6 +1748,79 @@ contains
 
   end subroutine ovkSetDomainPropertyOccludes
 
+  subroutine ovkGetDomainPropertyOcclusionPadding(Properties, DonorGridID, ReceiverGridID, &
+    OcclusionPadding)
+
+    type(ovk_domain_properties), intent(in) :: Properties
+    integer, intent(in) :: DonorGridID, ReceiverGridID
+    integer, intent(out) :: OcclusionPadding
+
+    OcclusionPadding = Properties%occlusion_padding(DonorGridID,ReceiverGridID)
+
+  end subroutine ovkGetDomainPropertyOcclusionPadding
+
+  subroutine ovkSetDomainPropertyOcclusionPadding(Properties, DonorGridID, ReceiverGridID, &
+    OcclusionPadding)
+
+    type(ovk_domain_properties), intent(inout) :: Properties
+    integer, intent(in) :: DonorGridID, ReceiverGridID
+    integer, intent(in) :: OcclusionPadding
+
+    integer :: m, n
+    integer :: ms, me, ns, ne
+
+    if (OVK_DEBUG) then
+      if (OcclusionPadding < 0) then
+        write (ERROR_UNIT, '(a)') "ERROR: Occlusion padding must be nonnegative."
+        stop 1
+      end if
+    end if
+
+    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
+    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
+
+    do n = ns, ne
+      do m = ms, me
+        Properties%occlusion_padding(m,n) = OcclusionPadding
+      end do
+    end do
+
+  end subroutine ovkSetDomainPropertyOcclusionPadding
+
+  subroutine ovkGetDomainPropertyOcclusionSmoothing(Properties, GridID, OcclusionSmoothing)
+
+    type(ovk_domain_properties), intent(in) :: Properties
+    integer, intent(in) :: GridID
+    integer, intent(out) :: OcclusionSmoothing
+
+    OcclusionSmoothing = Properties%occlusion_smoothing(GridID)
+
+  end subroutine ovkGetDomainPropertyOcclusionSmoothing
+
+  subroutine ovkSetDomainPropertyOcclusionSmoothing(Properties, GridID, OcclusionSmoothing)
+
+    type(ovk_domain_properties), intent(inout) :: Properties
+    integer, intent(in) :: GridID
+    integer, intent(in) :: OcclusionSmoothing
+
+    integer :: n
+    integer :: ns, ne
+
+    if (OVK_DEBUG) then
+      if (OcclusionSmoothing < 0) then
+        write (ERROR_UNIT, '(a)') "ERROR: Occlusion smoothing must be nonnegative."
+        stop 1
+      end if
+    end if
+
+    call GridIDRange(Properties%ngrids, GridID, ns, ne)
+
+    do n = ns, ne
+      Properties%occlusion_smoothing(n) = OcclusionSmoothing
+    end do
+
+  end subroutine ovkSetDomainPropertyOcclusionSmoothing
+
   subroutine ovkGetDomainPropertyConnectionType(Properties, DonorGridID, ReceiverGridID, &
     ConnectionType)
 
@@ -1862,43 +1941,6 @@ contains
     end do
 
   end subroutine ovkSetDomainPropertyFringeSize
-
-  subroutine ovkGetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, EdgePadding)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(out) :: EdgePadding
-
-    EdgePadding = Properties%edge_padding(DonorGridID,ReceiverGridID)
-
-  end subroutine ovkGetDomainPropertyEdgePadding
-
-  subroutine ovkSetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, EdgePadding)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(in) :: EdgePadding
-
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    if (OVK_DEBUG) then
-      if (EdgePadding < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Edge padding must be nonnegative."
-        stop 1
-      end if
-    end if
-
-    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%edge_padding(m,n) = EdgePadding
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyEdgePadding
 
   subroutine ovkGetDomainPropertyOverlapMinimization(Properties, OverlappingGridID, OverlappedGridID, &
     OverlapMinimization)

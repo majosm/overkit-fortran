@@ -119,14 +119,16 @@ module Overkit
   public :: ovkSetDomainPropertyBoundaryHoleCutting
   public :: ovkGetDomainPropertyOccludes
   public :: ovkSetDomainPropertyOccludes
+  public :: ovkGetDomainPropertyOcclusionPadding
+  public :: ovkSetDomainPropertyOcclusionPadding
+  public :: ovkGetDomainPropertyOcclusionSmoothing
+  public :: ovkSetDomainPropertyOcclusionSmoothing
   public :: ovkGetDomainPropertyConnectionType
   public :: ovkSetDomainPropertyConnectionType
   public :: ovkGetDomainPropertyInterpScheme
   public :: ovkSetDomainPropertyInterpScheme
   public :: ovkGetDomainPropertyFringeSize
   public :: ovkSetDomainPropertyFringeSize
-  public :: ovkGetDomainPropertyEdgePadding
-  public :: ovkSetDomainPropertyEdgePadding
   public :: ovkGetDomainPropertyOverlapMinimization
   public :: ovkSetDomainPropertyOverlapMinimization
 

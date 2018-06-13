@@ -136,11 +136,14 @@ contains
     call ovkSetDomainPropertyBoundaryHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
     call ovkSetDomainPropertyBoundaryHoleCutting(Properties, 2, 1, .true.)
 
+    ! Retain some extra overlap between grids
+    call ovkSetDomainPropertyOcclusionPadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+    call ovkSetDomainPropertyOcclusionSmoothing(Properties, OVK_ALL_GRIDS, 2)
+
     ! Indicate which grids can communicate and how
     call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
     call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_CUBIC)
     call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
-    call ovkSetDomainPropertyEdgePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
     call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
     call ovkSetDomainPropertyOverlapMinimization(Properties, 2, 1, .true.)
 
@@ -552,6 +555,15 @@ contains
       end do
     end do
     call ovkSetDomainPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
+
+    ! Indicate how to treat overlap between grids
+    call ovkSetDomainPropertyOccludes(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_FALSE)
+    ! Cylinder grids should occlude block grids everywhere
+    do n = 3, 6
+      do m = 1, 2
+        call ovkSetDomainPropertyOccludes(Properties, m, n, OVK_TRUE)
+      end do
+    end do
 
     ! Indicate which grids can communicate and how
     call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_NONE)

@@ -32,10 +32,11 @@ module ovkAssembly
     logical, dimension(:), pointer :: infer_boundaries
     logical, dimension(:,:), pointer :: boundary_hole_cutting
     integer, dimension(:,:), pointer :: occludes
+    integer, dimension(:,:), pointer :: occlusion_padding
+    integer, dimension(:), pointer :: occlusion_smoothing
     integer, dimension(:,:), pointer :: connection_type
     integer, dimension(:,:), pointer :: interp_scheme
     integer, dimension(:), pointer :: fringe_size
-    integer, dimension(:,:), pointer :: edge_padding
     logical, dimension(:,:), pointer :: overlap_minimization
   end type t_reduced_domain_info
 
@@ -48,6 +49,7 @@ contains
     integer :: ClockInitial, ClockFinal, ClockRate
     type(t_reduced_domain_info) :: ReducedDomainInfo
     type(ovk_array_real), dimension(:,:), allocatable :: OverlapResolutions
+    type(ovk_field_logical), dimension(:), allocatable :: OuterFringeMasks
     type(ovk_field_int), dimension(:), allocatable :: DonorGridIDs
 
     if (Domain%logger%verbose) then
@@ -78,9 +80,15 @@ contains
 
     call ComputeOverlapResolutions(Domain, ReducedDomainInfo, OverlapResolutions)
 
-    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions)
+    allocate(OuterFringeMasks(ReducedDomainInfo%ngrids))
 
-    call LocateCandidateReceivers(Domain, ReducedDomainInfo)
+    call LocateOuterFringe(Domain, ReducedDomainInfo, OuterFringeMasks)
+
+    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, OuterFringeMasks)
+
+    call LocateCandidateReceivers(Domain, ReducedDomainInfo, OuterFringeMasks)
+
+    deallocate(OuterFringeMasks)
 
     allocate(DonorGridIDs(ReducedDomainInfo%ngrids))
 
@@ -118,10 +126,11 @@ contains
     logical, dimension(:), pointer :: InferBoundaries
     logical, dimension(:,:), pointer :: BoundaryHoleCutting
     integer, dimension(:,:), pointer :: Occludes
+    integer, dimension(:,:), pointer :: OcclusionPadding
+    integer, dimension(:), pointer :: OcclusionSmoothing
     integer, dimension(:,:), pointer :: ConnectionType
     integer, dimension(:,:), pointer :: InterpScheme
     integer, dimension(:), pointer :: FringeSize
-    integer, dimension(:,:), pointer :: EdgePadding
     logical, dimension(:,:), pointer :: OverlapMinimization
 
     call PrintDomainSummary(Domain)
@@ -185,16 +194,29 @@ contains
     end do
 
     allocate(ReducedDomainInfo%occludes(NumGrids,NumGrids))
+    allocate(ReducedDomainInfo%occlusion_padding(NumGrids,NumGrids))
+    allocate(ReducedDomainInfo%occlusion_smoothing(NumGrids))
+    Occludes => ReducedDomainInfo%occludes
+    OcclusionPadding => ReducedDomainInfo%occlusion_padding
+    OcclusionSmoothing => ReducedDomainInfo%occlusion_smoothing
+
+    do n = 1, NumGrids
+      q = IndexToID(n)
+      do m = 1, NumGrids
+        p = IndexToID(m)
+        Occludes(m,n) = Domain%properties%occludes(p,q)
+        OcclusionPadding(m,n) = Domain%properties%occlusion_padding(p,q)
+      end do
+      OcclusionSmoothing(n) = Domain%properties%occlusion_smoothing(q)
+    end do
+
     allocate(ReducedDomainInfo%connection_type(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%interp_scheme(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%fringe_size(NumGrids))
-    allocate(ReducedDomainInfo%edge_padding(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%overlap_minimization(NumGrids,NumGrids))
-    Occludes => ReducedDomainInfo%occludes
     ConnectionType => ReducedDomainInfo%connection_type
     InterpScheme => ReducedDomainInfo%interp_scheme
     FringeSize => ReducedDomainInfo%fringe_size
-    EdgePadding => ReducedDomainInfo%edge_padding
     OverlapMinimization => ReducedDomainInfo%overlap_minimization
 
     do n = 1, NumGrids
@@ -205,7 +227,6 @@ contains
         Occludes(m,n) = Domain%properties%occludes(p,q)
         ConnectionType(m,n) = Domain%properties%connection_type(p,q)
         InterpScheme(m,n) = Domain%properties%interp_scheme(p,q)
-        EdgePadding(m,n) = Domain%properties%edge_padding(p,q)
         OverlapMinimization(m,n) = Domain%properties%overlap_minimization(p,q)
       end do
     end do
@@ -478,8 +499,8 @@ contains
     end do
 
     do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
       if (UpdateGrid(n)) then
-        Grid_n => Domain%grid(IndexToID(n))
         call ovkEditGridState(Grid_n, State)
         do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
@@ -554,43 +575,115 @@ contains
 
   end subroutine ComputeOverlapResolutions
 
-  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions)
+  subroutine LocateOuterFringe(Domain, ReducedDomainInfo, OuterFringeMasks)
+
+    type(ovk_domain), intent(inout) :: Domain
+    type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
+    type(ovk_field_logical), dimension(:), intent(out) :: OuterFringeMasks
+
+    integer :: n
+    integer :: NumDims
+    integer :: NumGrids
+    integer, dimension(:), pointer :: IndexToID
+    integer, dimension(:), pointer :: FringeSize
+    type(ovk_grid), pointer :: Grid
+    type(ovk_field_logical) :: ExtendedOuterFringeMask
+    type(ovk_field_logical) :: BoundaryMask
+    type(ovk_field_logical) :: BoundaryEdgeMask
+    type(ovk_field_logical) :: NonBoundaryMask
+    type(ovk_field_logical) :: NonBoundaryEdgeMask
+    integer(lk) :: NumFringe
+
+    NumDims = Domain%properties%nd
+    NumGrids = ReducedDomainInfo%ngrids
+    IndexToID => ReducedDomainInfo%index_to_id
+    FringeSize => ReducedDomainInfo%fringe_size
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Locating outer fringe points..."
+    end if
+
+    do n = 1, NumGrids
+      Grid => Domain%grid(IndexToID(n))
+      OuterFringeMasks(n) = ovk_field_logical_(Grid%cart)
+      if (FringeSize(n) > 0) then
+        BoundaryMask = ovk_field_logical_(Grid%cart)
+        BoundaryMask%values = Grid%boundary_mask%values .or. Grid%internal_boundary_mask%values
+        call ovkDetectEdge(BoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, .true., BoundaryEdgeMask)
+        NonBoundaryMask = ovk_field_logical_(Grid%cart)
+        NonBoundaryMask%values = Grid%mask%values .and. .not. BoundaryMask%values
+        call ovkDetectEdge(NonBoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, .true., NonBoundaryEdgeMask)
+        call ovkDetectEdge(Grid%mask, OVK_OUTER_EDGE, OVK_FALSE, .true., ExtendedOuterFringeMask)
+        ExtendedOuterFringeMask%values = ExtendedOuterFringeMask%values .and. &
+          (NonBoundaryEdgeMask%values .or. .not. BoundaryEdgeMask%values)
+        call ovkDilate(ExtendedOuterFringeMask, FringeSize(n), OVK_FALSE)
+        OuterFringeMasks(n)%values = Grid%mask%values .and. ExtendedOuterFringeMask%values( &
+          Grid%cart%is(1):Grid%cart%ie(1),Grid%cart%is(2):Grid%cart%ie(2), &
+          Grid%cart%is(3):Grid%cart%ie(3))
+      else
+        OuterFringeMasks(n)%values = .false.
+      end if
+      if (Domain%logger%verbose) then
+        NumFringe = ovkCountMask(OuterFringeMasks(n))
+        if (NumFringe > 0_lk) then
+          write (*, '(5a)') "* ", trim(LargeIntToString(NumFringe)), &
+            " outer fringe points on grid ", trim(IntToString(Grid%properties%id)), "."
+        end if
+      end if
+    end do
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Finished locating outer fringe points."
+    end if
+
+  end subroutine LocateOuterFringe
+
+  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, OuterFringeMasks)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
     type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
+    type(ovk_field_logical), dimension(:), intent(in) :: OuterFringeMasks
 
     integer :: i, j, k, m, n
+    integer(lk) :: l
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
+    logical, dimension(:,:), pointer :: Overlappable
     integer, dimension(:,:), pointer :: Occludes
-    integer, dimension(:,:), pointer :: EdgePadding
+    integer, dimension(:,:), pointer :: OcclusionPadding
+    integer, dimension(:), pointer :: OcclusionSmoothing
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
     type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseOcclusionMasks
     type(ovk_field_logical) :: OverlappedMask_m, OverlappedMask_n
     integer(lk) :: PointCount
-    integer(lk), dimension(:), allocatable :: PointCounts
     type(ovk_field_logical), dimension(:), allocatable :: OcclusionMasks
-    integer :: MinPadding
-    type(ovk_field_logical) :: OcclusionOrHoleMask
-    type(ovk_field_logical) :: OcclusionEdgeMask
+    type(ovk_field_int), dimension(:), allocatable :: FinestOverlappingGrid
+    type(ovk_field_logical) :: OcclusionOrFringeMask
+    type(ovk_field_real) :: BestResolutions
+    type(ovk_field_int) :: OverlapEdgeDistance
+    type(ovk_field_logical) :: EdgeMask
+    type(ovk_field_int) :: EdgeDistance
+    type(ovk_array_int) :: CellEdgeDistance
     type(ovk_field_logical) :: PaddingMask
+    type(ovk_field_logical) :: OverlapMask
     type(ovk_field_int), pointer :: State
 
     NumDims = Domain%properties%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
+    Overlappable => ReducedDomainInfo%overlappable
     Occludes => ReducedDomainInfo%occludes
-    EdgePadding => ReducedDomainInfo%edge_padding
+    OcclusionPadding => ReducedDomainInfo%occlusion_padding
+    OcclusionSmoothing => ReducedDomainInfo%occlusion_smoothing
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Detecting pairwise occlusion..."
     end if
 
     allocate(PairwiseOcclusionMasks(NumGrids,NumGrids))
-    allocate(OcclusionMasks(NumGrids))
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
@@ -644,75 +737,98 @@ contains
       end do
     end do
 
+    allocate(OcclusionMasks(NumGrids))
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      OcclusionMasks(n) = ovk_field_logical_(Grid_n%cart)
+      if (any(Occludes(:,n) /= OVK_FALSE)) then
+        OcclusionMasks(n)%values = .not. Grid_n%mask%values
+        do m = 1, NumGrids
+          if (Occludes(m,n) /= OVK_FALSE) then
+            OcclusionMasks(n)%values = OcclusionMasks(n)%values .or. &
+              PairwiseOcclusionMasks(m,n)%values
+          end if
+        end do
+      else
+        OcclusionMasks(n)%values = .false.
+      end if
+    end do
+
     if (Domain%logger%verbose) then
       write (*, '(a)') "Finished detecting pairwise occlusion."
     end if
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Applying edge padding..."
+      write (*, '(a)') "Applying occlusion padding..."
     end if
 
-    if (Domain%logger%verbose) then
-      allocate(PointCounts(NumGrids))
-    end if
+    allocate(FinestOverlappingGrid(NumGrids))
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      OcclusionOrFringeMask = ovk_field_logical_(Grid_n%cart)
+      OcclusionOrFringeMask%values = OcclusionMasks(n)%values .or. OuterFringeMasks(n)%values
+      FinestOverlappingGrid(n) = ovk_field_int_(Grid_n%cart, -1)
+      BestResolutions = ovk_field_real_(Grid_n%cart, 0._rk)
+      do m = 1, NumGrids
+        if (Overlappable(m,n)) then
+          Grid_m => Domain%grid(IndexToID(m))
+          Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+          l = 1_lk
+          do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+            do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+              do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
+                if (Overlap_mn%mask%values(i,j,k)) then
+                  if (OcclusionOrFringeMask%values(i,j,k) .and. &
+                    OverlapResolutions(m,n)%values(l) > BestResolutions%values(i,j,k)) then
+                    BestResolutions%values(i,j,k) = OverlapResolutions(m,n)%values(l)
+                    FinestOverlappingGrid(n)%values(i,j,k) = Grid_m%properties%id
+                  end if
+                  l = l + 1_lk
+                end if
+              end do
+            end do
+          end do
+        end if
+      end do
+    end do
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
       if (any(Occludes(:,n) /= OVK_FALSE)) then
-        if (Domain%logger%verbose) then
-          do m = 1, NumGrids
-            if (Occludes(m,n) /= OVK_FALSE) then
-              PointCounts(m) = ovkCountMask(PairwiseOcclusionMasks(m,n))
-            end if
-          end do
-        end if
-        MinPadding = huge(0)
+        OcclusionMasks(n)%values = .false.
         do m = 1, NumGrids
           if (Occludes(m,n) /= OVK_FALSE) then
-            MinPadding = min(MinPadding, EdgePadding(m,n))
-          end if
-        end do
-        OcclusionOrHoleMask = ovk_field_logical_(Grid_n%cart)
-        OcclusionOrHoleMask%values = .not. Grid_n%mask%values
-        do m = 1, NumGrids
-          if (Occludes(m,n) /= OVK_FALSE) then
-            OcclusionOrHoleMask%values = OcclusionOrHoleMask%values .or. &
-              PairwiseOcclusionMasks(m,n)%values
-          end if
-        end do
-        call ovkDetectEdge(OcclusionOrHoleMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., &
-          OcclusionEdgeMask)
-        OcclusionMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
-        do m = 1, NumGrids
-          if (Occludes(m,n) /= OVK_FALSE) then
-            if (EdgePadding(m,n) > MinPadding) then
-              OcclusionOrHoleMask%values = PairwiseOcclusionMasks(m,n)%values .or. .not. &
-                Grid_n%mask%values
-              call ovkDetectEdge(OcclusionOrHoleMask, OVK_OUTER_EDGE, OVK_MIRROR, .false., &
-                PaddingMask)
-              PaddingMask%values = PaddingMask%values .and. OcclusionEdgeMask%values
-              call ovkDilate(PaddingMask, EdgePadding(m,n)-MinPadding, OVK_FALSE)
-              PairwiseOcclusionMasks(m,n)%values = PairwiseOcclusionMasks(m,n)%values .and. .not. &
-                PaddingMask%values
-            end if
+            Grid_m => Domain%grid(IndexToID(m))
+            Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+            EdgeMask = ovk_field_logical_(Grid_m%cart)
+            EdgeMask%values = FinestOverlappingGrid(m)%values == Grid_n%properties%id
+            call ovkDistanceField(EdgeMask, OVK_MIRROR, EdgeDistance)
+            call ovkOverlapCollect(Grid_m, Overlap_mn, OVK_COLLECT_MIN, EdgeDistance, &
+              CellEdgeDistance)
+            OverlapEdgeDistance = ovk_field_int_(Grid_n%cart, -1)
+            call ovkOverlapDisperse(Grid_n, Overlap_mn, OVK_DISPERSE_OVERWRITE, CellEdgeDistance, &
+              OverlapEdgeDistance)
+            PaddingMask = ovk_field_logical_(Grid_n%cart, .false.)
+            do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+              do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+                do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
+                  if (PairwiseOcclusionMasks(m,n)%values(i,j,k) .and. &
+                    OverlapEdgeDistance%values(i,j,k) <= OcclusionPadding(m,n)) then
+                    PaddingMask%values(i,j,k) = .true.
+                  end if
+                end do
+              end do
+            end do
             OcclusionMasks(n)%values = OcclusionMasks(n)%values .or. &
-              PairwiseOcclusionMasks(m,n)%values
-          end if
-        end do
-        OcclusionOrHoleMask%values = OcclusionMasks(n)%values .or. .not. Grid_n%mask%values
-        call ovkErode(OcclusionOrHoleMask, MinPadding, OVK_TRUE)
-        OcclusionMasks(n)%values = OcclusionOrHoleMask%values .and. Grid_n%mask%values
-        do m = 1, NumGrids
-          if (Occludes(m,n) /= OVK_FALSE) then
-            PairwiseOcclusionMasks(m,n)%values = PairwiseOcclusionMasks(m,n)%values .and. &
-              OcclusionMasks(n)%values
+              (PairwiseOcclusionMasks(m,n)%values .and. .not. PaddingMask%values)
             if (Domain%logger%verbose) then
-              Grid_m => Domain%grid(IndexToID(m))
-              PointCount = PointCounts(m) - ovkCountMask(PairwiseOcclusionMasks(m,n))
+              PointCount = ovkCountMask(PaddingMask)
               if (PointCount > 0_lk) then
                 write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
                   trim(IntToString(Grid_n%properties%id)), " marked as not occluded by grid ", &
-                  trim(IntToString(Grid_m%properties%id)), " due to edge padding."
+                  trim(IntToString(Grid_m%properties%id)), " due to padding."
               end if
             end if
           end if
@@ -721,7 +837,38 @@ contains
     end do
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished applying edge padding."
+      write (*, '(a)') "Finished applying occlusion padding."
+    end if
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Applying occlusion smoothing..."
+    end if
+
+    do n = 1, NumGrids
+      if (OcclusionSmoothing(n) > 0) then
+        Grid_n => Domain%grid(IndexToID(n))
+        if (any(Occludes(:,n) /= OVK_FALSE)) then
+          OverlapMask = ovk_field_logical_(Grid_n%cart, .false.)
+          do m = 1, NumGrids
+            if (Overlappable(m,n)) then
+              Grid_m => Domain%grid(IndexToID(m))
+              Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+              OverlapMask%values = OverlapMask%values .or. Overlap_mn%mask%values
+            end if
+          end do
+          call ovkDilate(OcclusionMasks(n), OcclusionSmoothing(n), OVK_MIRROR)
+          call ovkErode(OcclusionMasks(n), OcclusionSmoothing(n), OVK_MIRROR)
+          OcclusionMasks(n)%values = OcclusionMasks(n)%values .and. OverlapMask%values
+        end if
+        if (Domain%logger%verbose) then
+          write (*, '(3a)') "* Done applying occlusion smoothing to grid ", &
+            trim(IntToString(Grid_n%properties%id)), "."
+        end if
+      end if
+    end do
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Finished applying occlusion smoothing."
     end if
 
     if (Domain%logger%verbose) then
@@ -787,22 +934,17 @@ contains
 
   end subroutine FindCoarsePoints
 
-  subroutine LocateCandidateReceivers(Domain, ReducedDomainInfo)
+  subroutine LocateCandidateReceivers(Domain, ReducedDomainInfo, OuterFringeMasks)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
+    type(ovk_field_logical), dimension(:), intent(in) :: OuterFringeMasks
 
     integer :: i, j, k, n
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
-    integer, dimension(:), pointer :: FringeSize
     type(ovk_grid), pointer :: Grid
-    type(ovk_field_logical) :: EdgeMask
-    type(ovk_field_logical) :: NonSubsetMask
-    type(ovk_field_logical) :: NonSubsetEdgeMask
-    type(ovk_field_logical) :: SubsetMask
-    type(ovk_field_logical) :: SubsetEdgeMask
     type(ovk_field_logical) :: OcclusionMask
     type(ovk_field_logical) :: ReceiverMask
     type(ovk_field_int), pointer :: State
@@ -811,7 +953,6 @@ contains
     NumDims = Domain%properties%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
-    FringeSize => ReducedDomainInfo%fringe_size
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Locating candidate receiver points..."
@@ -819,22 +960,8 @@ contains
 
     do n = 1, NumGrids
       Grid => Domain%grid(IndexToID(n))
-      ReceiverMask = ovk_field_logical_(Grid%cart, .false.)
-      if (FringeSize(n) > 0) then
-        call ovkDetectEdge(Grid%mask, OVK_OUTER_EDGE, OVK_FALSE, .true., EdgeMask)
-        NonSubsetMask = ovk_field_logical_(Grid%cart)
-        NonSubsetMask%values = Grid%boundary_mask%values .or. Grid%internal_boundary_mask%values
-        call ovkDetectEdge(NonSubsetMask, OVK_OUTER_EDGE, OVK_FALSE, .true., NonSubsetEdgeMask)
-        SubsetMask = ovk_field_logical_(Grid%cart)
-        SubsetMask%values = Grid%mask%values .and. .not. NonSubsetMask%values
-        call ovkDetectEdge(SubsetMask, OVK_OUTER_EDGE, OVK_FALSE, .true., SubsetEdgeMask)
-        EdgeMask%values = EdgeMask%values .and. .not. (NonSubsetEdgeMask%values .and. .not. &
-          SubsetEdgeMask%values)
-        call ovkDilate(EdgeMask, FringeSize(n), OVK_FALSE)
-        ReceiverMask%values = ReceiverMask%values .or. (EdgeMask%values( &
-          Grid%cart%is(1):Grid%cart%ie(1),Grid%cart%is(2):Grid%cart%ie(2), &
-          Grid%cart%is(3):Grid%cart%ie(3)) .and. Grid%mask%values)
-      end if
+      ReceiverMask = ovk_field_logical_(Grid%cart)
+      ReceiverMask%values = OuterFringeMasks(n)%values
       call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_OCCLUDED), OVK_ALL, OcclusionMask)
       ReceiverMask%values = ReceiverMask%values .or. OcclusionMask%values
       call ovkEditGridState(Grid, State)
@@ -842,7 +969,7 @@ contains
         do j = Grid%cart%is(2), Grid%cart%ie(2)
           do i = Grid%cart%is(1), Grid%cart%ie(1)
             if (ReceiverMask%values(i,j,k)) then
-              State%values(i,j,k) = ior(State%values(i,j,k),OVK_STATE_RECEIVER)
+              State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_RECEIVER)
             end if
           end do
         end do
@@ -871,23 +998,20 @@ contains
     type(ovk_field_int), dimension(:), intent(out) :: DonorGridIDs
 
     integer :: i, j, k, m, n
+    integer(lk) :: l
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:,:), pointer :: ConnectionType
-    integer, dimension(:,:), pointer :: EdgePadding
-    integer(lk) :: l
+    integer, dimension(:,:), pointer :: OcclusionPadding
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
-    type(ovk_field_logical) :: ReceiverMask
-    type(ovk_field_logical) :: OcclusionMask
-    type(ovk_field_logical) :: OverlappedByOccludedMask
-    type(ovk_field_logical) :: DonorIsOccluded
-    type(ovk_field_real) :: DonorEdgeDistance
-    type(ovk_field_logical) :: NoOverlapMask
-    type(ovk_field_int) :: OverlapEdgeDistances
+    type(ovk_field_logical), dimension(:), allocatable :: ReceiverMasks
+    type(ovk_field_int), dimension(:), allocatable :: ReceiverDistances
+    type(ovk_field_real) :: DonorDistance
     type(ovk_field_real) :: DonorResolution
-    logical :: IsOccluded
-    real(rk) :: EdgeDistance
+    type(ovk_array_int) :: CellReceiverDistance
+    type(ovk_field_int) :: OverlapReceiverDistance
+    real(rk) :: Distance
     real(rk) :: Resolution
     logical :: BetterDonor
     type(ovk_field_logical) :: OrphanMask
@@ -905,53 +1029,53 @@ contains
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     ConnectionType => ReducedDomainInfo%connection_type
-    EdgePadding => ReducedDomainInfo%edge_padding
+    OcclusionPadding => ReducedDomainInfo%occlusion_padding
+
+    allocate(ReceiverMasks(NumGrids))
+    allocate(ReceiverDistances(NumGrids))
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      call ovkFilterGridState(Grid_n, OVK_STATE_RECEIVER, OVK_ANY, ReceiverMasks(n))
+      call ovkDistanceField(ReceiverMasks(n), OVK_MIRROR, ReceiverDistances(n))
+    end do
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
       DonorGridIDs(n) = ovk_field_int_(Grid_n%cart, 0)
-      DonorIsOccluded = ovk_field_logical_(Grid_n%cart)
-      DonorEdgeDistance = ovk_field_real_(Grid_n%cart)
+      DonorDistance = ovk_field_real_(Grid_n%cart)
       DonorResolution = ovk_field_real_(Grid_n%cart)
-      call ovkFilterGridState(Grid_n, OVK_STATE_RECEIVER, OVK_ANY, ReceiverMask)
       do m = 1, NumGrids
         if (ConnectionType(m,n) == OVK_CONNECTION_NONE) cycle
         Grid_m => Domain%grid(IndexToID(m))
         Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-        call ovkFilterGridState(Grid_m, OVK_STATE_OCCLUDED, OVK_ANY, OcclusionMask)
-        call ovkFindOverlappedPoints(Grid_m, Grid_n, Overlap, OcclusionMask, &
-          OverlappedByOccludedMask)
-        NoOverlapMask = ovk_field_logical_(Grid_n%cart)
-        NoOverlapMask%values = (.not. Overlap%mask%values .or. OverlappedByOccludedMask%values) &
-          .and. Grid_n%mask%values
-        call ovkDistanceField(NoOverlapMask, OVK_MIRROR, OverlapEdgeDistances)
+        call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), &
+          CellReceiverDistance)
+        OverlapReceiverDistance = ovk_field_int_(Grid_n%cart, -1)
+        call ovkOverlapDisperse(Grid_n, Overlap, OVK_DISPERSE_OVERWRITE, CellReceiverDistance, &
+          OverlapReceiverDistance)
         l = 1_lk
         do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
             do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-              if (ReceiverMask%values(i,j,k) .and. Overlap%mask%values(i,j,k)) then
+              if (ReceiverMasks(n)%values(i,j,k) .and. Overlap%mask%values(i,j,k)) then
                 if (DonorGridIDs(n)%values(i,j,k) == 0) then
                   DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
-                  DonorIsOccluded%values(i,j,k) = OverlappedByOccludedMask%values(i,j,k)
-                  DonorEdgeDistance%values(i,j,k) = min(real(OverlapEdgeDistances%values(i,j,k), &
-                    kind=rk)/real(max(EdgePadding(m,n),1),kind=rk),1._rk)
+                  DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
+                    kind=rk)/real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
                   DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
                 else
-                  IsOccluded = OverlappedByOccludedMask%values(i,j,k)
-                  EdgeDistance = min(real(OverlapEdgeDistances%values(i,j,k),kind=rk)/ &
-                    real(max(EdgePadding(m,n),1),kind=rk),1._rk)
+                  Distance = min(real(OverlapReceiverDistance%values(i,j,k),kind=rk)/ &
+                    real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
                   Resolution = OverlapResolutions(m,n)%values(l)
-                  if (DonorIsOccluded%values(i,j,k) .neqv. IsOccluded) then
-                    BetterDonor = .not. IsOccluded
-                  else if (abs(EdgeDistance-DonorEdgeDistance%values(i,j,k)) > TOLERANCE) then
-                    BetterDonor = EdgeDistance > DonorEdgeDistance%values(i,j,k)
+                  if (abs(Distance-DonorDistance%values(i,j,k)) > TOLERANCE) then
+                    BetterDonor = Distance > DonorDistance%values(i,j,k)
                   else
                     BetterDonor = Resolution > DonorResolution%values(i,j,k)
                   end if
                   if (BetterDonor) then
                     DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
-                    DonorIsOccluded%values(i,j,k) = IsOccluded
-                    DonorEdgeDistance%values(i,j,k) = EdgeDistance
+                    DonorDistance%values(i,j,k) = Distance
                     DonorResolution%values(i,j,k) = Resolution
                   end if
                 end if
@@ -964,7 +1088,7 @@ contains
         end do
       end do
       OrphanMask = ovk_field_logical_(Grid_n%cart)
-      OrphanMask%values = ReceiverMask%values .and. DonorGridIDs(n)%values == 0
+      OrphanMask%values = ReceiverMasks(n)%values .and. DonorGridIDs(n)%values == 0
       call ovkEditGridState(Grid_n, State)
       do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
         do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
@@ -1092,8 +1216,8 @@ contains
     end do
 
     do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
       if (UpdateGrid(n)) then
-        Grid_n => Domain%grid(IndexToID(n))
         call ovkEditGridState(Grid_n, State)
         do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
@@ -1311,10 +1435,11 @@ contains
     deallocate(ReducedDomainInfo%infer_boundaries)
     deallocate(ReducedDomainInfo%boundary_hole_cutting)
     deallocate(ReducedDomainInfo%occludes)
+    deallocate(ReducedDomainInfo%occlusion_padding)
+    deallocate(ReducedDomainInfo%occlusion_smoothing)
     deallocate(ReducedDomainInfo%connection_type)
     deallocate(ReducedDomainInfo%interp_scheme)
     deallocate(ReducedDomainInfo%fringe_size)
-    deallocate(ReducedDomainInfo%edge_padding)
     deallocate(ReducedDomainInfo%overlap_minimization)
 
     call ResetDomainEdits(Domain)
