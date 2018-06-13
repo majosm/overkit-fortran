@@ -581,106 +581,170 @@ contains
 
   end function ovk_field_logical_NotEqual
 
-  subroutine ovkFieldPeriodicFill_Integer(Field)
+  subroutine ovkFieldPeriodicFill_Integer(Field, BaseCart)
 
     type(ovk_field_int), intent(inout) :: Field
+    type(ovk_cart), intent(in) :: BaseCart
 
-    type(ovk_cart) :: Cart
+    integer :: i, j, k
+    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    Cart = Field%cart
+    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
+    ExtendedCart = Field%cart
 
-    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-
-      if (Cart%periodic(1)) then
-        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+    if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
+      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        if (ExtendedCart%periodic(1)) then
+          Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
+        end if
+        if (ExtendedCart%periodic(2)) then
+          Field%values(:,ExtendedCart%ie(2),:) = Field%values(:,ExtendedCart%is(2),:)
+        end if
+        if (ExtendedCart%periodic(3)) then
+          Field%values(:,:,ExtendedCart%ie(3)) = Field%values(:,:,ExtendedCart%is(3))
+        end if
       end if
-
-      if (Cart%periodic(2)) then
-        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
-      end if
-
-      if (Cart%periodic(3)) then
-        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
-      end if
-
+    else
+      AdjustedPoint = 1
+      do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+        do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+          do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+            Point = [i,j,k]
+            if (.not. ovkCartContains(PrincipalCart, Point)) then
+              AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
+              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                AdjustedPoint(2),AdjustedPoint(3))
+            end if
+          end do
+        end do
+      end do
     end if
 
   end subroutine ovkFieldPeriodicFill_Integer
 
-  subroutine ovkFieldPeriodicFill_LargeInteger(Field)
+  subroutine ovkFieldPeriodicFill_LargeInteger(Field, BaseCart)
 
     type(ovk_field_large_int), intent(inout) :: Field
+    type(ovk_cart), intent(in) :: BaseCart
 
-    type(ovk_cart) :: Cart
+    integer :: i, j, k
+    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    Cart = Field%cart
+    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
+    ExtendedCart = Field%cart
 
-    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-
-      if (Cart%periodic(1)) then
-        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+    if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
+      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        if (ExtendedCart%periodic(1)) then
+          Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
+        end if
+        if (ExtendedCart%periodic(2)) then
+          Field%values(:,ExtendedCart%ie(2),:) = Field%values(:,ExtendedCart%is(2),:)
+        end if
+        if (ExtendedCart%periodic(3)) then
+          Field%values(:,:,ExtendedCart%ie(3)) = Field%values(:,:,ExtendedCart%is(3))
+        end if
       end if
-
-      if (Cart%periodic(2)) then
-        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
-      end if
-
-      if (Cart%periodic(3)) then
-        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
-      end if
-
+    else
+      AdjustedPoint = 1
+      do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+        do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+          do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+            Point = [i,j,k]
+            if (.not. ovkCartContains(PrincipalCart, Point)) then
+              AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
+              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                AdjustedPoint(2),AdjustedPoint(3))
+            end if
+          end do
+        end do
+      end do
     end if
 
   end subroutine ovkFieldPeriodicFill_LargeInteger
 
-  subroutine ovkFieldPeriodicFill_Real(Field)
+  subroutine ovkFieldPeriodicFill_Real(Field, BaseCart)
 
     type(ovk_field_real), intent(inout) :: Field
+    type(ovk_cart), intent(in) :: BaseCart
 
-    type(ovk_cart) :: Cart
+    integer :: i, j, k
+    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    Cart = Field%cart
+    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
+    ExtendedCart = Field%cart
 
-    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-
-      if (Cart%periodic(1)) then
-        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+    if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
+      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        if (ExtendedCart%periodic(1)) then
+          Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
+        end if
+        if (ExtendedCart%periodic(2)) then
+          Field%values(:,ExtendedCart%ie(2),:) = Field%values(:,ExtendedCart%is(2),:)
+        end if
+        if (ExtendedCart%periodic(3)) then
+          Field%values(:,:,ExtendedCart%ie(3)) = Field%values(:,:,ExtendedCart%is(3))
+        end if
       end if
-
-      if (Cart%periodic(2)) then
-        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
-      end if
-
-      if (Cart%periodic(3)) then
-        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
-      end if
-
+    else
+      AdjustedPoint = 1
+      do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+        do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+          do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+            Point = [i,j,k]
+            if (.not. ovkCartContains(PrincipalCart, Point)) then
+              AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
+              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                AdjustedPoint(2),AdjustedPoint(3))
+            end if
+          end do
+        end do
+      end do
     end if
 
   end subroutine ovkFieldPeriodicFill_Real
 
-  subroutine ovkFieldPeriodicFill_Logical(Field)
+  subroutine ovkFieldPeriodicFill_Logical(Field, BaseCart)
 
     type(ovk_field_logical), intent(inout) :: Field
+    type(ovk_cart), intent(in) :: BaseCart
 
-    type(ovk_cart) :: Cart
+    integer :: i, j, k
+    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    Cart = Field%cart
+    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
+    ExtendedCart = Field%cart
 
-    if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
-
-      if (Cart%periodic(1)) then
-        Field%values(Cart%ie(1),:,:) = Field%values(Cart%is(1),:,:)
+    if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
+      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+        if (ExtendedCart%periodic(1)) then
+          Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
+        end if
+        if (ExtendedCart%periodic(2)) then
+          Field%values(:,ExtendedCart%ie(2),:) = Field%values(:,ExtendedCart%is(2),:)
+        end if
+        if (ExtendedCart%periodic(3)) then
+          Field%values(:,:,ExtendedCart%ie(3)) = Field%values(:,:,ExtendedCart%is(3))
+        end if
       end if
-
-      if (Cart%periodic(2)) then
-        Field%values(:,Cart%ie(2),:) = Field%values(:,Cart%is(2),:)
-      end if
-
-      if (Cart%periodic(3)) then
-        Field%values(:,:,Cart%ie(3)) = Field%values(:,:,Cart%is(3))
-      end if
-
+    else
+      AdjustedPoint = 1
+      do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+        do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+          do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+            Point = [i,j,k]
+            if (.not. ovkCartContains(PrincipalCart, Point)) then
+              AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
+              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                AdjustedPoint(2),AdjustedPoint(3))
+            end if
+          end do
+        end do
+      end do
     end if
 
   end subroutine ovkFieldPeriodicFill_Logical

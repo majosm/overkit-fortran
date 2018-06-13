@@ -245,7 +245,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    call ovkFieldPeriodicFill(Mask)
+    call ovkFieldPeriodicFill(Mask, Mask%cart)
 
   end subroutine DilateErode
 

@@ -523,7 +523,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    call ovkFieldPeriodicFill(OverlappingMask)
+    call ovkFieldPeriodicFill(OverlappingMask, OverlappingMask%cart)
 
   end subroutine ovkFindOverlappingPoints
 
