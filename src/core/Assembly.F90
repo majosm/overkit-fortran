@@ -49,7 +49,6 @@ contains
     integer :: ClockInitial, ClockFinal, ClockRate
     type(t_reduced_domain_info) :: ReducedDomainInfo
     type(ovk_array_real), dimension(:,:), allocatable :: OverlapResolutions
-    type(ovk_field_logical), dimension(:), allocatable :: OuterFringeMasks
     type(ovk_field_int), dimension(:), allocatable :: DonorGridIDs
 
     if (Domain%logger%verbose) then
@@ -80,15 +79,9 @@ contains
 
     call ComputeOverlapResolutions(Domain, ReducedDomainInfo, OverlapResolutions)
 
-    allocate(OuterFringeMasks(ReducedDomainInfo%ngrids))
+    call LocateOuterFringe(Domain, ReducedDomainInfo)
 
-    call LocateOuterFringe(Domain, ReducedDomainInfo, OuterFringeMasks)
-
-    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, OuterFringeMasks)
-
-    call LocateCandidateReceivers(Domain, ReducedDomainInfo, OuterFringeMasks)
-
-    deallocate(OuterFringeMasks)
+    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions)
 
     allocate(DonorGridIDs(ReducedDomainInfo%ngrids))
 
@@ -97,6 +90,8 @@ contains
     deallocate(OverlapResolutions)
 
     call MinimizeOverlap(Domain, ReducedDomainInfo, DonorGridIDs)
+
+    call LocateReceivers(Domain, ReducedDomainInfo, DonorGridIDs)
 
     call FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 
@@ -575,23 +570,24 @@ contains
 
   end subroutine ComputeOverlapResolutions
 
-  subroutine LocateOuterFringe(Domain, ReducedDomainInfo, OuterFringeMasks)
+  subroutine LocateOuterFringe(Domain, ReducedDomainInfo)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_field_logical), dimension(:), intent(out) :: OuterFringeMasks
 
-    integer :: n
+    integer :: i, j, k, n
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:), pointer :: FringeSize
     type(ovk_grid), pointer :: Grid
-    type(ovk_field_logical) :: ExtendedOuterFringeMask
+    type(ovk_field_logical) :: OuterFringeMask
     type(ovk_field_logical) :: BoundaryMask
     type(ovk_field_logical) :: BoundaryEdgeMask
     type(ovk_field_logical) :: NonBoundaryMask
     type(ovk_field_logical) :: NonBoundaryEdgeMask
+    type(ovk_field_logical) :: ExtendedOuterFringeMask
+    type(ovk_field_int), pointer :: State
     integer(lk) :: NumFringe
 
     NumDims = Domain%properties%nd
@@ -604,9 +600,9 @@ contains
     end if
 
     do n = 1, NumGrids
-      Grid => Domain%grid(IndexToID(n))
-      OuterFringeMasks(n) = ovk_field_logical_(Grid%cart)
       if (FringeSize(n) > 0) then
+        Grid => Domain%grid(IndexToID(n))
+        OuterFringeMask = ovk_field_logical_(Grid%cart)
         BoundaryMask = ovk_field_logical_(Grid%cart)
         BoundaryMask%values = Grid%boundary_mask%values .or. Grid%internal_boundary_mask%values
         call ovkDetectEdge(BoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, .true., BoundaryEdgeMask)
@@ -617,17 +613,27 @@ contains
         ExtendedOuterFringeMask%values = ExtendedOuterFringeMask%values .and. &
           (NonBoundaryEdgeMask%values .or. .not. BoundaryEdgeMask%values)
         call ovkDilate(ExtendedOuterFringeMask, FringeSize(n), OVK_FALSE)
-        OuterFringeMasks(n)%values = Grid%mask%values .and. ExtendedOuterFringeMask%values( &
+        OuterFringeMask%values = Grid%mask%values .and. ExtendedOuterFringeMask%values( &
           Grid%cart%is(1):Grid%cart%ie(1),Grid%cart%is(2):Grid%cart%ie(2), &
           Grid%cart%is(3):Grid%cart%ie(3))
-      else
-        OuterFringeMasks(n)%values = .false.
-      end if
-      if (Domain%logger%verbose) then
-        NumFringe = ovkCountMask(OuterFringeMasks(n))
-        if (NumFringe > 0_lk) then
-          write (*, '(5a)') "* ", trim(LargeIntToString(NumFringe)), &
-            " outer fringe points on grid ", trim(IntToString(Grid%properties%id)), "."
+        call ovkEditGridState(Grid, State)
+        do k = Grid%cart%is(3), Grid%cart%ie(3)
+          do j = Grid%cart%is(2), Grid%cart%ie(2)
+            do i = Grid%cart%is(1), Grid%cart%ie(1)
+              if (OuterFringeMask%values(i,j,k)) then
+                State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_FRINGE, &
+                  OVK_STATE_OUTER_FRINGE))
+              end if
+            end do
+          end do
+        end do
+        call ovkReleaseGridState(Grid, State)
+        if (Domain%logger%verbose) then
+          NumFringe = ovkCountMask(OuterFringeMask)
+          if (NumFringe > 0_lk) then
+            write (*, '(5a)') "* ", trim(LargeIntToString(NumFringe)), &
+              " outer fringe points on grid ", trim(IntToString(Grid%properties%id)), "."
+          end if
         end if
       end if
     end do
@@ -638,12 +644,11 @@ contains
 
   end subroutine LocateOuterFringe
 
-  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, OuterFringeMasks)
+  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
     type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
-    type(ovk_field_logical), dimension(:), intent(in) :: OuterFringeMasks
 
     integer :: i, j, k, m, n
     integer(lk) :: l
@@ -661,7 +666,7 @@ contains
     integer(lk) :: PointCount
     type(ovk_field_logical), dimension(:), allocatable :: OcclusionMasks
     type(ovk_field_int), dimension(:), allocatable :: FinestOverlappingGrid
-    type(ovk_field_logical) :: OcclusionOrFringeMask
+    type(ovk_field_logical) :: OuterFringeMask
     type(ovk_field_real) :: BestResolutions
     type(ovk_field_int) :: OverlapEdgeDistance
     type(ovk_field_logical) :: EdgeMask
@@ -767,8 +772,7 @@ contains
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
-      OcclusionOrFringeMask = ovk_field_logical_(Grid_n%cart)
-      OcclusionOrFringeMask%values = OcclusionMasks(n)%values .or. OuterFringeMasks(n)%values
+      call ovkFilterGridState(Grid_n, OVK_STATE_OUTER_FRINGE, OVK_ANY, OuterFringeMask)
       FinestOverlappingGrid(n) = ovk_field_int_(Grid_n%cart, -1)
       BestResolutions = ovk_field_real_(Grid_n%cart, 0._rk)
       do m = 1, NumGrids
@@ -780,7 +784,7 @@ contains
             do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
               do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
                 if (Overlap_mn%mask%values(i,j,k)) then
-                  if (OcclusionOrFringeMask%values(i,j,k) .and. &
+                  if ((OcclusionMasks(n)%values(i,j,k) .or. OuterFringeMask%values(i,j,k)) .and. &
                     OverlapResolutions(m,n)%values(l) > BestResolutions%values(i,j,k)) then
                     BestResolutions%values(i,j,k) = OverlapResolutions(m,n)%values(l)
                     FinestOverlappingGrid(n)%values(i,j,k) = Grid_m%properties%id
@@ -934,62 +938,6 @@ contains
 
   end subroutine FindCoarsePoints
 
-  subroutine LocateCandidateReceivers(Domain, ReducedDomainInfo, OuterFringeMasks)
-
-    type(ovk_domain), intent(inout) :: Domain
-    type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_field_logical), dimension(:), intent(in) :: OuterFringeMasks
-
-    integer :: i, j, k, n
-    integer :: NumDims
-    integer :: NumGrids
-    integer, dimension(:), pointer :: IndexToID
-    type(ovk_grid), pointer :: Grid
-    type(ovk_field_logical) :: OcclusionMask
-    type(ovk_field_logical) :: ReceiverMask
-    type(ovk_field_int), pointer :: State
-    integer(lk) :: NumReceivers
-
-    NumDims = Domain%properties%nd
-    NumGrids = ReducedDomainInfo%ngrids
-    IndexToID => ReducedDomainInfo%index_to_id
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Locating candidate receiver points..."
-    end if
-
-    do n = 1, NumGrids
-      Grid => Domain%grid(IndexToID(n))
-      ReceiverMask = ovk_field_logical_(Grid%cart)
-      ReceiverMask%values = OuterFringeMasks(n)%values
-      call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_OCCLUDED), OVK_ALL, OcclusionMask)
-      ReceiverMask%values = ReceiverMask%values .or. OcclusionMask%values
-      call ovkEditGridState(Grid, State)
-      do k = Grid%cart%is(3), Grid%cart%ie(3)
-        do j = Grid%cart%is(2), Grid%cart%ie(2)
-          do i = Grid%cart%is(1), Grid%cart%ie(1)
-            if (ReceiverMask%values(i,j,k)) then
-              State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_RECEIVER)
-            end if
-          end do
-        end do
-      end do
-      call ovkReleaseGridState(Grid, State)
-      if (Domain%logger%verbose) then
-        NumReceivers = ovkCountMask(ReceiverMask)
-        if (NumReceivers > 0_lk) then
-          write (*, '(5a)') "* ", trim(LargeIntToString(NumReceivers)), &
-            " candidate receiver points on grid ", trim(IntToString(Grid%properties%id)), "."
-        end if
-      end if
-    end do
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished locating candidate receiver points."
-    end if
-
-  end subroutine LocateCandidateReceivers
-
   subroutine ChooseDonors(Domain, ReducedDomainInfo, OverlapResolutions, DonorGridIDs)
 
     type(ovk_domain), intent(in) :: Domain
@@ -1014,11 +962,6 @@ contains
     real(rk) :: Distance
     real(rk) :: Resolution
     logical :: BetterDonor
-    type(ovk_field_logical) :: OrphanMask
-    type(ovk_field_int), pointer :: State
-    integer :: NumWarnings
-    integer, dimension(MAX_ND) :: Point
-    integer(lk) :: NumOrphans
 
     real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
@@ -1036,7 +979,8 @@ contains
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
-      call ovkFilterGridState(Grid_n, OVK_STATE_RECEIVER, OVK_ANY, ReceiverMasks(n))
+      call ovkFilterGridState(Grid_n, ior(OVK_STATE_OUTER_FRINGE, OVK_STATE_OCCLUDED), OVK_ANY, &
+        ReceiverMasks(n))
       call ovkDistanceField(ReceiverMasks(n), OVK_MIRROR, ReceiverDistances(n))
     end do
 
@@ -1087,44 +1031,9 @@ contains
           end do
         end do
       end do
-      OrphanMask = ovk_field_logical_(Grid_n%cart)
-      OrphanMask%values = ReceiverMasks(n)%values .and. DonorGridIDs(n)%values == 0
-      call ovkEditGridState(Grid_n, State)
-      do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-        do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-          do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-            if (OrphanMask%values(i,j,k)) then
-              State%values(i,j,k) = ior(iand(State%values(i,j,k), not(OVK_STATE_RECEIVER)), &
-                OVK_STATE_ORPHAN)
-            end if
-          end do
-        end do
-      end do
-      call ovkReleaseGridState(Grid_n, State)
       if (Domain%logger%verbose) then
-        NumWarnings = 0
-        do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-          do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-            do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-              Point = [i,j,k]
-              if (OrphanMask%values(i,j,k)) then
-                if (NumWarnings <= 100) then
-                  write (ERROR_UNIT, '(4a)') "WARNING: Could not find suitable donor for point ", &
-                    trim(TupleToString(Point(:Grid_n%cart%nd))), " of grid ", &
-                    trim(IntToString(Grid_n%properties%id))
-                  if (NumWarnings == 100) then
-                    write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
-                  end if
-                  NumWarnings = NumWarnings + 1
-                end if
-              end if
-            end do
-          end do
-        end do
-        NumOrphans = ovkCountMask(OrphanMask)
-        write (*, '(5a)') "* Done choosing donors on grid ", &
-          trim(IntToString(Grid_n%properties%id)), " (", trim(LargeIntToString(NumOrphans)), &
-          " orphans)."
+        write (*, '(3a)') "* Done choosing donors on grid ", &
+          trim(IntToString(Grid_n%properties%id)), "."
       end if
     end do
 
@@ -1149,7 +1058,9 @@ contains
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
     type(ovk_field_logical), dimension(:), allocatable :: OverlapMinimizationMasks
+    type(ovk_field_logical), dimension(:), allocatable :: InnerFringeMasks
     type(ovk_field_logical) :: RemovableMask
+    type(ovk_field_logical) :: OcclusionMask
     integer(lk) :: NumRemoved
     logical, dimension(:), allocatable :: UpdateGrid
     type(ovk_field_int), pointer :: State
@@ -1165,6 +1076,7 @@ contains
     end if
 
     allocate(OverlapMinimizationMasks(NumGrids))
+    allocate(InnerFringeMasks(NumGrids))
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
@@ -1177,14 +1089,21 @@ contains
           end if
         end do
         if (FringeSize(n) > 0) then
-          call ovkFilterGridState(Grid_n, ior(OVK_STATE_OCCLUDED, OVK_STATE_HOLE), OVK_ANY, &
-            RemovableMask)
+          call ovkFilterGridState(Grid_n, OVK_STATE_OCCLUDED, OVK_ANY, OcclusionMask)
+          RemovableMask = ovk_field_logical_(Grid_n%cart)
+          RemovableMask%values = OcclusionMask%values .or. .not. Grid_n%mask%values
           call ovkErode(RemovableMask, FringeSize(n), OVK_TRUE)
+          RemovableMask%values = RemovableMask%values .and. Grid_n%mask%values
           OverlapMinimizationMasks(n)%values = OverlapMinimizationMasks(n)%values .and. &
-            Grid_n%mask%values .and. RemovableMask%values
+            RemovableMask%values
+          InnerFringeMasks(n) = OverlapMinimizationMasks(n)
+          call ovkDilate(InnerFringeMasks(n), FringeSize(n), OVK_FALSE)
+          InnerFringeMasks(n)%values = InnerFringeMasks(n)%values .and. (Grid_n%mask%values .and. &
+            .not. OverlapMinimizationMasks(n)%values)
         else
           OverlapMinimizationMasks(n)%values = OverlapMinimizationMasks(n)%values .and. &
             Grid_n%mask%values
+          InnerFringeMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
         end if
         if (Domain%logger%verbose) then
           NumRemoved = ovkCountMask(OverlapMinimizationMasks(n))
@@ -1223,10 +1142,12 @@ contains
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
             do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
               if (OverlapMinimizationMasks(n)%values(i,j,k)) then
-                State%values(i,j,k) = iand(State%values(i,j,k), not(ior(OVK_STATE_GRID, &
-                  OVK_STATE_RECEIVER)))
+                State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_GRID))
                 State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_HOLE, &
                   OVK_STATE_OVERLAP_MINIMIZED))
+              else if (InnerFringeMasks(n)%values(i,j,k)) then
+                State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_FRINGE, &
+                  OVK_STATE_INNER_FRINGE))
               end if
             end do
           end do
@@ -1260,6 +1181,91 @@ contains
     end if
 
   end subroutine MinimizeOverlap
+
+  subroutine LocateReceivers(Domain, ReducedDomainInfo, DonorGridIDs)
+
+    type(ovk_domain), intent(inout) :: Domain
+    type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
+    type(ovk_field_int), dimension(:), intent(in) :: DonorGridIDs
+
+    integer :: i, j, k, n
+    integer :: NumDims
+    integer :: NumGrids
+    integer, dimension(:), pointer :: IndexToID
+    type(ovk_grid), pointer :: Grid
+    type(ovk_field_logical) :: FringeMask
+    type(ovk_field_logical) :: OcclusionMask
+    type(ovk_field_logical) :: ReceiverMask
+    type(ovk_field_logical) :: OrphanMask
+    type(ovk_field_int), pointer :: State
+    integer :: NumWarnings
+    integer, dimension(MAX_ND) :: Point
+    integer(lk) :: NumReceivers
+    integer(lk) :: NumOrphans
+
+    NumDims = Domain%properties%nd
+    NumGrids = ReducedDomainInfo%ngrids
+    IndexToID => ReducedDomainInfo%index_to_id
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Locating receiver points..."
+    end if
+
+    do n = 1, NumGrids
+      Grid => Domain%grid(IndexToID(n))
+      call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_FRINGE), OVK_ALL, FringeMask)
+      call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_OCCLUDED), OVK_ALL, OcclusionMask)
+      ReceiverMask = ovk_field_logical_(Grid%cart)
+      ReceiverMask%values = FringeMask%values .or. OcclusionMask%values
+      OrphanMask = ovk_field_logical_(Grid%cart)
+      OrphanMask%values = ReceiverMask%values .and. DonorGridIDs(n)%values == 0
+      ReceiverMask%values = ReceiverMask%values .and. .not. OrphanMask%values
+      call ovkEditGridState(Grid, State)
+      do k = Grid%cart%is(3), Grid%cart%ie(3)
+        do j = Grid%cart%is(2), Grid%cart%ie(2)
+          do i = Grid%cart%is(1), Grid%cart%ie(1)
+            if (ReceiverMask%values(i,j,k)) then
+              State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_RECEIVER)
+            else if (OrphanMask%values(i,j,k)) then
+              State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_ORPHAN)
+            end if
+          end do
+        end do
+      end do
+      call ovkReleaseGridState(Grid, State)
+      if (Domain%logger%verbose) then
+        NumWarnings = 0
+        do k = Grid%cart%is(3), Grid%cart%ie(3)
+          do j = Grid%cart%is(2), Grid%cart%ie(2)
+            do i = Grid%cart%is(1), Grid%cart%ie(1)
+              Point = [i,j,k]
+              if (OrphanMask%values(i,j,k)) then
+                if (NumWarnings <= 100) then
+                  write (ERROR_UNIT, '(4a)') "WARNING: Could not find suitable donor for point ", &
+                    trim(TupleToString(Point(:Grid%cart%nd))), " of grid ", &
+                    trim(IntToString(Grid%properties%id))
+                  if (NumWarnings == 100) then
+                    write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+                  end if
+                  NumWarnings = NumWarnings + 1
+                end if
+              end if
+            end do
+          end do
+        end do
+        NumReceivers = ovkCountMask(ReceiverMask)
+        NumOrphans = ovkCountMask(OrphanMask)
+        write (*, '(7a)') "* ", trim(LargeIntToString(NumReceivers)), &
+          " receiver points on grid ", trim(IntToString(Grid%properties%id)), " (", &
+          trim(LargeIntToString(NumOrphans)), " orphans)."
+      end if
+    end do
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Finished locating receiver points."
+    end if
+
+  end subroutine LocateReceivers
 
   subroutine FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 

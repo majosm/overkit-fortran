@@ -58,6 +58,9 @@ module ovkGrid
   public :: OVK_STATE_INTERNAL_BOUNDARY
   public :: OVK_STATE_HOLE
   public :: OVK_STATE_BOUNDARY_HOLE
+  public :: OVK_STATE_FRINGE
+  public :: OVK_STATE_OUTER_FRINGE
+  public :: OVK_STATE_INNER_FRINGE
   public :: OVK_STATE_OCCLUDED
   public :: OVK_STATE_OVERLAP_MINIMIZED
   public :: OVK_STATE_RECEIVER
@@ -138,15 +141,18 @@ module ovkGrid
   integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(1,5)
   integer, parameter :: OVK_STATE_HOLE = ishft(1,6)
   integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(1,7)
-  integer, parameter :: OVK_STATE_OCCLUDED = ishft(1,8)
-  integer, parameter :: OVK_STATE_OVERLAP_MINIMIZED = ishft(1,9)
-  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,10)
-  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,11)
-  integer, parameter :: OVK_STATE_DEBUG1 = ishft(1,12)
-  integer, parameter :: OVK_STATE_DEBUG2 = ishft(1,13)
-  integer, parameter :: OVK_STATE_DEBUG3 = ishft(1,14)
-  integer, parameter :: OVK_STATE_DEBUG4 = ishft(1,15)
-  integer, parameter :: OVK_STATE_DEBUG5 = ishft(1,16)
+  integer, parameter :: OVK_STATE_FRINGE = ishft(1,8)
+  integer, parameter :: OVK_STATE_OUTER_FRINGE = ishft(1,9)
+  integer, parameter :: OVK_STATE_INNER_FRINGE = ishft(1,10)
+  integer, parameter :: OVK_STATE_OCCLUDED = ishft(1,11)
+  integer, parameter :: OVK_STATE_OVERLAP_MINIMIZED = ishft(1,12)
+  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,13)
+  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,14)
+  integer, parameter :: OVK_STATE_DEBUG1 = ishft(1,15)
+  integer, parameter :: OVK_STATE_DEBUG2 = ishft(1,16)
+  integer, parameter :: OVK_STATE_DEBUG3 = ishft(1,17)
+  integer, parameter :: OVK_STATE_DEBUG4 = ishft(1,18)
+  integer, parameter :: OVK_STATE_DEBUG5 = ishft(1,19)
 
   integer, parameter :: OVK_INTERIOR_POINT = ior(OVK_STATE_GRID,OVK_STATE_INTERIOR)
   integer, parameter :: OVK_DOMAIN_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
@@ -644,6 +650,9 @@ contains
     AssemblyStates = 0
     AssemblyStates = ior(AssemblyStates, OVK_STATE_INFERRED_DOMAIN_BOUNDARY)
     AssemblyStates = ior(AssemblyStates, OVK_STATE_BOUNDARY_HOLE)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_FRINGE)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_OUTER_FRINGE)
+    AssemblyStates = ior(AssemblyStates, OVK_STATE_INNER_FRINGE)
     AssemblyStates = ior(AssemblyStates, OVK_STATE_OCCLUDED)
     AssemblyStates = ior(AssemblyStates, OVK_STATE_OVERLAP_MINIMIZED)
     AssemblyStates = ior(AssemblyStates, OVK_STATE_RECEIVER)
