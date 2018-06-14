@@ -581,16 +581,15 @@ contains
 
   end function ovk_field_logical_NotEqual
 
-  subroutine ovkFieldPeriodicFill_Integer(Field, BaseCart)
+  subroutine ovkFieldPeriodicFill_Integer(Field, PrincipalCart)
 
     type(ovk_field_int), intent(inout) :: Field
-    type(ovk_cart), intent(in) :: BaseCart
+    type(ovk_cart), intent(in) :: PrincipalCart
 
     integer :: i, j, k
-    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    type(ovk_cart) :: ExtendedCart
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
@@ -623,16 +622,15 @@ contains
 
   end subroutine ovkFieldPeriodicFill_Integer
 
-  subroutine ovkFieldPeriodicFill_LargeInteger(Field, BaseCart)
+  subroutine ovkFieldPeriodicFill_LargeInteger(Field, PrincipalCart)
 
     type(ovk_field_large_int), intent(inout) :: Field
-    type(ovk_cart), intent(in) :: BaseCart
+    type(ovk_cart), intent(in) :: PrincipalCart
 
     integer :: i, j, k
-    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    type(ovk_cart) :: ExtendedCart
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
@@ -665,16 +663,15 @@ contains
 
   end subroutine ovkFieldPeriodicFill_LargeInteger
 
-  subroutine ovkFieldPeriodicFill_Real(Field, BaseCart)
+  subroutine ovkFieldPeriodicFill_Real(Field, PrincipalCart)
 
     type(ovk_field_real), intent(inout) :: Field
-    type(ovk_cart), intent(in) :: BaseCart
+    type(ovk_cart), intent(in) :: PrincipalCart
 
     integer :: i, j, k
-    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    type(ovk_cart) :: ExtendedCart
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
@@ -707,16 +704,15 @@ contains
 
   end subroutine ovkFieldPeriodicFill_Real
 
-  subroutine ovkFieldPeriodicFill_Logical(Field, BaseCart)
+  subroutine ovkFieldPeriodicFill_Logical(Field, PrincipalCart)
 
     type(ovk_field_logical), intent(inout) :: Field
-    type(ovk_cart), intent(in) :: BaseCart
+    type(ovk_cart), intent(in) :: PrincipalCart
 
     integer :: i, j, k
-    type(ovk_cart) :: PrincipalCart, ExtendedCart
+    type(ovk_cart) :: ExtendedCart
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
 
-    PrincipalCart = ovkCartConvertPeriodicStorage(BaseCart, OVK_NO_OVERLAP_PERIODIC)
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then

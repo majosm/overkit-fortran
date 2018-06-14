@@ -172,7 +172,8 @@ contains
     integer, intent(in) :: BoundaryValue
 
     integer :: i, j, k, m, n, o
-    type(ovk_cart) :: Cart
+    integer :: NumDims
+    type(ovk_cart) :: PrincipalCart
     type(ovk_cart) :: EdgeCart
     integer :: FillDistance
     logical :: FillValue
@@ -185,6 +186,8 @@ contains
     integer, dimension(MAX_ND) :: FillPoint
 
     if (Amount == 0) return
+
+    NumDims = Mask%cart%nd
 
     if (Amount > 0) then
       FillDistance = Amount
@@ -200,23 +203,24 @@ contains
 
     call ovkDetectEdge(Mask, EdgeType, EdgeBoundaryValue, .true., EdgeMask)
 
-    Cart = Mask%cart
+    PrincipalCart = ovkCartConvertPeriodicStorage(Mask%cart, OVK_NO_OVERLAP_PERIODIC)
     EdgeCart = EdgeMask%cart
 
 !$OMP PARALLEL DO &
 !$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(Cart, EdgeCart, FillDistance, FillValue) &
+!$OMP&  FIRSTPRIVATE(NumDims, PrincipalCart, EdgeCart, FillDistance, FillValue) &
 !$OMP&  SHARED(Mask, EdgeMask)
     do k = EdgeCart%is(3), EdgeCart%ie(3)
       do j = EdgeCart%is(2), EdgeCart%ie(2)
         do i = EdgeCart%is(1), EdgeCart%ie(1)
           if (EdgeMask%values(i,j,k)) then
             Point = [i,j,k]
-            FillLower(:Cart%nd) = Point(:Cart%nd)-FillDistance
-            FillLower(Cart%nd+1:) = Point(Cart%nd+1:)
-            FillUpper(:Cart%nd) = Point(:Cart%nd)+FillDistance
-            FillUpper(Cart%nd+1:) = Point(Cart%nd+1:)
-            AwayFromEdge = ovkCartContains(Cart, FillLower) .and. ovkCartContains(Cart, FillUpper)
+            FillLower(:NumDims) = Point(:NumDims)-FillDistance
+            FillLower(NumDims+1:) = Point(NumDims+1:)
+            FillUpper(:NumDims) = Point(:NumDims)+FillDistance
+            FillUpper(NumDims+1:) = Point(NumDims+1:)
+            AwayFromEdge = ovkCartContains(PrincipalCart, FillLower) .and. &
+              ovkCartContains(PrincipalCart, FillUpper)
             if (AwayFromEdge) then
               do o = FillLower(3), FillUpper(3)
                 do n = FillLower(2), FillUpper(2)
@@ -231,8 +235,8 @@ contains
                 do n = FillLower(2), FillUpper(2)
                   do m = FillLower(1), FillUpper(1)
                     FillPoint = [m,n,o]
-                    FillPoint(:Cart%nd) = ovkCartPeriodicAdjust(Cart, FillPoint)
-                    if (ovkCartContains(Cart, FillPoint)) then
+                    FillPoint(:NumDims) = ovkCartPeriodicAdjust(PrincipalCart, FillPoint)
+                    if (ovkCartContains(PrincipalCart, FillPoint)) then
                       Mask%values(FillPoint(1),FillPoint(2),FillPoint(3)) = FillValue
                     end if
                   end do
@@ -245,7 +249,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    call ovkFieldPeriodicFill(Mask, Mask%cart)
+    call ovkFieldPeriodicFill(Mask, PrincipalCart)
 
   end subroutine DilateErode
 
@@ -553,15 +557,20 @@ contains
     type(ovk_field_int), intent(out) :: Distances
 
     integer :: i, j, k, m, n, o, p
+    integer :: NumDims
     type(ovk_field_logical) :: NonMask
     integer :: NonMaskBoundaryValue
     type(ovk_field_logical) :: EdgeMask
+    type(ovk_cart) :: PrincipalCart
     type(ovk_cart) :: ExtendedCart
     type(ovk_field_int) :: ExtendedDistances
     integer, dimension(MAX_ND) :: Point
     logical :: ContainsPoint
     integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
     integer :: NumIters
+    integer :: MinDistance
+
+    NumDims = Mask%cart%nd
 
     NonMask = ovk_field_logical_(Mask%cart)
     NonMask%values = .not. Mask%values
@@ -577,9 +586,11 @@ contains
 
     call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskBoundaryValue, .true., EdgeMask)
 
-    ExtendedCart = ovk_cart_(Mask%cart%nd)
-    ExtendedCart%is(:Mask%cart%nd) = Mask%cart%is(:Mask%cart%nd)-1
-    ExtendedCart%ie(:Mask%cart%nd) = Mask%cart%ie(:Mask%cart%nd)+1
+    PrincipalCart = ovkCartConvertPeriodicStorage(Mask%cart, OVK_NO_OVERLAP_PERIODIC)
+
+    ExtendedCart = ovk_cart_(NumDims)
+    ExtendedCart%is(:NumDims) = PrincipalCart%is(:NumDims)-1
+    ExtendedCart%ie(:NumDims) = PrincipalCart%ie(:NumDims)+1
 
     ExtendedDistances = ovk_field_int_(ExtendedCart)
 
@@ -590,7 +601,7 @@ contains
           if (ovkCartContains(EdgeMask%cart, Point)) then
             ContainsPoint = .true.
           else
-            Point(:Mask%cart%nd) = ovkCartPeriodicAdjust(EdgeMask%cart, Point)
+            Point(:NumDims) = ovkCartPeriodicAdjust(EdgeMask%cart, Point)
             if (ovkCartContains(EdgeMask%cart, Point)) then
               ContainsPoint = .true.
             else
@@ -607,19 +618,19 @@ contains
       end do
     end do
 
-    NeighborLower(:Mask%cart%nd) = -1
-    NeighborLower(Mask%cart%nd+1:) = 0
-    NeighborUpper(:Mask%cart%nd) = 1
-    NeighborUpper(Mask%cart%nd+1:) = 0
+    NeighborLower(:NumDims) = -1
+    NeighborLower(NumDims+1:) = 0
+    NeighborUpper(:NumDims) = 1
+    NeighborUpper(NumDims+1:) = 0
 
     NumIters = merge(2, 1, any(Mask%cart%periodic))
 
     do p = 1, NumIters
-      select case (Mask%cart%nd)
+      select case (NumDims)
       case (2)
         ! Forward pass
-        do j = Mask%cart%is(2), Mask%cart%ie(2)
-          do i = Mask%cart%is(1), Mask%cart%ie(1)
+        do j = PrincipalCart%is(2), PrincipalCart%ie(2)
+          do i = PrincipalCart%is(1), PrincipalCart%ie(1)
             n = -1
             do m = NeighborLower(1), NeighborUpper(1)
               ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
@@ -630,10 +641,25 @@ contains
               ExtendedDistances%values(i+m,j+n,1)+1)
           end do
         end do
-        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+        if (Mask%cart%periodic(1)) then
+          do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+            MinDistance = min(ExtendedDistances%values(ExtendedCart%is(1),j,1), &
+              ExtendedDistances%values(ExtendedCart%ie(1),j,1))
+            ExtendedDistances%values(ExtendedCart%is(1),j,1) = MinDistance
+            ExtendedDistances%values(ExtendedCart%ie(1),j,1) = MinDistance
+          end do
+        end if
+        if (Mask%cart%periodic(2)) then
+          do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+            MinDistance = min(ExtendedDistances%values(i,ExtendedCart%is(2),1), &
+              ExtendedDistances%values(i,ExtendedCart%ie(2),1))
+            ExtendedDistances%values(i,ExtendedCart%is(2),1) = MinDistance
+            ExtendedDistances%values(i,ExtendedCart%ie(2),1) = MinDistance
+          end do
+        end if
         ! Backward pass
-        do j = Mask%cart%ie(2), Mask%cart%is(2), -1
-          do i = Mask%cart%ie(1), Mask%cart%is(1), -1
+        do j = PrincipalCart%ie(2), PrincipalCart%is(2), -1
+          do i = PrincipalCart%ie(1), PrincipalCart%is(1), -1
             n = 1
             do m = NeighborLower(1), NeighborUpper(1)
               ExtendedDistances%values(i,j,1) = min(ExtendedDistances%values(i,j,1), &
@@ -644,12 +670,27 @@ contains
               ExtendedDistances%values(i+m,j+n,1)+1)
           end do
         end do
-        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+        if (Mask%cart%periodic(1)) then
+          do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+            MinDistance = min(ExtendedDistances%values(ExtendedCart%is(1),j,1), &
+              ExtendedDistances%values(ExtendedCart%ie(1),j,1))
+            ExtendedDistances%values(ExtendedCart%is(1),j,1) = MinDistance
+            ExtendedDistances%values(ExtendedCart%ie(1),j,1) = MinDistance
+          end do
+        end if
+        if (Mask%cart%periodic(2)) then
+          do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+            MinDistance = min(ExtendedDistances%values(i,ExtendedCart%is(2),1), &
+              ExtendedDistances%values(i,ExtendedCart%ie(2),1))
+            ExtendedDistances%values(i,ExtendedCart%is(2),1) = MinDistance
+            ExtendedDistances%values(i,ExtendedCart%ie(2),1) = MinDistance
+          end do
+        end if
       case (3)
         ! Forward pass
-        do k = Mask%cart%is(3), Mask%cart%ie(3)
-          do j = Mask%cart%is(2), Mask%cart%ie(2)
-            do i = Mask%cart%is(1), Mask%cart%ie(1)
+        do k = PrincipalCart%is(3), PrincipalCart%ie(3)
+          do j = PrincipalCart%is(2), PrincipalCart%ie(2)
+            do i = PrincipalCart%is(1), PrincipalCart%ie(1)
               o = -1
               do n = NeighborLower(2), NeighborUpper(2)
                 do m = NeighborLower(1), NeighborUpper(1)
@@ -668,11 +709,40 @@ contains
             end do
           end do
         end do
-        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+        if (Mask%cart%periodic(1)) then
+          do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+            do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+              MinDistance = min(ExtendedDistances%values(ExtendedCart%is(1),j,k), &
+                ExtendedDistances%values(ExtendedCart%ie(1),j,k))
+              ExtendedDistances%values(ExtendedCart%is(1),j,k) = MinDistance
+              ExtendedDistances%values(ExtendedCart%ie(1),j,k) = MinDistance
+            end do
+          end do
+        end if
+        if (Mask%cart%periodic(2)) then
+          do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+            do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+              MinDistance = min(ExtendedDistances%values(i,ExtendedCart%is(2),k), &
+                ExtendedDistances%values(i,ExtendedCart%ie(2),k))
+              ExtendedDistances%values(i,ExtendedCart%is(2),k) = MinDistance
+              ExtendedDistances%values(i,ExtendedCart%ie(2),k) = MinDistance
+            end do
+          end do
+        end if
+        if (Mask%cart%periodic(3)) then
+          do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+            do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+              MinDistance = min(ExtendedDistances%values(i,j,ExtendedCart%is(3)), &
+                ExtendedDistances%values(i,j,ExtendedCart%ie(3)))
+              ExtendedDistances%values(i,j,ExtendedCart%is(3)) = MinDistance
+              ExtendedDistances%values(i,j,ExtendedCart%ie(3)) = MinDistance
+            end do
+          end do
+        end if
         ! Backward pass
-        do k = Mask%cart%ie(3), Mask%cart%is(3), -1
-          do j = Mask%cart%ie(2), Mask%cart%is(2), -1
-            do i = Mask%cart%ie(1), Mask%cart%is(1), -1
+        do k = PrincipalCart%ie(3), PrincipalCart%is(3), -1
+          do j = PrincipalCart%ie(2), PrincipalCart%is(2), -1
+            do i = PrincipalCart%ie(1), PrincipalCart%is(1), -1
               o = 1
               do n = NeighborLower(2), NeighborUpper(2)
                 do m = NeighborLower(1), NeighborUpper(1)
@@ -691,7 +761,36 @@ contains
             end do
           end do
         end do
-        call ovkFieldPeriodicFill(ExtendedDistances, Mask%cart)
+        if (Mask%cart%periodic(1)) then
+          do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+            do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+              MinDistance = min(ExtendedDistances%values(ExtendedCart%is(1),j,k), &
+                ExtendedDistances%values(ExtendedCart%ie(1),j,k))
+              ExtendedDistances%values(ExtendedCart%is(1),j,k) = MinDistance
+              ExtendedDistances%values(ExtendedCart%ie(1),j,k) = MinDistance
+            end do
+          end do
+        end if
+        if (Mask%cart%periodic(2)) then
+          do k = ExtendedCart%is(3), ExtendedCart%ie(3)
+            do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+              MinDistance = min(ExtendedDistances%values(i,ExtendedCart%is(2),k), &
+                ExtendedDistances%values(i,ExtendedCart%ie(2),k))
+              ExtendedDistances%values(i,ExtendedCart%is(2),k) = MinDistance
+              ExtendedDistances%values(i,ExtendedCart%ie(2),k) = MinDistance
+            end do
+          end do
+        end if
+        if (Mask%cart%periodic(3)) then
+          do j = ExtendedCart%is(2), ExtendedCart%ie(2)
+            do i = ExtendedCart%is(1), ExtendedCart%ie(1)
+              MinDistance = min(ExtendedDistances%values(i,j,ExtendedCart%is(3)), &
+                ExtendedDistances%values(i,j,ExtendedCart%ie(3)))
+              ExtendedDistances%values(i,j,ExtendedCart%is(3)) = MinDistance
+              ExtendedDistances%values(i,j,ExtendedCart%ie(3)) = MinDistance
+            end do
+          end do
+        end if
       end select
     end do
 
