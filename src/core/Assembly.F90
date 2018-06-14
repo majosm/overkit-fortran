@@ -990,46 +990,47 @@ contains
       DonorDistance = ovk_field_real_(Grid_n%cart)
       DonorResolution = ovk_field_real_(Grid_n%cart)
       do m = 1, NumGrids
-        if (ConnectionType(m,n) == OVK_CONNECTION_NONE) cycle
-        Grid_m => Domain%grid(IndexToID(m))
-        Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-        call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), &
-          CellReceiverDistance)
-        OverlapReceiverDistance = ovk_field_int_(Grid_n%cart, -1)
-        call ovkOverlapDisperse(Grid_n, Overlap, OVK_DISPERSE_OVERWRITE, CellReceiverDistance, &
-          OverlapReceiverDistance)
-        l = 1_lk
-        do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-          do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-            do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-              if (ReceiverMasks(n)%values(i,j,k) .and. Overlap%mask%values(i,j,k)) then
-                if (DonorGridIDs(n)%values(i,j,k) == 0) then
-                  DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
-                  DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
-                    kind=rk)/real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
-                  DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
-                else
-                  Distance = min(real(OverlapReceiverDistance%values(i,j,k),kind=rk)/ &
-                    real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
-                  Resolution = OverlapResolutions(m,n)%values(l)
-                  if (abs(Distance-DonorDistance%values(i,j,k)) > TOLERANCE) then
-                    BetterDonor = Distance > DonorDistance%values(i,j,k)
-                  else
-                    BetterDonor = Resolution > DonorResolution%values(i,j,k)
-                  end if
-                  if (BetterDonor) then
+        if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
+          Grid_m => Domain%grid(IndexToID(m))
+          Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), &
+            CellReceiverDistance)
+          OverlapReceiverDistance = ovk_field_int_(Grid_n%cart, -1)
+          call ovkOverlapDisperse(Grid_n, Overlap, OVK_DISPERSE_OVERWRITE, CellReceiverDistance, &
+            OverlapReceiverDistance)
+          l = 1_lk
+          do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+            do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+              do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
+                if (ReceiverMasks(n)%values(i,j,k) .and. Overlap%mask%values(i,j,k)) then
+                  if (DonorGridIDs(n)%values(i,j,k) == 0) then
                     DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
-                    DonorDistance%values(i,j,k) = Distance
-                    DonorResolution%values(i,j,k) = Resolution
+                    DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
+                      kind=rk)/real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
+                    DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
+                  else
+                    Distance = min(real(OverlapReceiverDistance%values(i,j,k),kind=rk)/ &
+                      real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
+                    Resolution = OverlapResolutions(m,n)%values(l)
+                    if (abs(Distance-DonorDistance%values(i,j,k)) > TOLERANCE) then
+                      BetterDonor = Distance > DonorDistance%values(i,j,k)
+                    else
+                      BetterDonor = Resolution > DonorResolution%values(i,j,k)
+                    end if
+                    if (BetterDonor) then
+                      DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
+                      DonorDistance%values(i,j,k) = Distance
+                      DonorResolution%values(i,j,k) = Resolution
+                    end if
                   end if
                 end if
-              end if
-              if (Overlap%mask%values(i,j,k)) then
-                l = l + 1_lk
-              end if
+                if (Overlap%mask%values(i,j,k)) then
+                  l = l + 1_lk
+                end if
+              end do
             end do
           end do
-        end do
+        end if
       end do
       if (Domain%logger%verbose) then
         write (*, '(3a)') "* Done choosing donors on grid ", &
