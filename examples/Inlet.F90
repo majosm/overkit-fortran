@@ -61,8 +61,8 @@ program Inlet
   call ovkSetDomainPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
 
   ! Retain some extra overlap between grids
-  call ovkSetDomainPropertyOcclusionPadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
-  call ovkSetDomainPropertyOcclusionSmoothing(Properties, OVK_ALL_GRIDS, 2)
+  call ovkSetDomainPropertyEdgePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkSetDomainPropertyEdgeSmoothing(Properties, OVK_ALL_GRIDS, 2)
 
   ! Indicate which grids can communicate and how
   call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)

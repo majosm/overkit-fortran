@@ -32,8 +32,8 @@ module ovkAssembly
     logical, dimension(:), pointer :: infer_boundaries
     logical, dimension(:,:), pointer :: boundary_hole_cutting
     integer, dimension(:,:), pointer :: occludes
-    integer, dimension(:,:), pointer :: occlusion_padding
-    integer, dimension(:), pointer :: occlusion_smoothing
+    integer, dimension(:,:), pointer :: edge_padding
+    integer, dimension(:), pointer :: edge_smoothing
     integer, dimension(:,:), pointer :: connection_type
     integer, dimension(:,:), pointer :: interp_scheme
     integer, dimension(:), pointer :: fringe_size
@@ -121,8 +121,8 @@ contains
     logical, dimension(:), pointer :: InferBoundaries
     logical, dimension(:,:), pointer :: BoundaryHoleCutting
     integer, dimension(:,:), pointer :: Occludes
-    integer, dimension(:,:), pointer :: OcclusionPadding
-    integer, dimension(:), pointer :: OcclusionSmoothing
+    integer, dimension(:,:), pointer :: EdgePadding
+    integer, dimension(:), pointer :: EdgeSmoothing
     integer, dimension(:,:), pointer :: ConnectionType
     integer, dimension(:,:), pointer :: InterpScheme
     integer, dimension(:), pointer :: FringeSize
@@ -189,20 +189,20 @@ contains
     end do
 
     allocate(ReducedDomainInfo%occludes(NumGrids,NumGrids))
-    allocate(ReducedDomainInfo%occlusion_padding(NumGrids,NumGrids))
-    allocate(ReducedDomainInfo%occlusion_smoothing(NumGrids))
+    allocate(ReducedDomainInfo%edge_padding(NumGrids,NumGrids))
+    allocate(ReducedDomainInfo%edge_smoothing(NumGrids))
     Occludes => ReducedDomainInfo%occludes
-    OcclusionPadding => ReducedDomainInfo%occlusion_padding
-    OcclusionSmoothing => ReducedDomainInfo%occlusion_smoothing
+    EdgePadding => ReducedDomainInfo%edge_padding
+    EdgeSmoothing => ReducedDomainInfo%edge_smoothing
 
     do n = 1, NumGrids
       q = IndexToID(n)
       do m = 1, NumGrids
         p = IndexToID(m)
         Occludes(m,n) = Domain%properties%occludes(p,q)
-        OcclusionPadding(m,n) = Domain%properties%occlusion_padding(p,q)
+        EdgePadding(m,n) = Domain%properties%edge_padding(p,q)
       end do
-      OcclusionSmoothing(n) = Domain%properties%occlusion_smoothing(q)
+      EdgeSmoothing(n) = Domain%properties%edge_smoothing(q)
     end do
 
     allocate(ReducedDomainInfo%connection_type(NumGrids,NumGrids))
@@ -657,8 +657,8 @@ contains
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:,:), pointer :: Overlappable
     integer, dimension(:,:), pointer :: Occludes
-    integer, dimension(:,:), pointer :: OcclusionPadding
-    integer, dimension(:), pointer :: OcclusionSmoothing
+    integer, dimension(:,:), pointer :: EdgePadding
+    integer, dimension(:), pointer :: EdgeSmoothing
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
     type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseOcclusionMasks
@@ -681,8 +681,8 @@ contains
     IndexToID => ReducedDomainInfo%index_to_id
     Overlappable => ReducedDomainInfo%overlappable
     Occludes => ReducedDomainInfo%occludes
-    OcclusionPadding => ReducedDomainInfo%occlusion_padding
-    OcclusionSmoothing => ReducedDomainInfo%occlusion_smoothing
+    EdgePadding => ReducedDomainInfo%edge_padding
+    EdgeSmoothing => ReducedDomainInfo%edge_smoothing
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Detecting pairwise occlusion..."
@@ -765,7 +765,7 @@ contains
     end if
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Applying occlusion padding..."
+      write (*, '(a)') "Applying edge padding..."
     end if
 
     allocate(FinestOverlappingGrid(NumGrids))
@@ -806,8 +806,13 @@ contains
           if (Occludes(m,n) /= OVK_FALSE) then
             Grid_m => Domain%grid(IndexToID(m))
             Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+            call ovkFilterGridState(Grid_m, OVK_STATE_OUTER_FRINGE, OVK_ANY, OuterFringeMask)
             EdgeMask = ovk_field_logical_(Grid_m%cart)
-            EdgeMask%values = FinestOverlappingGrid(m)%values == Grid_n%properties%id
+            EdgeMask%values = OuterFringeMask%values
+            if (Occludes(n,m) /= OVK_FALSE) then
+              EdgeMask%values = EdgeMask%values .or. PairwiseOcclusionMasks(n,m)%values .or. &
+                .not. Grid_m%mask%values
+            end if
             call ovkDistanceField(EdgeMask, OVK_MIRROR, EdgeDistance)
             call ovkOverlapCollect(Grid_m, Overlap_mn, OVK_COLLECT_MIN, EdgeDistance, &
               CellEdgeDistance)
@@ -819,7 +824,7 @@ contains
               do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
                 do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
                   if (PairwiseOcclusionMasks(m,n)%values(i,j,k) .and. &
-                    OverlapEdgeDistance%values(i,j,k) <= OcclusionPadding(m,n)) then
+                    OverlapEdgeDistance%values(i,j,k) <= EdgePadding(m,n)) then
                     PaddingMask%values(i,j,k) = .true.
                   end if
                 end do
@@ -841,15 +846,15 @@ contains
     end do
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished applying occlusion padding."
+      write (*, '(a)') "Finished applying edge padding."
     end if
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Applying occlusion smoothing..."
+      write (*, '(a)') "Applying edge smoothing..."
     end if
 
     do n = 1, NumGrids
-      if (OcclusionSmoothing(n) > 0) then
+      if (EdgeSmoothing(n) > 0) then
         Grid_n => Domain%grid(IndexToID(n))
         if (any(Occludes(:,n) /= OVK_FALSE)) then
           OverlapMask = ovk_field_logical_(Grid_n%cart, .false.)
@@ -860,19 +865,19 @@ contains
               OverlapMask%values = OverlapMask%values .or. Overlap_mn%mask%values
             end if
           end do
-          call ovkDilate(OcclusionMasks(n), OcclusionSmoothing(n), OVK_MIRROR)
-          call ovkErode(OcclusionMasks(n), OcclusionSmoothing(n), OVK_MIRROR)
+          call ovkDilate(OcclusionMasks(n), EdgeSmoothing(n), OVK_MIRROR)
+          call ovkErode(OcclusionMasks(n), EdgeSmoothing(n), OVK_MIRROR)
           OcclusionMasks(n)%values = OcclusionMasks(n)%values .and. OverlapMask%values
         end if
         if (Domain%logger%verbose) then
-          write (*, '(3a)') "* Done applying occlusion smoothing to grid ", &
+          write (*, '(3a)') "* Done applying edge smoothing to grid ", &
             trim(IntToString(Grid_n%properties%id)), "."
         end if
       end if
     end do
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished applying occlusion smoothing."
+      write (*, '(a)') "Finished applying edge smoothing."
     end if
 
     if (Domain%logger%verbose) then
@@ -950,7 +955,7 @@ contains
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:,:), pointer :: ConnectionType
-    integer, dimension(:,:), pointer :: OcclusionPadding
+    integer, dimension(:,:), pointer :: EdgePadding
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
     type(ovk_field_logical), dimension(:), allocatable :: ReceiverMasks
@@ -971,8 +976,8 @@ contains
 
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
+    EdgePadding => ReducedDomainInfo%edge_padding
     ConnectionType => ReducedDomainInfo%connection_type
-    OcclusionPadding => ReducedDomainInfo%occlusion_padding
 
     allocate(ReceiverMasks(NumGrids))
     allocate(ReceiverDistances(NumGrids))
@@ -1006,11 +1011,11 @@ contains
                   if (DonorGridIDs(n)%values(i,j,k) == 0) then
                     DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
                     DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
-                      kind=rk)/real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
+                      kind=rk)/real(max(EdgePadding(m,n),1),kind=rk),1._rk)
                     DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
                   else
                     Distance = min(real(OverlapReceiverDistance%values(i,j,k),kind=rk)/ &
-                      real(max(OcclusionPadding(m,n),1),kind=rk),1._rk)
+                      real(max(EdgePadding(m,n),1),kind=rk),1._rk)
                     Resolution = OverlapResolutions(m,n)%values(l)
                     if (abs(Distance-DonorDistance%values(i,j,k)) > TOLERANCE) then
                       BetterDonor = Distance > DonorDistance%values(i,j,k)
@@ -1442,8 +1447,8 @@ contains
     deallocate(ReducedDomainInfo%infer_boundaries)
     deallocate(ReducedDomainInfo%boundary_hole_cutting)
     deallocate(ReducedDomainInfo%occludes)
-    deallocate(ReducedDomainInfo%occlusion_padding)
-    deallocate(ReducedDomainInfo%occlusion_smoothing)
+    deallocate(ReducedDomainInfo%edge_padding)
+    deallocate(ReducedDomainInfo%edge_smoothing)
     deallocate(ReducedDomainInfo%connection_type)
     deallocate(ReducedDomainInfo%interp_scheme)
     deallocate(ReducedDomainInfo%fringe_size)

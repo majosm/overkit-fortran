@@ -52,10 +52,10 @@ module ovkDomain
   public :: ovkSetDomainPropertyBoundaryHoleCutting
   public :: ovkGetDomainPropertyOccludes
   public :: ovkSetDomainPropertyOccludes
-  public :: ovkGetDomainPropertyOcclusionPadding
-  public :: ovkSetDomainPropertyOcclusionPadding
-  public :: ovkGetDomainPropertyOcclusionSmoothing
-  public :: ovkSetDomainPropertyOcclusionSmoothing
+  public :: ovkGetDomainPropertyEdgePadding
+  public :: ovkSetDomainPropertyEdgePadding
+  public :: ovkGetDomainPropertyEdgeSmoothing
+  public :: ovkSetDomainPropertyEdgeSmoothing
   public :: ovkGetDomainPropertyConnectionType
   public :: ovkSetDomainPropertyConnectionType
   public :: ovkGetDomainPropertyInterpScheme
@@ -86,8 +86,8 @@ module ovkDomain
     logical, dimension(:), allocatable :: infer_boundaries
     logical, dimension(:,:), allocatable :: boundary_hole_cutting
     integer, dimension(:,:), allocatable :: occludes
-    integer, dimension(:,:), allocatable :: occlusion_padding
-    integer, dimension(:), allocatable :: occlusion_smoothing
+    integer, dimension(:,:), allocatable :: edge_padding
+    integer, dimension(:), allocatable :: edge_smoothing
     integer, dimension(:,:), allocatable :: connection_type
     integer, dimension(:,:), allocatable :: interp_scheme
     integer, dimension(:), allocatable :: fringe_size
@@ -332,15 +332,6 @@ contains
                 Domain%properties%overlap_minimization(m,n) = .false.
               end if
             end do
-            ! No occlusion => no occlusion padding or smoothing
-            do m = 1, NumGrids
-              if (Domain%properties%occludes(m,n) == OVK_FALSE) then
-                Domain%properties%occlusion_padding(m,n) = 0
-              end if
-            end do
-            if (all(Domain%properties%occludes(:,n) == OVK_FALSE)) then
-              Domain%properties%occlusion_smoothing(n) = 0
-            end if
           end do
 
           do n = 1, NumGrids
@@ -1486,11 +1477,11 @@ contains
     allocate(Properties%occludes(NumGrids,NumGrids))
     Properties%occludes = OVK_AUTO
 
-    allocate(Properties%occlusion_padding(NumGrids,NumGrids))
-    Properties%occlusion_padding = 0
+    allocate(Properties%edge_padding(NumGrids,NumGrids))
+    Properties%edge_padding = 0
 
-    allocate(Properties%occlusion_smoothing(NumGrids))
-    Properties%occlusion_smoothing = 0
+    allocate(Properties%edge_smoothing(NumGrids))
+    Properties%edge_smoothing = 0
 
     allocate(Properties%connection_type(NumGrids,NumGrids))
     Properties%connection_type = OVK_CONNECTION_NONE
@@ -1748,30 +1739,30 @@ contains
 
   end subroutine ovkSetDomainPropertyOccludes
 
-  subroutine ovkGetDomainPropertyOcclusionPadding(Properties, DonorGridID, ReceiverGridID, &
-    OcclusionPadding)
+  subroutine ovkGetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, &
+    EdgePadding)
 
     type(ovk_domain_properties), intent(in) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(out) :: OcclusionPadding
+    integer, intent(out) :: EdgePadding
 
-    OcclusionPadding = Properties%occlusion_padding(DonorGridID,ReceiverGridID)
+    EdgePadding = Properties%edge_padding(DonorGridID,ReceiverGridID)
 
-  end subroutine ovkGetDomainPropertyOcclusionPadding
+  end subroutine ovkGetDomainPropertyEdgePadding
 
-  subroutine ovkSetDomainPropertyOcclusionPadding(Properties, DonorGridID, ReceiverGridID, &
-    OcclusionPadding)
+  subroutine ovkSetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, &
+    EdgePadding)
 
     type(ovk_domain_properties), intent(inout) :: Properties
     integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(in) :: OcclusionPadding
+    integer, intent(in) :: EdgePadding
 
     integer :: m, n
     integer :: ms, me, ns, ne
 
     if (OVK_DEBUG) then
-      if (OcclusionPadding < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Occlusion padding must be nonnegative."
+      if (EdgePadding < 0) then
+        write (ERROR_UNIT, '(a)') "ERROR: Edge padding must be nonnegative."
         stop 1
       end if
     end if
@@ -1781,34 +1772,34 @@ contains
 
     do n = ns, ne
       do m = ms, me
-        Properties%occlusion_padding(m,n) = OcclusionPadding
+        Properties%edge_padding(m,n) = EdgePadding
       end do
     end do
 
-  end subroutine ovkSetDomainPropertyOcclusionPadding
+  end subroutine ovkSetDomainPropertyEdgePadding
 
-  subroutine ovkGetDomainPropertyOcclusionSmoothing(Properties, GridID, OcclusionSmoothing)
+  subroutine ovkGetDomainPropertyEdgeSmoothing(Properties, GridID, EdgeSmoothing)
 
     type(ovk_domain_properties), intent(in) :: Properties
     integer, intent(in) :: GridID
-    integer, intent(out) :: OcclusionSmoothing
+    integer, intent(out) :: EdgeSmoothing
 
-    OcclusionSmoothing = Properties%occlusion_smoothing(GridID)
+    EdgeSmoothing = Properties%edge_smoothing(GridID)
 
-  end subroutine ovkGetDomainPropertyOcclusionSmoothing
+  end subroutine ovkGetDomainPropertyEdgeSmoothing
 
-  subroutine ovkSetDomainPropertyOcclusionSmoothing(Properties, GridID, OcclusionSmoothing)
+  subroutine ovkSetDomainPropertyEdgeSmoothing(Properties, GridID, EdgeSmoothing)
 
     type(ovk_domain_properties), intent(inout) :: Properties
     integer, intent(in) :: GridID
-    integer, intent(in) :: OcclusionSmoothing
+    integer, intent(in) :: EdgeSmoothing
 
     integer :: n
     integer :: ns, ne
 
     if (OVK_DEBUG) then
-      if (OcclusionSmoothing < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Occlusion smoothing must be nonnegative."
+      if (EdgeSmoothing < 0) then
+        write (ERROR_UNIT, '(a)') "ERROR: Edge smoothing must be nonnegative."
         stop 1
       end if
     end if
@@ -1816,10 +1807,10 @@ contains
     call GridIDRange(Properties%ngrids, GridID, ns, ne)
 
     do n = ns, ne
-      Properties%occlusion_smoothing(n) = OcclusionSmoothing
+      Properties%edge_smoothing(n) = EdgeSmoothing
     end do
 
-  end subroutine ovkSetDomainPropertyOcclusionSmoothing
+  end subroutine ovkSetDomainPropertyEdgeSmoothing
 
   subroutine ovkGetDomainPropertyConnectionType(Properties, DonorGridID, ReceiverGridID, &
     ConnectionType)

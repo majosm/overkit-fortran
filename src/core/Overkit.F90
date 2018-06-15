@@ -119,10 +119,10 @@ module Overkit
   public :: ovkSetDomainPropertyBoundaryHoleCutting
   public :: ovkGetDomainPropertyOccludes
   public :: ovkSetDomainPropertyOccludes
-  public :: ovkGetDomainPropertyOcclusionPadding
-  public :: ovkSetDomainPropertyOcclusionPadding
-  public :: ovkGetDomainPropertyOcclusionSmoothing
-  public :: ovkSetDomainPropertyOcclusionSmoothing
+  public :: ovkGetDomainPropertyEdgePadding
+  public :: ovkSetDomainPropertyEdgePadding
+  public :: ovkGetDomainPropertyEdgeSmoothing
+  public :: ovkSetDomainPropertyEdgeSmoothing
   public :: ovkGetDomainPropertyConnectionType
   public :: ovkSetDomainPropertyConnectionType
   public :: ovkGetDomainPropertyInterpScheme
