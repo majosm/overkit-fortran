@@ -35,7 +35,6 @@ module ovkAssembly
     integer, dimension(:,:), pointer :: edge_padding
     integer, dimension(:), pointer :: edge_smoothing
     integer, dimension(:,:), pointer :: connection_type
-    integer, dimension(:,:), pointer :: interp_scheme
     integer, dimension(:), pointer :: fringe_size
     logical, dimension(:,:), pointer :: overlap_minimization
   end type t_reduced_domain_info
@@ -124,7 +123,6 @@ contains
     integer, dimension(:,:), pointer :: EdgePadding
     integer, dimension(:), pointer :: EdgeSmoothing
     integer, dimension(:,:), pointer :: ConnectionType
-    integer, dimension(:,:), pointer :: InterpScheme
     integer, dimension(:), pointer :: FringeSize
     logical, dimension(:,:), pointer :: OverlapMinimization
 
@@ -206,11 +204,9 @@ contains
     end do
 
     allocate(ReducedDomainInfo%connection_type(NumGrids,NumGrids))
-    allocate(ReducedDomainInfo%interp_scheme(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%fringe_size(NumGrids))
     allocate(ReducedDomainInfo%overlap_minimization(NumGrids,NumGrids))
     ConnectionType => ReducedDomainInfo%connection_type
-    InterpScheme => ReducedDomainInfo%interp_scheme
     FringeSize => ReducedDomainInfo%fringe_size
     OverlapMinimization => ReducedDomainInfo%overlap_minimization
 
@@ -221,7 +217,6 @@ contains
         p = IndexToID(m)
         Occludes(m,n) = Domain%properties%occludes(p,q)
         ConnectionType(m,n) = Domain%properties%connection_type(p,q)
-        InterpScheme(m,n) = Domain%properties%interp_scheme(p,q)
         OverlapMinimization(m,n) = Domain%properties%overlap_minimization(p,q)
       end do
     end do
@@ -1285,7 +1280,6 @@ contains
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:,:), pointer :: ConnectionType
-    integer, dimension(:,:), pointer :: InterpScheme
     integer(lk), dimension(:), allocatable :: NumConnections
     integer :: NumWarnings
     type(ovk_grid), pointer :: Grid_m, Grid_n
@@ -1311,7 +1305,6 @@ contains
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     ConnectionType => ReducedDomainInfo%connection_type
-    InterpScheme => ReducedDomainInfo%interp_scheme
 
     allocate(NumConnections(NumGrids))
 
@@ -1362,12 +1355,12 @@ contains
                     DonorExtents(:NumDims,2) = Overlap%cells(:NumDims,l) + 1
                     DonorExtents(NumDims+1:,2) = 1
                     DonorCoords = Overlap%coords(:,l)
-                    select case (InterpScheme(m,n))
-                    case (OVK_INTERP_LINEAR)
+                    select case (ConnectionType(m,n))
+                    case (OVK_CONNECTION_LINEAR)
                       do d = 1, NumDims
                         DonorInterpCoefs(:,d) = ovkInterpBasisLinear(DonorCoords(d))
                       end do
-                    case (OVK_INTERP_CUBIC)
+                    case (OVK_CONNECTION_CUBIC)
                       do d = 1, NumDims
                         ReceiverCoords(d) = Grid_n%coords(d)%values(i,j,k)
                       end do
@@ -1450,7 +1443,6 @@ contains
     deallocate(ReducedDomainInfo%edge_padding)
     deallocate(ReducedDomainInfo%edge_smoothing)
     deallocate(ReducedDomainInfo%connection_type)
-    deallocate(ReducedDomainInfo%interp_scheme)
     deallocate(ReducedDomainInfo%fringe_size)
     deallocate(ReducedDomainInfo%overlap_minimization)
 

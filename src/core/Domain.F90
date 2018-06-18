@@ -58,8 +58,6 @@ module ovkDomain
   public :: ovkSetDomainPropertyEdgeSmoothing
   public :: ovkGetDomainPropertyConnectionType
   public :: ovkSetDomainPropertyConnectionType
-  public :: ovkGetDomainPropertyInterpScheme
-  public :: ovkSetDomainPropertyInterpScheme
   public :: ovkGetDomainPropertyFringeSize
   public :: ovkSetDomainPropertyFringeSize
   public :: ovkGetDomainPropertyOverlapMinimization
@@ -89,7 +87,6 @@ module ovkDomain
     integer, dimension(:,:), allocatable :: edge_padding
     integer, dimension(:), allocatable :: edge_smoothing
     integer, dimension(:,:), allocatable :: connection_type
-    integer, dimension(:,:), allocatable :: interp_scheme
     integer, dimension(:), allocatable :: fringe_size
     logical, dimension(:,:), allocatable :: overlap_minimization
   end type ovk_domain_properties
@@ -415,14 +412,6 @@ contains
 !                 Properties%edge_padding(m,n) /= PrevProperties%edge_padding(m,n)) then
 !                 Edits%boundary_hole_dependencies(n) = .true.
 !                 Edits%connectivity_dependencies(:,:) = .true.
-!               end if
-!             end do
-!           end do
-
-!           do n = 1, NumGrids
-!             do m = 1, NumGrids
-!               if (Properties%interp_scheme(m,n) /= PrevProperties%interp_scheme(m,n)) then
-!                 Edits%connectivity_dependencies(m,n) = .true.
 !               end if
 !             end do
 !           end do
@@ -1486,9 +1475,6 @@ contains
     allocate(Properties%connection_type(NumGrids,NumGrids))
     Properties%connection_type = OVK_CONNECTION_NONE
 
-    allocate(Properties%interp_scheme(NumGrids,NumGrids))
-    Properties%interp_scheme = OVK_INTERP_LINEAR
-
     allocate(Properties%fringe_size(NumGrids))
     Properties%fringe_size = 0
 
@@ -1837,8 +1823,8 @@ contains
     if (OVK_DEBUG) then
       ValidValue = &
         ConnectionType == OVK_CONNECTION_NONE .or. &
-        ConnectionType == OVK_CONNECTION_FRINGE .or. &
-        ConnectionType == OVK_CONNECTION_FULL
+        ConnectionType == OVK_CONNECTION_LINEAR .or. &
+        ConnectionType == OVK_CONNECTION_CUBIC
       if (.not. ValidValue) then
         write (ERROR_UNIT, '(a)') "ERROR: Invalid connection type."
         stop 1
@@ -1855,49 +1841,6 @@ contains
     end do
 
   end subroutine ovkSetDomainPropertyConnectionType
-
-  subroutine ovkGetDomainPropertyInterpScheme(Properties, DonorGridID, ReceiverGridID, &
-    InterpScheme)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(out) :: InterpScheme
-
-    InterpScheme = Properties%interp_scheme(DonorGridID,ReceiverGridID)
-
-  end subroutine ovkGetDomainPropertyInterpScheme
-
-  subroutine ovkSetDomainPropertyInterpScheme(Properties, DonorGridID, ReceiverGridID, &
-    InterpScheme)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(in) :: InterpScheme
-
-    logical :: ValidValue
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    if (OVK_DEBUG) then
-      ValidValue = &
-        InterpScheme == OVK_INTERP_LINEAR .or. &
-        InterpScheme == OVK_INTERP_CUBIC
-      if (.not. ValidValue) then
-        write (ERROR_UNIT, '(a)') "ERROR: Invalid interpolation scheme."
-        stop 1
-      end if
-    end if
-
-    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%interp_scheme(m,n) = InterpScheme
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyInterpScheme
 
   subroutine ovkGetDomainPropertyFringeSize(Properties, GridID, FringeSize)
 
@@ -1997,11 +1940,13 @@ contains
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer :: MaxDonorSize
 
-    select case (Properties%interp_scheme(DonorGridID,ReceiverGridID))
-    case (OVK_INTERP_CUBIC)
-      MaxDonorSize = 4
-    case (OVK_INTERP_LINEAR)
+    select case (Properties%connection_type(DonorGridID,ReceiverGridID))
+    case (OVK_CONNECTION_NONE)
+      MaxDonorSize = 0
+    case (OVK_CONNECTION_LINEAR)
       MaxDonorSize = 2
+    case (OVK_CONNECTION_CUBIC)
+      MaxDonorSize = 4
     end select
 
   end function GetMaxDonorSize

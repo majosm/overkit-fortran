@@ -15,8 +15,8 @@ program Bump
   type(t_cmd_opt), dimension(3) :: Options
   integer :: N
   integer :: NumDims
-  character(len=32) :: InterpSchemeString
-  integer :: InterpScheme
+  character(len=32) :: InterpScheme
+  integer :: ConnectionType
   integer, dimension(MAX_ND) :: NumPointsBackground
   integer, dimension(MAX_ND) :: NumPointsBump
   real(rk), dimension(MAX_ND) :: Length
@@ -35,7 +35,6 @@ program Bump
   integer, dimension(MAX_ND,2) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
   type(ovk_cart) :: Cart
-  integer :: ConnectionType
   type(ovk_connectivity), pointer :: Connectivity
   integer, dimension(:,:), pointer :: ReceiverPoints
   type(ovk_field_logical) :: Mask
@@ -65,15 +64,14 @@ program Bump
 
   call GetOptionValue(Options(2), N, 81)
 
-  call GetOptionValue(Options(3), InterpSchemeString, "cubic")
-  select case (InterpSchemeString)
+  call GetOptionValue(Options(3), InterpScheme, "cubic")
+  select case (InterpScheme)
   case ("linear")
-    InterpScheme = OVK_INTERP_LINEAR
+    ConnectionType = OVK_CONNECTION_LINEAR
   case ("cubic")
-    InterpScheme = OVK_INTERP_CUBIC
+    ConnectionType = OVK_CONNECTION_CUBIC
   case default
-    write (ERROR_UNIT, '(3a)') "ERROR: Unrecognized interpolation scheme '", &
-      trim(InterpSchemeString), "'."
+    write (ERROR_UNIT, '(3a)') "ERROR: Unrecognized interpolation scheme '", trim(InterpScheme), "'."
     stop 1
   end select
 
@@ -97,8 +95,7 @@ program Bump
   call ovkSetDomainPropertyEdgeSmoothing(Properties, OVK_ALL_GRIDS, 3)
 
   ! Indicate which grids can communicate and how
-  call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
-  call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, InterpScheme)
+  call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, ConnectionType)
   call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
   call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 

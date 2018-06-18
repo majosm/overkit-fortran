@@ -79,8 +79,7 @@ program Blobs
   call ovkSetDomainPropertyEdgeSmoothing(Properties, OVK_ALL_GRIDS, 2)
 
   ! Indicate which grids can communicate and how
-  call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
-  call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_LINEAR)
+  call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_LINEAR)
   call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
   call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 

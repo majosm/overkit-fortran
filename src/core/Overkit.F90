@@ -125,8 +125,6 @@ module Overkit
   public :: ovkSetDomainPropertyEdgeSmoothing
   public :: ovkGetDomainPropertyConnectionType
   public :: ovkSetDomainPropertyConnectionType
-  public :: ovkGetDomainPropertyInterpScheme
-  public :: ovkSetDomainPropertyInterpScheme
   public :: ovkGetDomainPropertyFringeSize
   public :: ovkSetDomainPropertyFringeSize
   public :: ovkGetDomainPropertyOverlapMinimization
@@ -215,8 +213,7 @@ module Overkit
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_P3D_STANDARD, OVK_P3D_EXTENDED
   public :: OVK_ALL_GRIDS
-  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_FRINGE, OVK_CONNECTION_FULL
-  public :: OVK_INTERP_LINEAR, OVK_INTERP_CUBIC
+  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
 
   ! ovkGrid
   public :: ovk_grid

@@ -141,8 +141,7 @@ contains
     call ovkSetDomainPropertyEdgeSmoothing(Properties, OVK_ALL_GRIDS, 2)
 
     ! Indicate which grids can communicate and how
-    call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
-    call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_CUBIC)
+    call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
     call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
     call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
     call ovkSetDomainPropertyOverlapMinimization(Properties, 2, 1, .true.)
@@ -360,8 +359,7 @@ contains
     call ovkSetDomainPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
 
     ! Indicate which grids can communicate and how
-    call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_FRINGE)
-    call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_CUBIC)
+    call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
     call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 1)
 
     call ovkReleaseDomainProperties(Domain, Properties)
@@ -570,10 +568,9 @@ contains
     ! Full grid interpolation from cylinder grids to block grids
     do n = 3, 6
       do m = 1, 2
-        call ovkSetDomainPropertyConnectionType(Properties, m, n, OVK_CONNECTION_FULL)
+        call ovkSetDomainPropertyConnectionType(Properties, m, n, OVK_CONNECTION_CUBIC)
       end do
     end do
-    call ovkSetDomainPropertyInterpScheme(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_INTERP_CUBIC)
 
     call ovkReleaseDomainProperties(Domain, Properties)
 
