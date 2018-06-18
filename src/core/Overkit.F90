@@ -84,6 +84,9 @@ module Overkit
   public :: ovkGetConnectivityPropertyDimension
   public :: ovkGetConnectivityPropertyMaxDonorSize
   public :: ovkGetConnectivityPropertyConnectionCount
+  public :: ovkDonorSize
+  public :: ovkFindDonor
+  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_NEAREST, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
 
   ! ovkDomain
   public :: ovk_domain
@@ -213,7 +216,6 @@ module Overkit
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_P3D_STANDARD, OVK_P3D_EXTENDED
   public :: OVK_ALL_GRIDS
-  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
 
   ! ovkGrid
   public :: ovk_grid

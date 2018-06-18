@@ -1940,14 +1940,20 @@ contains
     integer, intent(in) :: DonorGridID, ReceiverGridID
     integer :: MaxDonorSize
 
-    select case (Properties%connection_type(DonorGridID,ReceiverGridID))
-    case (OVK_CONNECTION_NONE)
+    integer :: NumDims
+    integer :: ConnectionType
+    integer, dimension(MAX_ND) :: DonorSize
+
+    NumDims = Properties%nd
+    ConnectionType = Properties%connection_type(DonorGridID,ReceiverGridID)
+
+    if (ConnectionType /= OVK_CONNECTION_NONE) then
+      DonorSize = 1
+      DonorSize(:NumDims) = ovkDonorSize(NumDims, ConnectionType)
+      MaxDonorSize = maxval(DonorSize)
+    else
       MaxDonorSize = 0
-    case (OVK_CONNECTION_LINEAR)
-      MaxDonorSize = 2
-    case (OVK_CONNECTION_CUBIC)
-      MaxDonorSize = 4
-    end select
+    end if
 
   end function GetMaxDonorSize
 

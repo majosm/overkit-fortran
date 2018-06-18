@@ -8,6 +8,7 @@ module ovkConnectivity
   use ovkOverlap
   use ovkField
   use ovkFieldOps
+  use ovkGeometry
   use ovkGlobal
   use ovkGrid
   use ovkLogger
@@ -30,6 +31,9 @@ module ovkConnectivity
   public :: ovkGetConnectivityPropertyDimension
   public :: ovkGetConnectivityPropertyMaxDonorSize
   public :: ovkGetConnectivityPropertyConnectionCount
+  public :: ovkDonorSize
+  public :: ovkFindDonor
+  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_NEAREST, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
 
   ! Internal
   public :: ovk_connectivity_
@@ -38,7 +42,6 @@ module ovkConnectivity
   public :: ConnectivityExists
   public :: ResizeConnectivity
   public :: SetConnectivityPropertyMaxDonorSize
-  public :: ExpandDonorCell
 
   type ovk_connectivity_properties
     type(t_noconstruct) :: noconstruct
@@ -61,6 +64,11 @@ module ovkConnectivity
     real(rk), dimension(:,:), pointer :: donor_coords
     real(rk), dimension(:,:,:), pointer :: donor_interp_coefs
   end type ovk_connectivity
+
+  integer, parameter :: OVK_CONNECTION_NONE = 0
+  integer, parameter :: OVK_CONNECTION_NEAREST = 1
+  integer, parameter :: OVK_CONNECTION_LINEAR = 2
+  integer, parameter :: OVK_CONNECTION_CUBIC = 3
 
 contains
 
@@ -368,17 +376,143 @@ contains
 
   end subroutine ovkGetConnectivityPropertyConnectionCount
 
-  subroutine ExpandDonorCell(DonorGrid, ReceiverCoords, DonorExtents, DonorCoords, Success)
+  function ovkDonorSize(NumDims, ConnectionType) result(DonorSize)
 
-    type(ovk_grid), intent(in) :: DonorGrid
-    real(rk), dimension(DonorGrid%cart%nd), intent(in) :: ReceiverCoords
-    integer, dimension(MAX_ND,2), intent(inout) :: DonorExtents
-    real(rk), dimension(DonorGrid%cart%nd), intent(inout) :: DonorCoords
-    logical, intent(out) :: Success
+    integer, intent(in) :: NumDims
+    integer, intent(in) :: ConnectionType
+    integer, dimension(NumDims) :: DonorSize
+
+    select case (ConnectionType)
+    case (OVK_CONNECTION_NEAREST)
+      DonorSize = 1
+    case (OVK_CONNECTION_LINEAR)
+      DonorSize = 2
+    case (OVK_CONNECTION_CUBIC)
+      DonorSize = 4
+    case default
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid connection type."
+        stop 1
+      end if
+    end select
+
+  end function ovkDonorSize
+
+  subroutine ovkFindDonor(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+    ConnectionType, DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    type(ovk_grid), intent(in) :: DonorGrid, ReceiverGrid
+    type(ovk_overlap), intent(in) :: Overlap
+    integer, dimension(:), intent(in) :: ReceiverPoint
+    integer(lk), intent(in) :: OverlapIndex
+    integer, intent(in) :: ConnectionType
+    integer, dimension(:,:), intent(out) :: DonorExtents
+    real(rk), dimension(:), intent(out) :: DonorCoords
+    real(rk), dimension(:,:), intent(out) :: DonorInterpCoefs
+
+    select case (ConnectionType)
+    case (OVK_CONNECTION_NEAREST)
+      call FindDonorNearest(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+        DonorExtents, DonorCoords, DonorInterpCoefs)
+    case (OVK_CONNECTION_LINEAR)
+      call FindDonorLinear(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+        DonorExtents, DonorCoords, DonorInterpCoefs)
+    case (OVK_CONNECTION_CUBIC)
+      call FindDonorCubic(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+        DonorExtents, DonorCoords, DonorInterpCoefs)
+    case default
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid connection type."
+        stop 1
+      end if
+    end select
+
+  end subroutine ovkFindDonor
+
+  subroutine FindDonorNearest(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+    DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    type(ovk_grid), intent(in) :: DonorGrid, ReceiverGrid
+    type(ovk_overlap), intent(in) :: Overlap
+    integer, dimension(:), intent(in) :: ReceiverPoint
+    integer(lk), intent(in) :: OverlapIndex
+    integer, dimension(:,:), intent(out) :: DonorExtents
+    real(rk), dimension(:), intent(out) :: DonorCoords
+    real(rk), dimension(:,:), intent(out) :: DonorInterpCoefs
+
+    integer :: d
+    integer :: NumDims
+    integer, dimension(MAX_ND) :: NearestPoint
+
+    NumDims = DonorGrid%cart%nd
+
+    NearestPoint = 1
+    do d = 1, NumDims
+      NearestPoint(d) = Overlap%cells(d,OverlapIndex) + int(Overlap%coords(d,OverlapIndex) + 0.5_rk)
+    end do
+    if (.not. ovkCartContains(DonorGrid%cart, NearestPoint)) then
+      NearestPoint = ovkCartPeriodicAdjust(DonorGrid%cart, NearestPoint)
+    end if
+
+    DonorExtents(:,1) = NearestPoint
+    DonorExtents(:,2) = NearestPoint
+
+    DonorCoords = 0._rk
+
+    DonorInterpCoefs = 0._rk
+    do d = 1, NumDims
+      DonorInterpCoefs(1,d) = 1._rk
+    end do
+
+  end subroutine FindDonorNearest
+
+  subroutine FindDonorLinear(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+    DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    type(ovk_grid), intent(in) :: DonorGrid, ReceiverGrid
+    type(ovk_overlap), intent(in) :: Overlap
+    integer, dimension(:), intent(in) :: ReceiverPoint
+    integer(lk), intent(in) :: OverlapIndex
+    integer, dimension(:,:), intent(out) :: DonorExtents
+    real(rk), dimension(:), intent(out) :: DonorCoords
+    real(rk), dimension(:,:), intent(out) :: DonorInterpCoefs
+
+    integer :: d
+    integer :: NumDims
+
+    NumDims = DonorGrid%cart%nd
+
+    DonorExtents(:,1) = Overlap%cells(:,OverlapIndex)
+    DonorExtents(:NumDims,2) = Overlap%cells(:NumDims,OverlapIndex) + 1
+    DonorExtents(NumDims+1:,2) = 1
+
+    DonorCoords = Overlap%coords(:,OverlapIndex)
+
+    DonorInterpCoefs = 0._rk
+    do d = 1, NumDims
+      DonorInterpCoefs(:2,d) = ovkInterpBasisLinear(DonorCoords(d))
+    end do
+
+  end subroutine FindDonorLinear
+
+  subroutine FindDonorCubic(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+    DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    type(ovk_grid), intent(in) :: DonorGrid, ReceiverGrid
+    type(ovk_overlap), intent(in) :: Overlap
+    integer, dimension(:), intent(in) :: ReceiverPoint
+    integer(lk), intent(in) :: OverlapIndex
+    integer, dimension(:,:), intent(out) :: DonorExtents
+    real(rk), dimension(:), intent(out) :: DonorCoords
+    real(rk), dimension(:,:), intent(out) :: DonorInterpCoefs
 
     integer :: d, i, j, k
     integer :: NumDims
-    integer, dimension(MAX_ND) :: DonorCell
+    real(rk), dimension(DonorGrid%cart%nd) :: ReceiverCoords
+    integer, dimension(MAX_ND) :: OverlapCell
+    real(rk), dimension(DonorGrid%cart%nd) :: OverlapCoords
+    logical :: Success
+    integer :: NumWarnings
     integer, dimension(MAX_ND) :: CellShift
     integer, dimension(MAX_ND) :: PrevCell, NextCell
     integer :: PrevDistance, NextDistance
@@ -391,24 +525,35 @@ contains
     integer, dimension(MAX_ND) :: Neighbor
     logical :: AwayFromBoundary
     real(rk), dimension(DonorGrid%cart%nd) :: Displacement
+    character(len=STRING_LENGTH) :: DonorCellString
+    character(len=STRING_LENGTH) :: DonorGridIDString
+    character(len=STRING_LENGTH) :: ReceiverPointString
+    character(len=STRING_LENGTH) :: ReceiverGridIDString
 
     NumDims = DonorGrid%cart%nd
 
-    DonorCell = DonorExtents(:,1)
+    do d = 1, NumDims
+      ReceiverCoords(d) = ReceiverGrid%coords(d)%values(ReceiverPoint(1),ReceiverPoint(2), &
+        ReceiverPoint(3))
+    end do
+
+    OverlapCell = Overlap%cells(:,OverlapIndex)
+    OverlapCoords = Overlap%coords(:,OverlapIndex)
 
     Success = .false.
+    NumWarnings = 0
 
-    if (DonorGrid%cell_edge_dist%values(DonorCell(1),DonorCell(2),DonorCell(3)) > 1) then
+    if (DonorGrid%cell_edge_dist%values(OverlapCell(1),OverlapCell(2),OverlapCell(3)) > 1) then
       CellShift = 0
       Success = .true.
     else
       ! Choose a neighboring cell in the direction that most closely matches the edge
       ! distance gradient
       do d = 1, DonorGrid%cart%nd
-        PrevCell = DonorCell
+        PrevCell = OverlapCell
         PrevCell(d) = PrevCell(d) - 1
         PrevCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_edge_dist%cart, PrevCell)
-        NextCell = DonorCell
+        NextCell = OverlapCell
         NextCell(d) = NextCell(d) + 1
         NextCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_edge_dist%cart, NextCell)
         PrevDistance = DonorGrid%cell_edge_dist%values(PrevCell(1),PrevCell(2),PrevCell(3))
@@ -417,7 +562,7 @@ contains
       end do
       Offset(:NumDims) = ClosestOffset(Gradient)
       Offset(NumDims+1:) = 0
-      ShiftedCell = DonorCell + Offset
+      ShiftedCell = OverlapCell + Offset
       ShiftedCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_cart, ShiftedCell)
       if (DonorGrid%cell_edge_dist%values(ShiftedCell(1),ShiftedCell(2),ShiftedCell(3)) > 1) then
         CellShift = Offset
@@ -426,9 +571,9 @@ contains
         ! Fall back to iterating over all neighbors
         BestOffset = 0
         BestOffsetQuality = -huge(0._rk)
-        NeighborLower(:NumDims) = DonorCell(:NumDims)-1
+        NeighborLower(:NumDims) = OverlapCell(:NumDims)-1
         NeighborLower(NumDims+1:) = 1
-        NeighborUpper(:NumDims) = DonorCell(:NumDims)+1
+        NeighborUpper(:NumDims) = OverlapCell(:NumDims)+1
         NeighborUpper(NumDims+1:) = 1
         AwayFromBoundary = ovkCartContains(DonorGrid%cell_cart, NeighborLower) .and. &
           ovkCartContains(DonorGrid%cell_cart, NeighborUpper)
@@ -438,7 +583,7 @@ contains
               do i = NeighborLower(1), NeighborUpper(1)
                 Neighbor = [i,j,k]
                 if (DonorGrid%cell_edge_dist%values(Neighbor(1),Neighbor(2),Neighbor(3)) > 1) then
-                  Offset = [i-DonorCell(1),j-DonorCell(2),k-DonorCell(3)]
+                  Offset = [i-OverlapCell(1),j-OverlapCell(2),k-OverlapCell(3)]
                   Displacement = real(Offset(:NumDims),kind=rk)
                   OffsetQuality = dot_product(Gradient, Displacement)/sqrt(sum(Displacement**2))
                   if (OffsetQuality > BestOffsetQuality) then
@@ -457,7 +602,7 @@ contains
                 Neighbor(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_cart, Neighbor)
                 if (ovkCartContains(DonorGrid%cell_cart, Neighbor)) then
                   if (DonorGrid%cell_edge_dist%values(Neighbor(1),Neighbor(2),Neighbor(3)) > 1) then
-                    Offset = [i-DonorCell(1),j-DonorCell(2),k-DonorCell(3)]
+                    Offset = [i-OverlapCell(1),j-OverlapCell(2),k-OverlapCell(3)]
                     Displacement = real(Offset(:NumDims),kind=rk)
                     OffsetQuality = dot_product(Gradient, Displacement)/sqrt(sum(Displacement**2))
                     if (OffsetQuality > BestOffsetQuality) then
@@ -478,16 +623,35 @@ contains
     end if
 
     if (Success) then
-      ShiftedCell = DonorCell + CellShift
-      DonorExtents(:NumDims,1) = ShiftedCell(:NumDims) - 1
+      DonorExtents(:NumDims,1) = OverlapCell(:NumDims) + CellShift(:NumDims) - 1
       DonorExtents(:NumDims,1) = ovkCartPeriodicAdjust(DonorGrid%cart, DonorExtents(:,1))
       DonorExtents(:NumDims,2) = DonorExtents(:NumDims,1) + 3
-      DonorCoords = DonorCoords - real(CellShift(:NumDims),kind=rk)
+      DonorCoords = OverlapCoords - real(CellShift(:NumDims),kind=rk)
       DonorCoords = ovkCoordsInCubicGridCell(DonorGrid, DonorExtents(:,1), ReceiverCoords, &
         Guess=DonorCoords)
+      do d = 1, NumDims
+        DonorInterpCoefs(:,d) = ovkInterpBasisCubic(DonorCoords(d))
+      end do
+    else
+      if (DonorGrid%logger%verbose) then
+        DonorCellString = TupleToString(DonorExtents(:DonorGrid%cart%nd,1))
+        DonorGridIDString = IntToString(DonorGrid%properties%id)
+        ReceiverPointString = TupleToString(ReceiverPoint(:ReceiverGrid%cart%nd))
+        ReceiverGridIDString = IntToString(ReceiverGrid%properties%id)
+        write (ERROR_UNIT, '(10a)') "WARNING: Could not use cubic ", &
+          "interpolation for donor cell ", trim(DonorCellString), " of grid ", &
+          trim(DonorGridIDString), " corresponding to receiver point ", &
+          trim(ReceiverPointString), " of grid ", trim(ReceiverGridIDString), "; using linear instead."
+        if (NumWarnings == 100) then
+          write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+        end if
+        NumWarnings = NumWarnings + 1
+      end if
+      call FindDonorLinear(DonorGrid, ReceiverGrid, Overlap, ReceiverPoint, OverlapIndex, &
+        DonorExtents, DonorCoords, DonorInterpCoefs)
     end if
 
-  end subroutine ExpandDonorCell
+  end subroutine FindDonorCubic
 
   function ClosestOffset(Vector) result(Offset)
 

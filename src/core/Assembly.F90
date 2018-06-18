@@ -12,7 +12,6 @@ module ovkAssembly
   use ovkOverlapAccel
   use ovkField
   use ovkFieldOps
-  use ovkGeometry
   use ovkGlobal
   use ovkGrid
   use ovkPLOT3D
@@ -1274,28 +1273,23 @@ contains
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
     type(ovk_field_int), dimension(:), intent(in) :: DonorGridIDs
 
-    integer :: d, i, j, k, m, n
+    integer :: i, j, k, m, n
     integer(lk) :: l, p
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:,:), pointer :: ConnectionType
     integer(lk), dimension(:), allocatable :: NumConnections
-    integer :: NumWarnings
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
     type(ovk_connectivity), pointer :: Connectivity
+    type(ovk_connectivity_properties), pointer :: ConnectivityProperties
+    integer :: MaxDonorSize
     type(ovk_field_logical) :: ReceiverMask
     integer, dimension(MAX_ND) :: ReceiverPoint
     integer, dimension(MAX_ND,2) :: DonorExtents
-    real(rk), dimension(Domain%properties%nd) :: ReceiverCoords
     real(rk), dimension(Domain%properties%nd) :: DonorCoords
     real(rk), dimension(:,:), allocatable :: DonorInterpCoefs
-    logical :: Success
-    character(len=STRING_LENGTH) :: DonorCellString
-    character(len=STRING_LENGTH) :: DonorGridIDString
-    character(len=STRING_LENGTH) :: ReceiverPointString
-    character(len=STRING_LENGTH) :: ReceiverGridIDString
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Generating connectivity information..."
@@ -1338,59 +1332,22 @@ contains
 
             call ResizeConnectivity(Connectivity, NumConnections(m))
 
-            allocate(DonorInterpCoefs(size(Connectivity%donor_interp_coefs,1), &
-              size(Connectivity%donor_interp_coefs,2)))
+            call ovkGetConnectivityProperties(Connectivity, ConnectivityProperties)
+            call ovkGetConnectivityPropertyMaxDonorSize(ConnectivityProperties, MaxDonorSize)
 
-            NumWarnings = 0
+            allocate(DonorInterpCoefs(MaxDonorSize,NumDims))
 
             l = 1_lk
             p = 1_lk
+            DonorExtents = 1
             do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
               do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
                 do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
                   if (ReceiverMask%values(i,j,k) .and. DonorGridIDs(n)%values(i,j,k) == &
                     Grid_m%properties%id) then
                     ReceiverPoint = [i,j,k]
-                    DonorExtents(:,1) = Overlap%cells(:,l)
-                    DonorExtents(:NumDims,2) = Overlap%cells(:NumDims,l) + 1
-                    DonorExtents(NumDims+1:,2) = 1
-                    DonorCoords = Overlap%coords(:,l)
-                    select case (ConnectionType(m,n))
-                    case (OVK_CONNECTION_LINEAR)
-                      do d = 1, NumDims
-                        DonorInterpCoefs(:,d) = ovkInterpBasisLinear(DonorCoords(d))
-                      end do
-                    case (OVK_CONNECTION_CUBIC)
-                      do d = 1, NumDims
-                        ReceiverCoords(d) = Grid_n%coords(d)%values(i,j,k)
-                      end do
-                      call ExpandDonorCell(Grid_m, ReceiverCoords, DonorExtents, DonorCoords, &
-                        Success)
-                      if (Success) then
-                        do d = 1, NumDims
-                          DonorInterpCoefs(:,d) = ovkInterpBasisCubic(DonorCoords(d))
-                        end do
-                      else
-                        if (Domain%logger%verbose) then
-                          DonorCellString = TupleToString(DonorExtents(:Grid_m%cart%nd,1))
-                          DonorGridIDString = IntToString(Grid_m%properties%id)
-                          ReceiverPointString = TupleToString(ReceiverPoint(:Grid_n%cart%nd))
-                          ReceiverGridIDString = IntToString(Grid_n%properties%id)
-                          write (ERROR_UNIT, '(9a)') "WARNING: Could not use cubic ", &
-                            "interpolation for donor cell ", trim(DonorCellString), " of grid ", &
-                            trim(DonorGridIDString), " corresponding to receiver point ", &
-                            trim(ReceiverPointString), " of grid ", trim(ReceiverGridIDString)
-                          if (NumWarnings == 100) then
-                            write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
-                          end if
-                          NumWarnings = NumWarnings + 1
-                        end if
-                        DonorInterpCoefs = 0._rk
-                        do d = 1, NumDims
-                          DonorInterpCoefs(:2,d) = ovkInterpBasisLinear(DonorCoords(d))
-                        end do
-                      end if
-                    end select
+                    call ovkFindDonor(Grid_m, Grid_n, Overlap, ReceiverPoint, l, &
+                      ConnectionType(m,n), DonorExtents, DonorCoords, DonorInterpCoefs)
                     Connectivity%receiver_points(:,p) = ReceiverPoint
                     Connectivity%donor_extents(:,:,p) = DonorExtents
                     Connectivity%donor_coords(:,p) = DonorCoords
