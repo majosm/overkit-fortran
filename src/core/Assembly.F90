@@ -1407,6 +1407,7 @@ contains
 
   end subroutine FinalizeAssembly
 
+#if false
   subroutine WriteGrids(Domain, IBlanks, FilePath)
 
     type(ovk_domain), intent(in) :: Domain
@@ -1448,5 +1449,6 @@ contains
     call ovkCloseP3D(GridFile)
 
   end subroutine WriteGrids
+#endif
 
 end module ovkAssembly
