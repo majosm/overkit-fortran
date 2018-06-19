@@ -1,0 +1,381 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module ConnectivityTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  use ovkConnectivity, only : ovk_connectivity_, CreateConnectivity, DestroyConnectivity, &
+    FillConnectivity
+  use ovkDonorStencil, only : t_donor_stencil, CreateDonorStencil, DestroyDonorStencil
+  use ovkGlobal, only : CheckExists
+  use ovkGrid, only : CreateGrid, DestroyGrid
+  use ovkLogger, only : t_logger, t_logger_, operator (==)
+  use TestFixtures
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_connectivity_test
+  end type t_connectivity_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_connectivity) :: Connectivity
+
+    Connectivity = ovk_connectivity_()
+
+    @AssertFalse(CheckExists(Connectivity%existence_flag))
+    @AssertTrue(t_logger_() == Connectivity%logger)
+    @AssertFalse(associated(Connectivity%donor_grid))
+    @AssertFalse(associated(Connectivity%receiver_grid))
+    @AssertEqual(2, Connectivity%nd)
+    @AssertEqual(1, Connectivity%max_donor_size)
+    @AssertEqual(0_lk, Connectivity%nconnections)
+    @AssertFalse(associated(Connectivity%donor_extents))
+    @AssertFalse(associated(Connectivity%donor_coords))
+    @AssertFalse(associated(Connectivity%donor_interp_coefs))
+    @AssertFalse(associated(Connectivity%receiver_points))
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine CreateDestroy2D(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_connectivity) :: Connectivity
+
+    call CreateGrid(DonorGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(ReceiverGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    @AssertTrue(CheckExists(Connectivity%existence_flag))
+    @AssertTrue(t_logger_() == Connectivity%logger)
+    @AssertTrue(associated(Connectivity%donor_grid, DonorGrid))
+    @AssertTrue(associated(Connectivity%receiver_grid, ReceiverGrid))
+    @AssertEqual(2, Connectivity%nd)
+    @AssertEqual(1, Connectivity%max_donor_size)
+    @AssertEqual(0_lk, Connectivity%nconnections)
+    @AssertTrue(associated(Connectivity%donor_extents))
+    @AssertEqual([MAX_ND,2,0], shape(Connectivity%donor_extents))
+    @AssertTrue(associated(Connectivity%donor_coords))
+    @AssertEqual([2,0], shape(Connectivity%donor_coords))
+    @AssertTrue(associated(Connectivity%donor_interp_coefs))
+    @AssertEqual([1,2,0], shape(Connectivity%donor_interp_coefs))
+    @AssertTrue(associated(Connectivity%receiver_points))
+    @AssertEqual([MAX_ND,0], shape(Connectivity%receiver_points))
+
+    call DestroyConnectivity(Connectivity)
+
+    @AssertFalse(CheckExists(Connectivity%existence_flag))
+    @AssertFalse(associated(Connectivity%donor_extents))
+    @AssertFalse(associated(Connectivity%donor_coords))
+    @AssertFalse(associated(Connectivity%donor_interp_coefs))
+    @AssertFalse(associated(Connectivity%receiver_points))
+
+    call DestroyGrid(DonorGrid)
+    call DestroyGrid(ReceiverGrid)
+
+  end subroutine CreateDestroy2D
+
+  @Test
+  subroutine CreateDestroy3D(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_connectivity) :: Connectivity
+
+    call CreateGrid(DonorGrid, t_logger_(), 1, ovk_cart_(3, [5,6,7]))
+    call CreateGrid(ReceiverGrid, t_logger_(), 2, ovk_cart_(3, [8,9,10]))
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    @AssertTrue(CheckExists(Connectivity%existence_flag))
+    @AssertTrue(t_logger_() == Connectivity%logger)
+    @AssertTrue(associated(Connectivity%donor_grid, DonorGrid))
+    @AssertTrue(associated(Connectivity%receiver_grid, ReceiverGrid))
+    @AssertEqual(3, Connectivity%nd)
+    @AssertEqual(1, Connectivity%max_donor_size)
+    @AssertEqual(0_lk, Connectivity%nconnections)
+    @AssertTrue(associated(Connectivity%donor_extents))
+    @AssertEqual([MAX_ND,2,0], shape(Connectivity%donor_extents))
+    @AssertTrue(associated(Connectivity%donor_coords))
+    @AssertEqual([3,0], shape(Connectivity%donor_coords))
+    @AssertTrue(associated(Connectivity%donor_interp_coefs))
+    @AssertEqual([1,3,0], shape(Connectivity%donor_interp_coefs))
+    @AssertTrue(associated(Connectivity%receiver_points))
+    @AssertEqual([MAX_ND,0], shape(Connectivity%receiver_points))
+
+    call DestroyConnectivity(Connectivity)
+
+    @AssertFalse(CheckExists(Connectivity%existence_flag))
+    @AssertFalse(associated(Connectivity%donor_extents))
+    @AssertFalse(associated(Connectivity%donor_coords))
+    @AssertFalse(associated(Connectivity%donor_interp_coefs))
+    @AssertFalse(associated(Connectivity%receiver_points))
+
+    call DestroyGrid(DonorGrid)
+    call DestroyGrid(ReceiverGrid)
+
+  end subroutine CreateDestroy3D
+
+  @Test
+  subroutine Exists(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_connectivity) :: Connectivity
+
+    call CreateGrid(DonorGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(ReceiverGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    @AssertFalse(ovkConnectivityExists(Connectivity))
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    @AssertTrue(ovkConnectivityExists(Connectivity))
+
+    call DestroyConnectivity(Connectivity)
+
+    @AssertFalse(ovkConnectivityExists(Connectivity))
+
+    call DestroyGrid(DonorGrid)
+    call DestroyGrid(ReceiverGrid)
+
+  end subroutine Exists
+
+  @Test
+  subroutine Reset2D(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_connectivity) :: Connectivity
+
+    call CreateGrid(DonorGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(ReceiverGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    call ovkResetConnectivity(Connectivity, 50_lk, 2)
+
+    @AssertEqual(2, Connectivity%max_donor_size)
+    @AssertEqual(50_lk, Connectivity%nconnections)
+    @AssertTrue(associated(Connectivity%donor_extents))
+    @AssertEqual([MAX_ND,2,50], shape(Connectivity%donor_extents))
+    @AssertTrue(associated(Connectivity%donor_coords))
+    @AssertEqual([2,50], shape(Connectivity%donor_coords))
+    @AssertTrue(associated(Connectivity%donor_interp_coefs))
+    @AssertEqual([2,2,50], shape(Connectivity%donor_interp_coefs))
+    @AssertTrue(associated(Connectivity%receiver_points))
+    @AssertEqual([MAX_ND,50], shape(Connectivity%receiver_points))
+
+    call DestroyConnectivity(Connectivity)
+
+    call DestroyGrid(DonorGrid)
+    call DestroyGrid(ReceiverGrid)
+
+  end subroutine Reset2D
+
+  @Test
+  subroutine Reset3D(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_connectivity) :: Connectivity
+
+    call CreateGrid(DonorGrid, t_logger_(), 1, ovk_cart_(3, [5,6,7]))
+    call CreateGrid(ReceiverGrid, t_logger_(), 2, ovk_cart_(3, [8,9,10]))
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    call ovkResetConnectivity(Connectivity, 50_lk, 2)
+
+    @AssertEqual(2, Connectivity%max_donor_size)
+    @AssertEqual(50_lk, Connectivity%nconnections)
+    @AssertTrue(associated(Connectivity%donor_extents))
+    @AssertEqual([MAX_ND,2,50], shape(Connectivity%donor_extents))
+    @AssertTrue(associated(Connectivity%donor_coords))
+    @AssertEqual([3,50], shape(Connectivity%donor_coords))
+    @AssertTrue(associated(Connectivity%donor_interp_coefs))
+    @AssertEqual([2,3,50], shape(Connectivity%donor_interp_coefs))
+    @AssertTrue(associated(Connectivity%receiver_points))
+    @AssertEqual([MAX_ND,50], shape(Connectivity%receiver_points))
+
+    call DestroyConnectivity(Connectivity)
+
+    call DestroyGrid(DonorGrid)
+    call DestroyGrid(ReceiverGrid)
+
+  end subroutine Reset3D
+
+  @Test
+  subroutine SimpleGetters(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_connectivity) :: Connectivity
+    type(ovk_grid), pointer :: DonorGridPtr, ReceiverGridPtr
+    integer :: NumDims
+    integer :: MaxDonorSize
+    integer(lk) :: NumConnections
+    integer, dimension(:,:,:), pointer :: DonorExtents
+    real(rk), dimension(:,:), pointer :: DonorCoords
+    real(rk), dimension(:,:,:), pointer :: DonorInterpCoefs
+    integer, dimension(:,:), pointer :: ReceiverPoints
+
+    call CreateGrid(DonorGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(ReceiverGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    call ovkResetConnectivity(Connectivity, 50_lk, 2)
+
+    call ovkGetConnectivityDonorGrid(Connectivity, DonorGridPtr)
+    @AssertTrue(associated(DonorGridPtr, DonorGrid))
+
+    call ovkGetConnectivityReceiverGrid(Connectivity, ReceiverGridPtr)
+    @AssertTrue(associated(ReceiverGridPtr, ReceiverGrid))
+
+    call ovkGetConnectivityDimension(Connectivity, NumDims)
+    @AssertEqual(2, NumDims)
+
+    call ovkGetConnectivityMaxDonorSize(Connectivity, MaxDonorSize)
+    @AssertEqual(2, MaxDonorSize)
+
+    call ovkGetConnectivityCount(Connectivity, NumConnections)
+    @AssertEqual(50_lk, NumConnections)
+
+    call ovkGetConnectivityDonorExtents(Connectivity, DonorExtents)
+    @AssertTrue(associated(DonorExtents, Connectivity%donor_extents))
+
+    call ovkGetConnectivityDonorCoords(Connectivity, DonorCoords)
+    @AssertTrue(associated(DonorCoords, Connectivity%donor_coords))
+
+    call ovkGetConnectivityDonorInterpCoefs(Connectivity, DonorInterpCoefs)
+    @AssertTrue(associated(DonorInterpCoefs, Connectivity%donor_interp_coefs))
+
+    call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
+    @AssertTrue(associated(ReceiverPoints, Connectivity%receiver_points))
+
+    call DestroyConnectivity(Connectivity)
+
+    call DestroyGrid(DonorGrid)
+    call DestroyGrid(ReceiverGrid)
+
+  end subroutine SimpleGetters
+
+  @Test
+  subroutine FillConnectivity2D(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(t_donor_stencil) :: DonorStencil
+    type(ovk_connectivity) :: Connectivity
+    type(ovk_field_logical) :: ReceiverMask
+
+    call SetupStaggered2D(DonorGrid, ReceiverGrid, Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_LINEAR)
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    ReceiverMask = ovk_field_logical_(ReceiverGrid%cart, .false.)
+    ReceiverMask%values(3,3,1) = .true.
+
+    call FillConnectivity(Connectivity, Overlap, DonorStencil, ReceiverMask)
+
+    @AssertEqual(1_lk, Connectivity%nconnections)
+
+    @AssertTrue(associated(Connectivity%receiver_points))
+    @AssertEqual([MAX_ND,1], shape(Connectivity%receiver_points))
+    @AssertEqual([3,3,1], Connectivity%receiver_points(:,1))
+
+    @AssertTrue(associated(Connectivity%donor_extents))
+    @AssertEqual([MAX_ND,2,1], shape(Connectivity%donor_extents))
+    @AssertEqual([2,3,1], Connectivity%donor_extents(:,1,1))
+    @AssertEqual([3,4,1], Connectivity%donor_extents(:,2,1))
+
+    @AssertTrue(associated(Connectivity%donor_coords))
+    @AssertEqual([2,1], shape(Connectivity%donor_coords))
+    @AssertEqual([0.5_rk, 0.5_rk], Connectivity%donor_coords(:,1))
+
+    @AssertTrue(associated(Connectivity%donor_interp_coefs))
+    @AssertEqual([2,2,1], shape(Connectivity%donor_interp_coefs))
+    @AssertEqual([0.5_rk, 0.5_rk], Connectivity%donor_interp_coefs(:,1,1))
+    @AssertEqual([0.5_rk, 0.5_rk], Connectivity%donor_interp_coefs(:,2,1))
+
+    call DestroyConnectivity(Connectivity)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownStaggered2D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FillConnectivity2D
+
+  @Test
+  subroutine FillConnectivity3D(this)
+
+    class(t_connectivity_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(t_donor_stencil) :: DonorStencil
+    type(ovk_connectivity) :: Connectivity
+    type(ovk_field_logical) :: ReceiverMask
+
+    call SetupStaggered3D(DonorGrid, ReceiverGrid, Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_LINEAR)
+
+    call CreateConnectivity(Connectivity, t_logger_(), DonorGrid, ReceiverGrid)
+
+    ReceiverMask = ovk_field_logical_(ReceiverGrid%cart, .false.)
+    ReceiverMask%values(3,3,3) = .true.
+
+    call FillConnectivity(Connectivity, Overlap, DonorStencil, ReceiverMask)
+
+    @AssertEqual(1_lk, Connectivity%nconnections)
+
+    @AssertTrue(associated(Connectivity%receiver_points))
+    @AssertEqual([MAX_ND,1], shape(Connectivity%receiver_points))
+    @AssertEqual([3,3,3], Connectivity%receiver_points(:,1))
+
+    @AssertTrue(associated(Connectivity%donor_extents))
+    @AssertEqual([MAX_ND,2,1], shape(Connectivity%donor_extents))
+    @AssertEqual([2,2,3], Connectivity%donor_extents(:,1,1))
+    @AssertEqual([3,3,4], Connectivity%donor_extents(:,2,1))
+
+    @AssertTrue(associated(Connectivity%donor_coords))
+    @AssertEqual([3,1], shape(Connectivity%donor_coords))
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], Connectivity%donor_coords(:,1))
+
+    @AssertTrue(associated(Connectivity%donor_interp_coefs))
+    @AssertEqual([2,3,1], shape(Connectivity%donor_interp_coefs))
+    @AssertEqual([0.5_rk, 0.5_rk], Connectivity%donor_interp_coefs(:,1,1))
+    @AssertEqual([0.5_rk, 0.5_rk], Connectivity%donor_interp_coefs(:,2,1))
+    @AssertEqual([0.5_rk, 0.5_rk], Connectivity%donor_interp_coefs(:,3,1))
+
+    call DestroyConnectivity(Connectivity)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownStaggered3D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FillConnectivity3D
+
+end module ConnectivityTest

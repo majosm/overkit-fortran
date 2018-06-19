@@ -1,1469 +1,2203 @@
 ! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 ! License: MIT (http://opensource.org/licenses/MIT)
 
-@Test
-subroutine ovkGridTest_default(this)
+module GridTest
 
   use pFUnit_mod
   use Overkit
   use ovsGlobal
+  use ovkGlobal, only : CheckExists
+  use ovkGrid, only : ovk_grid_, CreateGrid, DestroyGrid, EditingCoords, EditingState
+  use ovkLogger, only : t_logger, t_logger_, operator (==)
   implicit none
 
-  class(TestCase), intent(inout) :: this
+  @TestCase
+  type, extends(TestCase) :: t_grid_test
+  end type t_grid_test
 
-  type(ovk_grid) :: Grid
+contains
 
-  Grid = ovk_grid_(2)
+  @Test
+  subroutine DefaultInitialize(this)
 
-  @AssertTrue(ovk_cart_(2) == Grid%cart)
-  @AssertTrue(ovk_cart_(2) == Grid%cell_cart)
-  @AssertEqual(0._rk, Grid%periodic_length)
-  @AssertEqual(OVK_GRID_TYPE_CURVILINEAR, Grid%grid_type)
-  @AssertEqual(0, Grid%id)
-  @AssertFalse(allocated(Grid%xyz))
-  @AssertTrue(ovk_bbox_(2) == Grid%bounds)
-  @AssertTrue(ovk_field_logical_(2) == Grid%grid_mask)
-  @AssertTrue(ovk_field_logical_(2) == Grid%boundary_mask)
-  @AssertTrue(ovk_field_real_(2) == Grid%cell_sizes)
+    class(t_grid_test), intent(inout) :: this
 
-  Grid = ovk_grid_(3)
+    type(ovk_grid) :: Grid
 
-  @AssertTrue(ovk_cart_(3) == Grid%cart)
-  @AssertTrue(ovk_cart_(3) == Grid%cell_cart)
-  @AssertEqual(0._rk, Grid%periodic_length)
-  @AssertEqual(OVK_GRID_TYPE_CURVILINEAR, Grid%grid_type)
-  @AssertEqual(0, Grid%id)
-  @AssertFalse(allocated(Grid%xyz))
-  @AssertTrue(ovk_bbox_(3) == Grid%bounds)
-  @AssertTrue(ovk_field_logical_(3) == Grid%grid_mask)
-  @AssertTrue(ovk_field_logical_(3) == Grid%boundary_mask)
-  @AssertTrue(ovk_field_real_(3) == Grid%cell_sizes)
+    Grid = ovk_grid_()
 
-end subroutine ovkGridTest_default
+    @AssertFalse(CheckExists(Grid%existence_flag))
+    @AssertTrue(t_logger_() == Grid%logger)
+    @AssertEqual(0, Grid%id)
+    @AssertEqual(2, Grid%nd)
+    @AssertEqual([0,0,1], Grid%npoints)
+    @AssertTrue(ovk_cart_() == Grid%cart)
+    @AssertTrue(ovk_cart_() == Grid%cell_cart)
+    @AssertEqual(0._rk, Grid%periodic_length)
+    @AssertEqual(OVK_GRID_GEOMETRY_CURVILINEAR, Grid%geometry_type)
+    @AssertFalse(associated(Grid%coords))
+    @AssertEqual(0, Grid%coords_edit_ref_count)
+    @AssertFalse(associated(Grid%state))
+    @AssertFalse(associated(Grid%prev_state))
+    @AssertEqual(0, Grid%state_edit_ref_count)
+    @AssertFalse(associated(Grid%edits))
+    @AssertTrue(ovk_bbox_() == Grid%bounds)
+    @AssertTrue(ovk_field_logical_() == Grid%mask)
+    @AssertTrue(ovk_field_logical_() == Grid%cell_mask)
 
-@Test
-subroutine ovkGridTest_make_2d(this)
+  end subroutine DefaultInitialize
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+  @Test
+  subroutine CreateDestroy2D(this)
 
-  class(TestCase), intent(inout) :: this
+    class(t_grid_test), intent(inout) :: this
 
-  type(ovk_cart) :: Cart
-  type(ovk_cart) :: GridCart
-  type(ovk_cart) :: GridCellCart
-  type(ovk_grid) :: Grid
-  integer :: i, j
-  real(rk), dimension(2,3,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_field_logical) :: GridMask
-  type(ovk_field_logical) :: BoundaryMask
-  type(ovk_field_real) :: ovkCellSizes
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_cart) :: CellCart
+    real(rk), dimension(8,9) :: ExpectedXValues, ExpectedYValues
 
-  Cart = ovk_cart_(2, [3,3], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [8,9], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
 
-  do j = 1, 3
-    do i = 1, 3
-      XYZ(:,i,j) = real([i,j]-1, kind=rk)
-    end do
-  end do
+    call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 9._rk], &
+      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
 
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
+    CellCart = ovkCartPointToCell(Cart)
 
-  GridMask = ovk_field_logical_(Cart, .true.)
-  GridMask%values(:,3,1) = .false.
+    @AssertTrue(CheckExists(Grid%existence_flag))
+    @AssertTrue(t_logger_() == Grid%logger)
+    @AssertEqual(1, Grid%id)
+    @AssertEqual(2, Grid%nd)
+    @AssertEqual([8,9,1], Grid%npoints)
+    @AssertTrue(Cart == Grid%cart)
+    @AssertTrue(CellCart == Grid%cell_cart)
+    @AssertEqual([0._rk, 9._rk, 0._rk], Grid%periodic_length)
+    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, Grid%geometry_type)
 
-  BoundaryMask = ovk_field_logical_(Cart, .false.)
-  BoundaryMask%values(:,1,1) = .true.
-
-  call ovkMakeGrid(Grid, Cart, Coords, PeriodicLength=[2._rk, 0._rk], GridMask=GridMask, &
-    BoundaryMask=BoundaryMask, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  GridCart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
-  GridCellCart = ovkCartConvertPointToCell(GridCart)
-
-  @AssertTrue(GridCart == Grid%cart)
-  @AssertTrue(GridCellCart == Grid%cell_cart)
-  @AssertEqual([2._rk, 0._rk, 0._rk], Grid%periodic_length)
-  @AssertEqual(OVK_GRID_TYPE_CARTESIAN, Grid%grid_type)
-  @AssertEqual(0, Grid%id)
-  @AssertTrue(allocated(Grid%xyz))
-  @AssertEqual(2, size(Grid%xyz))
-  @AssertTrue(Coords(1) == Grid%xyz(1))
-  @AssertTrue(Coords(2) == Grid%xyz(2))
-  @AssertTrue(ovk_bbox_(2, [0._rk, 0._rk], [2._rk, 2._rk]) == Grid%bounds)
-  @AssertTrue(GridMask == Grid%grid_mask)
-  @AssertTrue(BoundaryMask == Grid%boundary_mask)
-
-  ovkCellSizes = ovk_field_real_(GridCellCart)
-  ovkCellSizes%values = reshape([ &
-    1._rk, 1._rk, &
-    0._rk, 0._rk &
-  ], [2,2,1])
-
-  @AssertTrue(ovkCellSizes == Grid%cell_sizes)
-
-end subroutine ovkGridTest_make_2d
-
-@Test
-subroutine ovkGridTest_make_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_cart) :: GridCart
-  type(ovk_cart) :: GridCellCart
-  type(ovk_grid) :: Grid
-  integer :: i, j, k
-  real(rk), dimension(3,3,3,2) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_field_logical) :: GridMask
-  type(ovk_field_logical) :: BoundaryMask
-  type(ovk_field_real) :: ovkCellSizes
-
-  Cart = ovk_cart_(3, [3,3,2], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
-
-  do k = 1, 2
-    do j = 1, 3
-      do i = 1, 3
-        XYZ(:,i,j,k) = real([i,j,k]-1, kind=rk)
+    @AssertTrue(associated(Grid%coords))
+    @AssertEqual(2, size(Grid%coords))
+    @AssertTrue(Cart == Grid%coords(1)%cart)
+    @AssertTrue(Cart == Grid%coords(2)%cart)
+    do j = 1, 9
+      do i = 1, 8
+        ExpectedXValues(i,j) = real(i-1,kind=rk)
+        ExpectedYValues(i,j) = real(j-1,kind=rk)
       end do
     end do
-  end do
-
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-
-  GridMask = ovk_field_logical_(Cart, .true.)
-  GridMask%values(:,3,:) = .false.
-
-  BoundaryMask = ovk_field_logical_(Cart, .false.)
-  BoundaryMask%values(:,1,:) = .true.
-
-  call ovkMakeGrid(Grid, Cart, Coords, PeriodicLength=[2._rk, 0._rk, 0._rk], &
-    GridMask=GridMask, BoundaryMask=BoundaryMask, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  GridCart = ovkCartConvertPeriodicStorage(Cart, OVK_NO_OVERLAP_PERIODIC)
-  GridCellCart = ovkCartConvertPointToCell(GridCart)
-
-  @AssertTrue(GridCart == Grid%cart)
-  @AssertTrue(GridCellCart == Grid%cell_cart)
-  @AssertEqual([2._rk, 0._rk, 0._rk], Grid%periodic_length)
-  @AssertEqual(OVK_GRID_TYPE_CARTESIAN, Grid%grid_type)
-  @AssertEqual(0, Grid%id)
-  @AssertTrue(allocated(Grid%xyz))
-  @AssertEqual(3, size(Grid%xyz))
-  @AssertTrue(Coords(1) == Grid%xyz(1))
-  @AssertTrue(Coords(2) == Grid%xyz(2))
-  @AssertTrue(Coords(3) == Grid%xyz(3))
-  @AssertTrue(ovk_bbox_(3, [0._rk, 0._rk, 0._rk], [2._rk, 2._rk, 1._rk]) == Grid%bounds)
-  @AssertTrue(GridMask == Grid%grid_mask)
-  @AssertTrue(BoundaryMask == Grid%boundary_mask)
-
-  ovkCellSizes = ovk_field_real_(GridCellCart)
-  ovkCellSizes%values = reshape([ &
-    1._rk, 1._rk, &
-    0._rk, 0._rk &
-  ], [2,2,1])
-
-  @AssertTrue(ovkCellSizes == Grid%cell_sizes)
-
-end subroutine ovkGridTest_make_3d
-
-@Test
-subroutine ovkGridTest_destroy(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(2,3,1) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(2, [3,1])
-
-  XYZ = reshape([ &
-    0._rk, 1._rk, &
-    1._rk, 1._rk, &
-    2._rk, 1._rk &
-  ], [2,3,1])
-
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords)
-  call ovkDestroyGrid(Grid)
-
-  @AssertFalse(allocated(Grid%xyz))
-  @AssertFalse(allocated(Grid%grid_mask%values))
-  @AssertFalse(allocated(Grid%boundary_mask%values))
-  @AssertFalse(allocated(Grid%cell_sizes%values))
-
-end subroutine ovkGridTest_destroy
-
-@Test
-subroutine ovkGridTest_overlaps_cell_uniform_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(2,2,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_field_logical) :: GridMask
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(2, [2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, &
-    3._rk, 4._rk, &
-    2._rk, 5._rk, &
-    3._rk, 5._rk, &
-    2._rk, 6._rk, &
-    3._rk, 6._rk &
-  ], [2,2,3])
-
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-
-  GridMask = ovk_field_logical_(Cart, .true.)
-  GridMask%values(2,3,1) = .false.
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridMask=GridMask, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Grid point (1,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [2._rk, 4._rk]))
-
-  ! Grid point (2,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [3._rk, 4._rk]))
-
-  ! Grid point (1,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [2._rk, 5._rk]))
-
-  ! Grid point (2,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [3._rk, 5._rk]))
-
-  ! Grid point (1,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [2._rk, 6._rk]))
-
-  ! Grid point (2,3) -- blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [3._rk, 6._rk]))
-
-  ! Cell 1 center
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [2.5_rk, 4.5_rk]))
-
-  ! Cell 2 center -- cell contains blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [2.5_rk, 5.5_rk]))
-
-  ! Off grid
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1], [0._rk, 0._rk]))
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [0._rk, 0._rk]))
-
-end subroutine ovkGridTest_overlaps_cell_uniform_2d
-
-@Test
-subroutine ovkGridTest_overlaps_cell_uniform_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(3,2,2,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_field_logical) :: GridMask
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(3, [2,2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, 6._rk, &
-    3._rk, 4._rk, 6._rk, &
-    2._rk, 5._rk, 6._rk, &
-    3._rk, 5._rk, 6._rk, &
-    2._rk, 4._rk, 7._rk, &
-    3._rk, 4._rk, 7._rk, &
-    2._rk, 5._rk, 7._rk, &
-    3._rk, 5._rk, 7._rk, &
-    2._rk, 4._rk, 8._rk, &
-    3._rk, 4._rk, 8._rk, &
-    2._rk, 5._rk, 8._rk, &
-    3._rk, 5._rk, 8._rk &
-  ], [3,2,2,3])
-
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-
-  GridMask = ovk_field_logical_(Cart, .true.)
-  GridMask%values(2,2,3) = .false.
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridMask=GridMask, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Grid point (1,1,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2._rk, 4._rk, 6._rk]))
-
-  ! Grid point (2,1,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [3._rk, 4._rk, 6._rk]))
-
-  ! Grid point (1,2,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2._rk, 5._rk, 6._rk]))
-
-  ! Grid point (2,2,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [3._rk, 5._rk, 6._rk]))
-
-  ! Grid point (1,1,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2._rk, 4._rk, 7._rk]))
-
-  ! Grid point (2,1,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [3._rk, 4._rk, 7._rk]))
-
-  ! Grid point (1,2,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2._rk, 5._rk, 7._rk]))
-
-  ! Grid point (2,2,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [3._rk, 5._rk, 7._rk]))
-
-  ! Grid point (1,1,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [2._rk, 4._rk, 8._rk]))
-
-  ! Grid point (2,1,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [3._rk, 4._rk, 8._rk]))
-
-  ! Grid point (1,2,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [2._rk, 5._rk, 8._rk]))
-
-  ! Grid point (2,2,3) -- blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [3._rk, 5._rk, 8._rk]))
-
-  ! Cell 1 center
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2.5_rk, 4.5_rk, 6.5_rk]))
-
-  ! Cell 2 center -- cell contains blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [2.5_rk, 4.5_rk, 7.5_rk]))
-
-  ! Off grid
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,1], [0._rk, 0._rk, 0._rk]))
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [0._rk, 0._rk, 0._rk]))
-
-end subroutine ovkGridTest_overlaps_cell_uniform_3d
-
-@Test
-subroutine ovkGridTest_overlaps_cell_non_uniform_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(2,2,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_field_logical) :: GridMask
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(2, [2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, &
-    3._rk, 4._rk, &
-    1._rk, 5._rk, &
-    4._rk, 5._rk, &
-    0._rk, 6._rk, &
-    5._rk, 6._rk &
-  ], [2,2,3])
-
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-
-  GridMask = ovk_field_logical_(Cart, .true.)
-  GridMask%values(2,3,1) = .false.
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridMask=GridMask, GridType=OVK_GRID_TYPE_CURVILINEAR)
-
-  ! Grid point (1,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [2._rk, 4._rk]))
-
-  ! Grid point (2,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [3._rk, 4._rk]))
-
-  ! Grid point (1,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [1._rk, 5._rk]))
-
-  ! Grid point (2,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [4._rk, 5._rk]))
-
-  ! Grid point (1,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [0._rk, 6._rk]))
-
-  ! Grid point (2,3) -- blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [5._rk, 6._rk]))
-
-  ! Cell 1 center
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1], [2.5_rk, 4.5_rk]))
-
-  ! Cell 2 center -- cell contains blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [2.5_rk, 5.5_rk]))
-
-  ! Off grid
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1], [0._rk, 0._rk]))
-  @AssertFalse(ovkOverlapsCell(Grid, [1,2], [0._rk, 0._rk]))
-
-end subroutine ovkGridTest_overlaps_cell_non_uniform_2d
-
-@Test
-subroutine ovkGridTest_overlaps_cell_non_uniform_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(3,2,2,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_field_logical) :: GridMask
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(3, [2,2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, 6._rk, &
-    3._rk, 4._rk, 6._rk, &
-    2._rk, 5._rk, 6._rk, &
-    3._rk, 5._rk, 6._rk, &
-    1._rk, 3._rk, 7._rk, &
-    4._rk, 3._rk, 7._rk, &
-    1._rk, 6._rk, 7._rk, &
-    4._rk, 6._rk, 7._rk, &
-    0._rk, 2._rk, 8._rk, &
-    5._rk, 2._rk, 8._rk, &
-    0._rk, 7._rk, 8._rk, &
-    5._rk, 7._rk, 8._rk &
-  ], [3,2,2,3])
-
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-
-  GridMask = ovk_field_logical_(Cart, .true.)
-  GridMask%values(2,2,3) = .false.
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridMask=GridMask, GridType=OVK_GRID_TYPE_CURVILINEAR)
-
-  ! Grid point (1,1,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2._rk, 4._rk, 6._rk]))
-
-  ! Grid point (2,1,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [3._rk, 4._rk, 6._rk]))
-
-  ! Grid point (1,2,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2._rk, 5._rk, 6._rk]))
-
-  ! Grid point (2,2,1)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [3._rk, 5._rk, 6._rk]))
-
-  ! Grid point (1,1,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [1._rk, 3._rk, 7._rk]))
-
-  ! Grid point (2,1,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [4._rk, 3._rk, 7._rk]))
-
-  ! Grid point (1,2,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [1._rk, 6._rk, 7._rk]))
-
-  ! Grid point (2,2,2)
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [4._rk, 6._rk, 7._rk]))
-
-  ! Grid point (1,1,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [0._rk, 2._rk, 8._rk]))
-
-  ! Grid point (2,1,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [5._rk, 2._rk, 8._rk]))
-
-  ! Grid point (1,2,3) -- part of cell containing blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [0._rk, 7._rk, 8._rk]))
-
-  ! Grid point (2,2,3) -- blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [5._rk, 7._rk, 8._rk]))
-
-  ! Cell 1 center
-  @AssertTrue(ovkOverlapsCell(Grid, [1,1,1], [2.5_rk, 4.5_rk, 6.5_rk]))
-
-  ! Cell 2 center -- cell contains blanked point
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [2.5_rk, 4.5_rk, 7.5_rk]))
-
-  ! Off grid
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,1], [0._rk, 0._rk, 0._rk]))
-  @AssertFalse(ovkOverlapsCell(Grid, [1,1,2], [0._rk, 0._rk, 0._rk]))
-
-end subroutine ovkGridTest_overlaps_cell_non_uniform_3d
-
-@Test
-subroutine ovkGridTest_cell_coords_uniform_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(2,2,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_grid) :: Grid
-  real(rk), dimension(2) :: CellCoords
-
-  Cart = ovk_cart_(2, [2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, &
-    3._rk, 4._rk, &
-    2._rk, 5._rk, &
-    3._rk, 5._rk, &
-    2._rk, 6._rk, &
-    3._rk, 6._rk &
-  ], [2,2,3])
-
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Grid point (1,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [2._rk, 4._rk])
-  @AssertEqual([0._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [3._rk, 4._rk])
-  @AssertEqual([1._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [2._rk, 5._rk])
-  @AssertEqual([0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [3._rk, 5._rk])
-  @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,2], [2._rk, 6._rk])
-  @AssertEqual([0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,2], [3._rk, 6._rk])
-  @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 1 center
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [2.5_rk, 4.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 2 center
-  CellCoords = ovkCoordsInCell(Grid, [1,2], [2.5_rk, 5.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_coords_uniform_2d
-
-@Test
-subroutine ovkGridTest_cell_coords_uniform_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(3,2,2,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_grid) :: Grid
-  real(rk), dimension(3) :: CellCoords
-
-  Cart = ovk_cart_(3, [2,2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, 6._rk, &
-    3._rk, 4._rk, 6._rk, &
-    2._rk, 5._rk, 6._rk, &
-    3._rk, 5._rk, 6._rk, &
-    2._rk, 4._rk, 7._rk, &
-    3._rk, 4._rk, 7._rk, &
-    2._rk, 5._rk, 7._rk, &
-    3._rk, 5._rk, 7._rk, &
-    2._rk, 4._rk, 8._rk, &
-    3._rk, 4._rk, 8._rk, &
-    2._rk, 5._rk, 8._rk, &
-    3._rk, 5._rk, 8._rk &
-  ], [3,2,2,3])
-
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Grid point (1,1,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2._rk, 4._rk, 6._rk])
-  @AssertEqual([0._rk, 0._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [3._rk, 4._rk, 6._rk])
-  @AssertEqual([1._rk, 0._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2._rk, 5._rk, 6._rk])
-  @AssertEqual([0._rk, 1._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [3._rk, 5._rk, 6._rk])
-  @AssertEqual([1._rk, 1._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,1,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2._rk, 4._rk, 7._rk])
-  @AssertEqual([0._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [3._rk, 4._rk, 7._rk])
-  @AssertEqual([1._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2._rk, 5._rk, 7._rk])
-  @AssertEqual([0._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [3._rk, 5._rk, 7._rk])
-  @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,1,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [2._rk, 4._rk, 8._rk])
-  @AssertEqual([0._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [3._rk, 4._rk, 8._rk])
-  @AssertEqual([1._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [2._rk, 5._rk, 8._rk])
-  @AssertEqual([0._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [3._rk, 5._rk, 8._rk])
-  @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 1 center
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2.5_rk, 4.5_rk, 6.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 2 center
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [2.5_rk, 4.5_rk, 7.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_coords_uniform_3d
-
-@Test
-subroutine ovkGridTest_cell_coords_non_uniform_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(2,2,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_grid) :: Grid
-  real(rk), dimension(2) :: CellCoords
-
-  Cart = ovk_cart_(2, [2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, &
-    3._rk, 4._rk, &
-    1._rk, 5._rk, &
-    4._rk, 5._rk, &
-    0._rk, 6._rk, &
-    5._rk, 6._rk &
-  ], [2,2,3])
-
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CURVILINEAR)
-
-  ! Grid point (1,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [2._rk, 4._rk])
-  @AssertEqual([0._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [3._rk, 4._rk])
-  @AssertEqual([1._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [1._rk, 5._rk])
-  @AssertEqual([0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [4._rk, 5._rk])
-  @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,2], [0._rk, 6._rk])
-  @AssertEqual([0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,2], [5._rk, 6._rk])
-  @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 1 center
-  CellCoords = ovkCoordsInCell(Grid, [1,1], [2.5_rk, 4.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 2 center
-  CellCoords = ovkCoordsInCell(Grid, [1,2], [2.5_rk, 5.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_coords_non_uniform_2d
-
-@Test
-subroutine ovkGridTest_cell_coords_non_uniform_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(3,2,2,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_grid) :: Grid
-  real(rk), dimension(3) :: CellCoords
-
-  Cart = ovk_cart_(3, [2,2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, 6._rk, &
-    3._rk, 4._rk, 6._rk, &
-    2._rk, 5._rk, 6._rk, &
-    3._rk, 5._rk, 6._rk, &
-    1._rk, 3._rk, 7._rk, &
-    4._rk, 3._rk, 7._rk, &
-    1._rk, 6._rk, 7._rk, &
-    4._rk, 6._rk, 7._rk, &
-    0._rk, 2._rk, 8._rk, &
-    5._rk, 2._rk, 8._rk, &
-    0._rk, 7._rk, 8._rk, &
-    5._rk, 7._rk, 8._rk &
-  ], [3,2,2,3])
-
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CURVILINEAR)
-
-  ! Grid point (1,1,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2._rk, 4._rk, 6._rk])
-  @AssertEqual([0._rk, 0._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [3._rk, 4._rk, 6._rk])
-  @AssertEqual([1._rk, 0._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2._rk, 5._rk, 6._rk])
-  @AssertEqual([0._rk, 1._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2,1)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [3._rk, 5._rk, 6._rk])
-  @AssertEqual([1._rk, 1._rk, 0._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,1,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [1._rk, 3._rk, 7._rk])
-  @AssertEqual([0._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [4._rk, 3._rk, 7._rk])
-  @AssertEqual([1._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [1._rk, 6._rk, 7._rk])
-  @AssertEqual([0._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2,2)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [4._rk, 6._rk, 7._rk])
-  @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,1,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [0._rk, 2._rk, 8._rk])
-  @AssertEqual([0._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,1,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [5._rk, 2._rk, 8._rk])
-  @AssertEqual([1._rk, 0._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (1,2,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [0._rk, 7._rk, 8._rk])
-  @AssertEqual([0._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Grid point (2,2,3)
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [5._rk, 7._rk, 8._rk])
-  @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 1 center
-  CellCoords = ovkCoordsInCell(Grid, [1,1,1], [2.5_rk, 4.5_rk, 6.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-  ! Cell 2 center
-  CellCoords = ovkCoordsInCell(Grid, [1,1,2], [2.5_rk, 4.5_rk, 7.5_rk])
-  @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_coords_non_uniform_3d
-
-@Test
-subroutine ovkGridTest_cell_size_uniform_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(2,2,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(2, [2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, &
-    3._rk, 4._rk, &
-    2._rk, 5._rk, &
-    3._rk, 5._rk, &
-    2._rk, 6._rk, &
-    3._rk, 6._rk &
-  ], [2,2,3])
-
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Cell 1
-  @AssertEqual(1._rk, ovkCellSize(Grid, [1,1]), 1.e-10_rk)
-
-  ! Cell 2
-  @AssertEqual(1._rk, ovkCellSize(Grid, [1,2]), 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_size_uniform_2d
-
-@Test
-subroutine ovkGridTest_cell_size_uniform_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(3,2,2,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(3, [2,2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, 6._rk, &
-    3._rk, 4._rk, 6._rk, &
-    2._rk, 5._rk, 6._rk, &
-    3._rk, 5._rk, 6._rk, &
-    2._rk, 4._rk, 7._rk, &
-    3._rk, 4._rk, 7._rk, &
-    2._rk, 5._rk, 7._rk, &
-    3._rk, 5._rk, 7._rk, &
-    2._rk, 4._rk, 8._rk, &
-    3._rk, 4._rk, 8._rk, &
-    2._rk, 5._rk, 8._rk, &
-    3._rk, 5._rk, 8._rk &
-  ], [3,2,2,3])
-
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Cell 1
-  @AssertEqual(1._rk, ovkCellSize(Grid, [1,1,1]), 1.e-10_rk)
-
-  ! Cell 2
-  @AssertEqual(1._rk, ovkCellSize(Grid, [1,1,2]), 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_size_uniform_3d
-
-@Test
-subroutine ovkGridTest_cell_size_non_uniform_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(2,2,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(2, [2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, &
-    3._rk, 4._rk, &
-    1._rk, 5._rk, &
-    4._rk, 5._rk, &
-    0._rk, 6._rk, &
-    5._rk, 6._rk &
-  ], [2,2,3])
-
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CURVILINEAR)
-
-  ! Cell 1
-  @AssertEqual(2._rk, ovkCellSize(Grid, [1,1]), 1.e-10_rk)
-
-  ! Cell 2
-  @AssertEqual(4._rk, ovkCellSize(Grid, [1,2]), 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_size_non_uniform_2d
-
-@Test
-subroutine ovkGridTest_cell_size_non_uniform_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i
-  real(rk), dimension(3,2,2,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_grid) :: Grid
-
-  Cart = ovk_cart_(3, [2,2,3])
-
-  XYZ = reshape([ &
-    2._rk, 4._rk, 6._rk, &
-    3._rk, 4._rk, 6._rk, &
-    2._rk, 5._rk, 6._rk, &
-    3._rk, 5._rk, 6._rk, &
-    1._rk, 3._rk, 7._rk, &
-    4._rk, 3._rk, 7._rk, &
-    1._rk, 6._rk, 7._rk, &
-    4._rk, 6._rk, 7._rk, &
-    0._rk, 2._rk, 8._rk, &
-    5._rk, 2._rk, 8._rk, &
-    0._rk, 7._rk, 8._rk, &
-    5._rk, 7._rk, 8._rk &
-  ], [3,2,2,3])
-
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CURVILINEAR)
-
-  ! Cell 1
-  @AssertEqual(13._rk/3._rk, ovkCellSize(Grid, [1,1,1]), 1.e-10_rk)
-
-  ! Cell 2
-  @AssertEqual(49._rk/3._rk, ovkCellSize(Grid, [1,1,2]), 1.e-10_rk)
-
-end subroutine ovkGridTest_cell_size_non_uniform_3d
-
-@Test
-subroutine ovkGridTest_avg_cell_size_around_pt_uniform_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i, j
-  real(rk), dimension(2,3,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_grid) :: Grid
-
-  do j = 1, 3
-    do i = 1, 3
-      XYZ(:,i,j) = [2._rk, 4._rk] + real([i,j]-1,kind=rk)
-    end do
-  end do
-
-  ! Non-periodic
-  Cart = ovk_cart_(2, [3,3])
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Center
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [2,2]), 1.e-10_rk)
-
-  ! Edge
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,2]), 1.e-10_rk)
-
-  ! Corner
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3]), 1.e-10_rk)
-
-  ! Periodic
-  Cart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_OVERLAP_PERIODIC)
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
-  call ovkMakeGrid(Grid, Cart, Coords, PeriodicLength=[2._rk, 2._rk], GridType=OVK_GRID_TYPE_CARTESIAN)
-
-  ! Center
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [2,2]), 1.e-10_rk)
-
-  ! Edge
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,2]), 1.e-10_rk)
-
-  ! Corner
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3]), 1.e-10_rk)
-
-end subroutine ovkGridTest_avg_cell_size_around_pt_uniform_2d
-
-@Test
-subroutine ovkGridTest_avg_cell_size_around_pt_uniform_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  integer :: i, j, k
-  real(rk), dimension(3,3,3,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_grid) :: Grid
-
-  do k = 1, 3
-    do j = 1, 3
-      do i = 1, 3
-        XYZ(:,i,j,k) = [2._rk, 4._rk, 6._rk] + real([i,j,k]-1,kind=rk)
+    @AssertEqual(ExpectedXValues, Grid%coords(1)%values(:,:,1))
+    @AssertEqual(ExpectedYValues, Grid%coords(2)%values(:,:,1))
+
+    @AssertTrue(associated(Grid%state))
+    @AssertTrue(Cart == Grid%state%cart)
+    @AssertEqual(OVK_INTERIOR_POINT, Grid%state%values)
+
+    @AssertTrue(ovk_bbox_(2, [0._rk, 0._rk], [7._rk, 9._rk]) == Grid%bounds)
+
+    @AssertTrue(Cart == Grid%mask%cart)
+    @AssertTrue(logical(all(Grid%mask%values)))
+    @AssertTrue(CellCart == Grid%cell_mask%cart)
+    @AssertTrue(logical(all(Grid%cell_mask%values)))
+
+    @AssertTrue(Cart == Grid%volumes%cart)
+    @AssertEqual(1._rk, Grid%volumes%values)
+    @AssertTrue(CellCart == Grid%cell_volumes%cart)
+    @AssertEqual(1._rk, Grid%cell_volumes%values)
+
+    call DestroyGrid(Grid)
+
+    @AssertFalse(CheckExists(Grid%existence_flag))
+
+    @AssertFalse(associated(Grid%coords))
+    @AssertFalse(associated(Grid%state))
+    @AssertFalse(associated(Grid%edits))
+
+    @AssertTrue(ovk_cart_() == Grid%mask%cart)
+    @AssertTrue(ovk_cart_() == Grid%cell_mask%cart)
+
+    @AssertTrue(ovk_cart_() == Grid%volumes%cart)
+    @AssertTrue(ovk_cart_() == Grid%cell_volumes%cart)
+
+  end subroutine CreateDestroy2D
+
+  @Test
+  subroutine CreateDestroy3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_cart) :: CellCart
+    real(rk), dimension(8,9,10) :: ExpectedXValues, ExpectedYValues, ExpectedZValues
+
+    Cart = ovk_cart_(3, [8,9,10], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 0._rk, 10._rk], &
+      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+
+    CellCart = ovkCartPointToCell(Cart)
+
+    @AssertTrue(CheckExists(Grid%existence_flag))
+    @AssertTrue(t_logger_() == Grid%logger)
+    @AssertEqual(1, Grid%id)
+    @AssertEqual(3, Grid%nd)
+    @AssertEqual([8,9,10], Grid%npoints)
+    @AssertTrue(Cart == Grid%cart)
+    @AssertTrue(CellCart == Grid%cell_cart)
+    @AssertEqual([0._rk, 0._rk, 10._rk], Grid%periodic_length)
+    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, Grid%geometry_type)
+
+    @AssertTrue(associated(Grid%coords))
+    @AssertEqual(3, size(Grid%coords))
+    @AssertTrue(Cart == Grid%coords(1)%cart)
+    @AssertTrue(Cart == Grid%coords(2)%cart)
+    @AssertTrue(Cart == Grid%coords(3)%cart)
+    do k = 1, 10
+      do j = 1, 9
+        do i = 1, 8
+          ExpectedXValues(i,j,k) = real(i-1,kind=rk)
+          ExpectedYValues(i,j,k) = real(j-1,kind=rk)
+          ExpectedZValues(i,j,k) = real(k-1,kind=rk)
+        end do
       end do
     end do
-  end do
+    @AssertEqual(ExpectedXValues, Grid%coords(1)%values)
+    @AssertEqual(ExpectedYValues, Grid%coords(2)%values)
+    @AssertEqual(ExpectedZValues, Grid%coords(3)%values)
 
-  ! Non-periodic
-  Cart = ovk_cart_(3, [3,3,3])
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CARTESIAN)
+    @AssertTrue(associated(Grid%state))
+    @AssertTrue(Cart == Grid%state%cart)
+    @AssertEqual(OVK_INTERIOR_POINT, Grid%state%values)
 
-  ! Interior
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [2,2,2]), 1.e-10_rk)
+    @AssertTrue(ovk_bbox_(3, [0._rk, 0._rk, 0._rk], [7._rk, 8._rk, 10._rk]) == Grid%bounds)
 
-  ! Face
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,2,2]), 1.e-10_rk)
+    @AssertTrue(Cart == Grid%mask%cart)
+    @AssertTrue(logical(all(Grid%mask%values)))
+    @AssertTrue(CellCart == Grid%cell_mask%cart)
+    @AssertTrue(logical(all(Grid%cell_mask%values)))
 
-  ! Edge
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3,2]), 1.e-10_rk)
+    @AssertTrue(Cart == Grid%volumes%cart)
+    @AssertEqual(1._rk, Grid%volumes%values)
+    @AssertTrue(CellCart == Grid%cell_volumes%cart)
+    @AssertEqual(1._rk, Grid%cell_volumes%values)
 
-  ! Corner
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3,3]), 1.e-10_rk)
+    call DestroyGrid(Grid)
 
-  ! Periodic
-  Cart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
-  call ovkMakeGrid(Grid, Cart, Coords, PeriodicLength=[2._rk, 2._rk, 2._rk], &
-    GridType=OVK_GRID_TYPE_CARTESIAN)
+    @AssertFalse(CheckExists(Grid%existence_flag))
 
-  ! Interior
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [2,2,2]), 1.e-10_rk)
+    @AssertFalse(associated(Grid%coords))
+    @AssertFalse(associated(Grid%state))
+    @AssertFalse(associated(Grid%edits))
 
-  ! Face
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,2,2]), 1.e-10_rk)
+    @AssertTrue(ovk_cart_() == Grid%mask%cart)
+    @AssertTrue(ovk_cart_() == Grid%cell_mask%cart)
 
-  ! Edge
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3,2]), 1.e-10_rk)
+    @AssertTrue(ovk_cart_() == Grid%volumes%cart)
+    @AssertTrue(ovk_cart_() == Grid%cell_volumes%cart)
 
-  ! Corner
-  @AssertEqual(1._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3,3]), 1.e-10_rk)
+  end subroutine CreateDestroy3D
 
-end subroutine ovkGridTest_avg_cell_size_around_pt_uniform_3d
+  @Test
+  subroutine Exists(this)
 
-@Test
-subroutine ovkGridTest_avg_cell_size_around_pt_non_uniform_2d(this)
+    class(t_grid_test), intent(inout) :: this
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
 
-  class(TestCase), intent(inout) :: this
+    Cart = ovk_cart_(2, [8,9])
 
-  type(ovk_cart) :: Cart
-  integer :: i, j
-  real(rk), dimension(2,3,3) :: XYZ
-  type(ovk_field_real), dimension(2) :: Coords
-  type(ovk_grid) :: Grid
+    @AssertFalse(ovkGridExists(Grid))
 
-  ! Cell sizes are:
-  ! (1,1) -> 3/2
-  ! (2,1) -> 3/2
-  ! (1,2) -> 5/2
-  ! (2,2) -> 5/2
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
 
-  Cart = ovk_cart_(2, [3,3])
+    @AssertTrue(ovkGridExists(Grid))
 
-  do j = 1, 3
-    do i = 1, 3
-      XYZ(:,i,j) = [2._rk, 4._rk] + real([i,j]-1,kind=rk) + real([(i-2)*(j-1),0],kind=rk)
-    end do
-  end do
+    call DestroyGrid(Grid)
 
-  do i = 1, 2
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:))
-  end do
+    @AssertFalse(ovkGridExists(Grid))
 
-  ! Non-periodic
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CURVILINEAR)
+  end subroutine Exists
 
-  ! Center
-  @AssertEqual(2._rk, ovkAvgCellSizeAroundPoint(Grid, [2,2]), 1.e-10_rk)
+  @Test
+  subroutine SimpleGetters(this)
 
-  ! Edge
-  @AssertEqual(2._rk, ovkAvgCellSizeAroundPoint(Grid, [3,2]), 1.e-10_rk)
+    class(t_grid_test), intent(inout) :: this
 
-  ! Corner
-  @AssertEqual(2.5_rk, ovkAvgCellSizeAroundPoint(Grid, [3,3]), 1.e-10_rk)
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    integer :: ID
+    integer :: NumDims
+    integer, dimension(2) :: NumPoints
+    type(ovk_cart) :: GridCart
+    logical, dimension(2) :: Periodic
+    integer :: PeriodicStorage
+    real(rk), dimension(2) :: PeriodicLength
+    integer :: GeometryType
 
-end subroutine ovkGridTest_avg_cell_size_around_pt_non_uniform_2d
+    Cart = ovk_cart_(2, [8,9], [.true.,.false.], OVK_OVERLAP_PERIODIC)
 
-@Test
-subroutine ovkGridTest_avg_cell_size_around_pt_non_uniform_3d(this)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk], &
+      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    call ovkGetGridID(Grid, ID)
+    @AssertEqual(1, ID)
 
-  class(TestCase), intent(inout) :: this
+    call ovkGetGridDimension(Grid, NumDims)
+    @AssertEqual(2, NumDims)
 
-  type(ovk_cart) :: Cart
-  integer :: i, j, k
-  real(rk), dimension(3,3,3,3) :: XYZ
-  type(ovk_field_real), dimension(3) :: Coords
-  type(ovk_grid) :: Grid
+    call ovkGetGridSize(Grid, NumPoints)
+    @AssertEqual([8,9], NumPoints)
 
-  ! Cell sizes are:
-  ! (1,1,1) -> 7/3
-  ! (2,1,1) -> 7/3
-  ! (1,2,1) -> 7/3
-  ! (2,2,1) -> 7/3
-  ! (1,1,2) -> 19/3
-  ! (2,1,2) -> 19/3
-  ! (1,2,2) -> 19/3
-  ! (2,2,2) -> 19/3
+    call ovkGetGridCart(Grid, GridCart)
+    @AssertTrue(Cart == GridCart)
 
-  Cart = ovk_cart_(3, [3,3,3])
+    call ovkGetGridPeriodicity(Grid, Periodic)
+    @AssertTrue(all([.true.,.false.] .eqv. Periodic))
 
-  do k = 1, 3
-    do j = 1, 3
-      do i = 1, 3
-        XYZ(:,i,j,k) = [2._rk, 4._rk, 6._rk] + real([i,j,k]-1,kind=rk) + &
-          real([(i-2)*(k-1),(j-2)*(k-1),0],kind=rk)
+    call ovkGetGridPeriodicStorage(Grid, PeriodicStorage)
+    @AssertEqual(OVK_OVERLAP_PERIODIC, PeriodicStorage)
+
+    call ovkGetGridPeriodicLength(Grid, PeriodicLength)
+    @AssertEqual([2._rk, 0._rk], PeriodicLength)
+
+    call ovkGetGridGeometryType(Grid, GeometryType)
+    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+
+    call ovkGetGridGeometryType(Grid, GeometryType)
+    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+
+    call DestroyGrid(Grid)
+
+  end subroutine SimpleGetters
+
+  @Test
+  subroutine AccessCoords2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    real(rk), dimension(8,8,2) :: XYZ
+    type(ovk_field_real), pointer :: X, Y
+
+    Cart = ovk_cart_(2, [8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    @AssertFalse(EditingCoords(Grid))
+
+    do j = 1, 8
+      do i = 1, 8
+        XYZ(i,j,:) = real([i,j]-1, kind=rk)
       end do
     end do
-  end do
 
-  do i = 1, 3
-    Coords(i) = ovk_field_real_(Cart, XYZ(i,:,:,:))
-  end do
+    call ovkEditGridCoords(Grid, 1, X)
 
-  ! Non-periodic
-  call ovkMakeGrid(Grid, Cart, Coords, GridType=OVK_GRID_TYPE_CURVILINEAR)
+    @AssertTrue(EditingCoords(Grid))
 
-  ! Interior
-  @AssertEqual(13._rk/3._rk, ovkAvgCellSizeAroundPoint(Grid, [2,2,2]), 1.e-10_rk)
+    call ovkEditGridCoords(Grid, 2, Y)
 
-  ! Face
-  @AssertEqual(13._rk/3._rk, ovkAvgCellSizeAroundPoint(Grid, [3,2,2]), 1.e-10_rk)
+    @AssertTrue(EditingCoords(Grid))
+    @AssertTrue(associated(X, Grid%coords(1)))
+    @AssertTrue(associated(Y, Grid%coords(2)))
 
-  ! Edge
-  @AssertEqual(13._rk/3._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3,2]), 1.e-10_rk)
+    X%values(:,:,1) = XYZ(:,:,1)
+    Y%values(:,:,1) = XYZ(:,:,2)
 
-  ! Corner
-  @AssertEqual(19._rk/3._rk, ovkAvgCellSizeAroundPoint(Grid, [3,3,3]), 1.e-10_rk)
+    call ovkReleaseGridCoords(Grid, X)
 
-end subroutine ovkGridTest_avg_cell_size_around_pt_non_uniform_3d
+    @AssertTrue(EditingCoords(Grid))
 
-@Test
-subroutine ovkGridTest_periodic_extend_non_periodic_2d(this)
+    call ovkReleaseGridCoords(Grid, Y)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    @AssertFalse(EditingCoords(Grid))
+    @AssertFalse(associated(X))
+    @AssertFalse(associated(Y))
+    @AssertEqual(XYZ(:,:,1), Grid%coords(1)%values(:,:,1))
+    @AssertEqual(XYZ(:,:,2), Grid%coords(2)%values(:,:,1))
 
-  class(TestCase), intent(inout) :: this
+    call ovkGetGridCoords(Grid, 1, X)
+    call ovkGetGridCoords(Grid, 2, Y)
 
-  type(ovk_cart) :: Cart
-  real(rk), dimension(2) :: Coords
-  real(rk), dimension(2) :: PeriodicLength
+    @AssertFalse(EditingCoords(Grid))
+    @AssertTrue(associated(X, Grid%coords(1)))
+    @AssertTrue(associated(Y, Grid%coords(2)))
+    @AssertEqual(XYZ(:,:,1), X%values(:,:,1))
+    @AssertEqual(XYZ(:,:,2), Y%values(:,:,1))
 
-  Cart = ovk_cart_(2, [5,5])
-  PeriodicLength = 4._rk
+    call DestroyGrid(Grid)
 
-  ! Lower x boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3], [1._rk, 3._rk])
-  @AssertEqual([1._rk, 3._rk], Coords)
+  end subroutine AccessCoords2D
 
-  ! Upper x boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3], [5._rk, 3._rk])
-  @AssertEqual([5._rk, 3._rk], Coords)
+  @Test
+  subroutine AccessCoords3D(this)
 
-  ! Lower y boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1], [3._rk, 1._rk])
-  @AssertEqual([3._rk, 1._rk], Coords)
+    class(t_grid_test), intent(inout) :: this
 
-  ! Upper y boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5], [3._rk, 5._rk])
-  @AssertEqual([3._rk, 5._rk], Coords)
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    real(rk), dimension(8,8,8,3) :: XYZ
+    type(ovk_field_real), pointer :: X, Y, Z
 
-end subroutine ovkGridTest_periodic_extend_non_periodic_2d
+    Cart = ovk_cart_(3, [8,8,8])
 
-@Test
-subroutine ovkGridTest_periodic_extend_non_periodic_3d(this)
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    @AssertFalse(EditingCoords(Grid))
 
-  class(TestCase), intent(inout) :: this
+    do k = 1, 8
+      do j = 1, 8
+        do i = 1, 8
+          XYZ(i,j,k,:) = real([i,j,k]-1, kind=rk)
+        end do
+      end do
+    end do
 
-  type(ovk_cart) :: Cart
-  real(rk), dimension(3) :: Coords
-  real(rk), dimension(3) :: PeriodicLength
+    call ovkEditGridCoords(Grid, 1, X)
 
-  Cart = ovk_cart_(3, [5,5,5])
-  PeriodicLength = 4._rk
+    @AssertTrue(EditingCoords(Grid))
 
-  ! Lower x boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3,3], [1._rk, 3._rk, 3._rk])
-  @AssertEqual([1._rk, 3._rk, 3._rk], Coords)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
 
-  ! Upper x boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3,3], [5._rk, 3._rk, 3._rk])
-  @AssertEqual([5._rk, 3._rk, 3._rk], Coords)
+    @AssertTrue(EditingCoords(Grid))
+    @AssertTrue(associated(X, Grid%coords(1)))
+    @AssertTrue(associated(Y, Grid%coords(2)))
+    @AssertTrue(associated(Z, Grid%coords(3)))
 
-  ! Lower y boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1,3], [3._rk, 1._rk, 3._rk])
-  @AssertEqual([3._rk, 1._rk, 3._rk], Coords)
+    X%values = XYZ(:,:,:,1)
+    Y%values = XYZ(:,:,:,2)
+    Z%values = XYZ(:,:,:,3)
 
-  ! Upper y boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5,3], [3._rk, 5._rk, 3._rk])
-  @AssertEqual([3._rk, 5._rk, 3._rk], Coords)
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
 
-  ! Lower z boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,1], [3._rk, 3._rk, 1._rk])
-  @AssertEqual([3._rk, 3._rk, 1._rk], Coords)
+    @AssertTrue(EditingCoords(Grid))
 
-  ! Upper z boundary
-  Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,5], [3._rk, 3._rk, 5._rk])
-  @AssertEqual([3._rk, 3._rk, 5._rk], Coords)
+    call ovkReleaseGridCoords(Grid, Z)
 
-end subroutine ovkGridTest_periodic_extend_non_periodic_3d
+    @AssertFalse(EditingCoords(Grid))
+    @AssertFalse(associated(X))
+    @AssertFalse(associated(Y))
+    @AssertFalse(associated(Z))
+    @AssertEqual(XYZ(:,:,:,1), Grid%coords(1)%values)
+    @AssertEqual(XYZ(:,:,:,2), Grid%coords(2)%values)
+    @AssertEqual(XYZ(:,:,:,3), Grid%coords(3)%values)
 
-@Test
-subroutine ovkGridTest_periodic_extend_periodic_2d(this)
+    call ovkGetGridCoords(Grid, 1, X)
+    call ovkGetGridCoords(Grid, 2, Y)
+    call ovkGetGridCoords(Grid, 3, Z)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    @AssertFalse(EditingCoords(Grid))
+    @AssertTrue(associated(X, Grid%coords(1)))
+    @AssertTrue(associated(Y, Grid%coords(2)))
+    @AssertTrue(associated(Z, Grid%coords(3)))
+    @AssertEqual(XYZ(:,:,:,1), X%values)
+    @AssertEqual(XYZ(:,:,:,2), Y%values)
+    @AssertEqual(XYZ(:,:,:,3), Z%values)
 
-  class(TestCase), intent(inout) :: this
+    call DestroyGrid(Grid)
 
-  type(ovk_cart) :: CartX, CartY
-  real(rk), dimension(2) :: Coords
-  real(rk), dimension(2) :: PeriodicLength
+  end subroutine AccessCoords3D
 
-  CartX = ovk_cart_(2, [4,5], [.true.,.false.])
-  CartY = ovk_cart_(2, [5,4], [.false.,.true.])
-  PeriodicLength = 4._rk
+  @Test
+  subroutine AccessState2D(this)
 
-  ! Lower x boundary
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [1,3], [1._rk, 3._rk])
-  @AssertEqual([1._rk, 3._rk], Coords)
+    class(t_grid_test), intent(inout) :: this
 
-  ! Upper x boundary
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [5,3], [1._rk, 3._rk])
-  @AssertEqual([5._rk, 3._rk], Coords)
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    integer, dimension(8,8) :: StateValues
+    type(ovk_field_int), pointer :: State
+    integer, dimension(8,8) :: UserStateValues
+    integer :: InferredBoundaryState
 
-  ! Lower y boundary
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,1], [3._rk, 1._rk])
-  @AssertEqual([3._rk, 1._rk], Coords)
+    Cart = ovk_cart_(2, [8,8])
 
-  ! Upper y boundary
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,5], [3._rk, 1._rk])
-  @AssertEqual([3._rk, 5._rk], Coords)
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
 
-  ! Lower x off-grid
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [0,3], [4._rk, 3._rk])
-  @AssertEqual([0._rk, 3._rk], Coords)
+    @AssertFalse(EditingState(Grid))
 
-  ! Upper x off-grid
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [6,3], [2._rk, 3._rk])
-  @AssertEqual([6._rk, 3._rk], Coords)
+    StateValues = OVK_INTERIOR_POINT
+    StateValues(1,:) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(8,:) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(:,8) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(4:5,4:5) = OVK_EXTERIOR_POINT
 
-  ! Lower y off-grid
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,0], [3._rk, 4._rk])
-  @AssertEqual([3._rk, 0._rk], Coords)
+    call ovkEditGridState(Grid, State)
 
-  ! Upper y off-grid
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,6], [3._rk, 2._rk])
-  @AssertEqual([3._rk, 6._rk], Coords)
+    @AssertTrue(EditingState(Grid))
+    @AssertTrue(associated(State, Grid%state))
 
-end subroutine ovkGridTest_periodic_extend_periodic_2d
+    State%values(:,:,1) = StateValues
 
-@Test
-subroutine ovkGridTest_periodic_extend_periodic_3d(this)
+    call ovkReleaseGridState(Grid, State)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    @AssertFalse(EditingState(Grid))
+    @AssertFalse(associated(State))
+    @AssertEqual(StateValues, Grid%state%values(:,:,1))
 
-  class(TestCase), intent(inout) :: this
+    call ovkGetGridState(Grid, State)
 
-  type(ovk_cart) :: CartX, CartY, CartZ
-  real(rk), dimension(3) :: Coords
-  real(rk), dimension(3) :: PeriodicLength
+    @AssertFalse(EditingState(Grid))
+    @AssertTrue(associated(State, Grid%state))
+    @AssertEqual(StateValues, State%values(:,:,1))
 
-  CartX = ovk_cart_(3, [4,5,5], [.true.,.false.,.false.])
-  CartY = ovk_cart_(3, [5,4,5], [.false.,.true.,.false.])
-  CartZ = ovk_cart_(3, [5,5,4], [.false.,.false.,.true.])
-  PeriodicLength = 4._rk
+    call DestroyGrid(Grid)
 
-  ! Lower x boundary
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [1,3,3], [1._rk, 3._rk, 3._rk])
-  @AssertEqual([1._rk, 3._rk, 3._rk], Coords)
+    ! Resetting state
+    Cart = ovk_cart_(2, [8,8])
 
-  ! Upper x boundary
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [5,3,3], [1._rk, 3._rk, 3._rk])
-  @AssertEqual([5._rk, 3._rk, 3._rk], Coords)
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
 
-  ! Lower y boundary
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,1,3], [3._rk, 1._rk, 3._rk])
-  @AssertEqual([3._rk, 1._rk, 3._rk], Coords)
+    UserStateValues = OVK_INTERIOR_POINT
+    UserStateValues(4:5,2:3) = OVK_EXTERIOR_POINT
+    UserStateValues(:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    UserStateValues(:,8) = OVK_DOMAIN_BOUNDARY_POINT
 
-  ! Upper y boundary
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,5,3], [3._rk, 1._rk, 3._rk])
-  @AssertEqual([3._rk, 5._rk, 3._rk], Coords)
+    StateValues = UserStateValues
+    InferredBoundaryState = ior(OVK_STATE_DOMAIN_BOUNDARY, OVK_STATE_INFERRED_DOMAIN_BOUNDARY)
+    StateValues(1,2:7) = ior(StateValues(1,2:7), InferredBoundaryState)
+    StateValues(8,2:7) = ior(StateValues(8,2:7), InferredBoundaryState)
+    StateValues(4:5,6:7) = iand(StateValues(4:5,6:7), not(OVK_STATE_GRID))
+    StateValues(4:5,6:7) = ior(StateValues(4:5,6:7), OVK_STATE_BOUNDARY_HOLE)
 
-  ! Lower z boundary
-  Coords = ovkPeriodicExtend(CartZ, PeriodicLength, [3,3,1], [3._rk, 3._rk, 1._rk])
-  @AssertEqual([3._rk, 3._rk, 1._rk], Coords)
+    call ovkEditGridState(Grid, State)
+    State%values(:,:,1) = StateValues
+    call ovkReleaseGridState(Grid, State)
 
-  ! Upper z boundary
-  Coords = ovkPeriodicExtend(CartZ, PeriodicLength, [3,3,5], [3._rk, 3._rk, 1._rk])
-  @AssertEqual([3._rk, 3._rk, 5._rk], Coords)
+    @AssertEqual(StateValues, Grid%state%values(:,:,1))
 
-  ! Lower x off-grid
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [0,3,3], [4._rk, 3._rk, 3._rk])
-  @AssertEqual([0._rk, 3._rk, 3._rk], Coords)
+    call ovkResetGridState(Grid)
 
-  ! Upper x off-grid
-  Coords = ovkPeriodicExtend(CartX, PeriodicLength, [6,3,3], [2._rk, 3._rk, 3._rk])
-  @AssertEqual([6._rk, 3._rk, 3._rk], Coords)
+    @AssertEqual(UserStateValues, Grid%state%values(:,:,1))
 
-  ! Lower y off-grid
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,0,3], [3._rk, 4._rk, 3._rk])
-  @AssertEqual([3._rk, 0._rk, 3._rk], Coords)
+    call DestroyGrid(Grid)
 
-  ! Upper y off-grid
-  Coords = ovkPeriodicExtend(CartY, PeriodicLength, [3,6,3], [3._rk, 2._rk, 3._rk])
-  @AssertEqual([3._rk, 6._rk, 3._rk], Coords)
+  end subroutine AccessState2D
 
-  ! Lower z off-grid
-  Coords = ovkPeriodicExtend(CartZ, PeriodicLength, [3,3,0], [3._rk, 3._rk, 4._rk])
-  @AssertEqual([3._rk, 3._rk, 0._rk], Coords)
+  @Test
+  subroutine AccessState3D(this)
 
-  ! Upper z off-grid
-  Coords = ovkPeriodicExtend(CartZ, PeriodicLength, [3,3,6], [3._rk, 3._rk, 2._rk])
-  @AssertEqual([3._rk, 3._rk, 6._rk], Coords)
+    class(t_grid_test), intent(inout) :: this
 
-end subroutine ovkGridTest_periodic_extend_periodic_3d
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    integer, dimension(8,8,8) :: StateValues
+    type(ovk_field_int), pointer :: State
+    integer, dimension(8,8,8) :: UserStateValues
+    integer :: InferredBoundaryState
+
+    Cart = ovk_cart_(3, [8,8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    @AssertFalse(EditingState(Grid))
+
+    StateValues = OVK_INTERIOR_POINT
+    StateValues(1,:,:) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(8,:,:) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(:,1,:) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(:,8,:) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(:,:,8) = OVK_DOMAIN_BOUNDARY_POINT
+    StateValues(4:5,4:5,4:5) = OVK_EXTERIOR_POINT
+
+    call ovkEditGridState(Grid, State)
+
+    @AssertTrue(EditingState(Grid))
+    @AssertTrue(associated(State, Grid%state))
+
+    State%values = StateValues
+
+    call ovkReleaseGridState(Grid, State)
+
+    @AssertFalse(EditingState(Grid))
+    @AssertFalse(associated(State))
+    @AssertEqual(StateValues, Grid%state%values)
+
+    call ovkGetGridState(Grid, State)
+
+    @AssertFalse(EditingState(Grid))
+    @AssertTrue(associated(State, Grid%state))
+    @AssertEqual(StateValues, State%values)
+
+    call DestroyGrid(Grid)
+
+    ! Resetting state
+    Cart = ovk_cart_(3, [8,8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    UserStateValues = OVK_INTERIOR_POINT
+    UserStateValues(4:5,4:5,2:3) = OVK_EXTERIOR_POINT
+    UserStateValues(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    UserStateValues(:,:,8) = OVK_DOMAIN_BOUNDARY_POINT
+
+    StateValues = UserStateValues
+    InferredBoundaryState = ior(OVK_STATE_DOMAIN_BOUNDARY, OVK_STATE_INFERRED_DOMAIN_BOUNDARY)
+    StateValues(1,:,2:7) = ior(StateValues(1,:,2:7), InferredBoundaryState)
+    StateValues(8,:,2:7) = ior(StateValues(8,:,2:7), InferredBoundaryState)
+    StateValues(:,1,2:7) = ior(StateValues(:,1,2:7), InferredBoundaryState)
+    StateValues(:,8,2:7) = ior(StateValues(:,8,2:7), InferredBoundaryState)
+    StateValues(4:5,4:5,6:7) = iand(StateValues(4:5,4:5,6:7), not(OVK_STATE_GRID))
+    StateValues(4:5,4:5,6:7) = ior(StateValues(4:5,4:5,6:7), OVK_STATE_BOUNDARY_HOLE)
+
+    call ovkEditGridState(Grid, State)
+    State%values = StateValues
+    call ovkReleaseGridState(Grid, State)
+
+    @AssertEqual(StateValues, Grid%state%values)
+
+    call ovkResetGridState(Grid)
+
+    @AssertEqual(UserStateValues, Grid%state%values)
+
+    call DestroyGrid(Grid)
+
+  end subroutine AccessState3D
+
+  @Test
+  subroutine FilterState(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_int), pointer :: State
+    type(ovk_grid) :: Grid
+    type(ovk_field_logical) :: Mask
+    logical(bk), dimension(8,8) :: ExpectedValues
+
+    Cart = ovk_cart_(2, [8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridState(Grid, State)
+    State%values(1,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(8,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,1,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,8,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(3:4,3:4,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! None
+    call ovkFilterGridState(Grid, ior(OVK_STATE_INTERIOR, OVK_STATE_BOUNDARY), OVK_NONE, Mask)
+    ExpectedValues = .false.
+    ExpectedValues(3:4,3:4) = .true.
+    @AssertTrue(logical(all(ExpectedValues .eqv. Mask%values(:,:,1))))
+
+    ! Any
+    call ovkFilterGridState(Grid, ior(OVK_STATE_INTERIOR, OVK_STATE_BOUNDARY), OVK_ANY, Mask)
+    ExpectedValues = .true.
+    ExpectedValues(3:4,3:4) = .false.
+    @AssertTrue(logical(all(ExpectedValues .eqv. Mask%values(:,:,1))))
+
+    ! Not all
+    call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_BOUNDARY), OVK_NOT_ALL, Mask)
+    ExpectedValues = .false.
+    ExpectedValues(2:7,2:7) = .true.
+    @AssertTrue(logical(all(ExpectedValues .eqv. Mask%values(:,:,1))))
+
+    ! All
+    call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_BOUNDARY), OVK_ALL, Mask)
+    ExpectedValues = .true.
+    ExpectedValues(2:7,2:7) = .false.
+    @AssertTrue(logical(all(ExpectedValues .eqv. Mask%values(:,:,1))))
+
+    call DestroyGrid(Grid)
+
+  end subroutine FilterState
+
+  @Test
+  subroutine Bounds2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    type(ovk_bbox) :: ExpectedBounds
+    type(ovk_bbox) :: GridBounds
+
+    Cart = ovk_cart_(2, [8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 8
+      do i = 1, 8
+        X%values(i,j,1) = real(i+j-2, kind=rk)
+        Y%values(i,j,1) = real(-i+j, kind=rk)
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+    ExpectedBounds = ovk_bbox_(2, [0._rk, -7._rk], [14._rk, 7._rk])
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    @AssertTrue(ExpectedBounds == GridBounds)
+
+    call DestroyGrid(Grid)
+
+    Cart = ovk_cart_(2, [8,7], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 7._rk])
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 7
+      do i = 1, 8
+        X%values(i,j,1) = real(i-1, kind=rk)
+        Y%values(i,j,1) = real(j-1, kind=rk)
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+    ExpectedBounds = ovk_bbox_(2, [0._rk, 0._rk], [7._rk, 7._rk])
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    @AssertTrue(ExpectedBounds == GridBounds)
+
+  end subroutine Bounds2D
+
+  @Test
+  subroutine Bounds3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    type(ovk_bbox) :: ExpectedBounds
+    type(ovk_bbox) :: GridBounds
+
+    Cart = ovk_cart_(3, [8,8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 8
+      do j = 1, 8
+        do i = 1, 8
+          X%values(i,j,k) = real(i+j+k-3, kind=rk)
+          Y%values(i,j,k) = real(2*i-j-k, kind=rk)
+          Z%values(i,j,k) = real(j-k, kind=rk)
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    ExpectedBounds = ovk_bbox_(3, [0._rk, -14._rk, -7._rk], [21._rk, 14._rk, 7._rk])
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    @AssertTrue(ExpectedBounds == GridBounds)
+
+    call DestroyGrid(Grid)
+
+    Cart = ovk_cart_(3, [8,8,7], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 0._rk, 7._rk])
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 7
+      do j = 1, 8
+        do i = 1, 8
+          X%values(i,j,k) = real(i-1, kind=rk)
+          Y%values(i,j,k) = real(j-1, kind=rk)
+          Z%values(i,j,k) = real(k-1, kind=rk)
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    ExpectedBounds = ovk_bbox_(3, [0._rk, 0._rk, 0._rk], [7._rk, 7._rk, 7._rk])
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    @AssertTrue(ExpectedBounds == GridBounds)
+
+  end subroutine Bounds3D
+
+  @Test
+  subroutine Mask2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_int), pointer :: State
+    logical(bk), dimension(8,8) :: ExpectedMaskValues
+    logical(bk), dimension(7,7) :: ExpectedCellMaskValues
+
+    ! Non-periodic
+    Cart = ovk_cart_(2, [8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridState(Grid, State)
+    State%values = OVK_INTERIOR_POINT
+    State%values(1,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(8,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,1,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,8,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(4:5,4:5,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ExpectedMaskValues = .true.
+    ExpectedMaskValues(4:5,4:5) = .false.
+
+    @AssertTrue(logical(all(ExpectedMaskValues .eqv. Grid%mask%values(:,:,1))))
+
+    ExpectedCellMaskValues = .true.
+    ExpectedCellMaskValues(3:5,3:5) = .false.
+
+    @AssertTrue(logical(all(ExpectedCellMaskValues .eqv. Grid%cell_mask%values(:,:,1))))
+
+    call DestroyGrid(Grid)
+
+    ! Periodic
+    Cart = ovk_cart_(2, [8,7], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridState(Grid, State)
+    State%values = OVK_INTERIOR_POINT
+    State%values(1,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(8,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(4:5,1:2,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ExpectedCellMaskValues = .true.
+    ExpectedCellMaskValues(3:5,1:2) = .false.
+    ExpectedCellMaskValues(3:5,7) = .false.
+
+    @AssertTrue(logical(all(ExpectedCellMaskValues .eqv. Grid%cell_mask%values(:,:,1))))
+
+    call DestroyGrid(Grid)
+
+  end subroutine Mask2D
+
+  @Test
+  subroutine Mask3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_int), pointer :: State
+    logical(bk), dimension(8,8,8) :: ExpectedMaskValues
+    logical(bk), dimension(7,7,7) :: ExpectedCellMaskValues
+
+    ! Non-periodic
+    Cart = ovk_cart_(3, [8,8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridState(Grid, State)
+    State%values = OVK_INTERIOR_POINT
+    State%values(1,:,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(8,:,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,1,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,8,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,:,8) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(4:5,4:5,4:5) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ExpectedMaskValues = .true.
+    ExpectedMaskValues(4:5,4:5,4:5) = .false.
+
+    @AssertTrue(logical(all(ExpectedMaskValues .eqv. Grid%mask%values)))
+
+    ExpectedCellMaskValues = .true.
+    ExpectedCellMaskValues(3:5,3:5,3:5) = .false.
+
+    @AssertTrue(logical(all(ExpectedCellMaskValues .eqv. Grid%cell_mask%values)))
+
+    call DestroyGrid(Grid)
+
+    ! Periodic
+    Cart = ovk_cart_(3, [8,8,7], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridState(Grid, State)
+    State%values = OVK_INTERIOR_POINT
+    State%values(1,:,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(8,:,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,1,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(:,8,:) = OVK_DOMAIN_BOUNDARY_POINT
+    State%values(4:5,4:5,1:2) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ExpectedCellMaskValues = .true.
+    ExpectedCellMaskValues(3:5,3:5,1:2) = .false.
+    ExpectedCellMaskValues(3:5,3:5,7) = .false.
+
+    @AssertTrue(logical(all(ExpectedCellMaskValues .eqv. Grid%cell_mask%values)))
+
+    call DestroyGrid(Grid)
+
+  end subroutine Mask3D
+
+  @Test
+  subroutine Volumes2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+
+    Cart = ovk_cart_(2, [8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 8
+      do i = 1, 8
+        X%values(i,j,1) = real(i+j-2, kind=rk)
+        Y%values(i,j,1) = real(-i+j, kind=rk)
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+    @AssertEqual(2._rk, Grid%volumes%values)
+    @AssertEqual(2._rk, Grid%cell_volumes%values)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Volumes2D
+
+  @Test
+  subroutine Volumes3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+
+    Cart = ovk_cart_(3, [8,8,8])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 8
+      do j = 1, 8
+        do i = 1, 8
+          X%values(i,j,k) = real(i+j+k-3, kind=rk)
+          Y%values(i,j,k) = real(2*i-j-k, kind=rk)
+          Z%values(i,j,k) = real(j-k, kind=rk)
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    @AssertEqual(6._rk, Grid%volumes%values)
+    @AssertEqual(6._rk, Grid%cell_volumes%values)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Volumes3D
+
+  @Test
+  subroutine OverlapsCellUniform2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    type(ovk_field_int), pointer :: State
+  !   type(ovk_plot3d_grid_file) :: GridFile
+
+    Cart = ovk_cart_(2, [11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = U
+        Y%values(i,j,1) = V
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+  !   call ovkCreateP3D(GridFile, "cartesian.xyz", NumDims=2, NumGrids=1, &
+  !     NumPointsAll=reshape([11,11,1], [3,1]), WithIBlank=.false., Verbose=.true.)
+  !   call ovkWriteP3D(GridFile, 1, Grid%coords(1), Grid%coords(2))
+  !   call ovkCloseP3D(GridFile)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [-1._rk, -1._rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [1._rk, 1._rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7], [0.5_rk, 0.3_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3], [-0.7_rk, -0.5_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1], [-1.1_rk, -1.1_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10], [1.1_rk, 1.1_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [-1._rk-1.e-6_rk, -1._rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=8+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [1._rk+1.e-6_rk, 1._rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellUniform2D
+
+  @Test
+  subroutine OverlapsCellUniform3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    type(ovk_field_int), pointer :: State
+
+    Cart = ovk_cart_(3, [11,11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = U
+          Y%values(i,j,k) = V
+          Z%values(i,j,k) = W
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,5) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [-1._rk, -1._rk, -1._rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [1._rk, 1._rk, 1._rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7,6], [0.5_rk, 0.3_rk, 0.1_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5, Nu=4.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3,4], [-0.7_rk, -0.5_rk, -0.3_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=Nu=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1,1], [-1.1_rk, -1.1_rk, -1.1_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=Nu=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10,10], [1.1_rk, 1.1_rk, 1.1_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=Nu=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [-1._rk-1.e-6_rk, -1._rk-1.e-6_rk, -1._rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=Nu=11+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [1._rk+1.e-6_rk, 1._rk+1.e-6_rk, 1._rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellUniform3D
+
+  @Test
+  subroutine OverlapsCellOriented2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    type(ovk_field_int), pointer :: State
+    type(ovk_grid) :: Grid
+  !   type(ovk_plot3d_grid_file) :: GridFile
+
+    Cart = ovk_cart_(2, [11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = -V
+        Y%values(i,j,1) = U
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+  !   call ovkCreateP3D(GridFile, "oriented_cartesian.xyz", NumDims=2, NumGrids=1, &
+  !     NumPointsAll=reshape([11,11,1], [3,1]), WithIBlank=.false., Verbose=.true.)
+  !   call ovkWriteP3D(GridFile, 1, Grid%coords(1), Grid%coords(2))
+  !   call ovkCloseP3D(GridFile)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [1._rk, -1._rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [-1._rk, 1._rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7], [-0.3_rk, 0.5_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3], [0.5_rk, -0.7_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1], [1.1_rk, -1.1_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10], [-1.1_rk, 1.1_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [1._rk+1.e-6_rk, -1._rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=11+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [-1._rk-1.e-6_rk, 1._rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellOriented2D
+
+  @Test
+  subroutine OverlapsCellOriented3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    type(ovk_field_int), pointer :: State
+    type(ovk_grid) :: Grid
+
+    Cart = ovk_cart_(3, [11,11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = -V
+          Y%values(i,j,k) = U
+          Z%values(i,j,k) = W
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,5) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=Nu=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [1._rk, -1._rk, -1._rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=Nu=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [-1._rk, 1._rk, 1._rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7,6], [-0.3_rk, 0.5_rk, 0.1_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5, Nu=4.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3,4], [0.5_rk, -0.7_rk, -0.3_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=Nu=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1,1], [1.1_rk, -1.1_rk, -1.1_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=Nu=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10,10], [-1.1_rk, 1.1_rk, 1.1_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=Nu=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [1._rk+1.e-6_rk, -1._rk-1.e-6_rk, -1._rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=Nu=11+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [-1._rk-1.e-6_rk, 1._rk+1.e-6_rk, 1._rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellOriented3D
+
+  @Test
+  subroutine OverlapsCellRectilinear2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    type(ovk_field_int), pointer :: State
+  !   type(ovk_plot3d_grid_file) :: GridFile
+
+    Cart = ovk_cart_(2, [11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = U
+        Y%values(i,j,1) = 0.5_rk*(V + V**3)
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+  !   call ovkCreateP3D(GridFile, "rectilinear.xyz", NumDims=2, NumGrids=1, &
+  !     NumPointsAll=reshape([11,11,1], [3,1]), WithIBlank=.false., Verbose=.true.)
+  !   call ovkWriteP3D(GridFile, 1, Grid%coords(1), Grid%coords(2))
+  !   call ovkCloseP3D(GridFile)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [-1._rk, -1._rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [1._rk, 1._rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7], [0.5_rk, 0.1635_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3], [-0.7_rk, -0.3125_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1], [-1.1_rk, -1.2155_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10], [1.1_rk, 1.2155_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [-1._rk-1.e-6_rk, -1._rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=8+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [1._rk+1.e-6_rk, 1._rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellRectilinear2D
+
+  @Test
+  subroutine OverlapsCellRectilinear3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    type(ovk_field_int), pointer :: State
+  !   type(ovk_plot3d_grid_file) :: GridFile
+
+    Cart = ovk_cart_(3, [11,11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = U
+          Y%values(i,j,k) = 0.5_rk*(V + V**3)
+          Z%values(i,j,k) = 0.5_rk*(W + W**3)
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+  !   call ovkCreateP3D(GridFile, "rectilinear_3d.xyz", NumDims=3, NumGrids=1, &
+  !     NumPointsAll=reshape([11,11,11], [3,1]), WithIBlank=.false., Verbose=.true.)
+  !   call ovkWriteP3D(GridFile, 1, Grid%coords(1), Grid%coords(2), Grid%coords(3))
+  !   call ovkCloseP3D(GridFile)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,5) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [-1._rk, -1._rk, -1._rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [1._rk, 1._rk, 1._rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7,6], [0.5_rk, 0.1635_rk, 0.0505_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5, Nu=4.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3,4], [-0.7_rk, -0.3125_rk, -0.1635_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=Nu=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1,1], [-1.1_rk, -1.2155_rk, -1.2155_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=Nu=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10,10], [1.1_rk, 1.2155_rk, 1.2155_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=Nu=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [-1._rk-1.e-6_rk, -1._rk-1.e-6_rk, -1._rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=Nu=11+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [1._rk+1.e-6_rk, 1._rk+1.e-6_rk, 1._rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellRectilinear3D
+
+  @Test
+  subroutine OverlapsCellCurvilinear2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    type(ovk_field_int), pointer :: State
+  !   type(ovk_plot3d_grid_file) :: GridFile
+
+    Cart = ovk_cart_(2, [11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = (1._rk+0.25_rk*V)*U
+        Y%values(i,j,1) = (1._rk+0.25_rk*U)*V
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+  !   call ovkCreateP3D(GridFile, "curvilinear.xyz", NumDims=2, NumGrids=1, &
+  !     NumPointsAll=reshape([11,11,1], [3,1]), WithIBlank=.false., Verbose=.true.)
+  !   call ovkWriteP3D(GridFile, 1, Grid%coords(1), Grid%coords(2))
+  !   call ovkCloseP3D(GridFile)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [-0.75_rk, -0.75_rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [1.25_rk, 1.25_rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7], [0.5375_rk, 0.3375_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3], [-0.6125_rk, -0.4125_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1], [-0.7975_rk, -0.7975_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10], [1.4025_rk, 1.4025_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1], [-0.75_rk-1.e-6_rk, -0.75_rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=11+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10], [1.25_rk+1.e-6_rk, 1.25_rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellCurvilinear2D
+
+  @Test
+  subroutine OverlapsCellCurvilinear3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    type(ovk_field_int), pointer :: State
+  !   type(ovk_plot3d_grid_file) :: GridFile
+
+    Cart = ovk_cart_(3, [11,11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = (1._rk+0.25_rk*V)*U
+          Y%values(i,j,k) = (1._rk+0.25_rk*W)*V
+          Z%values(i,j,k) = (1._rk+0.25_rk*U)*W
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+  !   call ovkCreateP3D(GridFile, "curvilinear_3d.xyz", NumDims=3, NumGrids=1, &
+  !     NumPointsAll=reshape([11,11,11], [3,1]), WithIBlank=.false., Verbose=.true.)
+  !   call ovkWriteP3D(GridFile, 1, Grid%coords(1), Grid%coords(2), Grid%coords(3))
+  !   call ovkCloseP3D(GridFile)
+
+    call ovkEditGridState(Grid, State)
+    State%values(3,4,5) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    ! Lower corner (Xi=Eta=Nu=1)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [-0.75_rk, -0.75_rk, -0.75_rk], 1.e-12_rk))
+
+    ! Upper corner (Xi=Eta=Nu=11)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [1.25_rk, 1.25_rk, 1.25_rk], 1.e-12_rk))
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [8,7,6], [0.5375_rk, 0.3075_rk, 0.1125_rk], 1.e-12_rk))
+
+    ! Interior near blanked point (Xi=2.5, Eta=3.5, Nu=4.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [2,3,4], [-0.6125_rk, -0.4625_rk, -0.2475_rk], 1.e-12_rk))
+
+    ! Outside lower corner (Xi=Eta=Nu=0.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [1,1,1], [-0.7975_rk, -0.7975_rk, -0.7975_rk], 1.e-3_rk))
+
+    ! Outside upper corner (Xi=Eta=Nu=11.5)
+    @AssertFalse(ovkOverlapsGridCell(Grid, [10,10,10], [1.4025_rk, 1.4025_rk, 1.4025_rk], 1.e-3_rk))
+
+    ! Slightly outside lower corner, but close enough (Xi=Eta=Nu=1-epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [1,1,1], [-0.75_rk-1.e-6_rk, -0.75_rk-1.e-6_rk, -0.75_rk-1.e-6_rk], 1.e-3_rk))
+
+    ! Slightly outside upper corner, but close enough (Xi=Eta=Nu=11+epsilon)
+    @AssertTrue(ovkOverlapsGridCell(Grid, [10,10,10], [1.25_rk+1.e-6_rk, 1.25_rk+1.e-6_rk, 1.25_rk+1.e-6_rk], 1.e-3_rk))
+
+    call DestroyGrid(Grid)
+
+  end subroutine OverlapsCellCurvilinear3D
+
+  @Test
+  subroutine CellCoordsUniform2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    real(rk), dimension(2) :: CellCoords
+
+    Cart = ovk_cart_(2, [11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = U
+        Y%values(i,j,1) = V
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+    ! Lower corner (Xi=Eta=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1], [-1._rk, -1._rk])
+    @AssertEqual([0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10], [1._rk, 1._rk])
+    @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7], [0.5_rk, 0.3_rk])
+    @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsUniform2D
+
+  @Test
+  subroutine CellCoordsUniform3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    real(rk), dimension(3) :: CellCoords
+
+    Cart = ovk_cart_(3, [11,11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = U
+          Y%values(i,j,k) = V
+          Z%values(i,j,k) = W
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    ! Lower corner (Xi=Eta=Nu=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1,1], [-1._rk, -1._rk, -1._rk])
+    @AssertEqual([0._rk, 0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=Nu=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10,10], [1._rk, 1._rk, 1._rk])
+    @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7,6], [0.5_rk, 0.3_rk, 0.1_rk])
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsUniform3D
+
+  @Test
+  subroutine CellCoordsOriented2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    real(rk), dimension(2) :: CellCoords
+
+    Cart = ovk_cart_(2, [11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = -V
+        Y%values(i,j,1) = U
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+    ! Lower corner (Xi=Eta=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1], [1._rk, -1._rk])
+    @AssertEqual([0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10], [-1._rk, 1._rk])
+    @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7], [-0.3_rk, 0.5_rk])
+    @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsOriented2D
+
+  @Test
+  subroutine CellCoordsOriented3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    real(rk), dimension(3) :: CellCoords
+
+    Cart = ovk_cart_(3, [11,11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = -V
+          Y%values(i,j,k) = U
+          Z%values(i,j,k) = W
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    ! Lower corner (Xi=Eta=Nu=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1,1], [1._rk, -1._rk, -1._rk])
+    @AssertEqual([0._rk, 0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=Nu=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10,10], [-1._rk, 1._rk, 1._rk])
+    @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7,6], [-0.3_rk, 0.5_rk, 0.1_rk])
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsOriented3D
+
+  @Test
+  subroutine CellCoordsRectilinear2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    real(rk), dimension(2) :: CellCoords
+    logical :: Success
+
+    Cart = ovk_cart_(2, [11,11], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk], &
+      GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = U
+        Y%values(i,j,1) = 0.5_rk*(V + V**3)
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+    ! Lower corner (Xi=Eta=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1], [-1._rk, -1._rk])
+    @AssertEqual([0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10], [1._rk, 1._rk])
+    @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7], [0.5_rk, 0.1635_rk])
+    @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    ! Interior near periodic boundary (Xi=10.5, Eta=5.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,5], [0.9_rk, -0.0505_rk])
+    @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    ! With optional success argument
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7], [0.5_rk, 0.1635_rk], Success=Success)
+    @AssertTrue(Success)
+    @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsRectilinear2D
+
+  @Test
+  subroutine CellCoordsRectilinear3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    real(rk), dimension(3) :: CellCoords
+    logical :: Success
+
+    Cart = ovk_cart_(3, [11,11,11], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk, 0._rk], &
+      GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = U
+          Y%values(i,j,k) = 0.5_rk*(V + V**3)
+          Z%values(i,j,k) = 0.5_rk*(W + W**3)
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    ! Lower corner (Xi=Eta=Nu=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1,1], [-1._rk, -1._rk, -1._rk])
+    @AssertEqual([0._rk, 0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=Nu=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10,10], [1._rk, 1._rk, 1._rk])
+    @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7,6], [0.5_rk, 0.1635_rk, 0.0505_rk])
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    ! Interior near periodic boundary (Xi=10.5, Eta=5.5, Nu=5.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,5,5], [0.9_rk, -0.0505_rk, -0.0505_rk])
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    ! With optional success argument
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7,6], [0.5_rk, 0.1635_rk, 0.0505_rk], Success=Success)
+    @AssertTrue(Success)
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsRectilinear3D
+
+  @Test
+  subroutine CellCoordsCurvilinear2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y
+    real(rk) :: Xi, Eta
+    real(rk) :: U, V
+    real(rk), dimension(2) :: CellCoords
+    logical :: Success
+
+    Cart = ovk_cart_(2, [11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 11
+      do i = 1, 11
+        Xi = real(i,kind=rk)
+        Eta = real(j,kind=rk)
+        U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+        V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+        X%values(i,j,1) = (1._rk+0.25_rk*V)*U
+        Y%values(i,j,1) = (1._rk+0.25_rk*U)*V
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+
+    ! Lower corner (Xi=Eta=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1], [-0.75_rk, -0.75_rk])
+    @AssertEqual([0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10], [1.25_rk, 1.25_rk])
+    @AssertEqual([1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7], [0.5375_rk, 0.3375_rk])
+    @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    ! With optional success argument
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7], [0.5375_rk, 0.3375_rk], Success=Success)
+    @AssertTrue(Success)
+    @AssertEqual([0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsCurvilinear2D
+
+  @Test
+  subroutine CellCoordsCurvilinear3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_cart) :: Cart
+    type(ovk_grid) :: Grid
+    type(ovk_field_real), pointer :: X, Y, Z
+    real(rk) :: Xi, Eta, Nu
+    real(rk) :: U, V, W
+    real(rk), dimension(3) :: CellCoords
+    logical :: Success
+
+    Cart = ovk_cart_(3, [11,11,11])
+
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+
+    call ovkEditGridCoords(Grid, 1, X)
+    call ovkEditGridCoords(Grid, 2, Y)
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 11
+      do j = 1, 11
+        do i = 1, 11
+          Xi = real(i,kind=rk)
+          Eta = real(j,kind=rk)
+          Nu = real(k,kind=rk)
+          U = 2._rk*(Xi-1._rk)/10._rk-1._rk
+          V = 2._rk*(Eta-1._rk)/10._rk-1._rk
+          W = 2._rk*(Nu-1._rk)/10._rk-1._rk
+          X%values(i,j,k) = (1._rk+0.25_rk*V)*U
+          Y%values(i,j,k) = (1._rk+0.25_rk*W)*V
+          Z%values(i,j,k) = (1._rk+0.25_rk*U)*W
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, X)
+    call ovkReleaseGridCoords(Grid, Y)
+    call ovkReleaseGridCoords(Grid, Z)
+
+    ! Lower corner (Xi=Eta=Nu=1)
+    CellCoords = ovkCoordsInGridCell(Grid, [1,1,1], [-0.75_rk, -0.75_rk, -0.75_rk])
+    @AssertEqual([0._rk, 0._rk, 0._rk], CellCoords, 1.e-12_rk)
+
+    ! Upper corner (Xi=Eta=Nu=11)
+    CellCoords = ovkCoordsInGridCell(Grid, [10,10,10], [1.25_rk, 1.25_rk, 1.25_rk])
+    @AssertEqual([1._rk, 1._rk, 1._rk], CellCoords, 1.e-12_rk)
+
+    ! Interior (Xi=8.5, Eta=7.5, Nu=6.5)
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7,6], [0.5375_rk, 0.3075_rk, 0.1125_rk])
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    ! With optional success argument
+    CellCoords = ovkCoordsInGridCell(Grid, [8,7,6], [0.5375_rk, 0.3075_rk, 0.1125_rk], &
+      Success=Success)
+    @AssertTrue(Success)
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], CellCoords, 1.e-12_rk)
+
+    call DestroyGrid(Grid)
+
+  end subroutine CellCoordsCurvilinear3D
+
+  @Test
+  subroutine PeriodicExtend2D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    real(rk), dimension(2) :: Coords
+    real(rk), dimension(2) :: PeriodicLength
+
+    ! Non-periodic
+    Cart = ovk_cart_(2, [5,5])
+    PeriodicLength = 4._rk
+
+    ! Lower x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3], [1._rk, 3._rk])
+    @AssertEqual([1._rk, 3._rk], Coords)
+
+    ! Upper x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3], [5._rk, 3._rk])
+    @AssertEqual([5._rk, 3._rk], Coords)
+
+    ! Lower y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1], [3._rk, 1._rk])
+    @AssertEqual([3._rk, 1._rk], Coords)
+
+    ! Upper y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5], [3._rk, 5._rk])
+    @AssertEqual([3._rk, 5._rk], Coords)
+
+    ! No-overlap periodic
+    Cart = ovk_cart_(2, [4,4], [.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PeriodicLength = 4._rk
+
+    ! Lower x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3], [1._rk, 3._rk])
+    @AssertEqual([1._rk, 3._rk], Coords)
+
+    ! Upper x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3], [1._rk, 3._rk])
+    @AssertEqual([5._rk, 3._rk], Coords)
+
+    ! Lower y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1], [3._rk, 1._rk])
+    @AssertEqual([3._rk, 1._rk], Coords)
+
+    ! Upper y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5], [3._rk, 1._rk])
+    @AssertEqual([3._rk, 5._rk], Coords)
+
+    ! Lower x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [0,3], [4._rk, 3._rk])
+    @AssertEqual([0._rk, 3._rk], Coords)
+
+    ! Upper x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [6,3], [2._rk, 3._rk])
+    @AssertEqual([6._rk, 3._rk], Coords)
+
+    ! Lower y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,0], [3._rk, 4._rk])
+    @AssertEqual([3._rk, 0._rk], Coords)
+
+    ! Upper y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,6], [3._rk, 2._rk])
+    @AssertEqual([3._rk, 6._rk], Coords)
+
+    ! Overlap periodic
+    Cart = ovk_cart_(2, [5,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    PeriodicLength = 4._rk
+
+    ! Lower x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3], [1._rk, 3._rk])
+    @AssertEqual([1._rk, 3._rk], Coords)
+
+    ! Upper x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3], [1._rk, 3._rk])
+    @AssertEqual([5._rk, 3._rk], Coords)
+
+    ! Lower y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1], [3._rk, 1._rk])
+    @AssertEqual([3._rk, 1._rk], Coords)
+
+    ! Upper y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5], [3._rk, 1._rk])
+    @AssertEqual([3._rk, 5._rk], Coords)
+
+    ! Lower x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [0,3], [4._rk, 3._rk])
+    @AssertEqual([0._rk, 3._rk], Coords)
+
+    ! Upper x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [6,3], [2._rk, 3._rk])
+    @AssertEqual([6._rk, 3._rk], Coords)
+
+    ! Lower y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,0], [3._rk, 4._rk])
+    @AssertEqual([3._rk, 0._rk], Coords)
+
+    ! Upper y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,6], [3._rk, 2._rk])
+    @AssertEqual([3._rk, 6._rk], Coords)
+
+  end subroutine PeriodicExtend2D
+
+  @Test
+  subroutine PeriodicExtend3D(this)
+
+    class(t_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    real(rk), dimension(3) :: Coords
+    real(rk), dimension(3) :: PeriodicLength
+
+    ! Non-periodic
+    Cart = ovk_cart_(3, [5,5,5])
+    PeriodicLength = 4._rk
+
+    ! Lower x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3,3], [1._rk, 3._rk, 3._rk])
+    @AssertEqual([1._rk, 3._rk, 3._rk], Coords)
+
+    ! Upper x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3,3], [5._rk, 3._rk, 3._rk])
+    @AssertEqual([5._rk, 3._rk, 3._rk], Coords)
+
+    ! Lower y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1,3], [3._rk, 1._rk, 3._rk])
+    @AssertEqual([3._rk, 1._rk, 3._rk], Coords)
+
+    ! Upper y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5,3], [3._rk, 5._rk, 3._rk])
+    @AssertEqual([3._rk, 5._rk, 3._rk], Coords)
+
+    ! Lower z boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,1], [3._rk, 3._rk, 1._rk])
+    @AssertEqual([3._rk, 3._rk, 1._rk], Coords)
+
+    ! Upper z boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,5], [3._rk, 3._rk, 5._rk])
+    @AssertEqual([3._rk, 3._rk, 5._rk], Coords)
+
+    ! No-overlap periodic
+    Cart = ovk_cart_(3, [4,4,4], [.true.,.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PeriodicLength = 4._rk
+
+    ! Lower x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3,3], [1._rk, 3._rk, 3._rk])
+    @AssertEqual([1._rk, 3._rk, 3._rk], Coords)
+
+    ! Upper x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3,3], [1._rk, 3._rk, 3._rk])
+    @AssertEqual([5._rk, 3._rk, 3._rk], Coords)
+
+    ! Lower y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1,3], [3._rk, 1._rk, 3._rk])
+    @AssertEqual([3._rk, 1._rk, 3._rk], Coords)
+
+    ! Upper y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5,3], [3._rk, 1._rk, 3._rk])
+    @AssertEqual([3._rk, 5._rk, 3._rk], Coords)
+
+    ! Lower z boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,1], [3._rk, 3._rk, 1._rk])
+    @AssertEqual([3._rk, 3._rk, 1._rk], Coords)
+
+    ! Upper z boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,5], [3._rk, 3._rk, 1._rk])
+    @AssertEqual([3._rk, 3._rk, 5._rk], Coords)
+
+    ! Lower x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [0,3,3], [4._rk, 3._rk, 3._rk])
+    @AssertEqual([0._rk, 3._rk, 3._rk], Coords)
+
+    ! Upper x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [6,3,3], [2._rk, 3._rk, 3._rk])
+    @AssertEqual([6._rk, 3._rk, 3._rk], Coords)
+
+    ! Lower y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,0,3], [3._rk, 4._rk, 3._rk])
+    @AssertEqual([3._rk, 0._rk, 3._rk], Coords)
+
+    ! Upper y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,6,3], [3._rk, 2._rk, 3._rk])
+    @AssertEqual([3._rk, 6._rk, 3._rk], Coords)
+
+    ! Lower z off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,0], [3._rk, 3._rk, 4._rk])
+    @AssertEqual([3._rk, 3._rk, 0._rk], Coords)
+
+    ! Upper z off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,6], [3._rk, 3._rk, 2._rk])
+    @AssertEqual([3._rk, 3._rk, 6._rk], Coords)
+
+    ! Overlap periodic
+    Cart = ovk_cart_(3, [5,5,5], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    PeriodicLength = 4._rk
+
+    ! Lower x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [1,3,3], [1._rk, 3._rk, 3._rk])
+    @AssertEqual([1._rk, 3._rk, 3._rk], Coords)
+
+    ! Upper x boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [5,3,3], [1._rk, 3._rk, 3._rk])
+    @AssertEqual([5._rk, 3._rk, 3._rk], Coords)
+
+    ! Lower y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,1,3], [3._rk, 1._rk, 3._rk])
+    @AssertEqual([3._rk, 1._rk, 3._rk], Coords)
+
+    ! Upper y boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5,3], [3._rk, 1._rk, 3._rk])
+    @AssertEqual([3._rk, 5._rk, 3._rk], Coords)
+
+    ! Lower z boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,1], [3._rk, 3._rk, 1._rk])
+    @AssertEqual([3._rk, 3._rk, 1._rk], Coords)
+
+    ! Upper z boundary
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,5], [3._rk, 3._rk, 1._rk])
+    @AssertEqual([3._rk, 3._rk, 5._rk], Coords)
+
+    ! Lower x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [0,3,3], [4._rk, 3._rk, 3._rk])
+    @AssertEqual([0._rk, 3._rk, 3._rk], Coords)
+
+    ! Upper x off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [6,3,3], [2._rk, 3._rk, 3._rk])
+    @AssertEqual([6._rk, 3._rk, 3._rk], Coords)
+
+    ! Lower y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,0,3], [3._rk, 4._rk, 3._rk])
+    @AssertEqual([3._rk, 0._rk, 3._rk], Coords)
+
+    ! Upper y off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,6,3], [3._rk, 2._rk, 3._rk])
+    @AssertEqual([3._rk, 6._rk, 3._rk], Coords)
+
+    ! Lower z off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,0], [3._rk, 3._rk, 4._rk])
+    @AssertEqual([3._rk, 3._rk, 0._rk], Coords)
+
+    ! Upper z off-grid
+    Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,6], [3._rk, 3._rk, 2._rk])
+    @AssertEqual([3._rk, 3._rk, 6._rk], Coords)
+
+  end subroutine PeriodicExtend3D
+
+end module GridTest

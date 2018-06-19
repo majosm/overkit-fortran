@@ -17,7 +17,7 @@ module ovkConnectivity
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_connectivity
   public :: ovkConnectivityExists
   public :: ovkGetConnectivityDonorGrid
@@ -31,7 +31,7 @@ module ovkConnectivity
   public :: ovkGetConnectivityDonorInterpCoefs
   public :: ovkGetConnectivityReceiverPoints
 
-  ! Internal
+  ! Internal API
   public :: ovk_connectivity_
   public :: CreateConnectivity
   public :: DestroyConnectivity

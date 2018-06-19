@@ -34,11 +34,12 @@ program Circle
   Options(2) = t_cmd_opt_("variant", "R", CMD_OPT_STRING, "Variant of mesh to generate (" // &
     "cylinder, block, or remap) [ Default: cylinder ]")
 
-  call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
+  call ParseCommandLineArguments(RawArguments, Usage=Usage, Description=Description, &
+    Options=Options)
 
-  call GetOptionValue(Options(1), NumPoints, 81)
+  call GetCommandLineOptionValue(Options(1), NumPoints, 81)
 
-  call GetOptionValue(Options(2), Variant, "cylinder")
+  call GetCommandLineOptionValue(Options(2), Variant, "cylinder")
   if (Variant /= "cylinder" .and. Variant /= "block" .and. Variant /= "remap") then
     write (ERROR_UNIT, '(3a)') "ERROR: Invalid mesh variant '", trim(Variant), "'."
     stop 1

@@ -9,7 +9,7 @@ module ovkField
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_field_int
   public :: ovk_field_int_
   public :: ovk_field_large_int
@@ -1085,6 +1085,7 @@ contains
 
   end subroutine ovkGetFieldPatch_Logical1Byte_Rank3
 
+![COVERAGEIGNORE]
   subroutine ovkPrintField_Integer(Field, OutputUnit, StartIndex, EndIndex, NumDigits)
 
     type(ovk_field_int), intent(in) :: Field
@@ -1420,5 +1421,6 @@ contains
     write (OutputUnit, '(a)') "   "
 
   end subroutine PrintRowHeaderFooter
+![/COVERAGEIGNORE]
 
 end module ovkField

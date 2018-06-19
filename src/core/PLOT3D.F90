@@ -12,7 +12,7 @@ module ovkPLOT3D
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_plot3d_grid_file
   public :: ovk_plot3d_grid_file_
   public :: ovkP3DMachineEndian

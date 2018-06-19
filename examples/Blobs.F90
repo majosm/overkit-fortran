@@ -49,11 +49,12 @@ program Blobs
   Options(2) = t_cmd_opt_("vis-mode", "V", CMD_OPT_STRING, "How to set IBlank of output file " // &
     "for visualization (fringe or state) [ Default: fringe ]")
 
-  call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
+  call ParseCommandLineArguments(RawArguments, Usage=Usage, Description=Description, &
+    Options=Options)
 
-  call GetOptionValue(Options(1), NumPoints, 81)
+  call GetCommandLineOptionValue(Options(1), NumPoints, 81)
 
-  call GetOptionValue(Options(2), VisMode, "fringe")
+  call GetCommandLineOptionValue(Options(2), VisMode, "fringe")
   if (VisMode /= "fringe" .and. VisMode /= "state") then
     write (ERROR_UNIT, '(3a)') "ERROR: Invalid visualization mode '", trim(VisMode), "'."
     stop 1

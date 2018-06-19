@@ -17,7 +17,7 @@ module ovkOverlap
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_overlap
   public :: ovkOverlapExists
   public :: ovkResetOverlap
@@ -42,7 +42,7 @@ module ovkOverlap
   public :: OVK_COLLECT_INTERPOLATE
   public :: OVK_DISPERSE_OVERWRITE
 
-  ! Internal
+  ! Internal API
   public :: ovk_overlap_
   public :: CreateOverlap
   public :: DestroyOverlap
@@ -597,8 +597,10 @@ contains
     case (OVK_COLLECT_MAX)
       call CollectMax_Integer(Overlap, OverlappingGridData, CollectedData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapCollect_Integer
@@ -618,8 +620,10 @@ contains
     case (OVK_COLLECT_MAX)
       call CollectMax_LargeInteger(Overlap, OverlappingGridData, CollectedData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapCollect_LargeInteger
@@ -641,8 +645,10 @@ contains
     case (OVK_COLLECT_INTERPOLATE)
       call CollectInterpolate(Overlap, OverlappingGridData, CollectedData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapCollect_Real
@@ -667,8 +673,10 @@ contains
     case (OVK_COLLECT_ALL)
       call CollectAll(Overlap, OverlappingGridData, CollectedData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapCollect_Logical
@@ -972,7 +980,8 @@ contains
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
-      CollectedData%values(l) = .not. any(VertexData)
+      CollectedData%values(l) = .not. any(VertexData(Lower(1):Upper(1),Lower(2):Upper(2), &
+        Lower(3):Upper(3)))
     end do
 
   end subroutine CollectNone
@@ -998,7 +1007,8 @@ contains
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
-      CollectedData%values(l) = any(VertexData)
+      CollectedData%values(l) = any(VertexData(Lower(1):Upper(1),Lower(2):Upper(2), &
+        Lower(3):Upper(3)))
     end do
 
   end subroutine CollectAny
@@ -1024,7 +1034,8 @@ contains
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
-      CollectedData%values(l) = .not. all(VertexData)
+      CollectedData%values(l) = .not. all(VertexData(Lower(1):Upper(1),Lower(2):Upper(2), &
+        Lower(3):Upper(3)))
     end do
 
   end subroutine CollectNotAll
@@ -1050,7 +1061,8 @@ contains
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
-      CollectedData%values(l) = all(VertexData)
+      CollectedData%values(l) = all(VertexData(Lower(1):Upper(1),Lower(2):Upper(2), &
+        Lower(3):Upper(3)))
     end do
 
   end subroutine CollectAll
@@ -1067,8 +1079,10 @@ contains
     case (OVK_DISPERSE_OVERWRITE)
       call DisperseOverwrite_Integer(Overlap, CollectedData, OverlappedGridData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapDisperse_Integer
@@ -1085,8 +1099,10 @@ contains
     case (OVK_DISPERSE_OVERWRITE)
       call DisperseOverwrite_LargeInteger(Overlap, CollectedData, OverlappedGridData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapDisperse_LargeInteger
@@ -1103,8 +1119,10 @@ contains
     case (OVK_DISPERSE_OVERWRITE)
       call DisperseOverwrite_Real(Overlap, CollectedData, OverlappedGridData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapDisperse_Real
@@ -1121,8 +1139,10 @@ contains
     case (OVK_DISPERSE_OVERWRITE)
       call DisperseOverwrite_Logical(Overlap, CollectedData, OverlappedGridData)
     case default
-      write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
-      stop 1
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
+        stop 1
+      end if
     end select
 
   end subroutine ovkOverlapDisperse_Logical

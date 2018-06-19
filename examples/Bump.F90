@@ -59,17 +59,18 @@ program Bump
   Options(3) = t_cmd_opt_("interp", "i", CMD_OPT_STRING, "Interpolation scheme (linear or " // &
     "cubic) [ Default: cubic ]")
 
-  call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
+  call ParseCommandLineArguments(RawArguments, Usage=Usage, Description=Description, &
+    Options=Options)
 
-  call GetOptionValue(Options(1), NumDims, 2)
+  call GetCommandLineOptionValue(Options(1), NumDims, 2)
   if (NumDims /= 2 .and. NumDims /= 3) then
     write (ERROR_UNIT, '(a,i0,a)') "ERROR: Invalid grid dimension ", NumDims, "."
     stop 1
   end if
 
-  call GetOptionValue(Options(2), N, 81)
+  call GetCommandLineOptionValue(Options(2), N, 81)
 
-  call GetOptionValue(Options(3), InterpScheme, "cubic")
+  call GetCommandLineOptionValue(Options(3), InterpScheme, "cubic")
   select case (InterpScheme)
   case ("linear")
     ConnectionType = OVK_CONNECTION_LINEAR

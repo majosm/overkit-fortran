@@ -8,7 +8,7 @@ module ovkArray
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_array_int
   public :: ovk_array_int_
   public :: ovk_array_large_int

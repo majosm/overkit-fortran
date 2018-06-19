@@ -1,0 +1,557 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module DonorStencilTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  use ovkGrid, only : CreateGrid, DestroyGrid
+  use ovkDonorStencil, only : t_donor_stencil, t_donor_stencil_, CreateDonorStencil, &
+    DestroyDonorStencil, GetDonorStencilSize, FindDonors
+  use ovkLogger, only : t_logger, t_logger_
+  use ovkOverlap, only : ovk_overlap, UpdateOverlapAfterCut
+  use TestFixtures
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_donor_stencil_test
+  end type t_donor_stencil_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(t_donor_stencil) :: DonorStencil
+
+    DonorStencil = t_donor_stencil_()
+
+    @AssertFalse(associated(DonorStencil%grid))
+    @AssertEqual(2, DonorStencil%nd)
+    @AssertEqual(OVK_CONNECTION_NEAREST, DonorStencil%connection_type)
+    @AssertFalse(associated(DonorStencil%cubic))
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine CreateDestroy2D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(t_donor_stencil) :: DonorStencil
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [6,7]))
+
+    ! Nearest
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_NEAREST)
+
+    @AssertTrue(associated(DonorStencil%grid, Grid))
+    @AssertEqual(2, DonorStencil%nd)
+    @AssertEqual(OVK_CONNECTION_NEAREST, DonorStencil%connection_type)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Linear
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_LINEAR)
+
+    @AssertTrue(associated(DonorStencil%grid, Grid))
+    @AssertEqual(2, DonorStencil%nd)
+    @AssertEqual(OVK_CONNECTION_LINEAR, DonorStencil%connection_type)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Cubic
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_CUBIC)
+
+    @AssertTrue(associated(DonorStencil%grid, Grid))
+    @AssertEqual(2, DonorStencil%nd)
+    @AssertEqual(OVK_CONNECTION_CUBIC, DonorStencil%connection_type)
+    @AssertTrue(associated(DonorStencil%cubic))
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_mask%cart)
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_amounts(1)%cart)
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_amounts(2)%cart)
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_amounts(3)%cart)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    @AssertFalse(associated(DonorStencil%cubic))
+
+    call DestroyGrid(Grid)
+
+  end subroutine CreateDestroy2D
+
+  @Test
+  subroutine CreateDestroy3D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(t_donor_stencil) :: DonorStencil
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(3, [6,7,8]))
+
+    ! Nearest
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_NEAREST)
+
+    @AssertTrue(associated(DonorStencil%grid, Grid))
+    @AssertEqual(3, DonorStencil%nd)
+    @AssertEqual(OVK_CONNECTION_NEAREST, DonorStencil%connection_type)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Linear
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_LINEAR)
+
+    @AssertTrue(associated(DonorStencil%grid, Grid))
+    @AssertEqual(3, DonorStencil%nd)
+    @AssertEqual(OVK_CONNECTION_LINEAR, DonorStencil%connection_type)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Cubic
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_CUBIC)
+
+    @AssertTrue(associated(DonorStencil%grid, Grid))
+    @AssertEqual(3, DonorStencil%nd)
+    @AssertEqual(OVK_CONNECTION_CUBIC, DonorStencil%connection_type)
+    @AssertTrue(associated(DonorStencil%cubic))
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_mask%cart)
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_amounts(1)%cart)
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_amounts(2)%cart)
+    @AssertTrue(Grid%cell_cart == DonorStencil%cubic%shift_amounts(3)%cart)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    @AssertFalse(associated(DonorStencil%cubic))
+
+    call DestroyGrid(Grid)
+
+  end subroutine CreateDestroy3D
+
+  @Test
+  subroutine StencilSize2D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND) :: NumPoints
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [6,7]))
+
+    ! Nearest
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_NEAREST)
+
+    NumPoints = 1
+    call GetDonorStencilSize(DonorStencil, NumPoints)
+    @AssertEqual([1,1,1], NumPoints)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Linear
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_LINEAR)
+
+    NumPoints = 1
+    call GetDonorStencilSize(DonorStencil, NumPoints)
+    @AssertEqual([2,2,1], NumPoints)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Cubic
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_CUBIC)
+
+    NumPoints = 1
+    call GetDonorStencilSize(DonorStencil, NumPoints)
+    @AssertEqual([4,4,1], NumPoints)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call DestroyGrid(Grid)
+
+  end subroutine StencilSize2D
+
+  @Test
+  subroutine StencilSize3D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND) :: NumPoints
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(3, [6,7,8]))
+
+    ! Nearest
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_NEAREST)
+
+    call GetDonorStencilSize(DonorStencil, NumPoints)
+    @AssertEqual([1,1,1], NumPoints)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Linear
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_LINEAR)
+
+    call GetDonorStencilSize(DonorStencil, NumPoints)
+    @AssertEqual([2,2,2], NumPoints)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    ! Cubic
+    call CreateDonorStencil(DonorStencil, Grid, OVK_CONNECTION_CUBIC)
+
+    call GetDonorStencilSize(DonorStencil, NumPoints)
+    @AssertEqual([4,4,4], NumPoints)
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call DestroyGrid(Grid)
+
+  end subroutine StencilSize3D
+
+  @Test
+  subroutine FindDonorsNearest2D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer(lk), dimension(1) :: OverlapIndices
+    integer, dimension(2,2,1) :: DonorExtents
+    real(rk), dimension(2,1) :: DonorCoords
+    real(rk), dimension(1,2,1) :: DonorInterpCoefs
+
+    call SetupBlockInterface2D(DonorGrid, ReceiverGrid, Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_NEAREST)
+
+    ReceiverPoints(:,1) = [3,1,1]
+    OverlapIndices(1) = 3
+
+    call FindDonors(DonorGrid, ReceiverGrid, Overlap, DonorStencil, 1_lk, ReceiverPoints, &
+      OverlapIndices, DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    @AssertEqual([3,7], DonorExtents(:,1,1))
+    @AssertEqual([3,7], DonorExtents(:,2,1))
+    @AssertEqual([0._rk, 0._rk], DonorCoords(:,1))
+    @AssertEqual([1._rk], DonorInterpCoefs(:,1,1))
+    @AssertEqual([1._rk], DonorInterpCoefs(:,2,1))
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownBlockInterface2D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FindDonorsNearest2D
+
+  @Test
+  subroutine FindDonorsNearest3D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer(lk), dimension(1) :: OverlapIndices
+    integer, dimension(3,2,1) :: DonorExtents
+    real(rk), dimension(3,1) :: DonorCoords
+    real(rk), dimension(1,3,1) :: DonorInterpCoefs
+
+    call SetupBlockInterface3D(DonorGrid, ReceiverGrid, Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_NEAREST)
+
+    ReceiverPoints(:,1) = [3,3,1]
+    OverlapIndices(1) = 17
+
+    call FindDonors(DonorGrid, ReceiverGrid, Overlap, DonorStencil, 1_lk, ReceiverPoints, &
+      OverlapIndices, DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    @AssertEqual([3,3,7], DonorExtents(:,1,1))
+    @AssertEqual([3,3,7], DonorExtents(:,2,1))
+    @AssertEqual([0._rk, 0._rk, 0._rk], DonorCoords(:,1))
+    @AssertEqual([1._rk], DonorInterpCoefs(:,1,1))
+    @AssertEqual([1._rk], DonorInterpCoefs(:,2,1))
+    @AssertEqual([1._rk], DonorInterpCoefs(:,3,1))
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownBlockInterface3D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FindDonorsNearest3D
+
+  @Test
+  subroutine FindDonorsLinear2D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer(lk), dimension(1) :: OverlapIndices
+    integer, dimension(2,2,1) :: DonorExtents
+    real(rk), dimension(2,1) :: DonorCoords
+    real(rk), dimension(2,2,1) :: DonorInterpCoefs
+
+    call SetupStaggered2D(DonorGrid, ReceiverGrid, Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_LINEAR)
+
+    ReceiverPoints(:,1) = [3,3,1]
+    OverlapIndices(1) = 10
+
+    call FindDonors(DonorGrid, ReceiverGrid, Overlap, DonorStencil, 1_lk, ReceiverPoints, &
+      OverlapIndices, DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    @AssertEqual([2,3], DonorExtents(:,1,1))
+    @AssertEqual([3,4], DonorExtents(:,2,1))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorCoords(:,1))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorInterpCoefs(:,1,1))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorInterpCoefs(:,2,1))
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownStaggered2D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FindDonorsLinear2D
+
+  @Test
+  subroutine FindDonorsLinear3D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer(lk), dimension(1) :: OverlapIndices
+    integer, dimension(3,2,1) :: DonorExtents
+    real(rk), dimension(3,1) :: DonorCoords
+    real(rk), dimension(2,3,1) :: DonorInterpCoefs
+
+    call SetupStaggered3D(DonorGrid, ReceiverGrid, Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_LINEAR)
+
+    ReceiverPoints(:,1) = [3,3,3]
+    OverlapIndices(1) = 38
+
+    call FindDonors(DonorGrid, ReceiverGrid, Overlap, DonorStencil, 1_lk, ReceiverPoints, &
+      OverlapIndices, DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    @AssertEqual([2,2,3], DonorExtents(:,1,1))
+    @AssertEqual([3,3,4], DonorExtents(:,2,1))
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], DonorCoords(:,1))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorInterpCoefs(:,1,1))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorInterpCoefs(:,2,1))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorInterpCoefs(:,3,1))
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownStaggered3D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FindDonorsLinear3D
+
+  @Test
+  subroutine FindDonorsCubic2D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_int), pointer :: State
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND,5) :: ReceiverPoints
+    integer(lk), dimension(5) :: OverlapIndices
+    integer, dimension(2,2,5) :: DonorExtents
+    real(rk), dimension(2,5) :: DonorCoords
+    real(rk), dimension(4,2,5) :: DonorInterpCoefs
+
+    call SetupStaggered2D(DonorGrid, ReceiverGrid, Overlap)
+
+    call ovkEditGridState(DonorGrid, State)
+    State%values(5,5,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(DonorGrid, State)
+
+    call UpdateOverlapAfterCut(Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_CUBIC)
+
+    ! Interior
+    ReceiverPoints(:,1) = [3,3,1]
+    OverlapIndices(1) = 10
+
+    ! Non-periodic edge
+    ReceiverPoints(:,2) = [2,2,1]
+    OverlapIndices(2) = 5
+
+    ! Corner
+    ReceiverPoints(:,3) = [4,3,1]
+    OverlapIndices(3) = 11
+
+    ! Lower periodic edge
+    ReceiverPoints(:,4) = [4,1,1]
+    OverlapIndices(4) = 3
+
+    ! Upper periodic edge
+    ReceiverPoints(:,5) = [3,6,1]
+    OverlapIndices(5) = 20
+
+    call FindDonors(DonorGrid, ReceiverGrid, Overlap, DonorStencil, 5_lk, ReceiverPoints, &
+      OverlapIndices, DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    ! Interior
+    @AssertEqual([1,2], DonorExtents(:,1,1))
+    @AssertEqual([4,5], DonorExtents(:,2,1))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorCoords(:,1))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,1,1))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,1))
+
+    ! Non-periodic edge
+    @AssertEqual([1,1], DonorExtents(:,1,2))
+    @AssertEqual([4,4], DonorExtents(:,2,2))
+    @AssertEqual([-0.5_rk, 0.5_rk], DonorCoords(:,2))
+    @AssertEqual([0.3125_rk, 0.9375_rk, -0.3125_rk, 0.0625_rk], DonorInterpCoefs(:,1,2))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,2))
+
+    ! Corner
+    @AssertEqual([1,1], DonorExtents(:,1,3))
+    @AssertEqual([4,4], DonorExtents(:,2,3))
+    @AssertEqual([1.5_rk, 1.5_rk], DonorCoords(:,3))
+    @AssertEqual([0.0625_rk, -0.3125_rk, 0.9375_rk, 0.3125_rk], DonorInterpCoefs(:,1,3))
+    @AssertEqual([0.0625_rk, -0.3125_rk, 0.9375_rk, 0.3125_rk], DonorInterpCoefs(:,2,3))
+
+    ! Lower periodic edge
+    @AssertEqual([2,6], DonorExtents(:,1,4))
+    @AssertEqual([5,9], DonorExtents(:,2,4))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorCoords(:,4))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,1,4))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,4))
+
+    ! Upper periodic edge
+    @AssertEqual([1,5], DonorExtents(:,1,5))
+    @AssertEqual([4,8], DonorExtents(:,2,5))
+    @AssertEqual([0.5_rk, 0.5_rk], DonorCoords(:,5))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,1,5))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,5))
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownStaggered2D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FindDonorsCubic2D
+
+  @Test
+  subroutine FindDonorsCubic3D(this)
+
+    class(t_donor_stencil_test), intent(inout) :: this
+
+    type(ovk_grid), target :: DonorGrid, ReceiverGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_int), pointer :: State
+    type(t_donor_stencil) :: DonorStencil
+    integer, dimension(MAX_ND,6) :: ReceiverPoints
+    integer(lk), dimension(6) :: OverlapIndices
+    integer, dimension(3,2,6) :: DonorExtents
+    real(rk), dimension(3,6) :: DonorCoords
+    real(rk), dimension(4,3,6) :: DonorInterpCoefs
+
+    call SetupStaggered3D(DonorGrid, ReceiverGrid, Overlap)
+
+    call ovkEditGridState(DonorGrid, State)
+    State%values(5,5,5) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(DonorGrid, State)
+
+    call UpdateOverlapAfterCut(Overlap)
+
+    call CreateDonorStencil(DonorStencil, DonorGrid, OVK_CONNECTION_CUBIC)
+
+    ! Interior
+    ReceiverPoints(:,1) = [3,3,3]
+    OverlapIndices(1) = 38
+
+    ! Non-periodic face
+    ReceiverPoints(:,2) = [2,3,2]
+    OverlapIndices(2) = 21
+
+    ! Non-periodic edge
+    ReceiverPoints(:,3) = [2,2,2]
+    OverlapIndices(3) = 17
+
+    ! Corner
+    ReceiverPoints(:,4) = [4,4,3]
+    OverlapIndices(4) = 43
+
+    ! Lower periodic edge
+    ReceiverPoints(:,5) = [4,4,1]
+    OverlapIndices(5) = 11
+
+    ! Upper periodic edge
+    ReceiverPoints(:,6) = [3,3,6]
+    OverlapIndices(6) = 84
+
+    call FindDonors(DonorGrid, ReceiverGrid, Overlap, DonorStencil, 6_lk, ReceiverPoints, &
+      OverlapIndices, DonorExtents, DonorCoords, DonorInterpCoefs)
+
+    ! Interior
+    @AssertEqual([1,1,2], DonorExtents(:,1,1))
+    @AssertEqual([4,4,5], DonorExtents(:,2,1))
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], DonorCoords(:,1))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,1,1))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,1))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,3,1))
+
+    ! Non-periodic face
+    @AssertEqual([1,1,1], DonorExtents(:,1,2))
+    @AssertEqual([4,4,4], DonorExtents(:,2,2))
+    @AssertEqual([-0.5_rk, 0.5_rk, 0.5_rk], DonorCoords(:,2))
+    @AssertEqual([0.3125_rk, 0.9375_rk, -0.3125_rk, 0.0625_rk], DonorInterpCoefs(:,1,2))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,2))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,3,2))
+
+    ! Non-periodic edge
+    @AssertEqual([1,1,1], DonorExtents(:,1,3))
+    @AssertEqual([4,4,4], DonorExtents(:,2,3))
+    @AssertEqual([-0.5_rk, -0.5_rk, 0.5_rk], DonorCoords(:,3))
+    @AssertEqual([0.3125_rk, 0.9375_rk, -0.3125_rk, 0.0625_rk], DonorInterpCoefs(:,1,3))
+    @AssertEqual([0.3125_rk, 0.9375_rk, -0.3125_rk, 0.0625_rk], DonorInterpCoefs(:,2,3))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,3,3))
+
+    ! Corner
+    @AssertEqual([1,1,1], DonorExtents(:,1,4))
+    @AssertEqual([4,4,4], DonorExtents(:,2,4))
+    @AssertEqual([1.5_rk, 1.5_rk, 1.5_rk], DonorCoords(:,4))
+    @AssertEqual([0.0625_rk, -0.3125_rk, 0.9375_rk, 0.3125_rk], DonorInterpCoefs(:,1,4))
+    @AssertEqual([0.0625_rk, -0.3125_rk, 0.9375_rk, 0.3125_rk], DonorInterpCoefs(:,2,4))
+    @AssertEqual([0.0625_rk, -0.3125_rk, 0.9375_rk, 0.3125_rk], DonorInterpCoefs(:,3,4))
+
+    ! Lower periodic edge
+    @AssertEqual([2,2,6], DonorExtents(:,1,5))
+    @AssertEqual([5,5,9], DonorExtents(:,2,5))
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], DonorCoords(:,5))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,1,5))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,5))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,3,5))
+
+    ! Upper periodic edge
+    @AssertEqual([1,1,5], DonorExtents(:,1,6))
+    @AssertEqual([4,4,8], DonorExtents(:,2,6))
+    @AssertEqual([0.5_rk, 0.5_rk, 0.5_rk], DonorCoords(:,6))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,1,6))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,2,6))
+    @AssertEqual([-0.0625_rk, 0.5625_rk, 0.5625_rk, -0.0625_rk], DonorInterpCoefs(:,3,6))
+
+    call DestroyDonorStencil(DonorStencil)
+
+    call TeardownStaggered3D(DonorGrid, ReceiverGrid, Overlap)
+
+  end subroutine FindDonorsCubic3D
+
+end module DonorStencilTest

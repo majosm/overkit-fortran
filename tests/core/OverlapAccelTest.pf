@@ -1,0 +1,575 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module OverlapAccelTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  use ovkGrid, only : CreateGrid, DestroyGrid
+  use ovkLogger, only : t_logger_
+  use ovkOverlapAccel, only : t_overlap_accel, t_overlap_accel_, CreateOverlapAccel, &
+    DestroyOverlapAccel, PopulateOverlapAccel, FindOverlappingCell
+
+  @TestCase
+  type, extends(TestCase) :: t_overlap_accel_test
+  end type t_overlap_accel_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(t_overlap_accel) :: Accel
+
+    Accel = t_overlap_accel_()
+
+    @AssertFalse(associated(Accel%grid))
+    @AssertEqual(2, Accel%nd)
+    @AssertTrue(ovk_bbox_() == Accel%bounds)
+    @AssertFalse(associated(Accel%root))
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine CreateDestroy(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(t_overlap_accel) :: Accel
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    @AssertTrue(associated(Accel%grid, Grid))
+    @AssertEqual(2, Accel%nd)
+    @AssertTrue(ovk_bbox_() == Accel%bounds)
+    @AssertFalse(associated(Accel%root))
+
+    call PopulateOverlapAccel(Accel, Grid%bounds, 0._rk, 10_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertTrue(associated(Accel%root))
+
+    call DestroyOverlapAccel(Accel)
+
+    @AssertFalse(associated(Accel%root))
+
+    call DestroyGrid(Grid)
+
+  end subroutine CreateDestroy
+
+  @Test
+  subroutine NoOverlappingCells2D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(ovk_field_int), pointer :: State
+    type(t_overlap_accel) :: Accel
+    integer, dimension(2) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [10,10]))
+
+    call ovkEditGridState(Grid, State)
+    State%values(7:,7:,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    ! Empty bounds
+    call PopulateOverlapAccel(Accel, ovk_bbox_(2), 1.e-3_rk, 10_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertTrue(ovkBBIsEmpty(Accel%bounds))
+    @AssertFalse(associated(Accel%root))
+
+    ! Non-empty bounds, but not overlapping any valid cells
+    call PopulateOverlapAccel(Accel, ovk_bbox_(2, [7._rk, 7._rk], [10._rk, 10._rk]), 1.e-3_rk, &
+      10_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertTrue(ovkBBIsEmpty(Accel%bounds))
+    @AssertFalse(associated(Accel%root))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 3.5_rk], 0._rk)
+    @AssertEqual(0, Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9._rk, 9._rk], 1.e-12_rk)
+    @AssertEqual(0, Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9.5_rk, 9.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine NoOverlappingCells2D
+
+  @Test
+  subroutine NoOverlappingCells3D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(ovk_field_int), pointer :: State
+    type(t_overlap_accel) :: Accel
+    integer, dimension(3) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(3, [10,10,10]))
+
+    call ovkEditGridState(Grid, State)
+    State%values(7:,7:,7:) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    ! Empty bounds
+    call PopulateOverlapAccel(Accel, ovk_bbox_(3), 1.e-3_rk, 10_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertTrue(ovkBBIsEmpty(Accel%bounds))
+    @AssertFalse(associated(Accel%root))
+
+    ! Non-empty bounds, but not overlapping any valid cells
+    call PopulateOverlapAccel(Accel, ovk_bbox_(3, [7._rk, 7._rk, 7._rk], [10._rk, 10._rk, 10._rk]), &
+      1.e-3_rk, 10_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertTrue(ovkBBIsEmpty(Accel%bounds))
+    @AssertFalse(associated(Accel%root))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 3.5_rk, 4.5_rk], 0._rk)
+    @AssertEqual(0, Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9._rk, 9._rk, 9._rk], 1.e-12_rk)
+    @AssertEqual(0, Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9.5_rk, 9.5_rk, 9.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine NoOverlappingCells3D
+
+  @Test
+  subroutine Uniform2D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(ovk_bbox) :: GridBounds
+    type(t_overlap_accel) :: Accel
+    integer, dimension(2) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [10,10]))
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    call PopulateOverlapAccel(Accel, GridBounds, 1.e-3_rk, 1_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertEqual(-1.e-3_rk, Accel%bounds%b(:2), 1.e-12_rk)
+    @AssertEqual(9._rk+1.e-3_rk, Accel%bounds%e(:2), 1.e-12_rk)
+
+    ! Root node should be a leaf
+    @AssertTrue(associated(Accel%root))
+    @AssertTrue(associated(Accel%root%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child))
+    @AssertFalse(associated(Accel%root%right_child))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 3.5_rk], 0._rk)
+    @AssertEqual([3,4], Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual([1,1], Cell)
+    Cell = FindOverlappingCell(Accel, [9._rk, 9._rk], 1.e-12_rk)
+    @AssertEqual([9,9], Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9.5_rk, 9.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    ! Check that PopulateOverlapAccel can be called more than once
+    call PopulateOverlapAccel(Accel, ovk_bbox_(2), 1.e-3_rk, 1_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertTrue(ovkBBIsEmpty(Accel%bounds))
+    @AssertFalse(associated(Accel%root))
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Uniform2D
+
+  @Test
+  subroutine Uniform3D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(ovk_bbox) :: GridBounds
+    type(t_overlap_accel) :: Accel
+    integer, dimension(3) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(3, [10,10,10]))
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    call PopulateOverlapAccel(Accel, GridBounds, 1.e-3_rk, 1_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertEqual(-1.e-3_rk, Accel%bounds%b, 1.e-12_rk)
+    @AssertEqual(9._rk+1.e-3_rk, Accel%bounds%e, 1.e-12_rk)
+
+    ! Root node should be a leaf
+    @AssertTrue(associated(Accel%root))
+    @AssertTrue(associated(Accel%root%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child))
+    @AssertFalse(associated(Accel%root%right_child))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 3.5_rk, 4.5_rk], 0._rk)
+    @AssertEqual([3,4,5], Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual([1,1,1], Cell)
+    Cell = FindOverlappingCell(Accel, [9._rk, 9._rk, 9._rk], 1.e-12_rk)
+    @AssertEqual([9,9,9], Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9.5_rk, 9.5_rk, 9.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    ! Check that PopulateOverlapAccel can be called more than once
+    call PopulateOverlapAccel(Accel, ovk_bbox_(3), 1.e-3_rk, 1_lk, 0.5_rk, 0.5_rk, 1._rk)
+
+    @AssertTrue(ovkBBIsEmpty(Accel%bounds))
+    @AssertFalse(associated(Accel%root))
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Uniform3D
+
+  @Test
+  subroutine Stretched2D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    integer :: i, j
+    type(ovk_grid), target :: Grid
+    type(ovk_field_real), pointer :: Y
+    type(ovk_bbox) :: GridBounds
+    type(t_overlap_accel) :: Accel
+    integer, dimension(2) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [10,10]))
+
+    call ovkEditGridCoords(Grid, 2, Y)
+    do j = 1, 10
+      do i = 1, 10
+        Y%values(i,j,1) = (Y%values(i,j,1)+1._rk)**2-1._rk
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, Y)
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    call PopulateOverlapAccel(Accel, GridBounds, 1.e-3_rk, 1_lk, 0.5_rk, 0.4_rk, 1._rk)
+
+    ! Expected structure:
+    !         Root
+    !         / \
+    !     Left   Right
+    !     / \
+    ! Left   Right
+    @AssertTrue(associated(Accel%root))
+    @AssertFalse(associated(Accel%root%hash_grid))
+    @AssertTrue(associated(Accel%root%left_child))
+    @AssertTrue(associated(Accel%root%right_child))
+    @AssertEqual(2, Accel%root%split_dir)
+    @AssertEqual(217._rk/6._rk, Accel%root%split)
+
+    @AssertFalse(associated(Accel%root%left_child%hash_grid))
+    @AssertTrue(associated(Accel%root%left_child%left_child))
+    @AssertTrue(associated(Accel%root%left_child%right_child))
+    @AssertEqual(2, Accel%root%left_child%split_dir)
+    @AssertEqual(109._rk/6._rk, Accel%root%left_child%split)
+
+    @AssertTrue(associated(Accel%root%left_child%left_child%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child%left_child%left_child))
+    @AssertFalse(associated(Accel%root%left_child%left_child%right_child))
+
+    @AssertTrue(associated(Accel%root%left_child%right_child%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child%right_child%left_child))
+    @AssertFalse(associated(Accel%root%left_child%right_child%right_child))
+
+    @AssertTrue(associated(Accel%root%right_child%hash_grid))
+    @AssertFalse(associated(Accel%root%right_child%left_child))
+    @AssertFalse(associated(Accel%root%right_child%right_child))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 19._rk], 0._rk)
+    @AssertEqual([3,4], Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual([1,1], Cell)
+    Cell = FindOverlappingCell(Accel, [9._rk, 99._rk], 1.e-12_rk)
+    @AssertEqual([9,9], Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9.5_rk, 99.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Stretched2D
+
+  @Test
+  subroutine Stretched3D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    integer :: i, j, k
+    type(ovk_grid), target :: Grid
+    type(ovk_field_real), pointer :: Z
+    type(ovk_bbox) :: GridBounds
+    type(t_overlap_accel) :: Accel
+    integer, dimension(3) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(3, [10,10,10]))
+
+    call ovkEditGridCoords(Grid, 3, Z)
+    do k = 1, 10
+      do j = 1, 10
+        do i = 1, 10
+          Z%values(i,j,k) = (Z%values(i,j,k)+1._rk)**2-1._rk
+        end do
+      end do
+    end do
+    call ovkReleaseGridCoords(Grid, Z)
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    call PopulateOverlapAccel(Accel, GridBounds, 1.e-3_rk, 1_lk, 0.5_rk, 0.4_rk, 1._rk)
+
+    ! Expected structure:
+    !         Root
+    !         / \
+    !     Left   Right
+    !     / \
+    ! Left   Right
+    @AssertTrue(associated(Accel%root))
+    @AssertFalse(associated(Accel%root%hash_grid))
+    @AssertTrue(associated(Accel%root%left_child))
+    @AssertTrue(associated(Accel%root%right_child))
+    @AssertEqual(3, Accel%root%split_dir)
+    @AssertEqual(217._rk/6._rk, Accel%root%split)
+
+    @AssertFalse(associated(Accel%root%left_child%hash_grid))
+    @AssertTrue(associated(Accel%root%left_child%left_child))
+    @AssertTrue(associated(Accel%root%left_child%right_child))
+    @AssertEqual(3, Accel%root%left_child%split_dir)
+    @AssertEqual(109._rk/6._rk, Accel%root%left_child%split)
+
+    @AssertTrue(associated(Accel%root%left_child%left_child%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child%left_child%left_child))
+    @AssertFalse(associated(Accel%root%left_child%left_child%right_child))
+
+    @AssertTrue(associated(Accel%root%left_child%right_child%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child%right_child%left_child))
+    @AssertFalse(associated(Accel%root%left_child%right_child%right_child))
+
+    @AssertTrue(associated(Accel%root%right_child%hash_grid))
+    @AssertFalse(associated(Accel%root%right_child%left_child))
+    @AssertFalse(associated(Accel%root%right_child%right_child))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 3.5_rk, 30._rk], 0._rk)
+    @AssertEqual([3,4,5], Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual([1,1,1], Cell)
+    Cell = FindOverlappingCell(Accel, [9._rk, 9._rk, 99._rk], 1.e-12_rk)
+    @AssertEqual([9,9,9], Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [9.5_rk, 9.5_rk, 99.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Stretched3D
+
+  @Test
+  subroutine Disconnected2D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(ovk_field_int), pointer :: State
+    type(ovk_bbox) :: GridBounds
+    type(t_overlap_accel) :: Accel
+    integer, dimension(2) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [5,10]))
+
+    call ovkEditGridState(Grid, State)
+    State%values = OVK_EXTERIOR_POINT
+    State%values(:,:4,1) = OVK_INTERIOR_POINT
+    State%values(:,7:,1) = OVK_INTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    call PopulateOverlapAccel(Accel, GridBounds, 1.e-3_rk, 1_lk, 0.1_rk, 0.5_rk, 1._rk)
+
+    ! Expected structure:
+    !        Root
+    !        / \
+    !    Left   Right
+    @AssertTrue(associated(Accel%root))
+    @AssertFalse(associated(Accel%root%hash_grid))
+    @AssertTrue(associated(Accel%root%left_child))
+    @AssertTrue(associated(Accel%root%right_child))
+    @AssertEqual(2, Accel%root%split_dir)
+    @AssertEqual(4.5_rk, Accel%root%split)
+
+    @AssertTrue(associated(Accel%root%left_child%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child%left_child))
+    @AssertFalse(associated(Accel%root%left_child%right_child))
+
+    @AssertTrue(associated(Accel%root%right_child%hash_grid))
+    @AssertFalse(associated(Accel%root%right_child%left_child))
+    @AssertFalse(associated(Accel%root%right_child%right_child))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 3.5_rk], 0._rk)
+    @AssertEqual(0, Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual([1,1], Cell)
+    Cell = FindOverlappingCell(Accel, [4._rk, 9._rk], 1.e-12_rk)
+    @AssertEqual([4,9], Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [4.5_rk, 9.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Disconnected2D
+
+  @Test
+  subroutine Disconnected3D(this)
+
+    class(t_overlap_accel_test), intent(inout) :: this
+
+    type(ovk_grid), target :: Grid
+    type(ovk_field_int), pointer :: State
+    type(ovk_bbox) :: GridBounds
+    type(t_overlap_accel) :: Accel
+    integer, dimension(3) :: Cell
+
+    call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(3, [5,5,10]))
+
+    call ovkEditGridState(Grid, State)
+    State%values = OVK_EXTERIOR_POINT
+    State%values(:,:,:4) = OVK_INTERIOR_POINT
+    State%values(:,:,7:) = OVK_INTERIOR_POINT
+    call ovkReleaseGridState(Grid, State)
+
+    call ovkGetGridBounds(Grid, GridBounds)
+
+    call CreateOverlapAccel(Accel, Grid)
+
+    call PopulateOverlapAccel(Accel, GridBounds, 1.e-3_rk, 1_lk, 0.1_rk, 0.5_rk, 1._rk)
+
+    ! Expected structure:
+    !        Root
+    !        / \
+    !    Left   Right
+    @AssertTrue(associated(Accel%root))
+    @AssertFalse(associated(Accel%root%hash_grid))
+    @AssertTrue(associated(Accel%root%left_child))
+    @AssertTrue(associated(Accel%root%right_child))
+    @AssertEqual(3, Accel%root%split_dir)
+    @AssertEqual(4.5_rk, Accel%root%split)
+
+    @AssertTrue(associated(Accel%root%left_child%hash_grid))
+    @AssertFalse(associated(Accel%root%left_child%left_child))
+    @AssertFalse(associated(Accel%root%left_child%right_child))
+
+    @AssertTrue(associated(Accel%root%right_child%hash_grid))
+    @AssertFalse(associated(Accel%root%right_child%left_child))
+    @AssertFalse(associated(Accel%root%right_child%right_child))
+
+    ! Interior
+    Cell = FindOverlappingCell(Accel, [2.5_rk, 3.5_rk, 4.5_rk], 0._rk)
+    @AssertEqual(0, Cell)
+
+    ! Boundaries
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk], 1.e-12_rk)
+    @AssertEqual([1,1,1], Cell)
+    Cell = FindOverlappingCell(Accel, [4._rk, 4._rk, 9._rk], 1.e-12_rk)
+    @AssertEqual([4,4,9], Cell)
+
+    ! Outside
+    Cell = FindOverlappingCell(Accel, [-0.5_rk, -0.5_rk, -0.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+    Cell = FindOverlappingCell(Accel, [4.5_rk, 4.5_rk, 9.5_rk], 1.e-3_rk)
+    @AssertEqual(0, Cell)
+
+    call DestroyOverlapAccel(Accel)
+
+    call DestroyGrid(Grid)
+
+  end subroutine Disconnected3D
+
+end module OverlapAccelTest

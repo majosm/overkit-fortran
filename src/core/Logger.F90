@@ -8,7 +8,7 @@ module ovkLogger
 
   private
 
-  ! Internal
+  ! Internal API
   public :: t_logger
   public :: t_logger_
   public :: operator (==)

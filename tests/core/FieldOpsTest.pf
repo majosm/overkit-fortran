@@ -1,0 +1,1134 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module FieldOpsTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_field_ops_test
+  end type t_field_ops_test
+
+contains
+
+  @Test
+  subroutine DetectEdge2D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    type(ovk_field_logical) :: EdgeMask
+    logical, dimension(6,6,1) :: ExpectedValues
+    logical, dimension(0:7,0:7,1) :: ExpectedValuesExtended
+
+    ! Inner edge, interior
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,2:5,1) = .true.
+    ExpectedValues(3:4,3:4,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, interior
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:5,2:5,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Inner edge, periodic boundary, no-overlap
+    Cart = ovk_cart_(2, [6,6], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,5:6,1) = .true.
+    Mask%values(2:5,1:2,1) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,5:6,1) = .true.
+    ExpectedValues(3:4,6,1) = .false.
+    ExpectedValues(2:5,1:2,1) = .true.
+    ExpectedValues(3:4,1,1) = .false.
+
+    ! Inner edge, periodic boundary, overlap
+    Cart = ovk_cart_(2, [6,6], [.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,5:6,1) = .true.
+    Mask%values(2:5,1:2,1) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,5:6,1) = .true.
+    ExpectedValues(3:4,6,1) = .false.
+    ExpectedValues(2:5,1:2,1) = .true.
+    ExpectedValues(3:4,1,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, periodic boundary, no-overlap
+    Cart = ovk_cart_(2, [6,6], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,5:6,1) = .true.
+    Mask%values(2:5,1:2,1) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:5,5:6,1) = .false.
+    ExpectedValues(2:5,1:2,1) = .false.
+
+    ! Outer edge, periodic boundary, overlap
+    Cart = ovk_cart_(2, [6,6], [.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,5:6,1) = .true.
+    Mask%values(2:5,1:2,1) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:5,5:6,1) = .false.
+    ExpectedValues(2:5,1:2,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Inner edge, false boundary
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,1:4,1) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,1:4,1) = .true.
+    ExpectedValues(3:4,2:3,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, false boundary
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,1:4,1) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(1:6,0:5,1) = .true.
+    ExpectedValuesExtended(2:5,1:4,1) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+    ! Inner edge, true boundary
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,1:4,1) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_TRUE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,1:4,1) = .true.
+    ExpectedValues(3:4,1:3,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, true boundary
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,1:4,1) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_TRUE, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(1:6,1:6,1) = .true.
+    ExpectedValuesExtended(2:5,1:4,1) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+    ! Inner edge, mirror boundary
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,1:4,1) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_MIRROR, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(2:5,0:4,1) = .true.
+    ExpectedValuesExtended(3:4,0:3,1) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+    ! Outer edge, mirror boundary
+    Cart = ovk_cart_(2, [6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,1:4,1) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_MIRROR, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(1:6,0:5,1) = .true.
+    ExpectedValuesExtended(2:5,0:4,1) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+  end subroutine DetectEdge2D
+
+  @Test
+  subroutine DetectEdge3D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    type(ovk_field_logical) :: EdgeMask
+    logical, dimension(6,6,6) :: ExpectedValues
+    logical, dimension(0:7,0:7,0:7) :: ExpectedValuesExtended
+
+    ! Inner edge, interior
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,2:5) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,2:5,2:5) = .true.
+    ExpectedValues(3:4,3:4,3:4) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, interior
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,2:5) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:5,2:5,2:5) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Inner edge, periodic boundary, no-overlap
+    Cart = ovk_cart_(3, [6,6,6], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,5:6) = .true.
+    Mask%values(2:5,2:5,1:2) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,2:5,5:6) = .true.
+    ExpectedValues(3:4,3:4,6) = .false.
+    ExpectedValues(2:5,2:5,1:2) = .true.
+    ExpectedValues(3:4,3:4,1) = .false.
+
+    ! Inner edge, periodic boundary, overlap
+    Cart = ovk_cart_(3, [6,6,6], [.false.,.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,5:6) = .true.
+    Mask%values(2:5,2:5,1:2) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,2:5,5:6) = .true.
+    ExpectedValues(3:4,3:4,6) = .false.
+    ExpectedValues(2:5,2:5,1:2) = .true.
+    ExpectedValues(3:4,3:4,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, periodic boundary, no-overlap
+    Cart = ovk_cart_(3, [6,6,6], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,5:6) = .true.
+    Mask%values(2:5,2:5,1:2) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:5,2:5,5:6) = .false.
+    ExpectedValues(2:5,2:5,1:2) = .false.
+
+    ! Outer edge, periodic boundary, overlap
+    Cart = ovk_cart_(3, [6,6,6], [.false.,.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,5:6) = .true.
+    Mask%values(2:5,2:5,1:2) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:5,2:5,5:6) = .false.
+    ExpectedValues(2:5,2:5,1:2) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Inner edge, false boundary
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1:4) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,2:5,1:4) = .true.
+    ExpectedValues(3:4,3:4,2:3) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, false boundary
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1:4) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_FALSE, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(1:6,1:6,0:5) = .true.
+    ExpectedValuesExtended(2:5,2:5,1:4) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+    ! Inner edge, true boundary
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1:4) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_TRUE, .false., EdgeMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,2:5,1:4) = .true.
+    ExpectedValues(3:4,3:4,1:3) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. EdgeMask%values))
+
+    ! Outer edge, true boundary
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1:4) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_TRUE, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(1:6,1:6,1:6) = .true.
+    ExpectedValuesExtended(2:5,2:5,1:4) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+    ! Inner edge, mirror boundary
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1:4) = .true.
+    call ovkDetectEdge(Mask, OVK_INNER_EDGE, OVK_MIRROR, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(2:5,2:5,0:4) = .true.
+    ExpectedValuesExtended(3:4,3:4,0:3) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+    ! Outer edge, mirror boundary
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1:4) = .true.
+    call ovkDetectEdge(Mask, OVK_OUTER_EDGE, OVK_MIRROR, .true., EdgeMask)
+
+    ExpectedValuesExtended = .false.
+    ExpectedValuesExtended(1:6,1:6,0:5) = .true.
+    ExpectedValuesExtended(2:5,2:5,0:4) = .false.
+
+    @AssertTrue(all(ExpectedValuesExtended .eqv. EdgeMask%values))
+
+  end subroutine DetectEdge3D
+
+  @Test
+  subroutine Dilate2D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    logical, dimension(8,8,1) :: ExpectedValues
+
+    ! Interior
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,4:5,1) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,2:7,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, no-overlap
+    Cart = ovk_cart_(2, [8,8,1], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,1,1) = .true.
+    Mask%values(4:5,8,1) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,1:3,1) = .true.
+    ExpectedValues(2:7,6:8,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, overlap
+    Cart = ovk_cart_(2, [8,8,1], [.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,1,1) = .true.
+    Mask%values(4:5,8,1) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,1:3,1) = .true.
+    ExpectedValues(2:7,6:8,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! false boundary
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,1:2,1) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,1:4,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! true boundary
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,1:2,1) = .true.
+    call ovkDilate(Mask, 2, OVK_TRUE)
+
+    ExpectedValues = .true.
+    ExpectedValues(3:6,5:6,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! mirror boundary
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,1:2,1) = .true.
+    call ovkDilate(Mask, 2, OVK_MIRROR)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,1:4,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+  end subroutine Dilate2D
+
+  @Test
+  subroutine Dilate3D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    logical, dimension(8,8,8) :: ExpectedValues
+
+    ! Interior
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,4:5,4:5) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,2:7,2:7) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, no-overlap
+    Cart = ovk_cart_(3, [8,8,8], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,4:5,1) = .true.
+    Mask%values(4:5,4:5,8) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,2:7,1:3) = .true.
+    ExpectedValues(2:7,2:7,6:8) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, overlap
+    Cart = ovk_cart_(3, [8,8,8], [.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,4:5,1) = .true.
+    Mask%values(4:5,4:5,8) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,2:7,1:3) = .true.
+    ExpectedValues(2:7,2:7,6:8) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! false boundary
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,4:5,1:2) = .true.
+    call ovkDilate(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,2:7,1:4) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! true boundary
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,4:5,1:2) = .true.
+    call ovkDilate(Mask, 2, OVK_TRUE)
+
+    ExpectedValues = .true.
+    ExpectedValues(3:6,3:6,5:6) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! mirror boundary
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:5,4:5,1:2) = .true.
+    call ovkDilate(Mask, 2, OVK_MIRROR)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:7,2:7,1:4) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+  end subroutine Dilate3D
+
+  @Test
+  subroutine Erode2D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    logical, dimension(8,8,1) :: ExpectedValues
+
+    ! Interior
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:7,2:7,1) = .true.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(4:5,4:5,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, no-overlap
+    Cart = ovk_cart_(2, [8,8,1], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:7,1:3,1) = .true.
+    Mask%values(2:7,6:8,1) = .true.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(4:5,1,1) = .true.
+    ExpectedValues(4:5,8,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, overlap
+    Cart = ovk_cart_(2, [8,8,1], [.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:7,1:3,1) = .true.
+    Mask%values(2:7,6:8,1) = .true.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(4:5,1,1) = .true.
+    ExpectedValues(4:5,8,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! false boundary
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .true.)
+    Mask%values(4:5,1:2,1) = .false.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(3:6,5:6,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! true boundary
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .true.)
+    Mask%values(4:5,1:2,1) = .false.
+    call ovkErode(Mask, 2, OVK_TRUE)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:7,1:4,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! mirror boundary
+    Cart = ovk_cart_(2, [8,8,1])
+    Mask = ovk_field_logical_(Cart, .true.)
+    Mask%values(4:5,1:2,1) = .false.
+    call ovkErode(Mask, 2, OVK_MIRROR)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:7,1:4,1) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+  end subroutine Erode2D
+
+  @Test
+  subroutine Erode3D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    logical, dimension(8,8,8) :: ExpectedValues
+
+    ! Interior
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:7,2:7,2:7) = .true.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(4:5,4:5,4:5) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, no-overlap
+    Cart = ovk_cart_(3, [8,8,8], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:7,2:7,1:3) = .true.
+    Mask%values(2:7,2:7,6:8) = .true.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(4:5,4:5,1) = .true.
+    ExpectedValues(4:5,4:5,8) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Periodic boundary, overlap
+    Cart = ovk_cart_(3, [8,8,8], [.false.,.false.,.true.], OVK_OVERLAP_PERIODIC)
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:7,2:7,1:3) = .true.
+    Mask%values(2:7,2:7,6:8) = .true.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(4:5,4:5,1) = .true.
+    ExpectedValues(4:5,4:5,8) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! false boundary
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .true.)
+    Mask%values(4:5,4:5,1:2) = .false.
+    call ovkErode(Mask, 2, OVK_FALSE)
+
+    ExpectedValues = .false.
+    ExpectedValues(3:6,3:6,5:6) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! true boundary
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .true.)
+    Mask%values(4:5,4:5,1:2) = .false.
+    call ovkErode(Mask, 2, OVK_TRUE)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:7,2:7,1:4) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! mirror boundary
+    Cart = ovk_cart_(3, [8,8,8])
+    Mask = ovk_field_logical_(Cart, .true.)
+    Mask%values(4:5,4:5,1:2) = .false.
+    call ovkErode(Mask, 2, OVK_MIRROR)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:7,2:7,1:4) = .false.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+  end subroutine Erode3D
+
+  @Test
+  subroutine ConnectedComponents2D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    integer :: NumComponents
+    type(ovk_field_int) :: ComponentLabels
+    integer, dimension(6,6,1) :: ExpectedValues
+
+    ! One region
+    Cart = ovk_cart_(2, [6,6,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(3:4,3:4,1) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(1, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(3:4,3:4,1) = 1
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+    ! Two disconnected regions
+    Cart = ovk_cart_(2, [6,6,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(1:2,1:2,1) = .true.
+    Mask%values(5:6,5:6,1) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(2, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(1:2,1:2,1) = 1
+    ExpectedValues(5:6,5:6,1) = 2
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+    ! Two regions barely connected
+    Cart = ovk_cart_(2, [6,6,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:3,2:3,1) = .true.
+    Mask%values(4:5,4:5,1) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(1, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(2:3,2:3,1) = 1
+    ExpectedValues(4:5,4:5,1) = 1
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+    ! Two regions connected by periodic boundary
+    Cart = ovk_cart_(2, [6,6,1], [.false.,.true.])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,1:2,1) = .true.
+    Mask%values(2:5,5:6,1) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(1, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(2:5,1:2,1) = 1
+    ExpectedValues(2:5,5:6,1) = 1
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+  end subroutine ConnectedComponents2D
+
+  @Test
+  subroutine ConnectedComponents3D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    integer :: NumComponents
+    type(ovk_field_int) :: ComponentLabels
+    integer, dimension(6,6,6) :: ExpectedValues
+
+    ! One region
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(3:4,3:4,3:4) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(1, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(3:4,3:4,3:4) = 1
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+    ! Two disconnected regions
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(1:2,1:2,1:2) = .true.
+    Mask%values(5:6,5:6,5:6) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(2, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(1:2,1:2,1:2) = 1
+    ExpectedValues(5:6,5:6,5:6) = 2
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+    ! Two regions barely connected
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:3,2:3,2:3) = .true.
+    Mask%values(4:5,4:5,4:5) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(1, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(2:3,2:3,2:3) = 1
+    ExpectedValues(4:5,4:5,4:5) = 1
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+    ! Two regions connected by periodic boundary
+    Cart = ovk_cart_(3, [6,6,6], [.false.,.true.])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1:2) = .true.
+    Mask%values(2:5,2:5,5:6) = .true.
+    call ovkConnectedComponents(Mask, NumComponents, ComponentLabels)
+
+    @AssertEqual(1, NumComponents)
+
+    ExpectedValues = 0
+    ExpectedValues(2:5,2:5,1:2) = 1
+    ExpectedValues(2:5,2:5,5:6) = 1
+
+    @AssertTrue(all(ExpectedValues == ComponentLabels%values))
+
+  end subroutine ConnectedComponents3D
+
+  @Test
+  subroutine Flood2D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    type(ovk_field_logical) :: BarrierMask
+    logical, dimension(6,6,1) :: ExpectedValues
+
+    ! One region
+    Cart = ovk_cart_(2, [6,6,1])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(3:4,3:4,1) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(3,3,1) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(3:4,3:4,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Two disconnected regions
+    Cart = ovk_cart_(2, [6,6,1])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(1:2,1:2,1) = .false.
+    BarrierMask%values(5:6,5:6,1) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(1,1,1) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(1:2,1:2,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Two regions barely connected
+    Cart = ovk_cart_(2, [6,6,1])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(2:3,2:3,1) = .false.
+    BarrierMask%values(4:5,4:5,1) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2,2,1) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:3,2:3,1) = .true.
+    ExpectedValues(4:5,4:5,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Two regions connected by periodic boundary
+    Cart = ovk_cart_(2, [6,6,1], [.false.,.true.])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(2:5,1:2,1) = .false.
+    BarrierMask%values(2:5,5:6,1) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2,1,1) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,1:2,1) = .true.
+    ExpectedValues(2:5,5:6,1) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+  end subroutine Flood2D
+
+  @Test
+  subroutine Flood3D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    type(ovk_field_logical) :: BarrierMask
+    logical, dimension(6,6,6) :: ExpectedValues
+
+    ! One region
+    Cart = ovk_cart_(3, [6,6,6])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(3:4,3:4,3:4) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(3,3,3) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(3:4,3:4,3:4) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Two disconnected regions
+    Cart = ovk_cart_(3, [6,6,6])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(1:2,1:2,1:2) = .false.
+    BarrierMask%values(5:6,5:6,5:6) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(1,1,1) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(1:2,1:2,1:2) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Two regions barely connected
+    Cart = ovk_cart_(3, [6,6,6])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(2:3,2:3,2:3) = .false.
+    BarrierMask%values(4:5,4:5,4:5) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2,2,2) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:3,2:3,2:3) = .true.
+    ExpectedValues(4:5,4:5,4:5) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+    ! Two regions connected by periodic boundary
+    Cart = ovk_cart_(3, [6,6,6], [.false.,.false.,.true.])
+    BarrierMask = ovk_field_logical_(Cart, .true.)
+    BarrierMask%values(2:5,2:5,1:2) = .false.
+    BarrierMask%values(2:5,2:5,5:6) = .false.
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2,2,1) = .true.
+    call ovkFlood(Mask, BarrierMask)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:5,2:5,1:2) = .true.
+    ExpectedValues(2:5,2:5,5:6) = .true.
+
+    @AssertTrue(all(ExpectedValues .eqv. Mask%values))
+
+  end subroutine Flood3D
+
+  @Test
+  subroutine DistanceField2D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    type(ovk_field_int) :: Distances
+    integer, dimension(10,10,1) :: ExpectedValues
+
+    ! false boundary
+    Cart = ovk_cart_(2, [10,10,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:7,4:7,1) = .true.
+    call ovkDistanceField(Mask, OVK_FALSE, Distances)
+
+    ExpectedValues = 3
+    ExpectedValues(2:9,2:9,1) = 2
+    ExpectedValues(3:8,3:8,1) = 1
+    ExpectedValues(4:7,4:7,1) = 0
+    ExpectedValues(5:6,5:6,1) = -1
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+    ! true boundary
+    Cart = ovk_cart_(2, [10,10,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(5:6,5:6,1) = .true.
+    call ovkDistanceField(Mask, OVK_TRUE, Distances)
+
+    ExpectedValues = 1
+    ExpectedValues(2:9,2:9,1) = 2
+    ExpectedValues(4:7,4:7,1) = 1
+    ExpectedValues(5:6,5:6,1) = 0
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+    ! Periodic boundary, I direction
+    Cart = ovk_cart_(2, [10,10,1], [.true.,.false.])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(1:3,3:8,1) = .true.
+    Mask%values(8:10,3:8,1) = .true.
+    call ovkDistanceField(Mask, OVK_FALSE, Distances)
+
+    ExpectedValues = 2
+    ExpectedValues(1:4,2:9,1) = 1
+    ExpectedValues(7:10,2:9,1) = 1
+    ExpectedValues(1:3,3:8,1) = 0
+    ExpectedValues(8:10,3:8,1) = 0
+    ExpectedValues(1:2,4:7,1) = -1
+    ExpectedValues(9:10,4:7,1) = -1
+    ExpectedValues(1,5:6,1) = -2
+    ExpectedValues(10,5:6,1) = -2
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+    ! Periodic boundary, J direction
+    Cart = ovk_cart_(2, [10,10,1], [.false.,.true.])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(3:8,1:3,1) = .true.
+    Mask%values(3:8,8:10,1) = .true.
+    call ovkDistanceField(Mask, OVK_FALSE, Distances)
+
+    ExpectedValues = 2
+    ExpectedValues(2:9,1:4,1) = 1
+    ExpectedValues(2:9,7:10,1) = 1
+    ExpectedValues(3:8,1:3,1) = 0
+    ExpectedValues(3:8,8:10,1) = 0
+    ExpectedValues(4:7,1:2,1) = -1
+    ExpectedValues(4:7,9:10,1) = -1
+    ExpectedValues(5:6,1,1) = -2
+    ExpectedValues(5:6,10,1) = -2
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+  end subroutine DistanceField2D
+
+  @Test
+  subroutine DistanceField3D(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+    type(ovk_field_int) :: Distances
+    integer, dimension(10,10,10) :: ExpectedValues
+
+    ! false boundary
+    Cart = ovk_cart_(3, [10,10,10])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(4:7,4:7,4:7) = .true.
+    call ovkDistanceField(Mask, OVK_FALSE, Distances)
+
+    ExpectedValues = 3
+    ExpectedValues(2:9,2:9,2:9) = 2
+    ExpectedValues(3:8,3:8,3:8) = 1
+    ExpectedValues(4:7,4:7,4:7) = 0
+    ExpectedValues(5:6,5:6,5:6) = -1
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+    ! true boundary
+    Cart = ovk_cart_(3, [10,10,10])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(5:6,5:6,5:6) = .true.
+    call ovkDistanceField(Mask, OVK_TRUE, Distances)
+
+    ExpectedValues = 1
+    ExpectedValues(2:9,2:9,2:9) = 2
+    ExpectedValues(4:7,4:7,4:7) = 1
+    ExpectedValues(5:6,5:6,5:6) = 0
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+    ! Periodic boundary, I direction
+    Cart = ovk_cart_(3, [10,10,10], [.true.,.false.,.false.])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(1:3,3:8,3:8) = .true.
+    Mask%values(8:10,3:8,3:8) = .true.
+    call ovkDistanceField(Mask, OVK_FALSE, Distances)
+
+    ExpectedValues = 2
+    ExpectedValues(1:4,2:9,2:9) = 1
+    ExpectedValues(7:10,2:9,2:9) = 1
+    ExpectedValues(1:3,3:8,3:8) = 0
+    ExpectedValues(8:10,3:8,3:8) = 0
+    ExpectedValues(1:2,4:7,4:7) = -1
+    ExpectedValues(9:10,4:7,4:7) = -1
+    ExpectedValues(1,5:6,5:6) = -2
+    ExpectedValues(10,5:6,5:6) = -2
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+    ! Periodic boundary, J direction
+    Cart = ovk_cart_(3, [10,10,10], [.false.,.true.,.false.])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(3:8,1:3,3:8) = .true.
+    Mask%values(3:8,8:10,3:8) = .true.
+    call ovkDistanceField(Mask, OVK_FALSE, Distances)
+
+    ExpectedValues = 2
+    ExpectedValues(2:9,1:4,2:9) = 1
+    ExpectedValues(2:9,7:10,2:9) = 1
+    ExpectedValues(3:8,1:3,3:8) = 0
+    ExpectedValues(3:8,8:10,3:8) = 0
+    ExpectedValues(4:7,1:2,4:7) = -1
+    ExpectedValues(4:7,9:10,4:7) = -1
+    ExpectedValues(5:6,1,5:6) = -2
+    ExpectedValues(5:6,10,5:6) = -2
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+    ! Periodic boundary, K direction
+    Cart = ovk_cart_(3, [10,10,10], [.false.,.false.,.true.])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(3:8,3:8,1:3) = .true.
+    Mask%values(3:8,3:8,8:10) = .true.
+    call ovkDistanceField(Mask, OVK_FALSE, Distances)
+
+    ExpectedValues = 2
+    ExpectedValues(2:9,2:9,1:4) = 1
+    ExpectedValues(2:9,2:9,7:10) = 1
+    ExpectedValues(3:8,3:8,1:3) = 0
+    ExpectedValues(3:8,3:8,8:10) = 0
+    ExpectedValues(4:7,4:7,1:2) = -1
+    ExpectedValues(4:7,4:7,9:10) = -1
+    ExpectedValues(5:6,5:6,1) = -2
+    ExpectedValues(5:6,5:6,10) = -2
+
+    @AssertTrue(all(ExpectedValues == Distances%values))
+
+  end subroutine DistanceField3D
+
+  @Test
+  subroutine CountMask(this)
+
+    class(t_field_ops_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_field_logical) :: Mask
+
+    Cart = ovk_cart_(2, [6,6,1])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,1) = .true.
+    @AssertTrue(16_lk == ovkCountMask(Mask))
+
+    Cart = ovk_cart_(3, [6,6,6])
+    Mask = ovk_field_logical_(Cart, .false.)
+    Mask%values(2:5,2:5,2:5) = .true.
+    @AssertTrue(64_lk == ovkCountMask(Mask))
+
+  end subroutine CountMask
+
+end module FieldOpsTest

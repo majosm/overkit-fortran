@@ -1,0 +1,1066 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module OverlapTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  use ovkGlobal, only : CheckExists
+  use ovkGrid, only : CreateGrid, DestroyGrid
+  use ovkLogger, only : t_logger, t_logger_, operator (==)
+  use ovkOverlap, only : ovk_overlap_, CreateOverlap, DestroyOverlap, DetectOverlap, &
+    UpdateOverlapAfterCut
+  use ovkOverlapAccel, only : t_overlap_accel, CreateOverlapAccel, DestroyOverlapAccel, &
+    PopulateOverlapAccel
+  use TestFixtures
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_overlap_test
+  end type t_overlap_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_overlap) :: Overlap
+
+    Overlap = ovk_overlap_()
+
+    @AssertFalse(CheckExists(Overlap%existence_flag))
+    @AssertTrue(t_logger_() == Overlap%logger)
+    @AssertFalse(associated(Overlap%overlapping_grid))
+    @AssertFalse(associated(Overlap%overlapped_grid))
+    @AssertEqual(2, Overlap%nd)
+    @AssertEqual(0_lk, Overlap%noverlap)
+    @AssertFalse(associated(Overlap%mask))
+    @AssertFalse(associated(Overlap%cells))
+    @AssertFalse(associated(Overlap%coords))
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine CreateDestroy2D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+
+    call CreateGrid(OverlappingGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(OverlappedGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+
+    @AssertTrue(CheckExists(Overlap%existence_flag))
+    @AssertTrue(t_logger_() == Overlap%logger)
+    @AssertTrue(associated(Overlap%overlapping_grid, OverlappingGrid))
+    @AssertTrue(associated(Overlap%overlapped_grid, OverlappedGrid))
+    @AssertEqual(2, Overlap%nd)
+    @AssertEqual(0_lk, Overlap%noverlap)
+    @AssertTrue(associated(Overlap%mask))
+    @AssertTrue(OverlappedGrid%cart == Overlap%mask%cart)
+    @AssertFalse(logical(any(Overlap%mask%values)))
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([2,0], shape(Overlap%coords))
+
+    call DestroyOverlap(Overlap)
+
+    @AssertFalse(CheckExists(Overlap%existence_flag))
+    @AssertFalse(associated(Overlap%mask))
+    @AssertFalse(associated(Overlap%cells))
+    @AssertFalse(associated(Overlap%coords))
+
+    call DestroyGrid(OverlappingGrid)
+    call DestroyGrid(OverlappedGrid)
+
+  end subroutine CreateDestroy2D
+
+  @Test
+  subroutine CreateDestroy3D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+
+    call CreateGrid(OverlappingGrid, t_logger_(), 1, ovk_cart_(3, [5,6,7]))
+    call CreateGrid(OverlappedGrid, t_logger_(), 2, ovk_cart_(3, [8,9,10]))
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+
+    @AssertTrue(CheckExists(Overlap%existence_flag))
+    @AssertTrue(t_logger_() == Overlap%logger)
+    @AssertTrue(associated(Overlap%overlapping_grid, OverlappingGrid))
+    @AssertTrue(associated(Overlap%overlapped_grid, OverlappedGrid))
+    @AssertEqual(3, Overlap%nd)
+    @AssertEqual(0_lk, Overlap%noverlap)
+    @AssertTrue(associated(Overlap%mask))
+    @AssertTrue(OverlappedGrid%cart == Overlap%mask%cart)
+    @AssertFalse(logical(any(Overlap%mask%values)))
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([3,0], shape(Overlap%coords))
+
+    call DestroyOverlap(Overlap)
+
+    @AssertFalse(CheckExists(Overlap%existence_flag))
+    @AssertFalse(associated(Overlap%mask))
+    @AssertFalse(associated(Overlap%cells))
+    @AssertFalse(associated(Overlap%coords))
+
+    call DestroyGrid(OverlappingGrid)
+    call DestroyGrid(OverlappedGrid)
+
+  end subroutine CreateDestroy3D
+
+  @Test
+  subroutine Exists(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+
+    call CreateGrid(OverlappingGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(OverlappedGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    @AssertFalse(ovkOverlapExists(Overlap))
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+
+    @AssertTrue(ovkOverlapExists(Overlap))
+
+    call DestroyOverlap(Overlap)
+
+    @AssertFalse(ovkOverlapExists(Overlap))
+
+    call DestroyGrid(OverlappingGrid)
+    call DestroyGrid(OverlappedGrid)
+
+  end subroutine Exists
+
+  @Test
+  subroutine Reset2D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: OverlappedMask
+
+    call CreateGrid(OverlappingGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(OverlappedGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+
+    OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
+    OverlappedMask%values(4:6,3:7,1) = .true.
+
+    call ovkResetOverlap(Overlap, OverlappedMask)
+
+    @AssertTrue(OverlappedMask == Overlap%mask)
+    @AssertEqual(15_lk, Overlap%noverlap)
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,15], shape(Overlap%cells))
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([2,15], shape(Overlap%coords))
+
+    OverlappedMask%values = .false.
+
+    call ovkResetOverlap(Overlap, OverlappedMask)
+
+    @AssertTrue(OverlappedMask == Overlap%mask)
+    @AssertEqual(0_lk, Overlap%noverlap)
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([2,0], shape(Overlap%coords))
+
+    call DestroyOverlap(Overlap)
+
+    call DestroyGrid(OverlappingGrid)
+    call DestroyGrid(OverlappedGrid)
+
+  end subroutine Reset2D
+
+  @Test
+  subroutine Reset3D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: OverlappedMask
+
+    call CreateGrid(OverlappingGrid, t_logger_(), 1, ovk_cart_(3, [5,6,7]))
+    call CreateGrid(OverlappedGrid, t_logger_(), 2, ovk_cart_(3, [8,9,10]))
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+
+    OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
+    OverlappedMask%values(4:6,3:7,2:8) = .true.
+
+    call ovkResetOverlap(Overlap, OverlappedMask)
+
+    @AssertTrue(OverlappedMask == Overlap%mask)
+    @AssertEqual(105_lk, Overlap%noverlap)
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,105], shape(Overlap%cells))
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([3,105], shape(Overlap%coords))
+
+    OverlappedMask%values = .false.
+
+    call ovkResetOverlap(Overlap, OverlappedMask)
+
+    @AssertTrue(OverlappedMask == Overlap%mask)
+    @AssertEqual(0_lk, Overlap%noverlap)
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([3,0], shape(Overlap%coords))
+
+    call DestroyOverlap(Overlap)
+
+    call DestroyGrid(OverlappingGrid)
+    call DestroyGrid(OverlappedGrid)
+
+  end subroutine Reset3D
+
+  @Test
+  subroutine SimpleGetters(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: OverlappedMask
+    type(ovk_grid), pointer :: OverlappingGridPtr, OverlappedGridPtr
+    integer :: NumDims
+    integer(lk) :: NumOverlapped
+    type(ovk_field_logical), pointer :: OverlappedMaskPtr
+    integer, dimension(:,:), pointer :: Cells
+    real(rk), dimension(:,:), pointer :: Coords
+
+    call CreateGrid(OverlappingGrid, t_logger_(), 1, ovk_cart_(2, [5,6]))
+    call CreateGrid(OverlappedGrid, t_logger_(), 2, ovk_cart_(2, [8,9]))
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+
+    OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
+    OverlappedMask%values(4:6,3:7,1) = .true.
+
+    call ovkResetOverlap(Overlap, OverlappedMask)
+
+    call ovkGetOverlapOverlappingGrid(Overlap, OverlappingGridPtr)
+    @AssertTrue(associated(OverlappingGridPtr, OverlappingGrid))
+
+    call ovkGetOverlapOverlappedGrid(Overlap, OverlappedGridPtr)
+    @AssertTrue(associated(OverlappedGridPtr, OverlappedGrid))
+
+    call ovkGetOverlapDimension(Overlap, NumDims)
+    @AssertEqual(2, NumDims)
+
+    call ovkGetOverlapCount(Overlap, NumOverlapped)
+    @AssertEqual(15_lk, NumOverlapped)
+
+    call ovkGetOverlapMask(Overlap, OverlappedMaskPtr)
+    @AssertTrue(associated(OverlappedMaskPtr, Overlap%mask))
+
+    call ovkGetOverlapCells(Overlap, Cells)
+    @AssertTrue(associated(Cells, Overlap%cells))
+
+    call ovkGetOverlapCoords(Overlap, Coords)
+    @AssertTrue(associated(Coords, Overlap%coords))
+
+    call DestroyOverlap(Overlap)
+
+    call DestroyGrid(OverlappingGrid)
+    call DestroyGrid(OverlappedGrid)
+
+  end subroutine SimpleGetters
+
+  @Test
+  subroutine DetectOverlap2D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    integer :: i, j, l
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_field_int), pointer :: State
+    type(ovk_bbox) :: Bounds
+    type(t_overlap_accel) :: OverlapAccel
+    type(ovk_overlap) :: Overlap
+    logical(bk), dimension(6,6) :: ExpectedMaskValues
+    integer, dimension(MAX_ND,20) :: ExpectedCells
+    real(rk), dimension(2,20) :: ExpectedCoords
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid)
+
+    call ovkEditGridState(OverlappingGrid, State)
+    State%values(3,4,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(OverlappingGrid, State)
+
+    call ovkGetGridBounds(OverlappedGrid, Bounds)
+
+    call CreateOverlapAccel(OverlapAccel, OverlappingGrid)
+    call PopulateOverlapAccel(OverlapAccel, Bounds, 1.e-12_rk, 1_lk, 0.5_rk, 0.5_rk, 0.5_rk)
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+    call DetectOverlap(Overlap, OverlapAccel, Bounds, 1.e-12_rk)
+
+    @AssertEqual(20_lk, Overlap%noverlap)
+
+    ExpectedMaskValues = .false.
+    ExpectedMaskValues(2:5,:) = .true.
+    ExpectedMaskValues(3:4,3:4) = .false.
+
+    @AssertTrue(logical(all(ExpectedMaskValues .eqv. Overlap%mask%values(:,:,1))))
+
+    l = 1
+    do j = 1, 6
+      do i = 1, 4
+        if (OverlappingGrid%cell_mask%values(i,j,1)) then
+          ExpectedCells(:,l) = [i,j,1]
+          ExpectedCoords(:,l) = 0.5_rk
+          l = l + 1
+        end if
+      end do
+    end do
+
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,20], shape(Overlap%cells))
+    @AssertEqual(ExpectedCells, Overlap%cells)
+
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([2,20], shape(Overlap%coords))
+    @AssertEqual(ExpectedCoords, Overlap%coords, 1.e-12_rk)
+
+    call DestroyOverlap(Overlap)
+
+    call DestroyOverlapAccel(OverlapAccel)
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid)
+
+  end subroutine DetectOverlap2D
+
+  @Test
+  subroutine DetectOverlap3D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    integer :: i, j, k, l
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_field_int), pointer :: State
+    type(ovk_bbox) :: Bounds
+    type(t_overlap_accel) :: OverlapAccel
+    type(ovk_overlap) :: Overlap
+    logical(bk), dimension(6,6,6) :: ExpectedMaskValues
+    integer, dimension(MAX_ND,88) :: ExpectedCells
+    real(rk), dimension(3,88) :: ExpectedCoords
+
+    call SetupStaggered3D(OverlappingGrid, OverlappedGrid)
+
+    call ovkEditGridState(OverlappingGrid, State)
+    State%values(3,3,4) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(OverlappingGrid, State)
+
+    call ovkGetGridBounds(OverlappedGrid, Bounds)
+
+    call CreateOverlapAccel(OverlapAccel, OverlappingGrid)
+    call PopulateOverlapAccel(OverlapAccel, Bounds, 1.e-12_rk, 1_lk, 0.5_rk, 0.5_rk, 0.5_rk)
+
+    call CreateOverlap(Overlap, t_logger_(), OverlappingGrid, OverlappedGrid)
+    call DetectOverlap(Overlap, OverlapAccel, Bounds, 1.e-12_rk)
+
+    @AssertEqual(88_lk, Overlap%noverlap)
+
+    ExpectedMaskValues = .false.
+    ExpectedMaskValues(2:5,2:5,:) = .true.
+    ExpectedMaskValues(3:4,3:4,3:4) = .false.
+
+    @AssertTrue(logical(all(ExpectedMaskValues .eqv. Overlap%mask%values)))
+
+    l = 1
+    do k = 1, 6
+      do j = 1, 4
+        do i = 1, 4
+          if (OverlappingGrid%cell_mask%values(i,j,k)) then
+            ExpectedCells(:,l) = [i,j,k]
+            ExpectedCoords(:,l) = 0.5_rk
+            l = l + 1
+          end if
+        end do
+      end do
+    end do
+
+    @AssertTrue(associated(Overlap%cells))
+    @AssertEqual([MAX_ND,88], shape(Overlap%cells))
+    @AssertEqual(ExpectedCells, Overlap%cells)
+
+    @AssertTrue(associated(Overlap%coords))
+    @AssertEqual([3,88], shape(Overlap%coords))
+    @AssertEqual(ExpectedCoords, Overlap%coords, 1.e-12_rk)
+
+    call DestroyOverlap(Overlap)
+
+    call DestroyOverlapAccel(OverlapAccel)
+
+    call TeardownStaggered3D(OverlappingGrid, OverlappedGrid)
+
+  end subroutine DetectOverlap3D
+
+  @Test
+  subroutine UpdateAfterCut(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_int), pointer :: State
+    logical(bk), dimension(6,6) :: ExpectedMaskValues
+    integer, dimension(MAX_ND,7) :: ExpectedCells
+    real(rk), dimension(2,7) :: ExpectedCoords
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    call ovkEditGridState(OverlappingGrid, State)
+    State%values(3:5,4:6,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(OverlappingGrid, State)
+
+    call ovkEditGridState(OverlappedGrid, State)
+    State%values(1:3,1:3,1) = OVK_EXTERIOR_POINT
+    call ovkReleaseGridState(OverlappedGrid, State)
+
+    call UpdateOverlapAfterCut(Overlap)
+
+    ExpectedMaskValues = .false.
+    ExpectedMaskValues(2:5,:) = .true.
+    ExpectedMaskValues(1:3,1:3) = .false.
+    ExpectedMaskValues(3:5,3:6) = .false.
+
+    @AssertTrue(logical(all(ExpectedMaskValues .eqv. Overlap%mask%values(:,:,1))))
+
+    @AssertEqual(7, Overlap%noverlap)
+
+    ExpectedCells(:,1) = [3,1,1]
+    ExpectedCells(:,2) = [4,1,1]
+    ExpectedCells(:,3) = [3,2,1]
+    ExpectedCells(:,4) = [4,2,1]
+    ExpectedCells(:,5) = [1,4,1]
+    ExpectedCells(:,6) = [1,5,1]
+    ExpectedCells(:,7) = [1,6,1]
+
+    @AssertEqual(ExpectedCells, Overlap%cells)
+
+    ExpectedCoords = 0.5_rk
+
+    @AssertEqual(ExpectedCoords, Overlap%coords)
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine UpdateAfterCut
+
+  @Test
+  subroutine OverlappingPoints2D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: OverlappedMask
+    type(ovk_field_logical) :: OverlappingMask
+    logical(bk), dimension(5,6) :: ExpectedValues
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
+    ! Interior point
+    OverlappedMask%values(3,3,1) = .true.
+    ! Point near periodic boundary
+    OverlappedMask%values(5,6,1) = .true.
+
+    call ovkFindOverlappingPoints(Overlap, OverlappedMask, OverlappingMask)
+
+    @AssertTrue(OverlappingGrid%cart == OverlappingMask%cart)
+
+    ExpectedValues = .false.
+    ! From interior point
+    ExpectedValues(2:3,3:4) = .true.
+    ! From point near periodic boundary
+    ExpectedValues(4:5,6) = .true.
+    ExpectedValues(4:5,1) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. OverlappingMask%values(:,:,1))))
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine OverlappingPoints2D
+
+  @Test
+  subroutine OverlappingPoints3D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: OverlappedMask
+    type(ovk_field_logical) :: OverlappingMask
+    logical(bk), dimension(5,5,6) :: ExpectedValues
+
+    call SetupStaggered3D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
+    ! Interior point
+    OverlappedMask%values(3,3,3) = .true.
+    ! Point near periodic boundary
+    OverlappedMask%values(5,5,6) = .true.
+
+    call ovkFindOverlappingPoints(Overlap, OverlappedMask, OverlappingMask)
+
+    @AssertTrue(OverlappingGrid%cart == OverlappingMask%cart)
+
+    ExpectedValues = .false.
+    ! From interior point
+    ExpectedValues(2:3,2:3,3:4) = .true.
+    ! From point near periodic boundary
+    ExpectedValues(4:5,4:5,6) = .true.
+    ExpectedValues(4:5,4:5,1) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. OverlappingMask%values)))
+
+    call TeardownStaggered3D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine OverlappingPoints3D
+
+  @Test
+  subroutine OverlappedPoints2D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: OverlappingMask
+    type(ovk_field_logical) :: OverlappedMask
+    logical(bk), dimension(6,6) :: ExpectedValues
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    OverlappingMask = ovk_field_logical_(OverlappingGrid%cart, .false.)
+    ! Interior point
+    OverlappingMask%values(3,4,1) = .true.
+    ! Point near periodic boundary
+    OverlappingMask%values(4,1,1) = .true.
+
+    call ovkFindOverlappedPoints(Overlap, OverlappingMask, OverlappedMask)
+
+    @AssertTrue(OverlappedGrid%cart == OverlappedMask%cart)
+
+    ExpectedValues = .false.
+    ! From interior point
+    ExpectedValues(3:4,3:4) = .true.
+    ! From point near periodic boundary
+    ExpectedValues(4:5,1) = .true.
+    ExpectedValues(4:5,6) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. OverlappedMask%values(:,:,1))))
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine OverlappedPoints2D
+
+  @Test
+  subroutine OverlappedPoints3D(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: OverlappingMask
+    type(ovk_field_logical) :: OverlappedMask
+    logical(bk), dimension(6,6,6) :: ExpectedValues
+
+    call SetupStaggered3D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    OverlappingMask = ovk_field_logical_(OverlappingGrid%cart, .false.)
+    ! Interior point
+    OverlappingMask%values(3,3,4) = .true.
+    ! Point near periodic boundary
+    OverlappingMask%values(4,4,1) = .true.
+
+    call ovkFindOverlappedPoints(Overlap, OverlappingMask, OverlappedMask)
+
+    @AssertTrue(OverlappedGrid%cart == OverlappedMask%cart)
+
+    ExpectedValues = .false.
+    ! From interior point
+    ExpectedValues(3:4,3:4,3:4) = .true.
+    ! From point near periodic boundary
+    ExpectedValues(4:5,4:5,1) = .true.
+    ExpectedValues(4:5,4:5,6) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. OverlappedMask%values)))
+
+    call TeardownStaggered3D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine OverlappedPoints3D
+
+  @Test
+  subroutine CollectInteger(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_int) :: GridData
+    type(ovk_array_int) :: CollectedData
+    integer, dimension(24) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Simple
+    GridData = ovk_field_int_(OverlappingGrid%cell_cart, 0)
+    GridData%values(3,4,1) = 1
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_SIMPLE, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0
+    ExpectedValues(15) = 1
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    ! Min
+    GridData = ovk_field_int_(OverlappingGrid%cart, 0)
+    GridData%values(3:5,4:6,1) = 1
+    GridData%values(3:5,1,1) = 1
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_MIN, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0
+    ExpectedValues(15:16) = 1
+    ExpectedValues(19:20) = 1
+    ExpectedValues(23:24) = 1
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    ! Max
+    GridData = ovk_field_int_(OverlappingGrid%cart, 0)
+    GridData%values(3:5,4:6,1) = 1
+    GridData%values(3:5,1,1) = 1
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_MAX, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0
+    ExpectedValues(2:4) = 1
+    ExpectedValues(10:12) = 1
+    ExpectedValues(14:16) = 1
+    ExpectedValues(18:20) = 1
+    ExpectedValues(22:24) = 1
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine CollectInteger
+
+  @Test
+  subroutine CollectLargeInteger(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_large_int) :: GridData
+    type(ovk_array_large_int) :: CollectedData
+    integer(lk), dimension(24) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Simple
+    GridData = ovk_field_large_int_(OverlappingGrid%cell_cart, 0_lk)
+    GridData%values(3,4,1) = 1_lk
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_SIMPLE, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0_lk
+    ExpectedValues(15) = 1_lk
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    ! Min
+    GridData = ovk_field_large_int_(OverlappingGrid%cart, 0_lk)
+    GridData%values(3:5,4:6,1) = 1_lk
+    GridData%values(3:5,1,1) = 1_lk
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_MIN, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0_lk
+    ExpectedValues(15:16) = 1_lk
+    ExpectedValues(19:20) = 1_lk
+    ExpectedValues(23:24) = 1_lk
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    ! Max
+    GridData = ovk_field_large_int_(OverlappingGrid%cart, 0_lk)
+    GridData%values(3:5,4:6,1) = 1_lk
+    GridData%values(3:5,1,1) = 1_lk
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_MAX, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0_lk
+    ExpectedValues(2:4) = 1_lk
+    ExpectedValues(10:12) = 1_lk
+    ExpectedValues(14:16) = 1_lk
+    ExpectedValues(18:20) = 1_lk
+    ExpectedValues(22:24) = 1_lk
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine CollectLargeInteger
+
+  @Test
+  subroutine CollectReal(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_real) :: GridData
+    type(ovk_array_real) :: CollectedData
+    real(rk), dimension(24) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Simple
+    GridData = ovk_field_real_(OverlappingGrid%cell_cart, 0._rk)
+    GridData%values(3,4,1) = 1._rk
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_SIMPLE, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0._rk
+    ExpectedValues(15) = 1._rk
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    ! Min
+    GridData = ovk_field_real_(OverlappingGrid%cart, 0._rk)
+    GridData%values(3:5,4:6,1) = 1._rk
+    GridData%values(3:5,1,1) = 1._rk
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_MIN, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0._rk
+    ExpectedValues(15:16) = 1._rk
+    ExpectedValues(19:20) = 1._rk
+    ExpectedValues(23:24) = 1._rk
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    ! Max
+    GridData = ovk_field_real_(OverlappingGrid%cart, 0._rk)
+    GridData%values(3:5,4:6,1) = 1._rk
+    GridData%values(3:5,1,1) = 1._rk
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_MAX, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0._rk
+    ExpectedValues(2:4) = 1._rk
+    ExpectedValues(10:12) = 1._rk
+    ExpectedValues(14:16) = 1._rk
+    ExpectedValues(18:20) = 1._rk
+    ExpectedValues(22:24) = 1._rk
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    ! Interpolate
+    GridData = ovk_field_real_(OverlappingGrid%cart, 0._rk)
+    GridData%values(3:5,4:6,1) = 1._rk
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_INTERPOLATE, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = 0._rk
+    ExpectedValues(10) = 0.25_rk
+    ExpectedValues(11:12) = 0.5_rk
+    ExpectedValues(14) = 0.5_rk
+    ExpectedValues(15:16) = 1._rk
+    ExpectedValues(18) = 0.5_rk
+    ExpectedValues(19:20) = 1._rk
+    ExpectedValues(22) = 0.25_rk
+    ExpectedValues(23:24) = 0.5_rk
+
+    @AssertEqual(ExpectedValues, CollectedData%values)
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine CollectReal
+
+  @Test
+  subroutine CollectLogical(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_field_logical) :: GridData
+    type(ovk_array_logical) :: CollectedData
+    logical(bk), dimension(24) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Simple
+    GridData = ovk_field_logical_(OverlappingGrid%cell_cart, .false.)
+    GridData%values(3,4,1) = .true.
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_SIMPLE, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = .false.
+    ExpectedValues(15) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. CollectedData%values)))
+
+    ! None
+    GridData = ovk_field_logical_(OverlappingGrid%cart, .false.)
+    GridData%values(3:5,4:6,1) = .true.
+    GridData%values(3:5,1,1) = .true.
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_NONE, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = .true.
+    ExpectedValues(2:4) = .false.
+    ExpectedValues(10:12) = .false.
+    ExpectedValues(14:16) = .false.
+    ExpectedValues(18:20) = .false.
+    ExpectedValues(22:24) = .false.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. CollectedData%values)))
+
+    ! Any
+    GridData = ovk_field_logical_(OverlappingGrid%cart, .false.)
+    GridData%values(3:5,4:6,1) = .true.
+    GridData%values(3:5,1,1) = .true.
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_ANY, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = .false.
+    ExpectedValues(2:4) = .true.
+    ExpectedValues(10:12) = .true.
+    ExpectedValues(14:16) = .true.
+    ExpectedValues(18:20) = .true.
+    ExpectedValues(22:24) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. CollectedData%values)))
+
+    ! Not all
+    GridData = ovk_field_logical_(OverlappingGrid%cart, .false.)
+    GridData%values(3:5,4:6,1) = .true.
+    GridData%values(3:5,1,1) = .true.
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_NOT_ALL, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = .true.
+    ExpectedValues(15:16) = .false.
+    ExpectedValues(19:20) = .false.
+    ExpectedValues(23:24) = .false.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. CollectedData%values)))
+
+    ! All
+    GridData = ovk_field_logical_(OverlappingGrid%cart, .false.)
+    GridData%values(3:5,4:6,1) = .true.
+    GridData%values(3:5,1,1) = .true.
+
+    call ovkOverlapCollect(Overlap, OVK_COLLECT_ALL, GridData, CollectedData)
+
+    @AssertEqual(24, CollectedData%n)
+
+    ExpectedValues = .false.
+    ExpectedValues(15:16) = .true.
+    ExpectedValues(19:20) = .true.
+    ExpectedValues(23:24) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. CollectedData%values)))
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine CollectLogical
+
+  @Test
+  subroutine DisperseInteger(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_array_int) :: CollectedData
+    type(ovk_field_int) :: GridData
+    integer, dimension(6,6) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Overwrite
+    CollectedData = ovk_array_int_(Overlap%noverlap, 0)
+    CollectedData%values(15:16) = 1
+    CollectedData%values(19:20) = 1
+    CollectedData%values(23:24) = 1
+
+    GridData = ovk_field_int_(OverlappedGrid%cart, 0)
+
+    call ovkOverlapDisperse(Overlap, OVK_DISPERSE_OVERWRITE, CollectedData, GridData)
+
+    ExpectedValues = 0
+    ExpectedValues(4:5,4:6) = 1
+
+    @AssertEqual(ExpectedValues, GridData%values(:,:,1))
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine DisperseInteger
+
+  @Test
+  subroutine DisperseLargeInteger(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_array_large_int) :: CollectedData
+    type(ovk_field_large_int) :: GridData
+    integer(lk), dimension(6,6) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Overwrite
+    CollectedData = ovk_array_large_int_(Overlap%noverlap, 0_lk)
+    CollectedData%values(15:16) = 1_lk
+    CollectedData%values(19:20) = 1_lk
+    CollectedData%values(23:24) = 1_lk
+
+    GridData = ovk_field_large_int_(OverlappedGrid%cart, 0_lk)
+
+    call ovkOverlapDisperse(Overlap, OVK_DISPERSE_OVERWRITE, CollectedData, GridData)
+
+    ExpectedValues = 0_lk
+    ExpectedValues(4:5,4:6) = 1_lk
+
+    @AssertEqual(ExpectedValues, GridData%values(:,:,1))
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine DisperseLargeInteger
+
+  @Test
+  subroutine DisperseReal(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_array_real) :: CollectedData
+    type(ovk_field_real) :: GridData
+    real(rk), dimension(6,6) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Overwrite
+    CollectedData = ovk_array_real_(Overlap%noverlap, 0._rk)
+    CollectedData%values(10) = 0.25_rk
+    CollectedData%values(11:12) = 0.5_rk
+    CollectedData%values(14) = 0.5_rk
+    CollectedData%values(15:16) = 1._rk
+    CollectedData%values(18) = 0.5_rk
+    CollectedData%values(19:20) = 1._rk
+    CollectedData%values(22) = 0.25_rk
+    CollectedData%values(23:24) = 0.5_rk
+
+    GridData = ovk_field_real_(OverlappedGrid%cart, 0._rk)
+
+    call ovkOverlapDisperse(Overlap, OVK_DISPERSE_OVERWRITE, CollectedData, GridData)
+
+    ExpectedValues = 0_lk
+    ExpectedValues(3,3) = 0.25_rk
+    ExpectedValues(4:5,3) = 0.5_rk
+    ExpectedValues(3,4) = 0.5_rk
+    ExpectedValues(4:5,4) = 1._rk
+    ExpectedValues(3,5) = 0.5_rk
+    ExpectedValues(4:5,5) = 1._rk
+    ExpectedValues(3,6) = 0.25_rk
+    ExpectedValues(4:5,6) = 0.5_rk
+
+    @AssertEqual(ExpectedValues, GridData%values(:,:,1))
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine DisperseReal
+
+  @Test
+  subroutine DisperseLogical(this)
+
+    class(t_overlap_test), intent(inout) :: this
+
+    type(ovk_grid), target :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap) :: Overlap
+    type(ovk_array_logical) :: CollectedData
+    type(ovk_field_logical) :: GridData
+    logical(bk), dimension(6,6) :: ExpectedValues 
+
+    call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+    ! Overwrite
+    CollectedData = ovk_array_logical_(Overlap%noverlap, .false.)
+    CollectedData%values(15:16) = .true.
+    CollectedData%values(19:20) = .true.
+    CollectedData%values(23:24) = .true.
+
+    GridData = ovk_field_logical_(OverlappedGrid%cart, .false.)
+
+    call ovkOverlapDisperse(Overlap, OVK_DISPERSE_OVERWRITE, CollectedData, GridData)
+
+    ExpectedValues = .false.
+    ExpectedValues(4:5,4:6) = .true.
+
+    @AssertTrue(logical(all(ExpectedValues .eqv. GridData%values(:,:,1))))
+
+    call TeardownStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)
+
+  end subroutine DisperseLogical
+
+end module OverlapTest

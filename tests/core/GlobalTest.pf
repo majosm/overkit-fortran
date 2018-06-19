@@ -1,0 +1,143 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module GlobalTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  use ovkGlobal, only : IntToString, LargeIntToString, TupleToString, CoordsToString, &
+    t_existence_flag, CheckExists, SetExists
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_global_test
+  end type t_global_test
+
+contains
+
+  @Test
+  subroutine ConvertIntToString(this)
+
+    class(t_global_test), intent(inout) :: this
+
+    character(len=256) :: String
+
+    String = IntToString(0)
+    @AssertEqual("0", trim(String))
+
+    String = IntToString(1)
+    @AssertEqual("1", trim(String))
+
+    String = IntToString(-1)
+    @AssertEqual("-1", trim(String))
+
+    String = IntToString(100)
+    @AssertEqual("100", trim(String))
+
+    String = IntToString(-100)
+    @AssertEqual("-100", trim(String))
+
+    String = IntToString(1000)
+    @AssertEqual("1,000", trim(String))
+
+    String = IntToString(-1000)
+    @AssertEqual("-1,000", trim(String))
+
+    String = IntToString(1000000)
+    @AssertEqual("1,000,000", trim(String))
+
+  end subroutine ConvertIntToString
+
+  @Test
+  subroutine ConvertLargeIntToString(this)
+
+    class(t_global_test), intent(inout) :: this
+
+    character(len=256) :: String
+
+    String = LargeIntToString(0_lk)
+    @AssertEqual("0", trim(String))
+
+    String = LargeIntToString(1_lk)
+    @AssertEqual("1", trim(String))
+
+    String = LargeIntToString(-1_lk)
+    @AssertEqual("-1", trim(String))
+
+    String = LargeIntToString(1000000_lk)
+    @AssertEqual("1,000,000", trim(String))
+
+    String = LargeIntToString(-1000000_lk)
+    @AssertEqual("-1,000,000", trim(String))
+
+    String = LargeIntToString(1000000000000_lk)
+    @AssertEqual("1,000,000,000,000", trim(String))
+
+    String = LargeIntToString(-1000000000000_lk)
+    @AssertEqual("-1,000,000,000,000", trim(String))
+
+  end subroutine ConvertLargeIntToString
+
+  @Test
+  subroutine ConvertTupleToString(this)
+
+    class(t_global_test), intent(inout) :: this
+
+    character(len=256) :: String
+
+    String = TupleToString([1])
+    @AssertEqual("(1)", trim(String))
+
+    String = TupleToString([1,-2])
+    @AssertEqual("(1,-2)", trim(String))
+
+    String = TupleToString([1,-2,3])
+    @AssertEqual("(1,-2,3)", trim(String))
+
+    String = TupleToString([1,-2,3,-4])
+    @AssertEqual("(1,-2,3,-4)", trim(String))
+
+  end subroutine ConvertTupleToString
+
+  @Test
+  subroutine ConvertCoordsToString(this)
+
+    class(t_global_test), intent(inout) :: this
+
+    character(len=256) :: String
+
+    String = CoordsToString([1._rk])
+    @AssertEqual("(    1.0000)", trim(String))
+
+    String = CoordsToString([1._rk,-2._rk])
+    @AssertEqual("(    1.0000,   -2.0000)", trim(String))
+
+    String = CoordsToString([1._rk,-2._rk,3._rk])
+    @AssertEqual("(    1.0000,   -2.0000,    3.0000)", trim(String))
+
+    String = CoordsToString([1._rk,-2._rk,3._rk,-4._rk])
+    @AssertEqual("(    1.0000,   -2.0000,    3.0000,   -4.0000)", trim(String))
+
+  end subroutine ConvertCoordsToString
+
+  @Test
+  subroutine CheckAndSetExistenceFlag(this)
+
+    class(t_global_test), intent(inout) :: this
+
+    type(t_existence_flag) :: ExistenceFlag
+
+    @AssertFalse(CheckExists(ExistenceFlag))
+
+    call SetExists(ExistenceFlag, .true.)
+
+    @AssertTrue(CheckExists(ExistenceFlag))
+
+    call SetExists(ExistenceFlag, .false.)
+
+    @AssertFalse(CheckExists(ExistenceFlag))
+
+  end subroutine CheckAndSetExistenceFlag
+
+end module GlobalTest

@@ -8,7 +8,7 @@ module ovkAssemblyOptions
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_assembly_options
   public :: ovk_assembly_options_
   public :: ovkGetAssemblyOptionsDimension

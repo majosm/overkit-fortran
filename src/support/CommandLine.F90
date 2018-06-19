@@ -10,9 +10,9 @@ module ovsCommandLine
 
   public :: t_cmd_opt
   public :: t_cmd_opt_
-  public :: ParseArguments
-  public :: OptionPresent
-  public :: GetOptionValue
+  public :: ParseCommandLineArguments
+  public :: CommandLineOptionPresent
+  public :: GetCommandLineOptionValue
   public :: CMD_OPT_NONE
   public :: CMD_OPT_INTEGER
   public :: CMD_OPT_REAL
@@ -35,14 +35,14 @@ module ovsCommandLine
     module procedure t_cmd_opt_Assigned
   end interface t_cmd_opt_
 
-  interface GetOptionValue
-    module procedure GetOptionValue_Int
-    module procedure GetOptionValue_Int_Default
-    module procedure GetOptionValue_Real
-    module procedure GetOptionValue_Real_Default
-    module procedure GetOptionValue_String
-    module procedure GetOptionValue_String_Default
-  end interface GetOptionValue
+  interface GetCommandLineOptionValue
+    module procedure GetCommandLineOptionValue_Int
+    module procedure GetCommandLineOptionValue_Int_Default
+    module procedure GetCommandLineOptionValue_Real
+    module procedure GetCommandLineOptionValue_Real_Default
+    module procedure GetCommandLineOptionValue_String
+    module procedure GetCommandLineOptionValue_String_Default
+  end interface GetCommandLineOptionValue
 
   integer, parameter :: CMD_OPT_NONE = 1
   integer, parameter :: CMD_OPT_INTEGER = 2
@@ -81,7 +81,7 @@ contains
 
   end function t_cmd_opt_Assigned
 
-  subroutine ParseArguments(RawArguments, Usage, Description, LongDescription, Options, &
+  subroutine ParseCommandLineArguments(RawArguments, Usage, Description, LongDescription, Options, &
     Arguments, MinArguments, MaxArguments)
 
     character(len=*), dimension(:), intent(in) :: RawArguments
@@ -272,7 +272,7 @@ contains
 
     end if
 
-  end subroutine ParseArguments
+  end subroutine ParseCommandLineArguments
 
   function ValidateOptionValue(OptionValue, OptionValueType) result(ValidOptionValue)
 
@@ -299,16 +299,16 @@ contains
 
   end function ValidateOptionValue
 
-  pure function OptionPresent(Option) result(IsPresent)
+  pure function CommandLineOptionPresent(Option) result(IsPresent)
 
     type(t_cmd_opt), intent(in) :: Option
     logical :: IsPresent
 
     IsPresent = Option%is_present
 
-  end function OptionPresent
+  end function CommandLineOptionPresent
 
-  subroutine GetOptionValue_Int(Option, Value)
+  subroutine GetCommandLineOptionValue_Int(Option, Value)
 
     type(t_cmd_opt), intent(in) :: Option
     integer, intent(out) :: Value
@@ -328,9 +328,9 @@ contains
 
     read (Option%value, *) Value
 
-  end subroutine GetOptionValue_Int
+  end subroutine GetCommandLineOptionValue_Int
 
-  subroutine GetOptionValue_Int_Default(Option, Value, DefaultValue)
+  subroutine GetCommandLineOptionValue_Int_Default(Option, Value, DefaultValue)
 
     type(t_cmd_opt), intent(in) :: Option
     integer, intent(out) :: Value
@@ -350,9 +350,9 @@ contains
       Value = DefaultValue
     end if
 
-  end subroutine GetOptionValue_Int_Default
+  end subroutine GetCommandLineOptionValue_Int_Default
 
-  subroutine GetOptionValue_Real(Option, Value)
+  subroutine GetCommandLineOptionValue_Real(Option, Value)
 
     type(t_cmd_opt), intent(in) :: Option
     real(rk), intent(out) :: Value
@@ -372,9 +372,9 @@ contains
 
     read (Option%value, *) Value
 
-  end subroutine GetOptionValue_Real
+  end subroutine GetCommandLineOptionValue_Real
 
-  subroutine GetOptionValue_Real_Default(Option, Value, DefaultValue)
+  subroutine GetCommandLineOptionValue_Real_Default(Option, Value, DefaultValue)
 
     type(t_cmd_opt), intent(in) :: Option
     real(rk), intent(out) :: Value
@@ -394,9 +394,9 @@ contains
       Value = DefaultValue
     end if
 
-  end subroutine GetOptionValue_Real_Default
+  end subroutine GetCommandLineOptionValue_Real_Default
 
-  subroutine GetOptionValue_String(Option, Value)
+  subroutine GetCommandLineOptionValue_String(Option, Value)
 
     type(t_cmd_opt), intent(in) :: Option
     character(len=*), intent(out) :: Value
@@ -416,9 +416,9 @@ contains
 
     Value = trim(Option%value)
 
-  end subroutine GetOptionValue_String
+  end subroutine GetCommandLineOptionValue_String
 
-  subroutine GetOptionValue_String_Default(Option, Value, DefaultValue)
+  subroutine GetCommandLineOptionValue_String_Default(Option, Value, DefaultValue)
 
     type(t_cmd_opt), intent(in) :: Option
     character(len=*), intent(out):: Value
@@ -438,6 +438,6 @@ contains
       Value = trim(DefaultValue)
     end if
 
-  end subroutine GetOptionValue_String_Default
+  end subroutine GetCommandLineOptionValue_String_Default
 
 end module ovsCommandLine

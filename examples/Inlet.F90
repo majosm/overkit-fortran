@@ -46,9 +46,10 @@ program Inlet
   Options(1) = t_cmd_opt_("size", "N", CMD_OPT_INTEGER, "Size of box grid in each " // &
     "direction (inlet grids are proportional) [ Default: 81 ]")
 
-  call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
+  call ParseCommandLineArguments(RawArguments, Usage=Usage, Description=Description, &
+    Options=Options)
 
-  call GetOptionValue(Options(1), NumPoints, 81)
+  call GetCommandLineOptionValue(Options(1), NumPoints, 81)
 
   ! Initialize the domain
   call ovkCreateDomain(Domain, NumDims=3, NumGrids=3, StatusLogFile=OUTPUT_UNIT, &

@@ -1,1415 +1,1285 @@
 ! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 ! License: MIT (http://opensource.org/licenses/MIT)
 
-@Test
-subroutine ovkBoundingBoxTest_default(this)
+module BoundingBoxTest
 
   use pFUnit_mod
   use Overkit
   use ovsGlobal
   implicit none
 
-  class(TestCase), intent(inout) :: this
+  @TestCase
+  type, extends(TestCase) :: t_bounding_box_test
+  end type t_bounding_box_test
 
-  type(ovk_bbox) :: BBox
+contains
 
-  BBox = ovk_bbox_(2)
+  @Test
+  subroutine DefaultInitialize(this)
 
-  @AssertEqual(2, BBox%nd)
-  @AssertEqual([0._rk, 0._rk, 0._rk], BBox%b)
-  @AssertEqual([-1._rk, -1._rk, 0._rk], BBox%e)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  BBox = ovk_bbox_(3)
+    type(ovk_bbox) :: BBox
 
-  @AssertEqual(3, BBox%nd)
-  @AssertEqual([0._rk, 0._rk, 0._rk], BBox%b)
-  @AssertEqual([-1._rk, -1._rk, -1._rk], BBox%e)
+    BBox = ovk_bbox_()
 
-end subroutine ovkBoundingBoxTest_default
+    @AssertEqual(2, BBox%nd)
+    @AssertEqual([0._rk, 0._rk, 0._rk], BBox%b)
+    @AssertEqual([-1._rk, -1._rk, 0._rk], BBox%e)
 
-@Test
-subroutine ovkBoundingBoxTest_assigned(this)
+  end subroutine DefaultInitialize
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+  @Test
+  subroutine Create(this)
 
-  class(TestCase), intent(inout) :: this
+    class(t_bounding_box_test), intent(inout) :: this
 
-  type(ovk_bbox) :: BBox
+    type(ovk_bbox) :: BBox
 
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    ! Empty
+    BBox = ovk_bbox_(2)
 
-  @AssertEqual(2, BBox%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox%e)
+    @AssertEqual(2, BBox%nd)
+    @AssertEqual([0._rk, 0._rk, 0._rk], BBox%b)
+    @AssertEqual([-1._rk, -1._rk, 0._rk], BBox%e)
 
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    ! Empty
+    BBox = ovk_bbox_(3)
 
-  @AssertEqual(3, BBox%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox%e)
+    @AssertEqual(3, BBox%nd)
+    @AssertEqual([0._rk, 0._rk, 0._rk], BBox%b)
+    @AssertEqual([-1._rk, -1._rk, -1._rk], BBox%e)
 
-end subroutine ovkBoundingBoxTest_assigned
+    ! Not empty
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-@Test
-subroutine ovkBoundingBoxTest_equality(this)
+    @AssertEqual(2, BBox%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox%e)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Not empty
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  class(TestCase), intent(inout) :: this
+    @AssertEqual(3, BBox%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox%e)
 
-  type(ovk_bbox) :: BBox1, BBox2
+  end subroutine Create
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+  @Test
+  subroutine Equality(this)
 
-  ! Self
-  @AssertTrue(BBox1 == BBox1)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Other with same values
-  BBox2 = BBox1
-  @AssertTrue(BBox1 == BBox2)
+    type(ovk_bbox) :: BBox1, BBox2
 
-  ! Different dimension
-  BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 0._rk], [3._rk, 5._rk, 0._rk])
-  @AssertTrue(BBox1 /= BBox2)
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  ! Different begin
-  BBox2 = ovk_bbox_(2, [2._rk, 5._rk], [3._rk, 5._rk])
-  @AssertTrue(BBox1 /= BBox2)
+    ! Self
+    @AssertTrue(BBox1 == BBox1)
 
-  ! Different end
-  BBox2 = ovk_bbox_(2, [2._rk, 4._rk], [4._rk, 5._rk])
-  @AssertTrue(BBox1 /= BBox2)
+    ! Other with same values
+    BBox2 = BBox1
+    @AssertTrue(BBox1 == BBox2)
 
-end subroutine ovkBoundingBoxTest_equality
+    ! Different dimension
+    BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 0._rk], [3._rk, 5._rk, 0._rk])
+    @AssertTrue(BBox1 /= BBox2)
 
-@Test
-subroutine ovkBoundingBoxTest_overlaps_2d(this)
+    ! Different begin
+    BBox2 = ovk_bbox_(2, [2._rk, 5._rk], [3._rk, 5._rk])
+    @AssertTrue(BBox1 /= BBox2)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Different end
+    BBox2 = ovk_bbox_(2, [2._rk, 4._rk], [4._rk, 5._rk])
+    @AssertTrue(BBox1 /= BBox2)
 
-  class(TestCase), intent(inout) :: this
+  end subroutine Equality
 
-  type(ovk_bbox) :: BBox1, BBox2, BBox3
+  @Test
+  subroutine Overlaps2D(this)
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Self
-  BBox2 = BBox1
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    type(ovk_bbox) :: BBox1, BBox2, BBox3
 
-  ! Smaller
-  BBox2 = ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  ! Shifted left in x
-  BBox2 = ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Self
+    BBox2 = BBox1
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted right in x
-  BBox2 = ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Smaller
+    BBox2 = ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted left in y
-  BBox2 = ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted left in x
+    BBox2 = ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted right in y
-  BBox2 = ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted right in x
+    BBox2 = ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Larger
-  BBox2 = ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted left in y
+    BBox2 = ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Non-overlapping
-  BBox2 = ovk_bbox_(2, [4._rk, 6._rk], [5._rk, 7._rk])
-  @AssertFalse(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted right in y
+    BBox2 = ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Left empty
-  BBox2 = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
-  BBox3 = ovk_bbox_(2, [1._rk, 3._rk], [4._rk, 6._rk])
-  @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
+    ! Larger
+    BBox2 = ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Right empty
-  BBox2 = ovk_bbox_(2, [1._rk, 3._rk], [4._rk, 6._rk])
-  BBox3 = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
-  @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
+    ! Non-overlapping
+    BBox2 = ovk_bbox_(2, [4._rk, 6._rk], [5._rk, 7._rk])
+    @AssertFalse(ovkBBOverlaps(BBox1, BBox2))
 
-end subroutine ovkBoundingBoxTest_overlaps_2d
+    ! Left empty
+    BBox2 = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
+    BBox3 = ovk_bbox_(2, [1._rk, 3._rk], [4._rk, 6._rk])
+    @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
 
-@Test
-subroutine ovkBoundingBoxTest_overlaps_3d(this)
+    ! Right empty
+    BBox2 = ovk_bbox_(2, [1._rk, 3._rk], [4._rk, 6._rk])
+    BBox3 = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
+    @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+  end subroutine Overlaps2D
 
-  class(TestCase), intent(inout) :: this
+  @Test
+  subroutine Overlaps3D(this)
 
-  type(ovk_bbox) :: BBox1, BBox2, BBox3
+    class(t_bounding_box_test), intent(inout) :: this
 
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    type(ovk_bbox) :: BBox1, BBox2, BBox3
 
-  ! Self
-  BBox2 = BBox1
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  ! Smaller
-  BBox2 = ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Self
+    BBox2 = BBox1
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted left in x
-  BBox2 = ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Smaller
+    BBox2 = ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted right in x
-  BBox2 = ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted left in x
+    BBox2 = ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted left in y
-  BBox2 = ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted right in x
+    BBox2 = ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted right in y
-  BBox2 = ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted left in y
+    BBox2 = ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted left in z
-  BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted right in y
+    BBox2 = ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Shifted right in z
-  BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 6.5_rk], [3._rk, 5._rk, 7.5_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted left in z
+    BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Larger
-  BBox2 = ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk])
-  @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
+    ! Shifted right in z
+    BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 6.5_rk], [3._rk, 5._rk, 7.5_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Non-overlapping
-  BBox2 = ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [5._rk, 7._rk, 9._rk])
-  @AssertFalse(ovkBBOverlaps(BBox1, BBox2))
+    ! Larger
+    BBox2 = ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk])
+    @AssertTrue(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Left empty
-  BBox2 = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
-  BBox3 = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [4._rk, 6._rk, 8._rk])
-  @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
+    ! Non-overlapping
+    BBox2 = ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [5._rk, 7._rk, 9._rk])
+    @AssertFalse(ovkBBOverlaps(BBox1, BBox2))
 
-  ! Right empty
-  BBox2 = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [4._rk, 6._rk, 8._rk])
-  BBox3 = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
-  @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
+    ! Left empty
+    BBox2 = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
+    BBox3 = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [4._rk, 6._rk, 8._rk])
+    @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
 
-end subroutine ovkBoundingBoxTest_overlaps_3d
+    ! Right empty
+    BBox2 = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [4._rk, 6._rk, 8._rk])
+    BBox3 = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
+    @AssertFalse(ovkBBOverlaps(BBox2, BBox3))
 
-@Test
-subroutine ovkBoundingBoxTest_contains_2d(this)
+  end subroutine Overlaps3D
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+  @Test
+  subroutine Contains2D(this)
 
-  class(TestCase), intent(inout) :: this
+    class(t_bounding_box_test), intent(inout) :: this
 
-  type(ovk_bbox) :: BBox1, BBox2, BBox3
+    type(ovk_bbox) :: BBox1, BBox2, BBox3
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  ! Self
-  BBox2 = BBox1
-  @AssertTrue(ovkBBContains(BBox1, BBox2))
+    ! Self
+    BBox2 = BBox1
+    @AssertTrue(ovkBBContains(BBox1, BBox2))
 
-  ! Smaller
-  BBox2 = ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk])
-  @AssertTrue(ovkBBContains(BBox1, BBox2))
+    ! Smaller
+    BBox2 = ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk])
+    @AssertTrue(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted left in x
-  BBox2 = ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted left in x
+    BBox2 = ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted right in x
-  BBox2 = ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted right in x
+    BBox2 = ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted left in y
-  BBox2 = ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted left in y
+    BBox2 = ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted right in y
-  BBox2 = ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted right in y
+    BBox2 = ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Larger
-  BBox2 = ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Larger
+    BBox2 = ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Left empty
-  BBox2 = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
-  BBox3 = ovk_bbox_(2, [4._rk, 6._rk], [1._rk, 3._rk])
-  @AssertFalse(ovkBBContains(BBox2, BBox3))
+    ! Left empty
+    BBox2 = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
+    BBox3 = ovk_bbox_(2, [4._rk, 6._rk], [1._rk, 3._rk])
+    @AssertFalse(ovkBBContains(BBox2, BBox3))
 
-  ! Right empty
-  BBox2 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
-  BBox3 = ovk_bbox_(2, [4._rk, 6._rk], [1._rk, 3._rk])
-  @AssertFalse(ovkBBContains(BBox2, BBox3))
+    ! Right empty
+    BBox2 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    BBox3 = ovk_bbox_(2, [4._rk, 6._rk], [1._rk, 3._rk])
+    @AssertFalse(ovkBBContains(BBox2, BBox3))
 
-end subroutine ovkBoundingBoxTest_contains_2d
+  end subroutine Contains2D
 
-@Test
-subroutine ovkBoundingBoxTest_contains_3d(this)
+  @Test
+  subroutine Contains3D(this)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    class(t_bounding_box_test), intent(inout) :: this
 
-  class(TestCase), intent(inout) :: this
+    type(ovk_bbox) :: BBox1, BBox2, BBox3
 
-  type(ovk_bbox) :: BBox1, BBox2, BBox3
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    ! Self
+    BBox2 = BBox1
+    @AssertTrue(ovkBBContains(BBox1, BBox2))
 
-  ! Self
-  BBox2 = BBox1
-  @AssertTrue(ovkBBContains(BBox1, BBox2))
+    ! Smaller
+    BBox2 = ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk])
+    @AssertTrue(ovkBBContains(BBox1, BBox2))
 
-  ! Smaller
-  BBox2 = ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk])
-  @AssertTrue(ovkBBContains(BBox1, BBox2))
+    ! Shifted left in x
+    BBox2 = ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted left in x
-  BBox2 = ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted right in x
+    BBox2 = ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted right in x
-  BBox2 = ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted left in y
+    BBox2 = ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted left in y
-  BBox2 = ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted right in y
+    BBox2 = ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted right in y
-  BBox2 = ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted left in z
+    BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted left in z
-  BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Shifted right in z
+    BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 6.5_rk], [3._rk, 5._rk, 7.5_rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Shifted right in z
-  BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 6.5_rk], [3._rk, 5._rk, 7.5_rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Larger
+    BBox2 = ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk])
+    @AssertFalse(ovkBBContains(BBox1, BBox2))
 
-  ! Larger
-  BBox2 = ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk])
-  @AssertFalse(ovkBBContains(BBox1, BBox2))
+    ! Left empty
+    BBox2 = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
+    BBox3 = ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [1._rk, 3._rk, 5._rk])
+    @AssertFalse(ovkBBContains(BBox2, BBox3))
 
-  ! Left empty
-  BBox2 = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
-  BBox3 = ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [1._rk, 3._rk, 5._rk])
-  @AssertFalse(ovkBBContains(BBox2, BBox3))
+    ! Right empty
+    BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    BBox3 = ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [1._rk, 3._rk, 5._rk])
+    @AssertFalse(ovkBBContains(BBox2, BBox3))
 
-  ! Right empty
-  BBox2 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
-  BBox3 = ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [1._rk, 3._rk, 5._rk])
-  @AssertFalse(ovkBBContains(BBox2, BBox3))
+  end subroutine Contains3D
 
-end subroutine ovkBoundingBoxTest_contains_3d
+  @Test
+  subroutine ContainsPoint2D(this)
 
-@Test
-subroutine ovkBoundingBoxTest_contains_point_2d(this)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    type(ovk_bbox) :: BBox
 
-  class(TestCase), intent(inout) :: this
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  type(ovk_bbox) :: BBox
+    ! Inside
+    @AssertTrue(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk]))
 
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    ! On edge
+    @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 4._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 4._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 5._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 5._rk]))
 
-  ! Inside
-  @AssertTrue(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk]))
+    ! Outside
+    @AssertFalse(ovkBBContainsPoint(BBox, [1.5_rk, 4.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [3.5_rk, 4.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 3.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 5.5_rk]))
 
-  ! On edge
-  @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 4._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 4._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 5._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 5._rk]))
+    ! Empty interval
+    BBox = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk]))
 
-  ! Outside
-  @AssertFalse(ovkBBContainsPoint(BBox, [1.5_rk, 4.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [3.5_rk, 4.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 3.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 5.5_rk]))
+  end subroutine ContainsPoint2D
 
-  ! Empty interval
-  BBox = ovk_bbox_(2, [3._rk, 5._rk], [2._rk, 4._rk])
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk]))
+  @Test
+  subroutine ContainsPoint3D(this)
 
-end subroutine ovkBoundingBoxTest_contains_point_2d
+    class(t_bounding_box_test), intent(inout) :: this
 
-@Test
-subroutine ovkBoundingBoxTest_contains_point_3d(this)
+    type(ovk_bbox) :: BBox
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  class(TestCase), intent(inout) :: this
+    ! Inside
+    @AssertTrue(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 6.5_rk]))
 
-  type(ovk_bbox) :: BBox
+    ! On edge
+    @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 4._rk, 6._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 4._rk, 6._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 5._rk, 6._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 5._rk, 6._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 4._rk, 7._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 4._rk, 7._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 5._rk, 7._rk]))
+    @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 5._rk, 7._rk]))
 
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    ! Outside
+    @AssertFalse(ovkBBContainsPoint(BBox, [1.5_rk, 4.5_rk, 6.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [3.5_rk, 4.5_rk, 6.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 3.5_rk, 6.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 5.5_rk, 6.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 5.5_rk]))
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 7.5_rk]))
 
-  ! Inside
-  @AssertTrue(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 6.5_rk]))
+    ! Empty interval
+    BBox = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
+    @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 6.5_rk]))
 
-  ! On edge
-  @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 4._rk, 6._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 4._rk, 6._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 5._rk, 6._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 5._rk, 6._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 4._rk, 7._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 4._rk, 7._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [2._rk, 5._rk, 7._rk]))
-  @AssertTrue(ovkBBContainsPoint(BBox, [3._rk, 5._rk, 7._rk]))
+  end subroutine ContainsPoint3D
 
-  ! Outside
-  @AssertFalse(ovkBBContainsPoint(BBox, [1.5_rk, 4.5_rk, 6.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [3.5_rk, 4.5_rk, 6.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 3.5_rk, 6.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 5.5_rk, 6.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 5.5_rk]))
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 7.5_rk]))
+  @Test
+  subroutine Empty2D(this)
 
-  ! Empty interval
-  BBox = ovk_bbox_(3, [3._rk, 5._rk, 7._rk], [2._rk, 4._rk, 6._rk])
-  @AssertFalse(ovkBBContainsPoint(BBox, [2.5_rk, 4.5_rk, 6.5_rk]))
+    class(t_bounding_box_test), intent(inout) :: this
 
-end subroutine ovkBoundingBoxTest_contains_point_3d
+    type(ovk_bbox) :: BBox
 
-@Test
-subroutine ovkBoundingBoxTest_empty_2d(this)
+    ! Interval
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Edge x
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 4._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  class(TestCase), intent(inout) :: this
+    ! Edge y
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 5._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  type(ovk_bbox) :: BBox
+    ! Point
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 4._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  ! Interval
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    ! Empty
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [1._rk, 3._rk])
+    @AssertTrue(ovkBBIsEmpty(BBox))
 
-  ! Edge x
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 4._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+  end subroutine Empty2D
 
-  ! Edge y
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 5._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+  @Test
+  subroutine Empty3D(this)
 
-  ! Point
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 4._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Empty
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [1._rk, 3._rk])
-  @AssertTrue(ovkBBIsEmpty(BBox))
+    type(ovk_bbox) :: BBox
 
-end subroutine ovkBoundingBoxTest_empty_2d
+    ! Interval
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-@Test
-subroutine ovkBoundingBoxTest_empty_3d(this)
+    ! Face x
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 7._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Face y
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 7._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  class(TestCase), intent(inout) :: this
+    ! Face z
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 6._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  type(ovk_bbox) :: BBox
+    ! Edge x
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 6._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  ! Interval
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    ! Edge y
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 6._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  ! Face x
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 7._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    ! Edge z
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 7._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  ! Face y
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 7._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    ! Point
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 6._rk])
+    @AssertFalse(ovkBBIsEmpty(BBox))
 
-  ! Face z
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 6._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    ! Empty
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [1._rk, 3._rk, 5._rk])
+    @AssertTrue(ovkBBIsEmpty(BBox))
 
-  ! Edge x
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 6._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+  end subroutine Empty3D
 
-  ! Edge y
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 6._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+  @Test
+  subroutine Size2D(this)
 
-  ! Edge z
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 7._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Point
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 6._rk])
-  @AssertFalse(ovkBBIsEmpty(BBox))
+    type(ovk_bbox) :: BBox
 
-  ! Empty
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [1._rk, 3._rk, 5._rk])
-  @AssertTrue(ovkBBIsEmpty(BBox))
+    ! Interval
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    @AssertEqual([1._rk, 1._rk], ovkBBSize(BBox))
 
-end subroutine ovkBoundingBoxTest_empty_3d
+    ! Edge x
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 4._rk])
+    @AssertEqual([1._rk, 0._rk], ovkBBSize(BBox))
 
-@Test
-subroutine ovkBoundingBoxTest_size_2d(this)
+    ! Edge y
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 5._rk])
+    @AssertEqual([0._rk, 1._rk], ovkBBSize(BBox))
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Point
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 4._rk])
+    @AssertEqual([0._rk, 0._rk], ovkBBSize(BBox))
 
-  class(TestCase), intent(inout) :: this
+    ! Empty
+    BBox = ovk_bbox_(2, [2._rk, 4._rk], [1._rk, 3._rk])
+    @AssertEqual([0._rk, 0._rk], ovkBBSize(BBox))
 
-  type(ovk_bbox) :: BBox
+  end subroutine Size2D
 
-  ! Interval
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
-  @AssertEqual([1._rk, 1._rk], ovkBBSize(BBox))
+  @Test
+  subroutine Size3D(this)
 
-  ! Edge x
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 4._rk])
-  @AssertEqual([1._rk, 0._rk], ovkBBSize(BBox))
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Edge y
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 5._rk])
-  @AssertEqual([0._rk, 1._rk], ovkBBSize(BBox))
+    type(ovk_bbox) :: BBox
 
-  ! Point
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [2._rk, 4._rk])
-  @AssertEqual([0._rk, 0._rk], ovkBBSize(BBox))
+    ! Interval
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    @AssertEqual([1._rk, 1._rk, 1._rk], ovkBBSize(BBox))
 
-  ! Empty
-  BBox = ovk_bbox_(2, [2._rk, 4._rk], [1._rk, 3._rk])
-  @AssertEqual([0._rk, 0._rk], ovkBBSize(BBox))
+    ! Face x
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 7._rk])
+    @AssertEqual([0._rk, 1._rk, 1._rk], ovkBBSize(BBox))
 
-end subroutine ovkBoundingBoxTest_size_2d
+    ! Face y
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 7._rk])
+    @AssertEqual([1._rk, 0._rk, 1._rk], ovkBBSize(BBox))
 
-@Test
-subroutine ovkBoundingBoxTest_size_3d(this)
+    ! Face z
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 6._rk])
+    @AssertEqual([1._rk, 1._rk, 0._rk], ovkBBSize(BBox))
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Edge x
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 6._rk])
+    @AssertEqual([1._rk, 0._rk, 0._rk], ovkBBSize(BBox))
 
-  class(TestCase), intent(inout) :: this
+    ! Edge y
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 6._rk])
+    @AssertEqual([0._rk, 1._rk, 0._rk], ovkBBSize(BBox))
 
-  type(ovk_bbox) :: BBox
+    ! Edge z
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 7._rk])
+    @AssertEqual([0._rk, 0._rk, 1._rk], ovkBBSize(BBox))
 
-  ! Interval
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
-  @AssertEqual([1._rk, 1._rk, 1._rk], ovkBBSize(BBox))
+    ! Point
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 6._rk])
+    @AssertEqual([0._rk, 0._rk, 0._rk], ovkBBSize(BBox))
 
-  ! Face x
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 7._rk])
-  @AssertEqual([0._rk, 1._rk, 1._rk], ovkBBSize(BBox))
+    ! Empty
+    BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [1._rk, 3._rk, 5._rk])
+    @AssertEqual([0._rk, 0._rk, 0._rk], ovkBBSize(BBox))
 
-  ! Face y
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 7._rk])
-  @AssertEqual([1._rk, 0._rk, 1._rk], ovkBBSize(BBox))
+  end subroutine Size3D
 
-  ! Face z
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 6._rk])
-  @AssertEqual([1._rk, 1._rk, 0._rk], ovkBBSize(BBox))
+  @Test
+  subroutine Move2D(this)
 
-  ! Edge x
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 4._rk, 6._rk])
-  @AssertEqual([1._rk, 0._rk, 0._rk], ovkBBSize(BBox))
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Edge y
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 5._rk, 6._rk])
-  @AssertEqual([0._rk, 1._rk, 0._rk], ovkBBSize(BBox))
+    type(ovk_bbox) :: BBox1, BBox2
 
-  ! Edge z
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 7._rk])
-  @AssertEqual([0._rk, 0._rk, 1._rk], ovkBBSize(BBox))
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  ! Point
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [2._rk, 4._rk, 6._rk])
-  @AssertEqual([0._rk, 0._rk, 0._rk], ovkBBSize(BBox))
+    ! Zero
+    BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Empty
-  BBox = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [1._rk, 3._rk, 5._rk])
-  @AssertEqual([0._rk, 0._rk, 0._rk], ovkBBSize(BBox))
+    ! Positive x
+    BBox2 = ovkBBMove(BBox1, [0.5_rk, 0._rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2.5_rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5._rk, 0._rk], BBox2%e)
 
-end subroutine ovkBoundingBoxTest_size_3d
+    ! Negative x
+    BBox2 = ovkBBMove(BBox1, [-0.5_rk, 0._rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([1.5_rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([2.5_rk, 5._rk, 0._rk], BBox2%e)
 
-@Test
-subroutine ovkBoundingBoxTest_move_2d(this)
+    ! Positive y
+    BBox2 = ovkBBMove(BBox1, [0._rk, 0.5_rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5.5_rk, 0._rk], BBox2%e)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Negative y
+    BBox2 = ovkBBMove(BBox1, [0._rk, -0.5_rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 3.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 4.5_rk, 0._rk], BBox2%e)
 
-  class(TestCase), intent(inout) :: this
+    ! All
+    BBox2 = ovkBBMove(BBox1, [0.5_rk, -0.5_rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2.5_rk, 3.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 4.5_rk, 0._rk], BBox2%e)
 
-  type(ovk_bbox) :: BBox1, BBox2
+  end subroutine Move2D
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+  @Test
+  subroutine Move3D(this)
 
-  ! Zero
-  BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Positive x
-  BBox2 = ovkBBMove(BBox1, [0.5_rk, 0._rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2.5_rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5._rk, 0._rk], BBox2%e)
+    type(ovk_bbox) :: BBox1, BBox2
 
-  ! Negative x
-  BBox2 = ovkBBMove(BBox1, [-0.5_rk, 0._rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([1.5_rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([2.5_rk, 5._rk, 0._rk], BBox2%e)
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  ! Positive y
-  BBox2 = ovkBBMove(BBox1, [0._rk, 0.5_rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5.5_rk, 0._rk], BBox2%e)
+    ! Zero
+    BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk, 0._rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Negative y
-  BBox2 = ovkBBMove(BBox1, [0._rk, -0.5_rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 3.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 4.5_rk, 0._rk], BBox2%e)
+    ! Positive x
+    BBox2 = ovkBBMove(BBox1, [0.5_rk, 0._rk, 0._rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2.5_rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5._rk, 7._rk], BBox2%e)
 
-  ! All
-  BBox2 = ovkBBMove(BBox1, [0.5_rk, -0.5_rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2.5_rk, 3.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 4.5_rk, 0._rk], BBox2%e)
+    ! Negative x
+    BBox2 = ovkBBMove(BBox1, [-0.5_rk, 0._rk, 0._rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([1.5_rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([2.5_rk, 5._rk, 7._rk], BBox2%e)
 
-end subroutine ovkBoundingBoxTest_move_2d
+    ! Positive y
+    BBox2 = ovkBBMove(BBox1, [0._rk, 0.5_rk, 0._rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4.5_rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5.5_rk, 7._rk], BBox2%e)
 
-@Test
-subroutine ovkBoundingBoxTest_move_3d(this)
+    ! Negative y
+    BBox2 = ovkBBMove(BBox1, [0._rk, -0.5_rk, 0._rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 3.5_rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 4.5_rk, 7._rk], BBox2%e)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Positive z
+    BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk, 0.5_rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6.5_rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7.5_rk], BBox2%e)
 
-  class(TestCase), intent(inout) :: this
+    ! Negative z
+    BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk, -0.5_rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 5.5_rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 6.5_rk], BBox2%e)
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! All
+    BBox2 = ovkBBMove(BBox1, [0.5_rk, -0.5_rk, 0.5_rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2.5_rk, 3.5_rk, 6.5_rk], BBox2%b)
+    @AssertEqual([3.5_rk, 4.5_rk, 7.5_rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+  end subroutine Move3D
 
-  ! Zero
-  BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk, 0._rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+  @Test
+  subroutine Grow2D(this)
 
-  ! Positive x
-  BBox2 = ovkBBMove(BBox1, [0.5_rk, 0._rk, 0._rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2.5_rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5._rk, 7._rk], BBox2%e)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Negative x
-  BBox2 = ovkBBMove(BBox1, [-0.5_rk, 0._rk, 0._rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([1.5_rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([2.5_rk, 5._rk, 7._rk], BBox2%e)
+    type(ovk_bbox) :: BBox1, BBox2
 
-  ! Positive y
-  BBox2 = ovkBBMove(BBox1, [0._rk, 0.5_rk, 0._rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4.5_rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5.5_rk, 7._rk], BBox2%e)
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  ! Negative y
-  BBox2 = ovkBBMove(BBox1, [0._rk, -0.5_rk, 0._rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 3.5_rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 4.5_rk, 7._rk], BBox2%e)
+    ! Zero
+    BBox2 = ovkBBGrow(BBox1, 0._rk)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Positive z
-  BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk, 0.5_rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6.5_rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7.5_rk], BBox2%e)
+    ! Positive
+    BBox2 = ovkBBGrow(BBox1, 0.5_rk)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
 
-  ! Negative z
-  BBox2 = ovkBBMove(BBox1, [0._rk, 0._rk, -0.5_rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 5.5_rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 6.5_rk], BBox2%e)
+    ! Negative
+    BBox2 = ovkBBGrow(BBox1, -0.5_rk)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%e)
 
-  ! All
-  BBox2 = ovkBBMove(BBox1, [0.5_rk, -0.5_rk, 0.5_rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2.5_rk, 3.5_rk, 6.5_rk], BBox2%b)
-  @AssertEqual([3.5_rk, 4.5_rk, 7.5_rk], BBox2%e)
+  end subroutine Grow2D
 
-end subroutine ovkBoundingBoxTest_move_3d
+  @Test
+  subroutine Grow3D(this)
 
-@Test
-subroutine ovkBoundingBoxTest_grow_2d(this)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    type(ovk_bbox) :: BBox1, BBox2
 
-  class(TestCase), intent(inout) :: this
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! Zero
+    BBox2 = ovkBBGrow(BBox1, 0._rk)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    ! Positive
+    BBox2 = ovkBBGrow(BBox1, 0.5_rk)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
 
-  ! Zero
-  BBox2 = ovkBBGrow(BBox1, 0._rk)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Negative
+    BBox2 = ovkBBGrow(BBox1, -0.5_rk)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%b)
+    @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%e)
 
-  ! Positive
-  BBox2 = ovkBBGrow(BBox1, 0.5_rk)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
+  end subroutine Grow3D
 
-  ! Negative
-  BBox2 = ovkBBGrow(BBox1, -0.5_rk)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%e)
+  @Test
+  subroutine Scale2D(this)
 
-end subroutine ovkBoundingBoxTest_grow_2d
+    class(t_bounding_box_test), intent(inout) :: this
 
-@Test
-subroutine ovkBoundingBoxTest_grow_3d(this)
+    type(ovk_bbox) :: BBox1, BBox2
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  class(TestCase), intent(inout) :: this
+    ! One
+    BBox2 = ovkBBScale(BBox1, 1._rk)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! Zero
+    BBox2 = ovkBBScale(BBox1, 0._rk)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    ! Greater than one
+    BBox2 = ovkBBScale(BBox1, 2._rk)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
 
-  ! Zero
-  BBox2 = ovkBBGrow(BBox1, 0._rk)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Less than one
+    BBox2 = ovkBBScale(BBox1, 0.5_rk)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2.25_rk, 4.25_rk, 0._rk], BBox2%b)
+    @AssertEqual([2.75_rk, 4.75_rk, 0._rk], BBox2%e)
 
-  ! Positive
-  BBox2 = ovkBBGrow(BBox1, 0.5_rk)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
+  end subroutine Scale2D
 
-  ! Negative
-  BBox2 = ovkBBGrow(BBox1, -0.5_rk)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%b)
-  @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%e)
+  @Test
+  subroutine Scale3D(this)
 
-end subroutine ovkBoundingBoxTest_grow_3d
+    class(t_bounding_box_test), intent(inout) :: this
 
-@Test
-subroutine ovkBoundingBoxTest_scale_2d(this)
+    type(ovk_bbox) :: BBox1, BBox2
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  class(TestCase), intent(inout) :: this
+    ! One
+    BBox2 = ovkBBScale(BBox1, 1._rk)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! Zero
+    BBox2 = ovkBBScale(BBox1, 0._rk)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%b)
+    @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    ! Greater than one
+    BBox2 = ovkBBScale(BBox1, 2._rk)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
 
-  ! One
-  BBox2 = ovkBBScale(BBox1, 1._rk)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Less than one
+    BBox2 = ovkBBScale(BBox1, 0.5_rk)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2.25_rk, 4.25_rk, 6.25_rk], BBox2%b)
+    @AssertEqual([2.75_rk, 4.75_rk, 6.75_rk], BBox2%e)
 
-  ! Zero
-  BBox2 = ovkBBScale(BBox1, 0._rk)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([2.5_rk, 4.5_rk, 0._rk], BBox2%e)
+  end subroutine Scale3D
 
-  ! Greater than one
-  BBox2 = ovkBBScale(BBox1, 2._rk)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
+  @Test
+  subroutine Extend2D(this)
 
-  ! Less than one
-  BBox2 = ovkBBScale(BBox1, 0.5_rk)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2.25_rk, 4.25_rk, 0._rk], BBox2%b)
-  @AssertEqual([2.75_rk, 4.75_rk, 0._rk], BBox2%e)
+    class(t_bounding_box_test), intent(inout) :: this
 
-end subroutine ovkBoundingBoxTest_scale_2d
+    type(ovk_bbox) :: BBox1, BBox2
 
-@Test
-subroutine ovkBoundingBoxTest_scale_3d(this)
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Contained
+    BBox2 = ovkBBExtend(BBox1, [2.5_rk, 4.5_rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  class(TestCase), intent(inout) :: this
+    ! Outside lower
+    BBox2 = ovkBBExtend(BBox1, [1.5_rk, 3.5_rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! Outside upper
+    BBox2 = ovkBBExtend(BBox1, [3.5_rk, 5.5_rk])
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+  end subroutine Extend2D
 
-  ! One
-  BBox2 = ovkBBScale(BBox1, 1._rk)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+  @Test
+  subroutine Extend3D(this)
 
-  ! Zero
-  BBox2 = ovkBBScale(BBox1, 0._rk)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%b)
-  @AssertEqual([2.5_rk, 4.5_rk, 6.5_rk], BBox2%e)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Greater than one
-  BBox2 = ovkBBScale(BBox1, 2._rk)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
+    type(ovk_bbox) :: BBox1, BBox2
 
-  ! Less than one
-  BBox2 = ovkBBScale(BBox1, 0.5_rk)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2.25_rk, 4.25_rk, 6.25_rk], BBox2%b)
-  @AssertEqual([2.75_rk, 4.75_rk, 6.75_rk], BBox2%e)
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-end subroutine ovkBoundingBoxTest_scale_3d
+    ! Contained
+    BBox2 = ovkBBExtend(BBox1, [2.5_rk, 4.5_rk, 6.5_rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-@Test
-subroutine ovkBoundingBoxTest_extend_2d(this)
+    ! Outside lower
+    BBox2 = ovkBBExtend(BBox1, [1.5_rk, 3.5_rk, 5.5_rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Outside upper
+    BBox2 = ovkBBExtend(BBox1, [3.5_rk, 5.5_rk, 7.5_rk])
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
 
-  class(TestCase), intent(inout) :: this
+  end subroutine Extend3D
 
-  type(ovk_bbox) :: BBox1, BBox2
+  @Test
+  subroutine Union2D(this)
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    class(t_bounding_box_test), intent(inout) :: this
 
-  ! Contained
-  BBox2 = ovkBBExtend(BBox1, [2.5_rk, 4.5_rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    type(ovk_bbox) :: BBox1, BBox2
 
-  ! Outside lower
-  BBox2 = ovkBBExtend(BBox1, [1.5_rk, 3.5_rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  ! Outside upper
-  BBox2 = ovkBBExtend(BBox1, [3.5_rk, 5.5_rk])
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
+    ! Self
+    BBox2 = ovkBBUnion(BBox1, BBox1)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-end subroutine ovkBoundingBoxTest_extend_2d
+    ! Empty left
+    BBox2 = ovkBBUnion(ovk_bbox_(2), BBox1)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-@Test
-subroutine ovkBoundingBoxTest_extend_3d(this)
+    ! Empty right
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    ! Smaller
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  class(TestCase), intent(inout) :: this
+    ! Shifted left in x
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([1.5_rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! Shifted right in x
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5._rk, 0._rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    ! Shifted left in y
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 3.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Contained
-  BBox2 = ovkBBExtend(BBox1, [2.5_rk, 4.5_rk, 6.5_rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Shifted right in y
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5.5_rk, 0._rk], BBox2%e)
 
-  ! Outside lower
-  BBox2 = ovkBBExtend(BBox1, [1.5_rk, 3.5_rk, 5.5_rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Larger
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
 
-  ! Outside upper
-  BBox2 = ovkBBExtend(BBox1, [3.5_rk, 5.5_rk, 7.5_rk])
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
+  end subroutine Union2D
 
-end subroutine ovkBoundingBoxTest_extend_3d
+  @Test
+  subroutine Union3D(this)
 
-@Test
-subroutine ovkBoundingBoxTest_union_2d(this)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    type(ovk_bbox) :: BBox1, BBox2
 
-  class(TestCase), intent(inout) :: this
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! Self
+    BBox2 = ovkBBUnion(BBox1, BBox1)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    ! Empty left
+    BBox2 = ovkBBUnion(ovk_bbox_(3), BBox1)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Self
-  BBox2 = ovkBBUnion(BBox1, BBox1)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Empty right
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Empty left
-  BBox2 = ovkBBUnion(ovk_bbox_(2), BBox1)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Smaller
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Empty right
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Shifted left in x
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([1.5_rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Smaller
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Shifted right in x
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Shifted left in x
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([1.5_rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Shifted left in y
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 3.5_rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Shifted right in x
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5._rk, 0._rk], BBox2%e)
+    ! Shifted right in y
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5.5_rk, 7._rk], BBox2%e)
 
-  ! Shifted left in y
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 3.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Shifted left in z
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 5.5_rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Shifted right in y
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5.5_rk, 0._rk], BBox2%e)
+    ! Shifted right in z
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7.5_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7.5_rk], BBox2%e)
 
-  ! Larger
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 0._rk], BBox2%e)
+    ! Larger
+    BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
+    @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
 
-end subroutine ovkBoundingBoxTest_union_2d
+  end subroutine Union3D
 
-@Test
-subroutine ovkBoundingBoxTest_union_3d(this)
+  @Test
+  subroutine Intersect2D(this)
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    class(t_bounding_box_test), intent(inout) :: this
 
-  class(TestCase), intent(inout) :: this
+    type(ovk_bbox) :: BBox1, BBox2
 
-  type(ovk_bbox) :: BBox1, BBox2
+    BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
 
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
+    ! Self
+    BBox2 = ovkBBIntersect(BBox1, BBox1)
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Self
-  BBox2 = ovkBBUnion(BBox1, BBox1)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Empty left
+    BBox2 = ovkBBIntersect(ovk_bbox_(2), BBox1)
+    @AssertEqual(2, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
 
-  ! Empty left
-  BBox2 = ovkBBUnion(ovk_bbox_(3), BBox1)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Empty right
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2))
+    @AssertEqual(2, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
 
-  ! Empty right
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Smaller
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2.25_rk, 4.25_rk, 0._rk], BBox2%b)
+    @AssertEqual([2.75_rk, 4.75_rk, 0._rk], BBox2%e)
 
-  ! Smaller
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Shifted left in x
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([2.5_rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Shifted left in x
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([1.5_rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Shifted right in x
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2.5_rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Shifted right in x
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5._rk, 7._rk], BBox2%e)
+    ! Shifted left in y
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 4.5_rk, 0._rk], BBox2%e)
 
-  ! Shifted left in y
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 3.5_rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Shifted right in y
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4.5_rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Shifted right in y
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5.5_rk, 7._rk], BBox2%e)
+    ! Larger
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
 
-  ! Shifted left in z
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 5.5_rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+    ! Non-overlapping positive
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [4._rk, 6._rk], [5._rk, 7._rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
 
-  ! Shifted right in z
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7.5_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7.5_rk], BBox2%e)
+    ! Non-overlapping negative
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [0._rk, 2._rk], [1._rk, 3._rk]))
+    @AssertEqual(2, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
 
-  ! Larger
-  BBox2 = ovkBBUnion(BBox1, ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([1.5_rk, 3.5_rk, 5.5_rk], BBox2%b)
-  @AssertEqual([3.5_rk, 5.5_rk, 7.5_rk], BBox2%e)
+  end subroutine Intersect2D
 
-end subroutine ovkBoundingBoxTest_union_3d
+  @Test
+  subroutine Intersect3D(this)
 
-@Test
-subroutine ovkBoundingBoxTest_intersect_2d(this)
+    class(t_bounding_box_test), intent(inout) :: this
 
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
+    type(ovk_bbox) :: BBox1, BBox2
 
-  class(TestCase), intent(inout) :: this
+    BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
 
-  type(ovk_bbox) :: BBox1, BBox2
+    ! Self
+    BBox2 = ovkBBIntersect(BBox1, BBox1)
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  BBox1 = ovk_bbox_(2, [2._rk, 4._rk], [3._rk, 5._rk])
+    ! Empty left
+    BBox2 = ovkBBIntersect(ovk_bbox_(3), BBox1)
+    @AssertEqual(3, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
 
-  ! Self
-  BBox2 = ovkBBIntersect(BBox1, BBox1)
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
+    ! Empty right
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3))
+    @AssertEqual(3, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
 
-  ! Empty left
-  BBox2 = ovkBBIntersect(ovk_bbox_(2), BBox1)
-  @AssertEqual(2, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
+    ! Smaller
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2.25_rk, 4.25_rk, 6.25_rk], BBox2%b)
+    @AssertEqual([2.75_rk, 4.75_rk, 6.75_rk], BBox2%e)
 
-  ! Empty right
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2))
-  @AssertEqual(2, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
+    ! Shifted left in x
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([2.5_rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Smaller
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2.25_rk, 4.25_rk], [2.75_rk, 4.75_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2.25_rk, 4.25_rk, 0._rk], BBox2%b)
-  @AssertEqual([2.75_rk, 4.75_rk, 0._rk], BBox2%e)
+    ! Shifted right in x
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2.5_rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
 
-  ! Shifted left in x
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [1.5_rk, 4._rk], [2.5_rk, 5._rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([2.5_rk, 5._rk, 0._rk], BBox2%e)
+    ! Shifted left in y
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 4.5_rk, 7._rk], BBox2%e)
 
-  ! Shifted right in x
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2.5_rk, 4._rk], [3.5_rk, 5._rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2.5_rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
-
-  ! Shifted left in y
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2._rk, 3.5_rk], [3._rk, 4.5_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 4.5_rk, 0._rk], BBox2%e)
-
-  ! Shifted right in y
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [2._rk, 4.5_rk], [3._rk, 5.5_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4.5_rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
-
-  ! Larger
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [1.5_rk, 3.5_rk], [3.5_rk, 5.5_rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 0._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 0._rk], BBox2%e)
-
-  ! Non-overlapping positive
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [4._rk, 6._rk], [5._rk, 7._rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
-
-  ! Non-overlapping negative
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(2, [0._rk, 2._rk], [1._rk, 3._rk]))
-  @AssertEqual(2, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
-
-end subroutine ovkBoundingBoxTest_intersect_2d
-
-@Test
-subroutine ovkBoundingBoxTest_intersect_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_bbox) :: BBox1, BBox2
-
-  BBox1 = ovk_bbox_(3, [2._rk, 4._rk, 6._rk], [3._rk, 5._rk, 7._rk])
-
-  ! Self
-  BBox2 = ovkBBIntersect(BBox1, BBox1)
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
-
-  ! Empty left
-  BBox2 = ovkBBIntersect(ovk_bbox_(3), BBox1)
-  @AssertEqual(3, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
-
-  ! Empty right
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3))
-  @AssertEqual(3, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
-
-  ! Smaller
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2.25_rk, 4.25_rk, 6.25_rk], [2.75_rk, 4.75_rk, 6.75_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2.25_rk, 4.25_rk, 6.25_rk], BBox2%b)
-  @AssertEqual([2.75_rk, 4.75_rk, 6.75_rk], BBox2%e)
-
-  ! Shifted left in x
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [1.5_rk, 4._rk, 6._rk], [2.5_rk, 5._rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([2.5_rk, 5._rk, 7._rk], BBox2%e)
-
-  ! Shifted right in x
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2.5_rk, 4._rk, 6._rk], [3.5_rk, 5._rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2.5_rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
-
-  ! Shifted left in y
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 3.5_rk, 6._rk], [3._rk, 4.5_rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 4.5_rk, 7._rk], BBox2%e)
-
-  ! Shifted right in y
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4.5_rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
-
-  ! Shifted left in z
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 6.5_rk], BBox2%e)
-
-  ! Shifted right in z
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 6.5_rk], [3._rk, 5._rk, 7.5_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6.5_rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
-
-  ! Larger
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
-  @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
-
-  ! Non-overlapping positive
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [5._rk, 7._rk, 9._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
-
-  ! Non-overlapping negative
-  BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [0._rk, 2._rk, 4._rk], [1._rk, 3._rk, 5._rk]))
-  @AssertEqual(3, BBox2%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox2))
-
-end subroutine ovkBoundingBoxTest_intersect_3d
-
-@Test
-subroutine ovkBoundingBoxTest_from_points_2d_rank2(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_bbox) :: BBox
-  real(ovk_rk), dimension(2,0) :: EmptyCoords
-  real(ovk_rk), dimension(2,2) :: Coords
-
-  ! No points
-  BBox = ovkBBFromPoints(EmptyCoords)
-  @AssertEqual(2, BBox%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox))
-
-  ! One or more points
-  Coords(:,1) = [2._rk, -4._rk]
-  Coords(:,2) = [-3._rk, 5._rk]
-  BBox = ovkBBFromPoints(Coords)
-  @AssertEqual(2, BBox%nd)
-  @AssertEqual([-3._rk, -4._rk, 0._rk], BBox%b)
-  @AssertEqual([2._rk, 5._rk, 0._rk], BBox%e)
-
-end subroutine ovkBoundingBoxTest_from_points_2d_rank2
-
-@Test
-subroutine ovkBoundingBoxTest_from_points_3d_rank2(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_bbox) :: BBox
-  real(ovk_rk), dimension(3,0) :: EmptyCoords
-  real(ovk_rk), dimension(3,2) :: Coords
-
-  ! No points
-  BBox = ovkBBFromPoints(EmptyCoords)
-  @AssertEqual(3, BBox%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox))
-
-  ! One or more points
-  Coords(:,1) = [2._rk, -4._rk, 6._rk]
-  Coords(:,2) = [-3._rk, 5._rk, -7._rk]
-  BBox = ovkBBFromPoints(Coords)
-  @AssertEqual(3, BBox%nd)
-  @AssertEqual([-3._rk, -4._rk, -7._rk], BBox%b)
-  @AssertEqual([2._rk, 5._rk, 6._rk], BBox%e)
-
-end subroutine ovkBoundingBoxTest_from_points_3d_rank2
-
-@Test
-subroutine ovkBoundingBoxTest_from_points_2d_rank3(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_bbox) :: BBox
-  real(ovk_rk), dimension(2,0,0) :: EmptyCoords
-  real(ovk_rk), dimension(2,2,2) :: Coords
-
-  ! No points
-  BBox = ovkBBFromPoints(EmptyCoords)
-  @AssertEqual(2, BBox%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox))
-
-  ! One or more points
-  Coords(:,1,1) = [2._rk, -4._rk]
-  Coords(:,2,1) = [-3._rk, 5._rk]
-  Coords(:,1,2) = [4._rk, -6._rk]
-  Coords(:,2,2) = [-5._rk, 7._rk]
-  BBox = ovkBBFromPoints(Coords)
-  @AssertEqual(2, BBox%nd)
-  @AssertEqual([-5._rk, -6._rk, 0._rk], BBox%b)
-  @AssertEqual([4._rk, 7._rk, 0._rk], BBox%e)
-
-end subroutine ovkBoundingBoxTest_from_points_2d_rank3
-
-@Test
-subroutine ovkBoundingBoxTest_from_points_3d_rank3(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_bbox) :: BBox
-  real(ovk_rk), dimension(3,0,0) :: EmptyCoords
-  real(ovk_rk), dimension(3,2,2) :: Coords
-
-  ! No points
-  BBox = ovkBBFromPoints(EmptyCoords)
-  @AssertEqual(3, BBox%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox))
-
-  ! One or more points
-  Coords(:,1,1) = [2._rk, -4._rk, 6._rk]
-  Coords(:,2,1) = [-3._rk, 5._rk, -7._rk]
-  Coords(:,1,2) = [4._rk, -6._rk, 8._rk]
-  Coords(:,2,2) = [-5._rk, 7._rk, -9._rk]
-  BBox = ovkBBFromPoints(Coords)
-  @AssertEqual(3, BBox%nd)
-  @AssertEqual([-5._rk, -6._rk, -9._rk], BBox%b)
-  @AssertEqual([4._rk, 7._rk, 8._rk], BBox%e)
-
-end subroutine ovkBoundingBoxTest_from_points_3d_rank3
-
-@Test
-subroutine ovkBoundingBoxTest_from_points_2d_rank4(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_bbox) :: BBox
-  real(ovk_rk), dimension(2,0,0,0) :: EmptyCoords
-  real(ovk_rk), dimension(2,2,2,2) :: Coords
-
-  ! No points
-  BBox = ovkBBFromPoints(EmptyCoords)
-  @AssertEqual(2, BBox%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox))
-
-  ! One or more points
-  Coords(:,1,1,1) = [2._rk, -4._rk]
-  Coords(:,2,1,1) = [-3._rk, 5._rk]
-  Coords(:,1,2,1) = [4._rk, -6._rk]
-  Coords(:,2,2,1) = [-5._rk, 7._rk]
-  Coords(:,1,1,2) = [6._rk, -8._rk]
-  Coords(:,2,1,2) = [-7._rk, 9._rk]
-  Coords(:,1,2,2) = [8._rk, -10._rk]
-  Coords(:,2,2,2) = [-9._rk, 11._rk]
-  BBox = ovkBBFromPoints(Coords)
-  @AssertEqual(2, BBox%nd)
-  @AssertEqual([-9._rk, -10._rk, 0._rk], BBox%b)
-  @AssertEqual([8._rk, 11._rk, 0._rk], BBox%e)
-
-end subroutine ovkBoundingBoxTest_from_points_2d_rank4
-
-@Test
-subroutine ovkBoundingBoxTest_from_points_3d_rank4(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_bbox) :: BBox
-  real(ovk_rk), dimension(3,0,0,0) :: EmptyCoords
-  real(ovk_rk), dimension(3,2,2,2) :: Coords
-
-  ! No points
-  BBox = ovkBBFromPoints(EmptyCoords)
-  @AssertEqual(3, BBox%nd)
-  @AssertTrue(ovkBBIsEmpty(BBox))
-
-  ! One or more points
-  Coords(:,1,1,1) = [2._rk, -4._rk, 6._rk]
-  Coords(:,2,1,1) = [-3._rk, 5._rk, -7._rk]
-  Coords(:,1,2,1) = [4._rk, -6._rk, 8._rk]
-  Coords(:,2,2,1) = [-5._rk, 7._rk, -9._rk]
-  Coords(:,1,1,2) = [6._rk, -8._rk, 10._rk]
-  Coords(:,2,1,2) = [-7._rk, 9._rk, -11._rk]
-  Coords(:,1,2,2) = [8._rk, -10._rk, 12._rk]
-  Coords(:,2,2,2) = [-9._rk, 11._rk, -13._rk]
-  BBox = ovkBBFromPoints(Coords)
-  @AssertEqual(3, BBox%nd)
-  @AssertEqual([-9._rk, -10._rk, -13._rk], BBox%b)
-  @AssertEqual([8._rk, 11._rk, 12._rk], BBox%e)
-
-end subroutine ovkBoundingBoxTest_from_points_3d_rank4
+    ! Shifted right in y
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 4.5_rk, 6._rk], [3._rk, 5.5_rk, 7._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4.5_rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+
+    ! Shifted left in z
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 5.5_rk], [3._rk, 5._rk, 6.5_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 6.5_rk], BBox2%e)
+
+    ! Shifted right in z
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [2._rk, 4._rk, 6.5_rk], [3._rk, 5._rk, 7.5_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6.5_rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+
+    ! Larger
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [3.5_rk, 5.5_rk, 7.5_rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertEqual([2._rk, 4._rk, 6._rk], BBox2%b)
+    @AssertEqual([3._rk, 5._rk, 7._rk], BBox2%e)
+
+    ! Non-overlapping positive
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [4._rk, 6._rk, 8._rk], [5._rk, 7._rk, 9._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
+
+    ! Non-overlapping negative
+    BBox2 = ovkBBIntersect(BBox1, ovk_bbox_(3, [0._rk, 2._rk, 4._rk], [1._rk, 3._rk, 5._rk]))
+    @AssertEqual(3, BBox2%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox2))
+
+  end subroutine Intersect3D
+
+  @Test
+  subroutine FromPoints2DRank2(this)
+
+    class(t_bounding_box_test), intent(inout) :: this
+
+    type(ovk_bbox) :: BBox
+    real(ovk_rk), dimension(2,0) :: EmptyCoords
+    real(ovk_rk), dimension(2,2) :: Coords
+
+    ! No points
+    BBox = ovkBBFromPoints(EmptyCoords)
+    @AssertEqual(2, BBox%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox))
+
+    ! One or more points
+    Coords(:,1) = [2._rk, -4._rk]
+    Coords(:,2) = [-3._rk, 5._rk]
+    BBox = ovkBBFromPoints(Coords)
+    @AssertEqual(2, BBox%nd)
+    @AssertEqual([-3._rk, -4._rk, 0._rk], BBox%b)
+    @AssertEqual([2._rk, 5._rk, 0._rk], BBox%e)
+
+  end subroutine FromPoints2DRank2
+
+  @Test
+  subroutine FromPoints3DRank2(this)
+
+    class(t_bounding_box_test), intent(inout) :: this
+
+    type(ovk_bbox) :: BBox
+    real(ovk_rk), dimension(3,0) :: EmptyCoords
+    real(ovk_rk), dimension(3,2) :: Coords
+
+    ! No points
+    BBox = ovkBBFromPoints(EmptyCoords)
+    @AssertEqual(3, BBox%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox))
+
+    ! One or more points
+    Coords(:,1) = [2._rk, -4._rk, 6._rk]
+    Coords(:,2) = [-3._rk, 5._rk, -7._rk]
+    BBox = ovkBBFromPoints(Coords)
+    @AssertEqual(3, BBox%nd)
+    @AssertEqual([-3._rk, -4._rk, -7._rk], BBox%b)
+    @AssertEqual([2._rk, 5._rk, 6._rk], BBox%e)
+
+  end subroutine FromPoints3DRank2
+
+  @Test
+  subroutine FromPoints2DRank3(this)
+
+    class(t_bounding_box_test), intent(inout) :: this
+
+    type(ovk_bbox) :: BBox
+    real(ovk_rk), dimension(2,0,0) :: EmptyCoords
+    real(ovk_rk), dimension(2,2,2) :: Coords
+
+    ! No points
+    BBox = ovkBBFromPoints(EmptyCoords)
+    @AssertEqual(2, BBox%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox))
+
+    ! One or more points
+    Coords(:,1,1) = [2._rk, -4._rk]
+    Coords(:,2,1) = [-3._rk, 5._rk]
+    Coords(:,1,2) = [4._rk, -6._rk]
+    Coords(:,2,2) = [-5._rk, 7._rk]
+    BBox = ovkBBFromPoints(Coords)
+    @AssertEqual(2, BBox%nd)
+    @AssertEqual([-5._rk, -6._rk, 0._rk], BBox%b)
+    @AssertEqual([4._rk, 7._rk, 0._rk], BBox%e)
+
+  end subroutine FromPoints2DRank3
+
+  @Test
+  subroutine FromPoints3DRank3(this)
+
+    class(t_bounding_box_test), intent(inout) :: this
+
+    type(ovk_bbox) :: BBox
+    real(ovk_rk), dimension(3,0,0) :: EmptyCoords
+    real(ovk_rk), dimension(3,2,2) :: Coords
+
+    ! No points
+    BBox = ovkBBFromPoints(EmptyCoords)
+    @AssertEqual(3, BBox%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox))
+
+    ! One or more points
+    Coords(:,1,1) = [2._rk, -4._rk, 6._rk]
+    Coords(:,2,1) = [-3._rk, 5._rk, -7._rk]
+    Coords(:,1,2) = [4._rk, -6._rk, 8._rk]
+    Coords(:,2,2) = [-5._rk, 7._rk, -9._rk]
+    BBox = ovkBBFromPoints(Coords)
+    @AssertEqual(3, BBox%nd)
+    @AssertEqual([-5._rk, -6._rk, -9._rk], BBox%b)
+    @AssertEqual([4._rk, 7._rk, 8._rk], BBox%e)
+
+  end subroutine FromPoints3DRank3
+
+  @Test
+  subroutine FromPoints2DRank4(this)
+
+    class(t_bounding_box_test), intent(inout) :: this
+
+    type(ovk_bbox) :: BBox
+    real(ovk_rk), dimension(2,0,0,0) :: EmptyCoords
+    real(ovk_rk), dimension(2,2,2,2) :: Coords
+
+    ! No points
+    BBox = ovkBBFromPoints(EmptyCoords)
+    @AssertEqual(2, BBox%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox))
+
+    ! One or more points
+    Coords(:,1,1,1) = [2._rk, -4._rk]
+    Coords(:,2,1,1) = [-3._rk, 5._rk]
+    Coords(:,1,2,1) = [4._rk, -6._rk]
+    Coords(:,2,2,1) = [-5._rk, 7._rk]
+    Coords(:,1,1,2) = [6._rk, -8._rk]
+    Coords(:,2,1,2) = [-7._rk, 9._rk]
+    Coords(:,1,2,2) = [8._rk, -10._rk]
+    Coords(:,2,2,2) = [-9._rk, 11._rk]
+    BBox = ovkBBFromPoints(Coords)
+    @AssertEqual(2, BBox%nd)
+    @AssertEqual([-9._rk, -10._rk, 0._rk], BBox%b)
+    @AssertEqual([8._rk, 11._rk, 0._rk], BBox%e)
+
+  end subroutine FromPoints2DRank4
+
+  @Test
+  subroutine FromPoints3DRank4(this)
+
+    class(t_bounding_box_test), intent(inout) :: this
+
+    type(ovk_bbox) :: BBox
+    real(ovk_rk), dimension(3,0,0,0) :: EmptyCoords
+    real(ovk_rk), dimension(3,2,2,2) :: Coords
+
+    ! No points
+    BBox = ovkBBFromPoints(EmptyCoords)
+    @AssertEqual(3, BBox%nd)
+    @AssertTrue(ovkBBIsEmpty(BBox))
+
+    ! One or more points
+    Coords(:,1,1,1) = [2._rk, -4._rk, 6._rk]
+    Coords(:,2,1,1) = [-3._rk, 5._rk, -7._rk]
+    Coords(:,1,2,1) = [4._rk, -6._rk, 8._rk]
+    Coords(:,2,2,1) = [-5._rk, 7._rk, -9._rk]
+    Coords(:,1,1,2) = [6._rk, -8._rk, 10._rk]
+    Coords(:,2,1,2) = [-7._rk, 9._rk, -11._rk]
+    Coords(:,1,2,2) = [8._rk, -10._rk, 12._rk]
+    Coords(:,2,2,2) = [-9._rk, 11._rk, -13._rk]
+    BBox = ovkBBFromPoints(Coords)
+    @AssertEqual(3, BBox%nd)
+    @AssertEqual([-9._rk, -10._rk, -13._rk], BBox%b)
+    @AssertEqual([8._rk, 11._rk, 12._rk], BBox%e)
+
+  end subroutine FromPoints3DRank4
+
+end module BoundingBoxTest

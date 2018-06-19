@@ -1,408 +1,482 @@
 ! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 ! License: MIT (http://opensource.org/licenses/MIT)
 
-@Test
-subroutine ovkHashGridTest_default(this)
+module HashGridTest
 
   use pFUnit_mod
   use Overkit
   use ovsGlobal
+  use ovkHashGrid, only : t_hash_grid, t_hash_grid_, HashGridBin, HashGridBinBounds, &
+    HashGridStats, HashGridHistogram
   implicit none
 
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_hash_grid) :: HashGrid
-
-  HashGrid = ovk_hash_grid_(2)
-
-  @AssertTrue(ovk_cart_(2) == HashGrid%cart)
-  @AssertTrue(ovk_bbox_(2) == HashGrid%bounds)
-  @AssertEqual(0._rk, HashGrid%bin_size)
-  @AssertFalse(allocated(HashGrid%bin_start))
-  @AssertFalse(allocated(HashGrid%bin_contents))
-
-  HashGrid = ovk_hash_grid_(3)
-
-  @AssertTrue(ovk_cart_(3) == HashGrid%cart)
-  @AssertTrue(ovk_bbox_(3) == HashGrid%bounds)
-  @AssertEqual(0._rk, HashGrid%bin_size)
-  @AssertFalse(allocated(HashGrid%bin_start))
-  @AssertFalse(allocated(HashGrid%bin_contents))
-
-end subroutine ovkHashGridTest_default
-
-@Test
-subroutine ovkHashGridTest_allocated_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  integer(lk), dimension(9) :: ExpectedStart
-  type(ovk_hash_grid) :: HashGrid
-
-  Cart = ovk_cart_(2, [2,4])
-  Bounds = ovk_bbox_(2, [1._rk, 3._rk], [2._rk, 4._rk])
-
-  nBinEntries = ovk_field_int_(Cart)
-
-  nBinEntries%values(1,1,1) = 1
-  nBinEntries%values(2,1,1) = 2
-  nBinEntries%values(1,2,1) = 3
-  nBinEntries%values(2,2,1) = 4
-  nBinEntries%values(1,3,1) = 5
-  nBinEntries%values(2,3,1) = 6
-  nBinEntries%values(1,4,1) = 7
-  nBinEntries%values(2,4,1) = 8
-
-  ExpectedStart(1) = 1
-  ExpectedStart(2) = 2
-  ExpectedStart(3) = 4
-  ExpectedStart(4) = 7
-  ExpectedStart(5) = 11
-  ExpectedStart(6) = 16
-  ExpectedStart(7) = 22
-  ExpectedStart(8) = 29
-  ExpectedStart(9) = 37
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  @AssertTrue(Cart == HashGrid%cart)
-  @AssertTrue(Bounds == HashGrid%bounds)
-  @AssertEqual([0.5_rk, 0.25_rk, 0._rk], HashGrid%bin_size)
-  @AssertTrue(allocated(HashGrid%bin_start))
-  @AssertTrue(all(ExpectedStart == HashGrid%bin_start))
-  @AssertTrue(allocated(HashGrid%bin_contents))
-  @AssertEqual(36, size(HashGrid%bin_contents))
-
-end subroutine ovkHashGridTest_allocated_2d
-
-@Test
-subroutine ovkHashGridTest_allocated_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  integer(lk), dimension(17) :: ExpectedStart
-  type(ovk_hash_grid) :: HashGrid
-
-  Cart = ovk_cart_(3, [2,2,4])
-  Bounds = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [2._rk, 4._rk, 6._rk])
-
-  nBinEntries = ovk_field_int_(Cart)
-
-  nBinEntries%values(1,1,1) = 1
-  nBinEntries%values(2,1,1) = 2
-  nBinEntries%values(1,2,1) = 3
-  nBinEntries%values(2,2,1) = 4
-  nBinEntries%values(1,1,2) = 5
-  nBinEntries%values(2,1,2) = 6
-  nBinEntries%values(1,2,2) = 7
-  nBinEntries%values(2,2,2) = 8
-  nBinEntries%values(1,1,3) = 9
-  nBinEntries%values(2,1,3) = 10
-  nBinEntries%values(1,2,3) = 11
-  nBinEntries%values(2,2,3) = 12
-  nBinEntries%values(1,1,4) = 13
-  nBinEntries%values(2,1,4) = 14
-  nBinEntries%values(1,2,4) = 15
-  nBinEntries%values(2,2,4) = 16
-
-  ExpectedStart(1) = 1
-  ExpectedStart(2) = 2
-  ExpectedStart(3) = 4
-  ExpectedStart(4) = 7
-  ExpectedStart(5) = 11
-  ExpectedStart(6) = 16
-  ExpectedStart(7) = 22
-  ExpectedStart(8) = 29
-  ExpectedStart(9) = 37
-  ExpectedStart(10) = 46
-  ExpectedStart(11) = 56
-  ExpectedStart(12) = 67
-  ExpectedStart(13) = 79
-  ExpectedStart(14) = 92
-  ExpectedStart(15) = 106
-  ExpectedStart(16) = 121
-  ExpectedStart(17) = 137
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  @AssertTrue(Cart == HashGrid%cart)
-  @AssertTrue(Bounds == HashGrid%bounds)
-  @AssertEqual([0.5_rk, 0.5_rk, 0.25_rk], HashGrid%bin_size)
-  @AssertTrue(allocated(HashGrid%bin_start))
-  @AssertTrue(all(ExpectedStart == HashGrid%bin_start))
-  @AssertTrue(allocated(HashGrid%bin_contents))
-  @AssertEqual(136, size(HashGrid%bin_contents))
-
-end subroutine ovkHashGridTest_allocated_3d
-
-@Test
-subroutine ovkHashGridTest_bin_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  type(ovk_hash_grid) :: HashGrid
-  integer, dimension(2) :: Bin
-
-  Cart = ovk_cart_(2, [2,4])
-  Bounds = ovk_bbox_(2, [1._rk, 2._rk], [2._rk, 4._rk])
-  nBinEntries = ovk_field_int_(Cart, 0)
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  ! Interior
-  Bin = ovkHashGridBin(HashGrid, [1.25_rk, 2.25_rk])
-  @AssertEqual([1,1], Bin)
-  Bin = ovkHashGridBin(HashGrid, [1.75_rk, 3.75_rk])
-  @AssertEqual([2,4], Bin)
-
-  ! Boundaries
-  Bin = ovkHashGridBin(HashGrid, [1._rk, 2._rk])
-  @AssertEqual([1,1], Bin)
-  Bin = ovkHashGridBin(HashGrid, [2._rk, 4._rk])
-  @AssertEqual([2,4], Bin)
-
-  ! Outside
-  Bin = ovkHashGridBin(HashGrid, [-0.25_rk, 1.75_rk])
-  @AssertEqual(0, Bin)
-  Bin = ovkHashGridBin(HashGrid, [2.25_rk, 4.25_rk])
-  @AssertEqual(0, Bin)
-
-end subroutine ovkHashGridTest_bin_2d
-
-@Test
-subroutine ovkHashGridTest_bin_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  type(ovk_hash_grid) :: HashGrid
-  integer, dimension(3) :: Bin
-
-  Cart = ovk_cart_(3, [2,4,6])
-  Bounds = ovk_bbox_(3, [1._rk, 2._rk, 3._rk], [2._rk, 4._rk, 6._rk])
-  nBinEntries = ovk_field_int_(Cart, 0)
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  ! Interior
-  Bin = ovkHashGridBin(HashGrid, [1.25_rk, 2.25_rk, 3.25_rk])
-  @AssertEqual([1,1,1], Bin)
-  Bin = ovkHashGridBin(HashGrid, [1.75_rk, 3.75_rk, 5.75_rk])
-  @AssertEqual([2,4,6], Bin)
-
-  ! Boundaries
-  Bin = ovkHashGridBin(HashGrid, [1._rk, 2._rk, 3._rk])
-  @AssertEqual([1,1,1], Bin)
-  Bin = ovkHashGridBin(HashGrid, [2._rk, 4._rk, 6._rk])
-  @AssertEqual([2,4,6], Bin)
-
-  ! Outside
-  Bin = ovkHashGridBin(HashGrid, [-0.25_rk, 1.75_rk, 2.75_rk])
-  @AssertEqual(0, Bin)
-  Bin = ovkHashGridBin(HashGrid, [2.25_rk, 4.25_rk, 6.25_rk])
-  @AssertEqual(0, Bin)
-
-end subroutine ovkHashGridTest_bin_3d
-
-@Test
-subroutine ovkHashGridTest_bin_bounds_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  type(ovk_hash_grid) :: HashGrid
-  type(ovk_bbox) :: BinBounds, ExpectedBinBounds
-
-  Cart = ovk_cart_(2, [2,4])
-  Bounds = ovk_bbox_(2, [1._rk, 2._rk], [2._rk, 4._rk])
-  nBinEntries = ovk_field_int_(Cart, 0)
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  BinBounds = ovkHashGridBinBounds(HashGrid, [1,1])
-  ExpectedBinBounds = ovk_bbox_(2, [1._rk, 2._rk], [1.5_rk, 2.5_rk])
-  @AssertTrue(ExpectedBinBounds == BinBounds)
-
-  BinBounds = ovkHashGridBinBounds(HashGrid, [1,2])
-  ExpectedBinBounds = ovk_bbox_(2, [1._rk, 2.5_rk], [1.5_rk, 3._rk])
-  @AssertTrue(ExpectedBinBounds == BinBounds)
-
-  BinBounds = ovkHashGridBinBounds(HashGrid, [2,4])
-  ExpectedBinBounds = ovk_bbox_(2, [1.5_rk, 3.5_rk], [2._rk, 4._rk])
-  @AssertTrue(ExpectedBinBounds == BinBounds)
-
-end subroutine ovkHashGridTest_bin_bounds_2d
-
-@Test
-subroutine ovkHashGridTest_bin_bounds_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  type(ovk_hash_grid) :: HashGrid
-  type(ovk_bbox) :: BinBounds, ExpectedBinBounds
-
-  Cart = ovk_cart_(3, [2,4,6])
-  Bounds = ovk_bbox_(3, [1._rk, 2._rk, 3._rk], [2._rk, 4._rk, 6._rk])
-  nBinEntries = ovk_field_int_(Cart, 0)
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  BinBounds = ovkHashGridBinBounds(HashGrid, [1,1,1])
-  ExpectedBinBounds = ovk_bbox_(3, [1._rk, 2._rk, 3._rk], [1.5_rk, 2.5_rk, 3.5_rk])
-  @AssertTrue(ExpectedBinBounds == BinBounds)
-
-  BinBounds = ovkHashGridBinBounds(HashGrid, [1,2,3])
-  ExpectedBinBounds = ovk_bbox_(3, [1._rk, 2.5_rk, 4._rk], [1.5_rk, 3._rk, 4.5_rk])
-  @AssertTrue(ExpectedBinBounds == BinBounds)
-
-  BinBounds = ovkHashGridBinBounds(HashGrid, [2,4,6])
-  ExpectedBinBounds = ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [2._rk, 4._rk, 6._rk])
-  @AssertTrue(ExpectedBinBounds == BinBounds)
-
-end subroutine ovkHashGridTest_bin_bounds_3d
-
-@Test
-subroutine ovkHashGridTest_stats_2d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  type(ovk_hash_grid) :: HashGrid
-  integer(lk) :: nBins
-  integer(lk) :: nNonEmptyBins
-  integer :: MinBinEntries, MaxBinEntries
-  integer(lk) :: TotalBinEntries
-
-  Cart = ovk_cart_(2, [2,4])
-  Bounds = ovk_bbox_(2, [1._rk, 3._rk], [2._rk, 4._rk])
-
-  nBinEntries = ovk_field_int_(Cart)
-
-  nBinEntries%values(1,1,1) = 1
-  nBinEntries%values(2,1,1) = 0
-  nBinEntries%values(1,2,1) = 3
-  nBinEntries%values(2,2,1) = 0
-  nBinEntries%values(1,3,1) = 5
-  nBinEntries%values(2,3,1) = 0
-  nBinEntries%values(1,4,1) = 7
-  nBinEntries%values(2,4,1) = 0
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  call ovkHashGridStats(HashGrid, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, &
-    TotalBinEntries)
-
-  @AssertTrue(8_lk == nBins)
-  @AssertTrue(4_lk == nNonEmptyBins)
-  @AssertEqual(0, MinBinEntries)
-  @AssertEqual(7, MaxBinEntries)
-  @AssertTrue(16_lk == TotalBinEntries)
-
-end subroutine ovkHashGridTest_stats_2d
-
-@Test
-subroutine ovkHashGridTest_stats_3d(this)
-
-  use pFUnit_mod
-  use Overkit
-  use ovsGlobal
-  implicit none
-
-  class(TestCase), intent(inout) :: this
-
-  type(ovk_cart) :: Cart
-  type(ovk_bbox) :: Bounds
-  type(ovk_field_int) :: nBinEntries
-  type(ovk_hash_grid) :: HashGrid
-  integer(lk) :: nBins
-  integer(lk) :: nNonEmptyBins
-  integer :: MinBinEntries, MaxBinEntries
-  integer(lk) :: TotalBinEntries
-
-  Cart = ovk_cart_(3, [2,2,4])
-  Bounds = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [2._rk, 4._rk, 6._rk])
-
-  nBinEntries = ovk_field_int_(Cart)
-
-  nBinEntries%values(1,1,1) = 1
-  nBinEntries%values(2,1,1) = 0
-  nBinEntries%values(1,2,1) = 3
-  nBinEntries%values(2,2,1) = 0
-  nBinEntries%values(1,1,2) = 5
-  nBinEntries%values(2,1,2) = 0
-  nBinEntries%values(1,2,2) = 7
-  nBinEntries%values(2,2,2) = 0
-  nBinEntries%values(1,1,3) = 9
-  nBinEntries%values(2,1,3) = 0
-  nBinEntries%values(1,2,3) = 11
-  nBinEntries%values(2,2,3) = 0
-  nBinEntries%values(1,1,4) = 13
-  nBinEntries%values(2,1,4) = 0
-  nBinEntries%values(1,2,4) = 15
-  nBinEntries%values(2,2,4) = 0
-
-  HashGrid = ovk_hash_grid_(Cart, Bounds, nBinEntries)
-
-  call ovkHashGridStats(HashGrid, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, &
-    TotalBinEntries)
-
-  @AssertTrue(16_lk == nBins)
-  @AssertTrue(8_lk == nNonEmptyBins)
-  @AssertEqual(0, MinBinEntries)
-  @AssertEqual(15, MaxBinEntries)
-  @AssertTrue(64_lk == TotalBinEntries)
-
-end subroutine ovkHashGridTest_stats_3d
+  @TestCase
+  type, extends(TestCase) :: t_hash_grid_test
+  end type t_hash_grid_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(t_hash_grid) :: HashGrid
+
+    HashGrid = t_hash_grid_()
+
+    @AssertTrue(ovk_cart_() == HashGrid%cart)
+    @AssertTrue(ovk_bbox_() == HashGrid%bounds)
+    @AssertEqual(0._rk, HashGrid%bin_size)
+    @AssertFalse(allocated(HashGrid%bin_start))
+    @AssertFalse(allocated(HashGrid%bin_contents))
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine Create2D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    integer(lk), dimension(9) :: ExpectedStart
+    type(t_hash_grid) :: HashGrid
+
+    ! Empty
+    HashGrid = t_hash_grid_(2)
+
+    @AssertTrue(ovk_cart_(2) == HashGrid%cart)
+    @AssertTrue(ovk_bbox_(2) == HashGrid%bounds)
+    @AssertEqual(0._rk, HashGrid%bin_size)
+    @AssertFalse(allocated(HashGrid%bin_start))
+    @AssertFalse(allocated(HashGrid%bin_contents))
+
+    ! Allocated
+    Cart = ovk_cart_(2, [2,4])
+    Bounds = ovk_bbox_(2, [1._rk, 3._rk], [2._rk, 4._rk])
+
+    nBinEntries = ovk_field_int_(Cart)
+
+    nBinEntries%values(1,1,1) = 1
+    nBinEntries%values(2,1,1) = 2
+    nBinEntries%values(1,2,1) = 3
+    nBinEntries%values(2,2,1) = 4
+    nBinEntries%values(1,3,1) = 5
+    nBinEntries%values(2,3,1) = 6
+    nBinEntries%values(1,4,1) = 7
+    nBinEntries%values(2,4,1) = 8
+
+    ExpectedStart(1) = 1
+    ExpectedStart(2) = 2
+    ExpectedStart(3) = 4
+    ExpectedStart(4) = 7
+    ExpectedStart(5) = 11
+    ExpectedStart(6) = 16
+    ExpectedStart(7) = 22
+    ExpectedStart(8) = 29
+    ExpectedStart(9) = 37
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    @AssertTrue(Cart == HashGrid%cart)
+    @AssertTrue(Bounds == HashGrid%bounds)
+    @AssertEqual([0.5_rk, 0.25_rk, 0._rk], HashGrid%bin_size)
+    @AssertTrue(allocated(HashGrid%bin_start))
+    @AssertTrue(all(ExpectedStart == HashGrid%bin_start))
+    @AssertTrue(allocated(HashGrid%bin_contents))
+    @AssertEqual(36, size(HashGrid%bin_contents))
+
+  end subroutine Create2D
+
+  @Test
+  subroutine Create3D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    integer(lk), dimension(17) :: ExpectedStart
+    type(t_hash_grid) :: HashGrid
+
+    ! Empty
+    HashGrid = t_hash_grid_(3)
+
+    @AssertTrue(ovk_cart_(3) == HashGrid%cart)
+    @AssertTrue(ovk_bbox_(3) == HashGrid%bounds)
+    @AssertEqual(0._rk, HashGrid%bin_size)
+    @AssertFalse(allocated(HashGrid%bin_start))
+    @AssertFalse(allocated(HashGrid%bin_contents))
+
+    ! Allocated
+    Cart = ovk_cart_(3, [2,2,4])
+    Bounds = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [2._rk, 4._rk, 6._rk])
+
+    nBinEntries = ovk_field_int_(Cart)
+
+    nBinEntries%values(1,1,1) = 1
+    nBinEntries%values(2,1,1) = 2
+    nBinEntries%values(1,2,1) = 3
+    nBinEntries%values(2,2,1) = 4
+    nBinEntries%values(1,1,2) = 5
+    nBinEntries%values(2,1,2) = 6
+    nBinEntries%values(1,2,2) = 7
+    nBinEntries%values(2,2,2) = 8
+    nBinEntries%values(1,1,3) = 9
+    nBinEntries%values(2,1,3) = 10
+    nBinEntries%values(1,2,3) = 11
+    nBinEntries%values(2,2,3) = 12
+    nBinEntries%values(1,1,4) = 13
+    nBinEntries%values(2,1,4) = 14
+    nBinEntries%values(1,2,4) = 15
+    nBinEntries%values(2,2,4) = 16
+
+    ExpectedStart(1) = 1
+    ExpectedStart(2) = 2
+    ExpectedStart(3) = 4
+    ExpectedStart(4) = 7
+    ExpectedStart(5) = 11
+    ExpectedStart(6) = 16
+    ExpectedStart(7) = 22
+    ExpectedStart(8) = 29
+    ExpectedStart(9) = 37
+    ExpectedStart(10) = 46
+    ExpectedStart(11) = 56
+    ExpectedStart(12) = 67
+    ExpectedStart(13) = 79
+    ExpectedStart(14) = 92
+    ExpectedStart(15) = 106
+    ExpectedStart(16) = 121
+    ExpectedStart(17) = 137
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    @AssertTrue(Cart == HashGrid%cart)
+    @AssertTrue(Bounds == HashGrid%bounds)
+    @AssertEqual([0.5_rk, 0.5_rk, 0.25_rk], HashGrid%bin_size)
+    @AssertTrue(allocated(HashGrid%bin_start))
+    @AssertTrue(all(ExpectedStart == HashGrid%bin_start))
+    @AssertTrue(allocated(HashGrid%bin_contents))
+    @AssertEqual(136, size(HashGrid%bin_contents))
+
+  end subroutine Create3D
+
+  @Test
+  subroutine Bin2D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    integer, dimension(2) :: Bin
+
+    Cart = ovk_cart_(2, [2,4])
+    Bounds = ovk_bbox_(2, [1._rk, 2._rk], [2._rk, 4._rk])
+    nBinEntries = ovk_field_int_(Cart, 0)
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    ! Interior
+    Bin = HashGridBin(HashGrid, [1.25_rk, 2.25_rk])
+    @AssertEqual([1,1], Bin)
+    Bin = HashGridBin(HashGrid, [1.75_rk, 3.75_rk])
+    @AssertEqual([2,4], Bin)
+
+    ! Boundaries
+    Bin = HashGridBin(HashGrid, [1._rk, 2._rk])
+    @AssertEqual([1,1], Bin)
+    Bin = HashGridBin(HashGrid, [2._rk, 4._rk])
+    @AssertEqual([2,4], Bin)
+
+    ! Outside
+    Bin = HashGridBin(HashGrid, [-0.25_rk, 1.75_rk])
+    @AssertEqual(0, Bin)
+    Bin = HashGridBin(HashGrid, [2.25_rk, 4.25_rk])
+    @AssertEqual(0, Bin)
+
+  end subroutine Bin2D
+
+  @Test
+  subroutine Bin3D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    integer, dimension(3) :: Bin
+
+    Cart = ovk_cart_(3, [2,4,6])
+    Bounds = ovk_bbox_(3, [1._rk, 2._rk, 3._rk], [2._rk, 4._rk, 6._rk])
+    nBinEntries = ovk_field_int_(Cart, 0)
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    ! Interior
+    Bin = HashGridBin(HashGrid, [1.25_rk, 2.25_rk, 3.25_rk])
+    @AssertEqual([1,1,1], Bin)
+    Bin = HashGridBin(HashGrid, [1.75_rk, 3.75_rk, 5.75_rk])
+    @AssertEqual([2,4,6], Bin)
+
+    ! Boundaries
+    Bin = HashGridBin(HashGrid, [1._rk, 2._rk, 3._rk])
+    @AssertEqual([1,1,1], Bin)
+    Bin = HashGridBin(HashGrid, [2._rk, 4._rk, 6._rk])
+    @AssertEqual([2,4,6], Bin)
+
+    ! Outside
+    Bin = HashGridBin(HashGrid, [-0.25_rk, 1.75_rk, 2.75_rk])
+    @AssertEqual(0, Bin)
+    Bin = HashGridBin(HashGrid, [2.25_rk, 4.25_rk, 6.25_rk])
+    @AssertEqual(0, Bin)
+
+  end subroutine Bin3D
+
+  @Test
+  subroutine BinBounds2D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    type(ovk_bbox) :: BinBounds, ExpectedBinBounds
+
+    Cart = ovk_cart_(2, [2,4])
+    Bounds = ovk_bbox_(2, [1._rk, 2._rk], [2._rk, 4._rk])
+    nBinEntries = ovk_field_int_(Cart, 0)
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    BinBounds = HashGridBinBounds(HashGrid, [1,1])
+    ExpectedBinBounds = ovk_bbox_(2, [1._rk, 2._rk], [1.5_rk, 2.5_rk])
+    @AssertTrue(ExpectedBinBounds == BinBounds)
+
+    BinBounds = HashGridBinBounds(HashGrid, [1,2])
+    ExpectedBinBounds = ovk_bbox_(2, [1._rk, 2.5_rk], [1.5_rk, 3._rk])
+    @AssertTrue(ExpectedBinBounds == BinBounds)
+
+    BinBounds = HashGridBinBounds(HashGrid, [2,4])
+    ExpectedBinBounds = ovk_bbox_(2, [1.5_rk, 3.5_rk], [2._rk, 4._rk])
+    @AssertTrue(ExpectedBinBounds == BinBounds)
+
+  end subroutine BinBounds2D
+
+  @Test
+  subroutine BindBounds3D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    type(ovk_bbox) :: BinBounds, ExpectedBinBounds
+
+    Cart = ovk_cart_(3, [2,4,6])
+    Bounds = ovk_bbox_(3, [1._rk, 2._rk, 3._rk], [2._rk, 4._rk, 6._rk])
+    nBinEntries = ovk_field_int_(Cart, 0)
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    BinBounds = HashGridBinBounds(HashGrid, [1,1,1])
+    ExpectedBinBounds = ovk_bbox_(3, [1._rk, 2._rk, 3._rk], [1.5_rk, 2.5_rk, 3.5_rk])
+    @AssertTrue(ExpectedBinBounds == BinBounds)
+
+    BinBounds = HashGridBinBounds(HashGrid, [1,2,3])
+    ExpectedBinBounds = ovk_bbox_(3, [1._rk, 2.5_rk, 4._rk], [1.5_rk, 3._rk, 4.5_rk])
+    @AssertTrue(ExpectedBinBounds == BinBounds)
+
+    BinBounds = HashGridBinBounds(HashGrid, [2,4,6])
+    ExpectedBinBounds = ovk_bbox_(3, [1.5_rk, 3.5_rk, 5.5_rk], [2._rk, 4._rk, 6._rk])
+    @AssertTrue(ExpectedBinBounds == BinBounds)
+
+  end subroutine BindBounds3D
+
+  @Test
+  subroutine Stats2D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    integer(lk) :: nBins
+    integer(lk) :: nNonEmptyBins
+    integer :: MinBinEntries, MaxBinEntries
+    integer(lk) :: TotalBinEntries
+
+    Cart = ovk_cart_(2, [2,4])
+    Bounds = ovk_bbox_(2, [1._rk, 3._rk], [2._rk, 4._rk])
+
+    nBinEntries = ovk_field_int_(Cart)
+
+    nBinEntries%values(1,1,1) = 1
+    nBinEntries%values(2,1,1) = 0
+    nBinEntries%values(1,2,1) = 3
+    nBinEntries%values(2,2,1) = 0
+    nBinEntries%values(1,3,1) = 5
+    nBinEntries%values(2,3,1) = 0
+    nBinEntries%values(1,4,1) = 7
+    nBinEntries%values(2,4,1) = 0
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    call HashGridStats(HashGrid, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, TotalBinEntries)
+
+    @AssertTrue(8_lk == nBins)
+    @AssertTrue(4_lk == nNonEmptyBins)
+    @AssertEqual(0, MinBinEntries)
+    @AssertEqual(7, MaxBinEntries)
+    @AssertTrue(16_lk == TotalBinEntries)
+
+  end subroutine Stats2D
+
+  @Test
+  subroutine Stats3D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    integer(lk) :: nBins
+    integer(lk) :: nNonEmptyBins
+    integer :: MinBinEntries, MaxBinEntries
+    integer(lk) :: TotalBinEntries
+
+    Cart = ovk_cart_(3, [2,2,4])
+    Bounds = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [2._rk, 4._rk, 6._rk])
+
+    nBinEntries = ovk_field_int_(Cart)
+
+    nBinEntries%values(1,1,1) = 1
+    nBinEntries%values(2,1,1) = 0
+    nBinEntries%values(1,2,1) = 3
+    nBinEntries%values(2,2,1) = 0
+    nBinEntries%values(1,1,2) = 5
+    nBinEntries%values(2,1,2) = 0
+    nBinEntries%values(1,2,2) = 7
+    nBinEntries%values(2,2,2) = 0
+    nBinEntries%values(1,1,3) = 9
+    nBinEntries%values(2,1,3) = 0
+    nBinEntries%values(1,2,3) = 11
+    nBinEntries%values(2,2,3) = 0
+    nBinEntries%values(1,1,4) = 13
+    nBinEntries%values(2,1,4) = 0
+    nBinEntries%values(1,2,4) = 15
+    nBinEntries%values(2,2,4) = 0
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    call HashGridStats(HashGrid, nBins, nNonEmptyBins, MinBinEntries, MaxBinEntries, TotalBinEntries)
+
+    @AssertTrue(16_lk == nBins)
+    @AssertTrue(8_lk == nNonEmptyBins)
+    @AssertEqual(0, MinBinEntries)
+    @AssertEqual(15, MaxBinEntries)
+    @AssertTrue(64_lk == TotalBinEntries)
+
+  end subroutine Stats3D
+
+  @Test
+  subroutine Histogram2D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    integer(lk), dimension(1) :: ExpectedHistogram1
+    integer(lk), dimension(1) :: Histogram1
+    integer(lk), dimension(8) :: ExpectedHistogram2
+    integer(lk), dimension(8) :: Histogram2
+
+    Cart = ovk_cart_(2, [2,4])
+    Bounds = ovk_bbox_(2, [1._rk, 3._rk], [2._rk, 4._rk])
+
+    nBinEntries = ovk_field_int_(Cart)
+
+    nBinEntries%values(1,1,1) = 1
+    nBinEntries%values(2,1,1) = 0
+    nBinEntries%values(1,2,1) = 3
+    nBinEntries%values(2,2,1) = 0
+    nBinEntries%values(1,3,1) = 5
+    nBinEntries%values(2,3,1) = 0
+    nBinEntries%values(1,4,1) = 7
+    nBinEntries%values(2,4,1) = 0
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    ! Single bin
+    ExpectedHistogram1 = 8_lk
+    call HashGridHistogram(HashGrid, 0, 7, 1, Histogram1)
+
+    ! Bin for every value
+    ExpectedHistogram2 = [4, 1, 0, 1, 0, 1, 0, 1]
+    call HashGridHistogram(HashGrid, 0, 7, 8, Histogram2)
+
+    @AssertTrue(all(ExpectedHistogram2 == Histogram2))
+
+  end subroutine Histogram2D
+
+  @Test
+  subroutine Histogram3D(this)
+
+    class(t_hash_grid_test), intent(inout) :: this
+
+    type(ovk_cart) :: Cart
+    type(ovk_bbox) :: Bounds
+    type(ovk_field_int) :: nBinEntries
+    type(t_hash_grid) :: HashGrid
+    integer(lk), dimension(1) :: ExpectedHistogram1
+    integer(lk), dimension(1) :: Histogram1
+    integer(lk), dimension(16) :: ExpectedHistogram2
+    integer(lk), dimension(16) :: Histogram2
+
+    Cart = ovk_cart_(3, [2,2,4])
+    Bounds = ovk_bbox_(3, [1._rk, 3._rk, 5._rk], [2._rk, 4._rk, 6._rk])
+
+    nBinEntries = ovk_field_int_(Cart)
+
+    nBinEntries%values(1,1,1) = 1
+    nBinEntries%values(2,1,1) = 0
+    nBinEntries%values(1,2,1) = 3
+    nBinEntries%values(2,2,1) = 0
+    nBinEntries%values(1,1,2) = 5
+    nBinEntries%values(2,1,2) = 0
+    nBinEntries%values(1,2,2) = 7
+    nBinEntries%values(2,2,2) = 0
+    nBinEntries%values(1,1,3) = 9
+    nBinEntries%values(2,1,3) = 0
+    nBinEntries%values(1,2,3) = 11
+    nBinEntries%values(2,2,3) = 0
+    nBinEntries%values(1,1,4) = 13
+    nBinEntries%values(2,1,4) = 0
+    nBinEntries%values(1,2,4) = 15
+    nBinEntries%values(2,2,4) = 0
+
+    HashGrid = t_hash_grid_(Cart, Bounds, nBinEntries)
+
+    ! Single bin
+    ExpectedHistogram1 = 16_lk
+    call HashGridHistogram(HashGrid, 0, 15, 1, Histogram1)
+
+    ! Bin for every value
+    ExpectedHistogram2 = [8, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+    call HashGridHistogram(HashGrid, 0, 15, 16, Histogram2)
+
+    @AssertTrue(all(ExpectedHistogram2 == Histogram2))
+
+  end subroutine Histogram3D
+
+end module HashGridTest

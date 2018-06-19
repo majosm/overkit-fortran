@@ -16,7 +16,7 @@ module ovkOverlapAccel
 
   private
 
-  ! Internal
+  ! Internal API
   public :: t_overlap_accel
   public :: t_overlap_accel_
   public :: CreateOverlapAccel

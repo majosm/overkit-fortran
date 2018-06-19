@@ -15,7 +15,7 @@ module ovkDomain
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_domain
   public :: ovkCreateDomain
   public :: ovkDestroyDomain
@@ -41,12 +41,17 @@ module ovkDomain
   public :: ovkEditConnectivity
   public :: ovkReleaseConnectivity
 
-  ! Internal
+  ! Internal API
   public :: ovk_domain_
   public :: t_domain_edits
   public :: GetDomainEdits
   public :: ResetDomainEdits
   public :: PrintDomainSummary
+
+  ! For tests only
+  public :: EditingGrid
+  public :: EditingOverlap
+  public :: EditingConnectivity
 
   type t_domain_edits
     logical, dimension(:,:), allocatable :: overlap_dependencies
@@ -1031,8 +1036,6 @@ contains
     if (Success) then
       StartEdit = Domain%grid_edit_ref_counts(GridID) == 0
       Domain%grid_edit_ref_counts(GridID) = Domain%grid_edit_ref_counts(GridID) + 1
-    else
-      StartEdit = .false.
     end if
 
   end subroutine TryEditGrid
@@ -1049,8 +1052,6 @@ contains
     if (Success) then
       Domain%grid_edit_ref_counts(GridID) = Domain%grid_edit_ref_counts(GridID) - 1
       EndEdit = Domain%grid_edit_ref_counts(GridID) == 0
-    else
-      EndEdit = .false.
     end if
 
   end subroutine TryReleaseGrid
@@ -1070,8 +1071,6 @@ contains
       StartEdit = Domain%overlap_edit_ref_counts(OverlappingGridID,OverlappedGridID) == 0
       Domain%overlap_edit_ref_counts(OverlappingGridID,OverlappedGridID) = &
         Domain%overlap_edit_ref_counts(OverlappingGridID,OverlappedGridID) + 1
-    else
-      StartEdit = .false.
     end if
 
   end subroutine TryEditOverlap
@@ -1090,8 +1089,6 @@ contains
       Domain%overlap_edit_ref_counts(OverlappingGridID,OverlappedGridID) = &
         Domain%overlap_edit_ref_counts(OverlappingGridID,OverlappedGridID) - 1
       EndEdit = Domain%overlap_edit_ref_counts(OverlappingGridID,OverlappedGridID) == 0
-    else
-      EndEdit = .false.
     end if
 
   end subroutine TryReleaseOverlap
@@ -1111,8 +1108,6 @@ contains
       StartEdit = Domain%connectivity_edit_ref_counts(DonorGridID,ReceiverGridID) == 0
       Domain%connectivity_edit_ref_counts(DonorGridID,ReceiverGridID) = &
         Domain%connectivity_edit_ref_counts(DonorGridID,ReceiverGridID) + 1
-    else
-      StartEdit = .false.
     end if
 
   end subroutine TryEditConnectivity
@@ -1130,8 +1125,6 @@ contains
       Domain%connectivity_edit_ref_counts(DonorGridID,ReceiverGridID) = &
         Domain%connectivity_edit_ref_counts(DonorGridID,ReceiverGridID) - 1
       EndEdit = Domain%connectivity_edit_ref_counts(DonorGridID,ReceiverGridID) == 0
-    else
-      EndEdit = .false.
     end if
 
   end subroutine TryReleaseConnectivity

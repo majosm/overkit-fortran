@@ -10,7 +10,7 @@ module ovkFieldOps
 
   private
 
-  ! API
+  ! Public API
   public :: ovkDetectEdge
   public :: ovkDilate
   public :: ovkErode

@@ -11,7 +11,7 @@ module ovkGlobal
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_rk
   public :: ovk_lk
   public :: ovk_bk
@@ -28,7 +28,7 @@ module ovkGlobal
   public :: OVK_CONNECTION_NONE, OVK_CONNECTION_NEAREST, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
   public :: OVK_OCCLUDES_NONE, OVK_OCCLUDES_ALL, OVK_OCCLUDES_COARSE
 
-  ! Internal
+  ! Internal API
   public :: rk
   public :: lk
   public :: bk

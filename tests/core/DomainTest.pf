@@ -1,0 +1,511 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module DomainTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  use ovkGlobal, only : CheckExists
+  use ovkDomain, only : ovk_domain_, EditingGrid, EditingOverlap, EditingConnectivity
+  use ovkLogger, only : t_logger, t_logger_, operator (==)
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_domain_test
+  end type t_domain_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+
+    Domain = ovk_domain_()
+
+    @AssertFalse(CheckExists(Domain%existence_flag))
+    @AssertTrue(t_logger_() == Domain%logger)
+    @AssertEqual(2, Domain%nd)
+    @AssertEqual(0, Domain%ngrids)
+    @AssertFalse(associated(Domain%grid))
+    @AssertFalse(allocated(Domain%grid_edit_ref_counts))
+    @AssertFalse(associated(Domain%overlap))
+    @AssertFalse(allocated(Domain%overlap_edit_ref_counts))
+    @AssertFalse(associated(Domain%connectivity))
+    @AssertFalse(allocated(Domain%connectivity_edit_ref_counts))
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine CreateDestroy(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    integer :: m, n
+    type(ovk_domain) :: Domain
+
+    call ovkCreateDomain(Domain, 2, 3)
+
+    @AssertTrue(CheckExists(Domain%existence_flag))
+    @AssertTrue(t_logger_() == Domain%logger)
+    @AssertEqual(2, Domain%nd)
+    @AssertEqual(3, Domain%ngrids)
+
+    @AssertTrue(associated(Domain%grid))
+    @AssertEqual(3, size(Domain%grid))
+    do m = 1, 3
+      @AssertFalse(ovkGridExists(Domain%grid(m)))
+    end do
+
+    @AssertTrue(allocated(Domain%grid_edit_ref_counts))
+    @AssertEqual(3, size(Domain%grid_edit_ref_counts))
+    @AssertEqual(0, Domain%grid_edit_ref_counts)
+
+    @AssertTrue(associated(Domain%overlap))
+    @AssertEqual([3,3], shape(Domain%overlap))
+    do n = 1, 3
+      do m = 1, 3
+        @AssertFalse(ovkOverlapExists(Domain%overlap(m,n)))
+      end do
+    end do
+
+    @AssertTrue(allocated(Domain%overlap_edit_ref_counts))
+    @AssertEqual([3,3], shape(Domain%overlap_edit_ref_counts))
+    @AssertEqual(0, Domain%overlap_edit_ref_counts)
+
+    @AssertTrue(associated(Domain%connectivity))
+    @AssertEqual([3,3], shape(Domain%connectivity))
+    do n = 1, 3
+      do m = 1, 3
+        @AssertFalse(ovkConnectivityExists(Domain%connectivity(m,n)))
+      end do
+    end do
+
+    @AssertTrue(allocated(Domain%connectivity_edit_ref_counts))
+    @AssertEqual([3,3], shape(Domain%connectivity_edit_ref_counts))
+    @AssertEqual(0, Domain%connectivity_edit_ref_counts)
+
+    call ovkCreateGrid(Domain, 1, [5,6])
+    call ovkCreateGrid(Domain, 2, [7,8])
+    call ovkCreateOverlap(Domain, 1, 2)
+    call ovkCreateConnectivity(Domain, 1, 2)
+
+    call ovkDestroyDomain(Domain)
+
+    @AssertFalse(CheckExists(Domain%existence_flag))
+    @AssertFalse(associated(Domain%grid))
+    @AssertFalse(allocated(Domain%grid_edit_ref_counts))
+    @AssertFalse(associated(Domain%overlap))
+    @AssertFalse(allocated(Domain%overlap_edit_ref_counts))
+    @AssertFalse(associated(Domain%connectivity))
+    @AssertFalse(allocated(Domain%connectivity_edit_ref_counts))
+
+  end subroutine CreateDestroy
+
+  @Test
+  subroutine Exists(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+
+    @AssertFalse(ovkDomainExists(Domain))
+
+    call ovkCreateDomain(Domain, 2, 3)
+
+    @AssertTrue(ovkDomainExists(Domain))
+
+    call ovkDestroyDomain(Domain)
+
+    @AssertFalse(ovkDomainExists(Domain))
+
+  end subroutine Exists
+
+  @Test
+  subroutine SimpleGetters(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    integer :: NumDims
+    integer :: NumGrids
+
+    call ovkCreateDomain(Domain, 2, 3)
+
+    call ovkGetDomainDimension(Domain, NumDims)
+    @AssertEqual(2, NumDims)
+
+    call ovkGetDomainGridCount(Domain, NumGrids)
+    @AssertEqual(3, NumGrids)
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine SimpleGetters
+
+  @Test
+  subroutine CreateDestroyGrid2D(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    integer :: GridID
+    integer :: NumDims
+    integer, dimension(2) :: NumPoints
+    logical, dimension(2) :: Periodic
+    integer :: PeriodicStorage
+    real(rk), dimension(2) :: PeriodicLength
+    integer :: GeometryType
+
+    call ovkCreateDomain(Domain, 2, 3)
+
+    ! Without optional arguments
+    call ovkCreateGrid(Domain, 2, [5,6])
+
+    @AssertTrue(ovkGridExists(Domain%grid(2)))
+    @AssertTrue(ovkHasGrid(Domain, 2))
+
+    call ovkGetGridID(Domain%grid(2), GridID)
+    @AssertEqual(2, GridID)
+
+    call ovkGetGridDimension(Domain%grid(2), NumDims)
+    @AssertEqual(2, NumDims)
+
+    call ovkGetGridSize(Domain%grid(2), NumPoints)
+    @AssertEqual([5,6], NumPoints)
+
+    call ovkGetGridPeriodicity(Domain%grid(2), Periodic)
+    @AssertTrue(all([.false.,.false.] .eqv. Periodic))
+
+    call ovkGetGridPeriodicStorage(Domain%grid(2), PeriodicStorage)
+    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, PeriodicStorage)
+
+    call ovkGetGridPeriodicLength(Domain%grid(2), PeriodicLength)
+    @AssertEqual([0._rk, 0._rk], PeriodicLength)
+
+    call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
+    @AssertEqual(OVK_GRID_GEOMETRY_CURVILINEAR, GeometryType)
+
+    call ovkDestroyGrid(Domain, 2)
+
+    @AssertFalse(ovkGridExists(Domain%grid(2)))
+    @AssertFalse(ovkHasGrid(Domain, 2))
+
+    ! With optional arguments
+    call ovkCreateGrid(Domain, 2, [5,6], Periodic=[.false.,.true.], &
+      PeriodicStorage=OVK_OVERLAP_PERIODIC, PeriodicLength=[0._rk, 1._rk], &
+      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+
+    @AssertTrue(ovkGridExists(Domain%grid(2)))
+    @AssertTrue(ovkHasGrid(Domain, 2))
+
+    call ovkGetGridID(Domain%grid(2), GridID)
+    @AssertEqual(2, GridID)
+
+    call ovkGetGridDimension(Domain%grid(2), NumDims)
+    @AssertEqual(2, NumDims)
+
+    call ovkGetGridSize(Domain%grid(2), NumPoints)
+    @AssertEqual([5,6], NumPoints)
+
+    call ovkGetGridPeriodicity(Domain%grid(2), Periodic)
+    @AssertTrue(all([.false.,.true.] .eqv. Periodic))
+
+    call ovkGetGridPeriodicStorage(Domain%grid(2), PeriodicStorage)
+    @AssertEqual(OVK_OVERLAP_PERIODIC, PeriodicStorage)
+
+    call ovkGetGridPeriodicLength(Domain%grid(2), PeriodicLength)
+    @AssertEqual([0._rk, 1._rk], PeriodicLength)
+
+    call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
+    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+
+    call ovkDestroyGrid(Domain, 2)
+
+    @AssertFalse(ovkGridExists(Domain%grid(2)))
+    @AssertFalse(ovkHasGrid(Domain, 2))
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine CreateDestroyGrid2D
+
+  @Test
+  subroutine CreateDestroyGrid3D(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    integer :: GridID
+    integer :: NumDims
+    integer, dimension(3) :: NumPoints
+    logical, dimension(3) :: Periodic
+    integer :: PeriodicStorage
+    real(rk), dimension(3) :: PeriodicLength
+    integer :: GeometryType
+
+    call ovkCreateDomain(Domain, 3, 3)
+
+    ! Without optional arguments
+    call ovkCreateGrid(Domain, 2, [5,6,7])
+
+    @AssertTrue(ovkGridExists(Domain%grid(2)))
+    @AssertTrue(ovkHasGrid(Domain, 2))
+
+    call ovkGetGridID(Domain%grid(2), GridID)
+    @AssertEqual(2, GridID)
+
+    call ovkGetGridDimension(Domain%grid(2), NumDims)
+    @AssertEqual(3, NumDims)
+
+    call ovkGetGridSize(Domain%grid(2), NumPoints)
+    @AssertEqual([5,6,7], NumPoints)
+
+    call ovkGetGridPeriodicity(Domain%grid(2), Periodic)
+    @AssertTrue(all([.false.,.false.,.false.] .eqv. Periodic))
+
+    call ovkGetGridPeriodicStorage(Domain%grid(2), PeriodicStorage)
+    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, PeriodicStorage)
+
+    call ovkGetGridPeriodicLength(Domain%grid(2), PeriodicLength)
+    @AssertEqual([0._rk, 0._rk, 0._rk], PeriodicLength)
+
+    call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
+    @AssertEqual(OVK_GRID_GEOMETRY_CURVILINEAR, GeometryType)
+
+    call ovkDestroyGrid(Domain, 2)
+
+    @AssertFalse(ovkGridExists(Domain%grid(2)))
+    @AssertFalse(ovkHasGrid(Domain, 2))
+
+    ! With optional arguments
+    call ovkCreateGrid(Domain, 2, [5,6,7], Periodic=[.false.,.false.,.true.], &
+      PeriodicStorage=OVK_OVERLAP_PERIODIC, PeriodicLength=[0._rk, 0._rk, 1._rk], &
+      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+
+    @AssertTrue(ovkGridExists(Domain%grid(2)))
+    @AssertTrue(ovkHasGrid(Domain, 2))
+
+    call ovkGetGridID(Domain%grid(2), GridID)
+    @AssertEqual(2, GridID)
+
+    call ovkGetGridDimension(Domain%grid(2), NumDims)
+    @AssertEqual(3, NumDims)
+
+    call ovkGetGridSize(Domain%grid(2), NumPoints)
+    @AssertEqual([5,6,7], NumPoints)
+
+    call ovkGetGridPeriodicity(Domain%grid(2), Periodic)
+    @AssertTrue(all([.false.,.false.,.true.] .eqv. Periodic))
+
+    call ovkGetGridPeriodicStorage(Domain%grid(2), PeriodicStorage)
+    @AssertEqual(OVK_OVERLAP_PERIODIC, PeriodicStorage)
+
+    call ovkGetGridPeriodicLength(Domain%grid(2), PeriodicLength)
+    @AssertEqual([0._rk, 0._rk, 1._rk], PeriodicLength)
+
+    call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
+    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+
+    call ovkDestroyGrid(Domain, 2)
+
+    @AssertFalse(ovkGridExists(Domain%grid(2)))
+    @AssertFalse(ovkHasGrid(Domain, 2))
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine CreateDestroyGrid3D
+
+  @Test
+  subroutine AccessGrid(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    type(ovk_grid), pointer :: Grid
+
+    call ovkCreateDomain(Domain, 2, 3)
+
+    call ovkCreateGrid(Domain, 2, [5,6])
+
+    @AssertFalse(EditingGrid(Domain))
+    @AssertFalse(EditingGrid(Domain, 2))
+
+    call ovkEditGrid(Domain, 2, Grid)
+
+    @AssertTrue(EditingGrid(Domain))
+    @AssertTrue(EditingGrid(Domain, 2))
+    @AssertTrue(associated(Grid, Domain%grid(2)))
+
+    call ovkReleaseGrid(Domain, Grid)
+
+    @AssertFalse(EditingGrid(Domain))
+    @AssertFalse(EditingGrid(Domain, 2))
+    @AssertFalse(associated(Grid))
+
+    call ovkGetGrid(Domain, 2, Grid)
+
+    @AssertFalse(EditingGrid(Domain))
+    @AssertFalse(EditingGrid(Domain, 2))
+    @AssertTrue(associated(Grid, Domain%grid(2)))
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine AccessGrid
+
+  @Test
+  subroutine CreateDestroyOverlap(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
+
+    call ovkCreateDomain(Domain, 2, 2)
+
+    call ovkCreateGrid(Domain, 1, [5,6])
+    call ovkCreateGrid(Domain, 2, [7,8])
+
+    call ovkCreateOverlap(Domain, 1, 2)
+
+    @AssertTrue(ovkOverlapExists(Domain%overlap(1,2)))
+    @AssertTrue(ovkHasOverlap(Domain, 1, 2))
+
+    call ovkGetOverlapOverlappingGrid(Domain%overlap(1,2), OverlappingGrid)
+    @AssertTrue(associated(OverlappingGrid, Domain%grid(1)))
+
+    call ovkGetOverlapOverlappedGrid(Domain%overlap(1,2), OverlappedGrid)
+    @AssertTrue(associated(OverlappedGrid, Domain%grid(2)))
+
+    call ovkDestroyOverlap(Domain, 1, 2)
+
+    @AssertFalse(ovkOverlapExists(Domain%overlap(1,2)))
+    @AssertFalse(ovkHasOverlap(Domain, 1, 2))
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine CreateDestroyOverlap
+
+  @Test
+  subroutine AccessOverlap(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    type(ovk_overlap), pointer :: Overlap
+
+    call ovkCreateDomain(Domain, 2, 2)
+
+    call ovkCreateGrid(Domain, 1, [5,6])
+    call ovkCreateGrid(Domain, 2, [7,8])
+
+    call ovkCreateOverlap(Domain, 1, 2)
+
+    @AssertFalse(EditingOverlap(Domain))
+    @AssertFalse(EditingOverlap(Domain, 1, 2))
+
+    call ovkEditOverlap(Domain, 1, 2, Overlap)
+
+    @AssertTrue(EditingOverlap(Domain))
+    @AssertTrue(EditingOverlap(Domain, OverlappingGridID=1))
+    @AssertTrue(EditingOverlap(Domain, OverlappedGridID=2))
+    @AssertTrue(EditingOverlap(Domain, 1, 2))
+    @AssertTrue(associated(Overlap, Domain%overlap(1,2)))
+
+    call ovkReleaseOverlap(Domain, Overlap)
+
+    @AssertFalse(EditingOverlap(Domain))
+    @AssertFalse(EditingOverlap(Domain, OverlappingGridID=1))
+    @AssertFalse(EditingOverlap(Domain, OverlappedGridID=2))
+    @AssertFalse(EditingOverlap(Domain, 1, 2))
+    @AssertFalse(associated(Overlap))
+
+    call ovkGetOverlap(Domain, 1, 2, Overlap)
+
+    @AssertFalse(EditingOverlap(Domain))
+    @AssertFalse(EditingOverlap(Domain, 1, 2))
+    @AssertTrue(associated(Overlap, Domain%overlap(1,2)))
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine AccessOverlap
+
+  @Test
+  subroutine CreateDestroyConnectivity(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    type(ovk_grid), pointer :: DonorGrid, ReceiverGrid
+
+    call ovkCreateDomain(Domain, 2, 2)
+
+    call ovkCreateGrid(Domain, 1, [5,6])
+    call ovkCreateGrid(Domain, 2, [7,8])
+
+    call ovkCreateConnectivity(Domain, 1, 2)
+
+    @AssertTrue(ovkConnectivityExists(Domain%connectivity(1,2)))
+    @AssertTrue(ovkHasConnectivity(Domain, 1, 2))
+
+    call ovkGetConnectivityDonorGrid(Domain%connectivity(1,2), DonorGrid)
+    @AssertTrue(associated(DonorGrid, Domain%grid(1)))
+
+    call ovkGetConnectivityReceiverGrid(Domain%connectivity(1,2), ReceiverGrid)
+    @AssertTrue(associated(ReceiverGrid, Domain%grid(2)))
+
+    call ovkDestroyConnectivity(Domain, 1, 2)
+
+    @AssertFalse(ovkConnectivityExists(Domain%connectivity(1,2)))
+    @AssertFalse(ovkHasConnectivity(Domain, 1, 2))
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine CreateDestroyConnectivity
+
+  @Test
+  subroutine AccessConnectivity(this)
+
+    class(t_domain_test), intent(inout) :: this
+
+    type(ovk_domain) :: Domain
+    type(ovk_connectivity), pointer :: Connectivity
+
+    call ovkCreateDomain(Domain, 2, 2)
+
+    call ovkCreateGrid(Domain, 1, [5,6])
+    call ovkCreateGrid(Domain, 2, [7,8])
+
+    call ovkCreateConnectivity(Domain, 1, 2)
+
+    @AssertFalse(EditingConnectivity(Domain))
+    @AssertFalse(EditingConnectivity(Domain, 1, 2))
+
+    call ovkEditConnectivity(Domain, 1, 2, Connectivity)
+
+    @AssertTrue(EditingConnectivity(Domain))
+    @AssertTrue(EditingConnectivity(Domain, DonorGridID=1))
+    @AssertTrue(EditingConnectivity(Domain, ReceiverGridID=2))
+    @AssertTrue(EditingConnectivity(Domain, 1, 2))
+    @AssertTrue(associated(Connectivity, Domain%connectivity(1,2)))
+
+    call ovkReleaseConnectivity(Domain, Connectivity)
+
+    @AssertFalse(EditingConnectivity(Domain))
+    @AssertFalse(EditingConnectivity(Domain, DonorGridID=1))
+    @AssertFalse(EditingConnectivity(Domain, ReceiverGridID=2))
+    @AssertFalse(EditingConnectivity(Domain, 1, 2))
+    @AssertFalse(associated(Connectivity))
+
+    call ovkGetConnectivity(Domain, 1, 2, Connectivity)
+
+    @AssertFalse(EditingConnectivity(Domain))
+    @AssertFalse(EditingConnectivity(Domain, 1, 2))
+    @AssertTrue(associated(Connectivity, Domain%connectivity(1,2)))
+
+    call ovkDestroyDomain(Domain)
+
+  end subroutine AccessConnectivity
+
+end module DomainTest

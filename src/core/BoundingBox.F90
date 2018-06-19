@@ -8,7 +8,7 @@ module ovkBoundingBox
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_bbox
   public :: ovk_bbox_
   public :: operator (==)

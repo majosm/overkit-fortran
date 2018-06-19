@@ -1,0 +1,188 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module CommandLineTest
+
+  use pFUnit_mod
+  use ovsGlobal
+  use ovsCommandLine
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_command_line_test
+  end type t_command_line_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_command_line_test), intent(inout) :: this
+
+    type(t_cmd_opt) :: Option
+
+    Option = t_cmd_opt_()
+
+    @AssertEqual("", trim(Option%long_name))
+    @AssertEqual("", trim(Option%short_name))
+    @AssertEqual(CMD_OPT_NONE, Option%value_type)
+    @AssertEqual("", trim(Option%description))
+    @AssertFalse(Option%is_present)
+    @AssertEqual("", trim(Option%value))
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine Create(this)
+
+    class(t_command_line_test), intent(inout) :: this
+
+    type(t_cmd_opt) :: Option
+
+    Option = t_cmd_opt_("longname", "s", CMD_OPT_INTEGER, "description")
+
+    @AssertEqual("longname", trim(Option%long_name))
+    @AssertEqual("s", trim(Option%short_name))
+    @AssertEqual(CMD_OPT_INTEGER, Option%value_type)
+    @AssertEqual("description", trim(Option%description))
+    @AssertFalse(Option%is_present)
+    @AssertEqual("", trim(Option%value))
+
+  end subroutine Create
+
+  @Test
+  subroutine ParseOptions(this)
+
+    class(t_command_line_test), intent(inout) :: this
+
+    type(t_cmd_opt), dimension(12) :: Options
+    character(len=256), dimension(13) :: RawArguments
+    character(len=256), dimension(:), allocatable :: Arguments
+
+    character(len=256) :: StringValue
+    integer :: IntegerValue
+    real(rk) :: RealValue
+
+    Options(1) = t_cmd_opt_("alfa", "a", CMD_OPT_NONE, "novalue-singledash")
+    Options(2) = t_cmd_opt_("bravo", "b", CMD_OPT_NONE, "novalue-doubledash")
+    Options(3) = t_cmd_opt_("charlie", "c", CMD_OPT_NONE, "novalue-notpresent")
+    Options(4) = t_cmd_opt_("delta", "d", CMD_OPT_STRING, "string-singledash")
+    Options(5) = t_cmd_opt_("echo", "e", CMD_OPT_STRING, "string-doubledash")
+    Options(6) = t_cmd_opt_("foxtrot", "f", CMD_OPT_STRING, "string-notpresent")
+    Options(7) = t_cmd_opt_("golf", "g", CMD_OPT_INTEGER, "integer-singledash")
+    Options(8) = t_cmd_opt_("hotel", "h", CMD_OPT_INTEGER, "integer-doubledash")
+    Options(9) = t_cmd_opt_("india", "i", CMD_OPT_INTEGER, "integer-notpresent")
+    Options(10) = t_cmd_opt_("juliett", "j", CMD_OPT_REAL, "real-singledash")
+    Options(11) = t_cmd_opt_("kilo", "k", CMD_OPT_REAL, "real-doubledash")
+    Options(12) = t_cmd_opt_("lima", "l", CMD_OPT_REAL, "real-notpresent")
+
+    RawArguments(1) = "-a"
+    RawArguments(2) = "--bravo"
+    RawArguments(3) = "-d"
+    RawArguments(4) = "hi"
+    RawArguments(5) = "--echo=hi"
+    RawArguments(6) = "-g"
+    RawArguments(7) = "12345"
+    RawArguments(8) = "--hotel=12345"
+    RawArguments(9) = "-j"
+    RawArguments(10) = "0.5"
+    RawArguments(11) = "--kilo=0.5"
+    RawArguments(12) = "other"
+    RawArguments(13) = "args"
+
+    call ParseCommandLineArguments(RawArguments, Usage="usage", Description="description", &
+      LongDescription="longdescription", Options=Options, Arguments=Arguments)
+
+    ! No value, single dash
+    @AssertTrue(CommandLineOptionPresent(Options(1)))
+
+    ! No value, double dash
+    @AssertTrue(CommandLineOptionPresent(Options(2)))
+
+    ! No value, not present
+    @AssertFalse(CommandLineOptionPresent(Options(3)))
+
+    ! String value, single dash
+    @AssertTrue(CommandLineOptionPresent(Options(4)))
+    call GetCommandLineOptionValue(Options(4), StringValue)
+    @AssertEqual("hi", trim(StringValue))
+    call GetCommandLineOptionValue(Options(4), StringValue, "")
+    @AssertEqual("hi", trim(StringValue))
+
+    ! String value, double dash
+    @AssertTrue(CommandLineOptionPresent(Options(5)))
+    call GetCommandLineOptionValue(Options(5), StringValue)
+    @AssertEqual("hi", trim(StringValue))
+    call GetCommandLineOptionValue(Options(5), StringValue, "")
+    @AssertEqual("hi", trim(StringValue))
+
+    ! String value, not present
+    @AssertFalse(CommandLineOptionPresent(Options(6)))
+    call GetCommandLineOptionValue(Options(6), StringValue, "default")
+    @AssertEqual("default", trim(StringValue))
+
+    ! Integer value, single dash
+    @AssertTrue(CommandLineOptionPresent(Options(7)))
+    call GetCommandLineOptionValue(Options(7), IntegerValue)
+    @AssertEqual(12345, IntegerValue)
+    call GetCommandLineOptionValue(Options(7), IntegerValue, -1)
+    @AssertEqual(12345, IntegerValue)
+
+    ! Integer value, double dash
+    @AssertTrue(CommandLineOptionPresent(Options(8)))
+    call GetCommandLineOptionValue(Options(8), IntegerValue)
+    @AssertEqual(12345, IntegerValue)
+    call GetCommandLineOptionValue(Options(8), IntegerValue, -1)
+    @AssertEqual(12345, IntegerValue)
+
+    ! Integer value, not present
+    @AssertFalse(CommandLineOptionPresent(Options(9)))
+    call GetCommandLineOptionValue(Options(9), IntegerValue, -1)
+    @AssertEqual(-1, IntegerValue)
+
+    ! Real value, single dash
+    @AssertTrue(CommandLineOptionPresent(Options(10)))
+    call GetCommandLineOptionValue(Options(10), RealValue)
+    @AssertEqual(0.5_rk, RealValue)
+    call GetCommandLineOptionValue(Options(10), RealValue, -1._rk)
+    @AssertEqual(0.5_rk, RealValue)
+
+    ! Real value, double dash
+    @AssertTrue(CommandLineOptionPresent(Options(11)))
+    call GetCommandLineOptionValue(Options(11), RealValue)
+    @AssertEqual(0.5_rk, RealValue)
+    call GetCommandLineOptionValue(Options(11), RealValue, -1._rk)
+    @AssertEqual(0.5_rk, RealValue)
+
+    ! Real value, not present
+    @AssertFalse(CommandLineOptionPresent(Options(12)))
+    call GetCommandLineOptionValue(Options(12), RealValue, -1._rk)
+    @AssertEqual(-1._rk, RealValue)
+
+  end subroutine ParseOptions
+
+  @Test
+  subroutine ParseArguments(this)
+
+    class(t_command_line_test), intent(inout) :: this
+
+    character(len=256), dimension(4) :: RawArguments
+    character(len=256), dimension(:), allocatable :: Arguments
+
+    RawArguments(1) = "hi"
+    RawArguments(2) = "12345"
+    RawArguments(3) = ""
+    RawArguments(4) = "0.5"
+
+    call ParseCommandLineArguments(RawArguments, Usage="usage", Description="description", &
+      LongDescription="longdescription", Arguments=Arguments, MinArguments=1, MaxArguments=4)
+
+    @AssertEqual(4, size(Arguments))
+    @AssertEqual("hi", trim(Arguments(1)))
+    @AssertEqual("12345", trim(Arguments(2)))
+    @AssertEqual("", trim(Arguments(3)))
+    @AssertEqual("0.5", trim(Arguments(4)))
+
+  end subroutine ParseArguments
+
+end module CommandLineTest

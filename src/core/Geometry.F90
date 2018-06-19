@@ -11,7 +11,7 @@ module ovkGeometry
 
   private
 
-  ! API
+  ! Public API
   public :: ovkOverlapsRectangle
   public :: ovkOverlapsCuboid
   public :: ovkOverlapsOrientedRectangle

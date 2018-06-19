@@ -11,26 +11,7 @@ if(TESTS)
   if(PFUNIT_FOUND)
 
     set(UNIT_TEST_SOURCES
-      ArrayTest.pf
-      AssemblyOptionsTest.pf
-      BoundingBoxTest.pf
-      CartTest.pf
-      ConnectivityTest.pf
-      DomainTest.pf
-      DonorStencilTest.pf
-      FieldOpsTest.pf
-      FieldTest.pf
-      GeometryTest.pf
-      GlobalTest.pf
-      GridTest.pf
-      HashGridTest.pf
-      LoggerTest.pf
-      OverlapAccelTest.pf
-      OverlapTest.pf
-    )
-
-    set(EXTRA_SOURCES
-      TestFixtures.F90
+      CommandLineTest.pf
     )
 
     # Create the test suites file
@@ -65,11 +46,11 @@ if(TESTS)
     # Find testSuites.inc file
     include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-    add_executable(runtests-core "${PFUNIT_DRIVER}" ${PROCESSED_TEST_SOURCES} ${EXTRA_SOURCES})
-    target_link_libraries(runtests-core overkit overkit-support "${PFUNIT_LIBRARY}")
+    add_executable(runtests-support "${PFUNIT_DRIVER}" ${PROCESSED_TEST_SOURCES})
+    target_link_libraries(runtests-support overkit overkit-support "${PFUNIT_LIBRARY}")
 
-    add_test(NAME core-unit-tests
-      COMMAND "${CMAKE_COMMAND}" -DTEST_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/runtests-core
+    add_test(NAME support-unit-tests
+      COMMAND "${CMAKE_COMMAND}" -DTEST_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/runtests-support
         -P "${CMAKE_SOURCE_DIR}/config/scripts/pfunit-passfail.cmake")
 
   endif()

@@ -1,0 +1,697 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module AssemblyOptionsTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_assembly_options_test
+  end type t_assembly_options_test
+
+contains
+
+  @Test
+  subroutine DefaultInitialize(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    Options = ovk_assembly_options_()
+
+    @AssertEqual(2, Options%nd)
+    @AssertEqual(0, Options%ngrids)
+
+  end subroutine DefaultInitialize
+
+  @Test
+  subroutine Create(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    integer :: NumDims
+    integer :: NumGrids
+
+    Options = ovk_assembly_options_(3, 2)
+
+    @AssertEqual(3, Options%nd)
+    @AssertEqual(2, Options%ngrids)
+
+    @AssertTrue(allocated(Options%overlappable))
+    @AssertEqual([2,2], shape(Options%overlappable))
+    @AssertFalse(any(Options%overlappable))
+
+    @AssertTrue(allocated(Options%overlap_tolerance))
+    @AssertEqual([2,2], shape(Options%overlap_tolerance))
+    @AssertEqual(1.e-12_rk, Options%overlap_tolerance)
+
+    @AssertTrue(allocated(Options%overlap_accel_depth_adjust))
+    @AssertEqual(2, size(Options%overlap_accel_depth_adjust))
+    @AssertEqual(0._rk, Options%overlap_accel_depth_adjust)
+
+    @AssertTrue(allocated(Options%overlap_accel_resolution_adjust))
+    @AssertEqual(2, size(Options%overlap_accel_resolution_adjust))
+    @AssertEqual(0._rk, Options%overlap_accel_resolution_adjust)
+
+    @AssertTrue(allocated(Options%infer_boundaries))
+    @AssertEqual(2, size(Options%infer_boundaries))
+    @AssertFalse(any(Options%infer_boundaries))
+
+    @AssertTrue(allocated(Options%cut_boundary_holes))
+    @AssertEqual([2,2], shape(Options%cut_boundary_holes))
+    @AssertFalse(any(Options%cut_boundary_holes))
+
+    @AssertTrue(allocated(Options%occludes))
+    @AssertEqual([2,2], shape(Options%occludes))
+    @AssertEqual(OVK_OCCLUDES_NONE, Options%occludes)
+
+    @AssertTrue(allocated(Options%edge_padding))
+    @AssertEqual([2,2], shape(Options%edge_padding))
+    @AssertEqual(0, Options%edge_padding)
+
+    @AssertTrue(allocated(Options%edge_smoothing))
+    @AssertEqual(2, size(Options%edge_smoothing))
+    @AssertEqual(0, Options%edge_smoothing)
+
+    @AssertTrue(allocated(Options%connection_type))
+    @AssertEqual([2,2], shape(Options%connection_type))
+    @AssertEqual(OVK_CONNECTION_NONE, Options%connection_type)
+
+    @AssertTrue(allocated(Options%fringe_size))
+    @AssertEqual(2, size(Options%fringe_size))
+    @AssertEqual(0, Options%fringe_size)
+
+    @AssertTrue(allocated(Options%minimize_overlap))
+    @AssertEqual([2,2], shape(Options%minimize_overlap))
+    @AssertFalse(any(Options%minimize_overlap))
+
+    ! Check getters
+    call ovkGetAssemblyOptionsDimension(Options, NumDims)
+    @AssertEqual(3, NumDims)
+    call ovkGetAssemblyOptionsGridCount(Options, NumGrids)
+    @AssertEqual(2, NumGrids)
+
+  end subroutine Create
+
+  @Test
+  subroutine Overlappable(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    logical, dimension(2,2) :: ExpectedValues
+    logical :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%overlappable = .false.
+
+    ! OVK_ALL_GRIDS for both arguments
+    call ovkSetAssemblyOptionOverlappable(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    ExpectedValues = .true.
+    @AssertTrue(all(ExpectedValues .eqv. Options%overlappable))
+
+    ! OVK_ALL_GRIDS for first argument
+    call ovkSetAssemblyOptionOverlappable(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionOverlappable(Options, OVK_ALL_GRIDS, 1, .false.)
+    ExpectedValues = reshape([ &
+      .false., .true., &
+      .false., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%overlappable))
+
+    ! OVK_ALL_GRIDS for second argument
+    call ovkSetAssemblyOptionOverlappable(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionOverlappable(Options, 1, OVK_ALL_GRIDS, .false.)
+    ExpectedValues = reshape([ &
+      .false., .false., &
+      .true., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%overlappable))
+
+    ! Individual element
+    call ovkSetAssemblyOptionOverlappable(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionOverlappable(Options, 1, 1, .false.)
+    ExpectedValues = reshape([ &
+      .false., .true., &
+      .true., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%overlappable))
+
+    ! Check getters
+    call ovkSetAssemblyOptionOverlappable(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionOverlappable(Options, 1, 2, .false.)
+    call ovkGetAssemblyOptionOverlappable(Options, 1, 1, Value)
+    @AssertTrue(Value)
+    call ovkGetAssemblyOptionOverlappable(Options, 1, 2, Value)
+    @AssertFalse(Value)
+    call ovkGetAssemblyOptionOverlappable(Options, 2, 1, Value)
+    @AssertTrue(Value)
+    call ovkGetAssemblyOptionOverlappable(Options, 2, 2, Value)
+    @AssertTrue(Value)
+
+  end subroutine Overlappable
+
+  @Test
+  subroutine OverlapTolerance(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    real(rk), dimension(2,2) :: ExpectedValues
+    real(rk) :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%overlap_tolerance = 0._rk
+
+    ! OVK_ALL_GRIDS for both arguments
+    call ovkSetAssemblyOptionOverlapTolerance(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1._rk)
+    ExpectedValues = 1._rk
+    @AssertTrue(all(ExpectedValues == Options%overlap_tolerance))
+
+    ! OVK_ALL_GRIDS for first argument
+    call ovkSetAssemblyOptionOverlapTolerance(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapTolerance(Options, OVK_ALL_GRIDS, 1, 0._rk)
+    ExpectedValues = reshape([ &
+      0._rk, 1._rk, &
+      0._rk, 1._rk &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%overlap_tolerance))
+
+    ! OVK_ALL_GRIDS for second argument
+    call ovkSetAssemblyOptionOverlapTolerance(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapTolerance(Options, 1, OVK_ALL_GRIDS, 0._rk) 
+    ExpectedValues = reshape([ &
+      0._rk, 0._rk, &
+      1._rk, 1._rk &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%overlap_tolerance))
+
+    ! Individual element
+    call ovkSetAssemblyOptionOverlapTolerance(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapTolerance(Options, 1, 1, 0._rk)
+    ExpectedValues = reshape([ &
+      0._rk, 1._rk, &
+      1._rk, 1._rk &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%overlap_tolerance))
+
+    ! Check getters
+    call ovkSetAssemblyOptionOverlapTolerance(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapTolerance(Options, 1, 2, 0._rk)
+    call ovkGetAssemblyOptionOverlapTolerance(Options, 1, 1, Value)
+    @AssertEqual(1._rk, Value)
+    call ovkGetAssemblyOptionOverlapTolerance(Options, 1, 2, Value)
+    @AssertEqual(0._rk, Value)
+    call ovkGetAssemblyOptionOverlapTolerance(Options, 2, 1, Value)
+    @AssertEqual(1._rk, Value)
+    call ovkGetAssemblyOptionOverlapTolerance(Options, 2, 2, Value)
+    @AssertEqual(1._rk, Value)
+
+  end subroutine OverlapTolerance
+
+  @Test
+  subroutine OverlapAccelDepthAdjust(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    real(rk), dimension(2) :: ExpectedValues
+    real(rk) :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%overlap_accel_depth_adjust = 0._rk
+
+    ! OVK_ALL_GRIDS
+    call ovkSetAssemblyOptionOverlapAccelDepthAdjust(Options, OVK_ALL_GRIDS, 1._rk)
+    ExpectedValues = 1._rk
+    @AssertTrue(all(ExpectedValues == Options%overlap_accel_depth_adjust))
+
+    ! Individual element
+    call ovkSetAssemblyOptionOverlapAccelDepthAdjust(Options, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapAccelDepthAdjust(Options, 1, 0._rk)
+    ExpectedValues = [0._rk, 1._rk]
+    @AssertTrue(all(ExpectedValues == Options%overlap_accel_depth_adjust))
+
+    ! Check getters
+    call ovkSetAssemblyOptionOverlapAccelDepthAdjust(Options, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapAccelDepthAdjust(Options, 2, 0._rk)
+    call ovkGetAssemblyOptionOverlapAccelDepthAdjust(Options, 1, Value)
+    @AssertEqual(1._rk, Value)
+    call ovkGetAssemblyOptionOverlapAccelDepthAdjust(Options, 2, Value)
+    @AssertEqual(0._rk, Value)
+
+  end subroutine OverlapAccelDepthAdjust
+
+  @Test
+  subroutine OverlapAccelResolutionAdjust(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    real(rk), dimension(2) :: ExpectedValues
+    real(rk) :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%overlap_accel_resolution_adjust = 0._rk
+
+    ! OVK_ALL_GRIDS
+    call ovkSetAssemblyOptionOverlapAccelResolutionAdjust(Options, OVK_ALL_GRIDS, 1._rk)
+    ExpectedValues = 1._rk
+    @AssertTrue(all(ExpectedValues == Options%overlap_accel_resolution_adjust))
+
+    ! Individual element
+    call ovkSetAssemblyOptionOverlapAccelResolutionAdjust(Options, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapAccelResolutionAdjust(Options, 1, 0._rk)
+    ExpectedValues = [0._rk, 1._rk]
+    @AssertTrue(all(ExpectedValues == Options%overlap_accel_resolution_adjust))
+
+    ! Check getters
+    call ovkSetAssemblyOptionOverlapAccelResolutionAdjust(Options, OVK_ALL_GRIDS, 1._rk)
+    call ovkSetAssemblyOptionOverlapAccelResolutionAdjust(Options, 2, 0._rk)
+    call ovkGetAssemblyOptionOverlapAccelResolutionAdjust(Options, 1, Value)
+    @AssertEqual(1._rk, Value)
+    call ovkGetAssemblyOptionOverlapAccelResolutionAdjust(Options, 2, Value)
+    @AssertEqual(0._rk, Value)
+
+  end subroutine OverlapAccelResolutionAdjust
+
+  @Test
+  subroutine InferBoundaries(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    logical, dimension(2) :: ExpectedValues
+    logical :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%infer_boundaries = .false.
+
+    ! OVK_ALL_GRIDS
+    call ovkSetAssemblyOptionInferBoundaries(Options, OVK_ALL_GRIDS, .true.)
+    ExpectedValues = .true.
+    @AssertTrue(all(ExpectedValues .eqv. Options%infer_boundaries))
+
+    ! Individual element
+    call ovkSetAssemblyOptionInferBoundaries(Options, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionInferBoundaries(Options, 1, .false.)
+    ExpectedValues = [.false.,.true.]
+    @AssertTrue(all(ExpectedValues .eqv. Options%infer_boundaries))
+
+    ! Check getters
+    call ovkSetAssemblyOptionInferBoundaries(Options, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionInferBoundaries(Options, 2, .false.)
+    call ovkGetAssemblyOptionInferBoundaries(Options, 1, Value)
+    @AssertTrue(Value)
+    call ovkGetAssemblyOptionInferBoundaries(Options, 2, Value)
+    @AssertFalse(Value)
+
+  end subroutine InferBoundaries
+
+  @Test
+  subroutine CutBoundaryHoles(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    logical, dimension(2,2) :: ExpectedValues
+    logical :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%cut_boundary_holes = .false.
+
+    ! OVK_ALL_GRIDS for both arguments
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    ExpectedValues = .true.
+    @AssertTrue(all(ExpectedValues .eqv. Options%cut_boundary_holes))
+
+    ! OVK_ALL_GRIDS for first argument
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, OVK_ALL_GRIDS, 1, .false.)
+    ExpectedValues = reshape([ &
+      .false., .true., &
+      .false., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%cut_boundary_holes))
+
+    ! OVK_ALL_GRIDS for second argument
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, 1, OVK_ALL_GRIDS, .false.)
+    ExpectedValues = reshape([ &
+      .false., .false., &
+      .true., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%cut_boundary_holes))
+
+    ! Individual element
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, 1, 1, .false.)
+    ExpectedValues = reshape([ &
+      .false., .true., &
+      .true., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%cut_boundary_holes))
+
+    ! Check getters
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionCutBoundaryHoles(Options, 1, 2, .false.)
+    call ovkGetAssemblyOptionCutBoundaryHoles(Options, 1, 1, Value)
+    @AssertTrue(Value)
+    call ovkGetAssemblyOptionCutBoundaryHoles(Options, 1, 2, Value)
+    @AssertFalse(Value)
+    call ovkGetAssemblyOptionCutBoundaryHoles(Options, 2, 1, Value)
+    @AssertTrue(Value)
+    call ovkGetAssemblyOptionCutBoundaryHoles(Options, 2, 2, Value)
+    @AssertTrue(Value)
+
+  end subroutine CutBoundaryHoles
+
+  @Test
+  subroutine Occludes(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    integer, dimension(2,2) :: ExpectedValues
+    integer :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%occludes = OVK_OCCLUDES_NONE
+
+    ! OVK_ALL_GRIDS for both arguments
+    call ovkSetAssemblyOptionOccludes(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_ALL)
+    ExpectedValues = OVK_OCCLUDES_ALL
+    @AssertTrue(all(ExpectedValues == Options%occludes))
+
+    ! OVK_ALL_GRIDS for first argument
+    call ovkSetAssemblyOptionOccludes(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_ALL)
+    call ovkSetAssemblyOptionOccludes(Options, OVK_ALL_GRIDS, 1, OVK_OCCLUDES_NONE)
+    ExpectedValues = reshape([ &
+      OVK_OCCLUDES_NONE, OVK_OCCLUDES_ALL, &
+      OVK_OCCLUDES_NONE, OVK_OCCLUDES_ALL &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%occludes))
+
+    ! OVK_ALL_GRIDS for second argument
+    call ovkSetAssemblyOptionOccludes(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_ALL)
+    call ovkSetAssemblyOptionOccludes(Options, 1, OVK_ALL_GRIDS, OVK_OCCLUDES_NONE) 
+    ExpectedValues = reshape([ &
+      OVK_OCCLUDES_NONE, OVK_OCCLUDES_NONE, &
+      OVK_OCCLUDES_ALL, OVK_OCCLUDES_ALL &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%occludes))
+
+    ! Individual element
+    call ovkSetAssemblyOptionOccludes(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_ALL)
+    call ovkSetAssemblyOptionOccludes(Options, 1, 1, OVK_OCCLUDES_NONE)
+    ExpectedValues = reshape([ &
+      OVK_OCCLUDES_NONE, OVK_OCCLUDES_ALL, &
+      OVK_OCCLUDES_ALL, OVK_OCCLUDES_ALL &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%occludes))
+
+    ! Check getters
+    call ovkSetAssemblyOptionOccludes(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_ALL)
+    call ovkSetAssemblyOptionOccludes(Options, 1, 2, OVK_OCCLUDES_NONE)
+    call ovkGetAssemblyOptionOccludes(Options, 1, 1, Value)
+    @AssertEqual(OVK_OCCLUDES_ALL, Value)
+    call ovkGetAssemblyOptionOccludes(Options, 1, 2, Value)
+    @AssertEqual(OVK_OCCLUDES_NONE, Value)
+    call ovkGetAssemblyOptionOccludes(Options, 2, 1, Value)
+    @AssertEqual(OVK_OCCLUDES_ALL, Value)
+    call ovkGetAssemblyOptionOccludes(Options, 2, 2, Value)
+    @AssertEqual(OVK_OCCLUDES_ALL, Value)
+
+  end subroutine Occludes
+
+  @Test
+  subroutine EdgePadding(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    integer, dimension(2,2) :: ExpectedValues
+    integer :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%edge_padding = 0
+
+    ! OVK_ALL_GRIDS for both arguments
+    call ovkSetAssemblyOptionEdgePadding(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1)
+    ExpectedValues = 1
+    @AssertTrue(all(ExpectedValues == Options%edge_padding))
+
+    ! OVK_ALL_GRIDS for first argument
+    call ovkSetAssemblyOptionEdgePadding(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionEdgePadding(Options, OVK_ALL_GRIDS, 1, 0)
+    ExpectedValues = reshape([ &
+      0, 1, &
+      0, 1 &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%edge_padding))
+
+    ! OVK_ALL_GRIDS for second argument
+    call ovkSetAssemblyOptionEdgePadding(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionEdgePadding(Options, 1, OVK_ALL_GRIDS, 0) 
+    ExpectedValues = reshape([ &
+      0, 0, &
+      1, 1 &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%edge_padding))
+
+    ! Individual element
+    call ovkSetAssemblyOptionEdgePadding(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionEdgePadding(Options, 1, 1, 0)
+    ExpectedValues = reshape([ &
+      0, 1, &
+      1, 1 &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%edge_padding))
+
+    ! Check getters
+    call ovkSetAssemblyOptionEdgePadding(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionEdgePadding(Options, 1, 2, 0)
+    call ovkGetAssemblyOptionEdgePadding(Options, 1, 1, Value)
+    @AssertEqual(1, Value)
+    call ovkGetAssemblyOptionEdgePadding(Options, 1, 2, Value)
+    @AssertEqual(0, Value)
+    call ovkGetAssemblyOptionEdgePadding(Options, 2, 1, Value)
+    @AssertEqual(1, Value)
+    call ovkGetAssemblyOptionEdgePadding(Options, 2, 2, Value)
+    @AssertEqual(1, Value)
+
+  end subroutine EdgePadding
+
+  @Test
+  subroutine EdgeSmoothing(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    integer, dimension(2) :: ExpectedValues
+    integer :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%edge_smoothing = 0
+
+    ! OVK_ALL_GRIDS
+    call ovkSetAssemblyOptionEdgeSmoothing(Options, OVK_ALL_GRIDS, 1)
+    ExpectedValues = 1
+    @AssertTrue(all(ExpectedValues == Options%edge_smoothing))
+
+    ! Individual element
+    call ovkSetAssemblyOptionEdgeSmoothing(Options, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionEdgeSmoothing(Options, 1, 0)
+    ExpectedValues = [0, 1]
+    @AssertTrue(all(ExpectedValues == Options%edge_smoothing))
+
+    ! Check getters
+    call ovkSetAssemblyOptionEdgeSmoothing(Options, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionEdgeSmoothing(Options, 2, 0)
+    call ovkGetAssemblyOptionEdgeSmoothing(Options, 1, Value)
+    @AssertEqual(1, Value)
+    call ovkGetAssemblyOptionEdgeSmoothing(Options, 2, Value)
+    @AssertEqual(0, Value)
+
+  end subroutine EdgeSmoothing
+
+  @Test
+  subroutine ConnectionType(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    integer, dimension(2,2) :: ExpectedValues
+    integer :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%connection_type = OVK_CONNECTION_NONE
+
+    ! OVK_ALL_GRIDS for both arguments
+    call ovkSetAssemblyOptionConnectionType(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_LINEAR)
+    ExpectedValues = OVK_CONNECTION_LINEAR
+    @AssertTrue(all(ExpectedValues == Options%connection_type))
+
+    ! OVK_ALL_GRIDS for first argument
+    call ovkSetAssemblyOptionConnectionType(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_LINEAR)
+    call ovkSetAssemblyOptionConnectionType(Options, OVK_ALL_GRIDS, 1, OVK_CONNECTION_NONE)
+    ExpectedValues = reshape([ &
+      OVK_CONNECTION_NONE, OVK_CONNECTION_LINEAR, &
+      OVK_CONNECTION_NONE, OVK_CONNECTION_LINEAR &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%connection_type))
+
+    ! OVK_ALL_GRIDS for second argument
+    call ovkSetAssemblyOptionConnectionType(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_LINEAR)
+    call ovkSetAssemblyOptionConnectionType(Options, 1, OVK_ALL_GRIDS, OVK_CONNECTION_NONE) 
+    ExpectedValues = reshape([ &
+      OVK_CONNECTION_NONE, OVK_CONNECTION_NONE, &
+      OVK_CONNECTION_LINEAR, OVK_CONNECTION_LINEAR &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%connection_type))
+
+    ! Individual element
+    call ovkSetAssemblyOptionConnectionType(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_LINEAR)
+    call ovkSetAssemblyOptionConnectionType(Options, 1, 1, OVK_CONNECTION_NONE)
+    ExpectedValues = reshape([ &
+      OVK_CONNECTION_NONE, OVK_CONNECTION_LINEAR, &
+      OVK_CONNECTION_LINEAR, OVK_CONNECTION_LINEAR &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues == Options%connection_type))
+
+    ! Check getters
+    call ovkSetAssemblyOptionConnectionType(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_LINEAR)
+    call ovkSetAssemblyOptionConnectionType(Options, 1, 2, OVK_CONNECTION_NONE)
+    call ovkGetAssemblyOptionConnectionType(Options, 1, 1, Value)
+    @AssertEqual(OVK_CONNECTION_LINEAR, Value)
+    call ovkGetAssemblyOptionConnectionType(Options, 1, 2, Value)
+    @AssertEqual(OVK_CONNECTION_NONE, Value)
+    call ovkGetAssemblyOptionConnectionType(Options, 2, 1, Value)
+    @AssertEqual(OVK_CONNECTION_LINEAR, Value)
+    call ovkGetAssemblyOptionConnectionType(Options, 2, 2, Value)
+    @AssertEqual(OVK_CONNECTION_LINEAR, Value)
+
+  end subroutine ConnectionType
+
+  @Test
+  subroutine FringeSize(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    integer, dimension(2) :: ExpectedValues
+    integer :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%fringe_size = 0
+
+    ! OVK_ALL_GRIDS
+    call ovkSetAssemblyOptionFringeSize(Options, OVK_ALL_GRIDS, 1)
+    ExpectedValues = 1
+    @AssertTrue(all(ExpectedValues == Options%fringe_size))
+
+    ! Individual element
+    call ovkSetAssemblyOptionFringeSize(Options, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionFringeSize(Options, 1, 0)
+    ExpectedValues = [0, 1]
+    @AssertTrue(all(ExpectedValues == Options%fringe_size))
+
+    ! Check getters
+    call ovkSetAssemblyOptionFringeSize(Options, OVK_ALL_GRIDS, 1)
+    call ovkSetAssemblyOptionFringeSize(Options, 2, 0)
+    call ovkGetAssemblyOptionFringeSize(Options, 1, Value)
+    @AssertEqual(1, Value)
+    call ovkGetAssemblyOptionFringeSize(Options, 2, Value)
+    @AssertEqual(0, Value)
+
+  end subroutine FringeSize
+
+  @Test
+  subroutine MinimizeOverlap(this)
+
+    class(t_assembly_options_test), intent(inout) :: this
+
+    type(ovk_assembly_options) :: Options
+
+    logical, dimension(2,2) :: ExpectedValues
+    logical :: Value
+
+    Options = ovk_assembly_options_(3, 2)
+
+    Options%minimize_overlap = .false.
+
+    ! OVK_ALL_GRIDS for both arguments
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    ExpectedValues = .true.
+    @AssertTrue(all(ExpectedValues .eqv. Options%minimize_overlap))
+
+    ! OVK_ALL_GRIDS for first argument
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, OVK_ALL_GRIDS, 1, .false.)
+    ExpectedValues = reshape([ &
+      .false., .true., &
+      .false., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%minimize_overlap))
+
+    ! OVK_ALL_GRIDS for second argument
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, 1, OVK_ALL_GRIDS, .false.)
+    ExpectedValues = reshape([ &
+      .false., .false., &
+      .true., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%minimize_overlap))
+
+    ! Individual element
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, 1, 1, .false.)
+    ExpectedValues = reshape([ &
+      .false., .true., &
+      .true., .true. &
+    ], [2,2], order=[2,1])
+    @AssertTrue(all(ExpectedValues .eqv. Options%minimize_overlap))
+
+    ! Check getters
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionMinimizeOverlap(Options, 1, 2, .false.)
+    call ovkGetAssemblyOptionMinimizeOverlap(Options, 1, 1, Value)
+    @AssertTrue(Value)
+    call ovkGetAssemblyOptionMinimizeOverlap(Options, 1, 2, Value)
+    @AssertFalse(Value)
+    call ovkGetAssemblyOptionMinimizeOverlap(Options, 2, 1, Value)
+    @AssertTrue(Value)
+    call ovkGetAssemblyOptionMinimizeOverlap(Options, 2, 2, Value)
+    @AssertTrue(Value)
+
+  end subroutine MinimizeOverlap
+
+end module AssemblyOptionsTest

@@ -8,7 +8,7 @@ module ovkCart
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_cart
   public :: ovk_cart_
   public :: operator (==)

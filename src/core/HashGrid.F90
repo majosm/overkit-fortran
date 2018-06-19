@@ -12,7 +12,7 @@ module ovkHashGrid
 
   private
 
-  ! Internal
+  ! Internal API
   public :: t_hash_grid
   public :: t_hash_grid_
   public :: HashGridBin

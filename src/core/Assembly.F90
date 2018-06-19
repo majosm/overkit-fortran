@@ -22,7 +22,7 @@ module ovkAssembly
 
   private
 
-  ! API
+  ! Public API
   public :: ovkAssemble
 
   type t_reduced_domain_info

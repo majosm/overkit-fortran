@@ -14,7 +14,7 @@ module ovkGrid
 
   private
 
-  ! API
+  ! Public API
   public :: ovk_grid
   public :: ovkGridExists
   public :: ovkGetGridID
@@ -68,13 +68,17 @@ module ovkGrid
   public :: OVK_INTERNAL_BOUNDARY_POINT
   public :: OVK_EXTERIOR_POINT
 
-  ! Internal
+  ! Internal API
   public :: ovk_grid_
   public :: t_grid_edits
   public :: CreateGrid
   public :: DestroyGrid
   public :: GetGridEdits
   public :: ResetGridEdits
+
+  ! For tests only
+  public :: EditingCoords
+  public :: EditingState
 
   type t_grid_edits
     logical :: coords

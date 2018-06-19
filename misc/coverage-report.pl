@@ -27,26 +27,17 @@ $unknownColor = 'fuchsia';
 
 # Annotations recognized, and the background color to use with them
 %blockColor = (
-  'ERRORHANDLING' => '#CFDCE6', # blue
-  'DEBUG' => '#E6E3CF', # yellow
-  'EXPERIMENTAL' => '#CFE6CF', # green
-  'UNUSED' => '#E6E6E6' # gray
+  'COVERAGEIGNORE' => '#E6E3CF'
 );
 
 # Ignore missed/unknown lines
 %blockIgnored = (
-  'ERRORHANDLING' => 1,
-  'EXPERIMENTAL' => 1,
-  'DEBUG' => 1,
-  'UNUSED' => 0
+  'COVERAGEIGNORE' => 1
 );
 
 # Ignore missed/unknown lines and warn if block contains executed lines
 %blockUnused = (
-  'ERRORHANDLING' => 0,
-  'EXPERIMENTAL' => 0,
-  'DEBUG' => 0,
-  'UNUSED' => 1
+  'COVERAGEIGNORE' => 0
 );
 
 $annotationBeginPrefixC  = '\/\*\s*\[';

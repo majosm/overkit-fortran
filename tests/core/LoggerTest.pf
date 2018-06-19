@@ -1,0 +1,106 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module LoggerTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  use ovkLogger, only : t_logger, t_logger_, EnableStatusLog, DisableStatusLog, EnableErrorLog, &
+    DisableErrorLog, operator (==), operator (/=)
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_logger_test
+  end type t_logger_test
+
+contains
+
+  @Test
+  subroutine Create(this)
+
+    class(t_logger_test), intent(inout) :: this
+
+    type(t_logger) :: Logger
+
+    Logger = t_logger_()
+
+    @AssertFalse(Logger%log_status)
+    @AssertFalse(Logger%log_errors)
+    @AssertEqual(-1, Logger%status_file)
+    @AssertEqual(-1, Logger%error_file)
+
+  end subroutine Create
+
+  @Test
+  subroutine EnableDisableLogging(this)
+
+    class(t_logger_test), intent(inout) :: this
+
+    type(t_logger) :: Logger
+
+    Logger = t_logger_()
+
+    call EnableStatusLog(Logger, OUTPUT_UNIT)
+
+    @AssertTrue(Logger%log_status)
+    @AssertEqual(OUTPUT_UNIT, Logger%status_file)
+
+    call DisableStatusLog(Logger)
+
+    @AssertFalse(Logger%log_status)
+    @AssertEqual(-1, Logger%status_file)
+
+    call EnableErrorLog(Logger, ERROR_UNIT)
+
+    @AssertTrue(Logger%log_errors)
+    @AssertEqual(ERROR_UNIT, Logger%error_file)
+
+    call DisableErrorLog(Logger)
+
+    @AssertFalse(Logger%log_errors)
+    @AssertEqual(-1, Logger%error_file)
+
+  end subroutine EnableDisableLogging
+
+  @Test
+  subroutine Equality(this)
+
+    class(t_logger_test), intent(inout) :: this
+
+    type(t_logger) :: Logger1, Logger2
+
+    Logger1 = t_logger_()
+    call EnableStatusLog(Logger1, OUTPUT_UNIT)
+    call EnableErrorLog(Logger1, ERROR_UNIT)
+
+    ! Self
+    @AssertTrue(Logger1 == Logger1)
+
+    ! Other with same values
+    Logger2 = Logger1
+    @AssertTrue(Logger1 == Logger2)
+
+    ! Different status log setting
+    Logger2 = Logger1
+    call DisableStatusLog(Logger2)
+    @AssertTrue(Logger1 /= Logger2)
+
+    ! Different status log file
+    Logger2 = Logger1
+    call EnableStatusLog(Logger2, ERROR_UNIT)
+    @AssertTrue(Logger1 /= Logger2)
+
+    ! Different error log setting
+    Logger2 = Logger1
+    call DisableErrorLog(Logger2)
+    @AssertTrue(Logger1 /= Logger2)
+
+    ! Different error log file
+    Logger2 = Logger1
+    call EnableErrorLog(Logger2, OUTPUT_UNIT)
+    @AssertTrue(Logger1 /= Logger2)
+
+  end subroutine Equality
+
+end module LoggerTest

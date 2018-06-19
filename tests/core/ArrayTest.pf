@@ -1,0 +1,367 @@
+! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
+! License: MIT (http://opensource.org/licenses/MIT)
+
+module ArrayTest
+
+  use pFUnit_mod
+  use Overkit
+  use ovsGlobal
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: t_array_test
+  end type t_array_test
+
+contains
+
+  @Test
+  subroutine CreateInteger(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    integer, dimension(3) :: Values
+    type(ovk_array_int) :: Array
+
+    ! Empty
+    Array = ovk_array_int_()
+
+    @AssertTrue(0_lk == Array%n)
+    @AssertFalse(allocated(Array%values))
+
+    ! No initial values
+    Array = ovk_array_int_(3_lk)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+
+    ! Scalar initial value
+    Array = ovk_array_int_(3_lk, 1)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(all(1 == Array%values))
+
+    ! Array initial values
+    Values = [1,2,3]
+    Array = ovk_array_int_(3_lk, Values)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertEqual(Values, Array%values)
+
+  end subroutine CreateInteger
+
+  @Test
+  subroutine CreateLargeInteger(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    integer(lk), dimension(3) :: Values
+    type(ovk_array_large_int) :: Array
+
+    ! Empty
+    Array = ovk_array_large_int_()
+
+    @AssertTrue(0_lk == Array%n)
+    @AssertFalse(allocated(Array%values))
+
+    ! No initial values
+    Array = ovk_array_large_int_(3_lk)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+
+    ! Scalar initial value
+    Array = ovk_array_large_int_(3_lk, 1_lk)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(all(1 == Array%values))
+
+    ! Array initial values
+    Values = [1_lk,2_lk,3_lk]
+    Array = ovk_array_large_int_(3_lk, Values)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(all(Values == Array%values))
+
+  end subroutine CreateLargeInteger
+
+  @Test
+  subroutine CreateReal(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    real(rk), dimension(3) :: Values
+    type(ovk_array_real) :: Array
+
+    ! Empty
+    Array = ovk_array_real_()
+
+    @AssertTrue(0_lk == Array%n)
+    @AssertFalse(allocated(Array%values))
+
+    ! No initial values
+    Array = ovk_array_real_(3_lk)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+
+    ! Scalar initial value
+    Array = ovk_array_real_(3_lk, 1._rk)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(all(1 == Array%values))
+
+    ! Array initial values
+    Values = [1_lk,2_lk,3_lk]
+    Array = ovk_array_real_(3_lk, Values)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(all(Values == Array%values))
+
+  end subroutine CreateReal
+
+  @Test
+  subroutine CreateLogical(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    logical, dimension(3) :: Values
+    logical(bk), dimension(3) :: Values1Byte
+    type(ovk_array_logical) :: Array
+
+    ! Empty
+    Array = ovk_array_logical_()
+
+    @AssertTrue(0_lk == Array%n)
+    @AssertFalse(allocated(Array%values))
+
+    ! No initial values
+    Array = ovk_array_logical_(3_lk)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+
+    ! Scalar initial value
+    Array = ovk_array_logical_(3_lk, .true.)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(logical(all(Array%values)))
+
+    ! Scalar initial value (1 byte)
+    Array = ovk_array_logical_(3_lk, logical(.true.,kind=bk))
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(logical(all(Array%values)))
+
+    ! Array initial values
+    Values = [.false.,.true.,.false.]
+    Array = ovk_array_logical_(3_lk, Values)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(logical(all(Values .eqv. Array%values)))
+
+    ! Array initial values (1 byte)
+    Values1Byte = [.false.,.true.,.false.]
+    Array = ovk_array_logical_(3_lk, Values1Byte)
+
+    @AssertTrue(3_lk == Array%n)
+    @AssertTrue(allocated(Array%values))
+    @AssertEqual(3, size(Array%values))
+    @AssertTrue(logical(all(Values1Byte .eqv. Array%values)))
+
+  end subroutine CreateLogical
+
+  @Test
+  subroutine DestroyInteger(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    type(ovk_array_int) :: Array
+
+    Array = ovk_array_int_(3_lk)
+    Array = ovk_array_int_()
+
+    @AssertFalse(allocated(Array%values))
+
+  end subroutine DestroyInteger
+
+  @Test
+  subroutine DestroyLargeInteger(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    type(ovk_array_large_int) :: Array
+
+    Array = ovk_array_large_int_(3_lk)
+    Array = ovk_array_large_int_()
+
+    @AssertFalse(allocated(Array%values))
+
+  end subroutine DestroyLargeInteger
+
+  @Test
+  subroutine DestroyReal(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    type(ovk_array_real) :: Array
+
+    Array = ovk_array_real_(3_lk)
+    Array = ovk_array_real_()
+
+    @AssertFalse(allocated(Array%values))
+
+  end subroutine DestroyReal
+
+  @Test
+  subroutine DestroyLogical(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    type(ovk_array_logical) :: Array
+
+    Array = ovk_array_logical_(3_lk)
+    Array = ovk_array_logical_()
+
+    @AssertFalse(allocated(Array%values))
+
+  end subroutine DestroyLogical
+
+  @Test
+  subroutine EqualityInteger(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    integer, dimension(3) :: Values
+    type(ovk_array_int) :: Array1, Array2
+
+    Values = [1,2,3]
+
+    Array1 = ovk_array_int_(3_lk, Values)
+
+    ! Self
+    @AssertTrue(Array1 == Array1)
+
+    ! Other with same data
+    Array2 = ovk_array_int_(3_lk, Values)
+    @AssertTrue(Array1 == Array2)
+
+    ! Different size
+    Array2 = ovk_array_int_(2_lk, Values(:2))
+    @AssertTrue(Array1 /= Array2)
+
+    ! Different values
+    Array2 = ovk_array_int_(3_lk, 1)
+    @AssertTrue(Array1 /= Array2)
+
+  end subroutine EqualityInteger
+
+  @Test
+  subroutine EqualityLargeInteger(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    integer(lk), dimension(3) :: Values
+    type(ovk_array_large_int) :: Array1, Array2
+
+    Values = [1_lk,2_lk,3_lk]
+
+    Array1 = ovk_array_large_int_(3_lk, Values)
+
+    ! Self
+    @AssertTrue(Array1 == Array1)
+
+    ! Other with same data
+    Array2 = ovk_array_large_int_(3_lk, Values)
+    @AssertTrue(Array1 == Array2)
+
+    ! Different size
+    Array2 = ovk_array_large_int_(2_lk, Values(:2))
+    @AssertTrue(Array1 /= Array2)
+
+    ! Different values
+    Array2 = ovk_array_large_int_(3_lk, 1_lk)
+    @AssertTrue(Array1 /= Array2)
+
+  end subroutine EqualityLargeInteger
+
+  @Test
+  subroutine EqualityReal(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    real(rk), dimension(3) :: Values
+    type(ovk_array_real) :: Array1, Array2
+
+    Values = [1._rk, 2._rk, 3._rk]
+
+    Array1 = ovk_array_real_(3_lk, Values)
+
+    ! Self
+    @AssertTrue(Array1 == Array1)
+
+    ! Other with same data
+    Array2 = ovk_array_real_(3_lk, Values)
+    @AssertTrue(Array1 == Array2)
+
+    ! Different size
+    Array2 = ovk_array_real_(2_lk, Values(:2))
+    @AssertTrue(Array1 /= Array2)
+
+    ! Different values
+    Array2 = ovk_array_real_(3_lk, 1._rk)
+    @AssertTrue(Array1 /= Array2)
+
+  end subroutine EqualityReal
+
+  @Test
+  subroutine EqualityLogical(this)
+
+    class(t_array_test), intent(inout) :: this
+
+    logical, dimension(3) :: Values
+    type(ovk_array_logical) :: Array1, Array2
+
+    Values = [.false.,.true.,.false.]
+
+    Array1 = ovk_array_logical_(3_lk, Values)
+
+    ! Self
+    @AssertTrue(Array1 == Array1)
+
+    ! Other with same data
+    Array2 = ovk_array_logical_(3_lk, Values)
+    @AssertTrue(Array1 == Array2)
+
+    ! Different size
+    Array2 = ovk_array_logical_(2_lk, Values(:2))
+    @AssertTrue(Array1 /= Array2)
+
+    ! Different values
+    Array2 = ovk_array_logical_(3_lk, .false.)
+    @AssertTrue(Array1 /= Array2)
+
+  end subroutine EqualityLogical
+
+end module ArrayTest
