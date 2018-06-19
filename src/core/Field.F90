@@ -22,7 +22,6 @@ module ovkField
   public :: operator (/=)
   public :: ovkFieldPeriodicFill
   public :: ovkGetFieldPatch
-  public :: ovkExportField
   public :: ovkPrintField
 
   type ovk_field_int
@@ -125,13 +124,6 @@ module ovkField
     module procedure ovkGetFieldPatch_Logical1Byte_Rank2
     module procedure ovkGetFieldPatch_Logical1Byte_Rank3
   end interface ovkGetFieldPatch
-
-  interface ovkExportField
-    module procedure ovkExportField_Integer
-    module procedure ovkExportField_LargeInteger
-    module procedure ovkExportField_Real
-    module procedure ovkExportField_Logical
-  end interface ovkExportField
 
   interface ovkPrintField
     module procedure ovkPrintField_Integer
@@ -1084,126 +1076,6 @@ contains
     end if
 
   end subroutine ovkGetFieldPatch_Logical1Byte_Rank3
-
-  subroutine ovkExportField_Integer(Field, ExportCart, ExportedField)
-
-    type(ovk_field_int), intent(in) :: Field
-    type(ovk_cart), intent(in) :: ExportCart
-    type(ovk_field_int), intent(out) :: ExportedField
-
-    integer :: i, j, k
-    integer, dimension(MAX_ND) :: Point
-
-    if (OVK_DEBUG) then
-      if (.not. ovkCartIsCompatible(ExportCart, Field%cart)) then
-        write (ERROR_UNIT, '(a)') "ERROR: Export cart is incompatible with field."
-        stop 1
-      end if
-    end if
-
-    ExportedField = ovk_field_int_(ExportCart)
-
-    do k = ExportCart%is(3), ExportCart%ie(3)
-      do j = ExportCart%is(2), ExportCart%ie(2)
-        do i = ExportCart%is(1), ExportCart%ie(1)
-          Point = [i,j,k]
-          Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
-          ExportedField%values(i,j,k) = Field%values(Point(1),Point(2),Point(3))
-        end do
-      end do
-    end do
-
-  end subroutine ovkExportField_Integer
-
-  subroutine ovkExportField_LargeInteger(Field, ExportCart, ExportedField)
-
-    type(ovk_field_large_int), intent(in) :: Field
-    type(ovk_cart), intent(in) :: ExportCart
-    type(ovk_field_large_int), intent(out) :: ExportedField
-
-    integer :: i, j, k
-    integer, dimension(MAX_ND) :: Point
-
-    if (OVK_DEBUG) then
-      if (.not. ovkCartIsCompatible(ExportCart, Field%cart)) then
-        write (ERROR_UNIT, '(a)') "ERROR: Export cart is incompatible with field."
-        stop 1
-      end if
-    end if
-
-    ExportedField = ovk_field_large_int_(ExportCart)
-
-    do k = ExportCart%is(3), ExportCart%ie(3)
-      do j = ExportCart%is(2), ExportCart%ie(2)
-        do i = ExportCart%is(1), ExportCart%ie(1)
-          Point = [i,j,k]
-          Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
-          ExportedField%values(i,j,k) = Field%values(Point(1),Point(2),Point(3))
-        end do
-      end do
-    end do
-
-  end subroutine ovkExportField_LargeInteger
-
-  subroutine ovkExportField_Real(Field, ExportCart, ExportedField)
-
-    type(ovk_field_real), intent(in) :: Field
-    type(ovk_cart), intent(in) :: ExportCart
-    type(ovk_field_real), intent(out) :: ExportedField
-
-    integer :: i, j, k
-    integer, dimension(MAX_ND) :: Point
-
-    if (OVK_DEBUG) then
-      if (.not. ovkCartIsCompatible(ExportCart, Field%cart)) then
-        write (ERROR_UNIT, '(a)') "ERROR: Export cart is incompatible with field."
-        stop 1
-      end if
-    end if
-
-    ExportedField = ovk_field_real_(ExportCart)
-
-    do k = ExportCart%is(3), ExportCart%ie(3)
-      do j = ExportCart%is(2), ExportCart%ie(2)
-        do i = ExportCart%is(1), ExportCart%ie(1)
-          Point = [i,j,k]
-          Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
-          ExportedField%values(i,j,k) = Field%values(Point(1),Point(2),Point(3))
-        end do
-      end do
-    end do
-
-  end subroutine ovkExportField_Real
-
-  subroutine ovkExportField_Logical(Field, ExportCart, ExportedField)
-
-    type(ovk_field_logical), intent(in) :: Field
-    type(ovk_cart), intent(in) :: ExportCart
-    type(ovk_field_logical), intent(out) :: ExportedField
-
-    integer :: i, j, k
-    integer, dimension(MAX_ND) :: Point
-
-    if (OVK_DEBUG) then
-      if (.not. ovkCartIsCompatible(ExportCart, Field%cart)) then
-        write (ERROR_UNIT, '(a)') "ERROR: Export cart is incompatible with field."
-        stop 1
-      end if
-    end if
-
-    ExportedField = ovk_field_logical_(ExportCart)
-
-    do k = ExportCart%is(3), ExportCart%ie(3)
-      do j = ExportCart%is(2), ExportCart%ie(2)
-        do i = ExportCart%is(1), ExportCart%ie(1)
-          Point = [i,j,k]
-          Point(:Field%cart%nd) = ovkCartPeriodicAdjust(Field%cart, Point)
-          ExportedField%values(i,j,k) = Field%values(Point(1),Point(2),Point(3))
-        end do
-      end do
-    end do
-
-  end subroutine ovkExportField_Logical
 
   subroutine ovkPrintField_Integer(Field, OutputUnit, StartIndex, EndIndex, NumDigits)
 
