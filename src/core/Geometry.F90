@@ -197,10 +197,10 @@ contains
       RelativeCoords = Coords - VertexCoords(:,Triangles(1,i))
       LocalCoords = Solve2D(Basis, RelativeCoords)
       if (any(LocalCoords < -TOLERANCE)) then
-        return
+        exit
       else if (sum(LocalCoords) <= 1._rk+TOLERANCE) then
         Overlaps = .true.
-        return
+        exit
       end if
     end do
 
@@ -233,7 +233,7 @@ contains
       LocalCoords = Solve3D(Basis, RelativeCoords)
       if (all(LocalCoords > -TOLERANCE) .and. sum(LocalCoords) <= 1._rk+TOLERANCE) then
         Overlaps = .true.
-        return
+        exit
       end if
     end do
 
