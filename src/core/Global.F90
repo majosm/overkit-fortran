@@ -125,13 +125,18 @@ contains
 
     write (UnformattedNString, '(i0)') N
 
-    NumDigits = len_trim(UnformattedNString)
-    NumBeforeComma = modulo(NumDigits-1, 3) + 1
+    if (N >= 0) then
+      NumDigits = len_trim(UnformattedNString)
+      NumBeforeComma = modulo(NumDigits-1, 3) + 1
+    else
+      NumDigits = len_trim(UnformattedNString)-1
+      NumBeforeComma = modulo(NumDigits-1, 3) + 2
+    end if
 
     NString(:NumBeforeComma) = UnformattedNString(:NumBeforeComma)
 
     j = NumBeforeComma + 1
-    do i = NumBeforeComma + 1, NumDigits
+    do i = NumBeforeComma + 1, len_trim(UnformattedNString)
       if (modulo(i-NumBeforeComma-1, 3) == 0) then
         NString(j:j) = ','
         j = j + 1
