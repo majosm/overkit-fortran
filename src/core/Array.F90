@@ -46,7 +46,7 @@ module ovkArray
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_array_int_
-    module procedure ovk_array_int_Default
+    module procedure ovk_array_int_Assigned_Empty
     module procedure ovk_array_int_Assigned_NoValues
     module procedure ovk_array_int_Assigned_Values_Scalar
     module procedure ovk_array_int_Assigned_Values_Array
@@ -54,7 +54,7 @@ module ovkArray
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_array_large_int_
-    module procedure ovk_array_large_int_Default
+    module procedure ovk_array_large_int_Assigned_Empty
     module procedure ovk_array_large_int_Assigned_NoValues
     module procedure ovk_array_large_int_Assigned_Values_Scalar
     module procedure ovk_array_large_int_Assigned_Values_Array
@@ -62,7 +62,7 @@ module ovkArray
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_array_real_
-    module procedure ovk_array_real_Default
+    module procedure ovk_array_real_Assigned_Empty
     module procedure ovk_array_real_Assigned_NoValues
     module procedure ovk_array_real_Assigned_Values_Scalar
     module procedure ovk_array_real_Assigned_Values_Array
@@ -70,7 +70,7 @@ module ovkArray
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface ovk_array_logical_
-    module procedure ovk_array_logical_Default
+    module procedure ovk_array_logical_Assigned_Empty
     module procedure ovk_array_logical_Assigned_NoValues
     module procedure ovk_array_logical_Assigned_Values_Scalar
     module procedure ovk_array_logical_Assigned_Values_Array
@@ -94,37 +94,37 @@ module ovkArray
 
 contains
 
-  pure function ovk_array_int_Default() result(Array)
+  pure function ovk_array_int_Assigned_Empty() result(Array)
 
     type(ovk_array_int) :: Array
 
     Array%n = 0
 
-  end function ovk_array_int_Default
+  end function ovk_array_int_Assigned_Empty
 
-  pure function ovk_array_large_int_Default() result(Array)
+  pure function ovk_array_large_int_Assigned_Empty() result(Array)
 
     type(ovk_array_large_int) :: Array
 
     Array%n = 0
 
-  end function ovk_array_large_int_Default
+  end function ovk_array_large_int_Assigned_Empty
 
-  pure function ovk_array_real_Default() result(Array)
+  pure function ovk_array_real_Assigned_Empty() result(Array)
 
     type(ovk_array_real) :: Array
 
     Array%n = 0
 
-  end function ovk_array_real_Default
+  end function ovk_array_real_Assigned_Empty
 
-  pure function ovk_array_logical_Default() result(Array)
+  pure function ovk_array_logical_Assigned_Empty() result(Array)
 
     type(ovk_array_logical) :: Array
 
     Array%n = 0
 
-  end function ovk_array_logical_Default
+  end function ovk_array_logical_Assigned_Empty
 
   pure function ovk_array_int_Assigned_NoValues(NumElements) result(Array)
 

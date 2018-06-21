@@ -32,7 +32,7 @@ module ovsCommandLine
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface t_cmd_opt_
     module procedure t_cmd_opt_Default
-    module procedure t_cmd_opt_Specified
+    module procedure t_cmd_opt_Assigned
   end interface t_cmd_opt_
 
   interface GetOptionValue
@@ -64,7 +64,7 @@ contains
 
   end function t_cmd_opt_Default
 
-  function t_cmd_opt_Specified(LongName, ShortName, ValueType, Description) result(Option)
+  function t_cmd_opt_Assigned(LongName, ShortName, ValueType, Description) result(Option)
 
     character(len=*), intent(in) :: LongName
     character(len=*), intent(in) :: ShortName
@@ -79,7 +79,7 @@ contains
     Option%is_present = .false.
     Option%value = ""
 
-  end function t_cmd_opt_Specified
+  end function t_cmd_opt_Assigned
 
   subroutine ParseArguments(RawArguments, Usage, Description, LongDescription, Options, &
     Arguments, MinArguments, MaxArguments)
