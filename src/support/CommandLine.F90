@@ -145,16 +145,13 @@ contains
           write (ERROR_UNIT, '(3a)') "ERROR: Unrecognized option '", trim(OptionName), "'."
           stop 1
         end if
-        if (OptionValue == "" .and. Options(l)%value_type /= CMD_OPT_NONE) then
-          if (NextRawArgument /= "") then
-            OptionValue = NextRawArgument
-            SkipNext = .true.
-          else
-            write (ERROR_UNIT, '(3a)') "ERROR: Missing value for option '", trim(OptionName), &
-              "'."
+        select case (Options(l)%value_type)
+        case (CMD_OPT_INTEGER, CMD_OPT_REAL)
+          if (OptionValue == "") then
+            write (ERROR_UNIT, '(3a)') "ERROR: Missing value for option '", trim(OptionName), "'."
             stop 1
           end if
-        end if
+        end select
         ValidOptionValue = ValidateOptionValue(OptionValue, Options(l)%value_type)
         if (ValidOptionValue) then
           Options(l)%is_present = .true.
