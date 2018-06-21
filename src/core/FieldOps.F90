@@ -568,7 +568,6 @@ contains
     type(ovk_cart) :: ExtendedCart
     type(ovk_field_int) :: ExtendedDistances
     integer, dimension(MAX_ND) :: Point
-    logical :: ContainsPoint
     integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
     integer :: NumIters
     integer :: MinDistance
@@ -601,22 +600,11 @@ contains
       do j = ExtendedCart%is(2), ExtendedCart%ie(2)
         do i = ExtendedCart%is(1), ExtendedCart%ie(1)
           Point = [i,j,k]
-          if (ovkCartContains(EdgeMask%cart, Point)) then
-            ContainsPoint = .true.
-          else
+          if (.not. ovkCartContains(EdgeMask%cart, Point)) then
             Point(:NumDims) = ovkCartPeriodicAdjust(EdgeMask%cart, Point)
-            if (ovkCartContains(EdgeMask%cart, Point)) then
-              ContainsPoint = .true.
-            else
-              ContainsPoint = .false.
-            end if
           end if
-          if (ContainsPoint) then
-            ExtendedDistances%values(i,j,k) = merge(0, huge(0)-1, EdgeMask%values(Point(1), &
-              Point(2),Point(3)))
-          else
-            ExtendedDistances%values(i,j,k) = huge(0)-1
-          end if
+          ExtendedDistances%values(i,j,k) = merge(0, huge(0)-1, EdgeMask%values(Point(1), &
+            Point(2),Point(3)))
         end do
       end do
     end do
