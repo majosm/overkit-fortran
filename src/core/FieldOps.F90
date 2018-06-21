@@ -16,7 +16,6 @@ module ovkFieldOps
   public :: ovkErode
   public :: ovkConnectedComponents
   public :: ovkFlood
-  public :: ovkThreshold
   public :: ovkDistanceField
   public :: ovkCountMask
   public :: OVK_INNER_EDGE, OVK_OUTER_EDGE
@@ -24,11 +23,13 @@ module ovkFieldOps
   integer, parameter :: OVK_INNER_EDGE = 1
   integer, parameter :: OVK_OUTER_EDGE = 2
 
+#if false
   interface ovkThreshold
     module procedure ovkThreshold_Integer
     module procedure ovkThreshold_LargeInteger
     module procedure ovkThreshold_Real
   end interface ovkThreshold
+#endif
 
 contains
 
@@ -445,6 +446,7 @@ contains
 
   end subroutine ovkFlood
 
+#if false
   subroutine ovkThreshold_Integer(Field, ThresholdMask, Lower, Upper)
 
     type(ovk_field_int), intent(in) :: Field
@@ -549,6 +551,7 @@ contains
     end do
 
   end subroutine ovkThreshold_Real
+#endif
 
   subroutine ovkDistanceField(Mask, BoundaryValue, Distances)
 

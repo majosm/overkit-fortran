@@ -152,7 +152,6 @@ module Overkit
   public :: ovkErode
   public :: ovkConnectedComponents
   public :: ovkFlood
-  public :: ovkThreshold
   public :: ovkDistanceField
   public :: ovkCountMask
   public :: OVK_INNER_EDGE, OVK_OUTER_EDGE
