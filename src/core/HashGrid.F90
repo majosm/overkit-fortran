@@ -171,16 +171,18 @@ contains
 
     integer :: i, j, k, m
     integer(lk) :: l
-    real(rk) :: HistogramStart
+    real(rk) :: HistogramStart, HistogramEnd
     real(rk) :: HistogramInterval
     integer(lk) :: NumBinEntries
 
     Histogram = 0_lk
 
-    if (Upper-Lower > 0) then
+    if (Upper >= Lower) then
 
       HistogramStart = real(Lower,kind=rk)-0.5_rk
-      HistogramInterval = (real(Upper-Lower,kind=rk)+1._rk)/real(N,kind=rk)
+      HistogramEnd = real(Upper,kind=rk)+0.5_rk
+
+      HistogramInterval = (HistogramEnd-HistogramStart)/real(N,kind=rk)
 
       l = 1_lk
       do k = HashGrid%cart%is(3), HashGrid%cart%ie(3)
