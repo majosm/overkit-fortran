@@ -219,7 +219,7 @@ program Bump
   ! Indicate which grids can communicate and how
   call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, ConnectionType)
   call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
-  call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 
   call ovkAssemble(Domain, AssemblyOptions)
 

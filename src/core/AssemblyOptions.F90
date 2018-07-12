@@ -33,8 +33,8 @@ module ovkAssemblyOptions
   public :: ovkSetAssemblyOptionConnectionType
   public :: ovkGetAssemblyOptionFringeSize
   public :: ovkSetAssemblyOptionFringeSize
-  public :: ovkGetAssemblyOptionOverlapMinimization
-  public :: ovkSetAssemblyOptionOverlapMinimization
+  public :: ovkGetAssemblyOptionMinimizeOverlap
+  public :: ovkSetAssemblyOptionMinimizeOverlap
 
   type ovk_assembly_options
     type(t_noconstruct) :: noconstruct
@@ -50,7 +50,7 @@ module ovkAssemblyOptions
     integer, dimension(:), allocatable :: edge_smoothing
     integer, dimension(:,:), allocatable :: connection_type
     integer, dimension(:), allocatable :: fringe_size
-    logical, dimension(:,:), allocatable :: overlap_minimization
+    logical, dimension(:,:), allocatable :: minimize_overlap
   end type ovk_assembly_options
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
@@ -109,8 +109,8 @@ contains
     allocate(Options%fringe_size(NumGrids))
     Options%fringe_size = 0
 
-    allocate(Options%overlap_minimization(NumGrids,NumGrids))
-    Options%overlap_minimization = .false.
+    allocate(Options%minimize_overlap(NumGrids,NumGrids))
+    Options%minimize_overlap = .false.
 
   end function ovk_assembly_options_Assigned
 
@@ -470,23 +470,23 @@ contains
 
   end subroutine ovkSetAssemblyOptionFringeSize
 
-  subroutine ovkGetAssemblyOptionOverlapMinimization(Options, OverlappingGridID, &
-    OverlappedGridID, OverlapMinimization)
+  subroutine ovkGetAssemblyOptionMinimizeOverlap(Options, OverlappingGridID, &
+    OverlappedGridID, MinimizeOverlap)
 
     type(ovk_assembly_options), intent(in) :: Options
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(out) :: OverlapMinimization
+    logical, intent(out) :: MinimizeOverlap
 
-    OverlapMinimization = Options%overlap_minimization(OverlappingGridID,OverlappedGridID)
+    MinimizeOverlap = Options%minimize_overlap(OverlappingGridID,OverlappedGridID)
 
-  end subroutine ovkGetAssemblyOptionOverlapMinimization
+  end subroutine ovkGetAssemblyOptionMinimizeOverlap
 
-  subroutine ovkSetAssemblyOptionOverlapMinimization(Options, OverlappingGridID, &
-    OverlappedGridID, OverlapMinimization)
+  subroutine ovkSetAssemblyOptionMinimizeOverlap(Options, OverlappingGridID, &
+    OverlappedGridID, MinimizeOverlap)
 
     type(ovk_assembly_options), intent(inout) :: Options
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(in) :: OverlapMinimization
+    logical, intent(in) :: MinimizeOverlap
 
     integer :: m, n
     integer :: ms, me, ns, ne
@@ -496,11 +496,11 @@ contains
 
     do n = ns, ne
       do m = ms, me
-        Options%overlap_minimization(m,n) = OverlapMinimization
+        Options%minimize_overlap(m,n) = MinimizeOverlap
       end do
     end do
 
-  end subroutine ovkSetAssemblyOptionOverlapMinimization
+  end subroutine ovkSetAssemblyOptionMinimizeOverlap
 
   subroutine GridIDRange(NumGrids, GridID, StartID, EndID)
 

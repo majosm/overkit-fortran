@@ -191,8 +191,8 @@ contains
     ! Indicate which grids can communicate and how
     call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
     call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
-    call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
-    call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, 2, 1, .true.)
+    call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
+    call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, 2, 1, .true.)
 
     call ovkAssemble(Domain, AssemblyOptions)
 

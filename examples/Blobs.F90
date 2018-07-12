@@ -216,7 +216,7 @@ program Blobs
   ! Set the number of interpolation fringe layers
   call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
   ! Cut out non-fringe interpolating points
-  call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 
   call ovkAssemble(Domain, AssemblyOptions)
 

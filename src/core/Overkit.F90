@@ -64,8 +64,8 @@ module Overkit
   public :: ovkSetAssemblyOptionConnectionType
   public :: ovkGetAssemblyOptionFringeSize
   public :: ovkSetAssemblyOptionFringeSize
-  public :: ovkGetAssemblyOptionOverlapMinimization
-  public :: ovkSetAssemblyOptionOverlapMinimization
+  public :: ovkGetAssemblyOptionMinimizeOverlap
+  public :: ovkSetAssemblyOptionMinimizeOverlap
 
   ! ovkBoundingBox
   public :: ovk_bbox

@@ -36,7 +36,7 @@ module ovkAssembly
     integer, dimension(:), pointer :: edge_smoothing
     integer, dimension(:,:), pointer :: connection_type
     integer, dimension(:), pointer :: fringe_size
-    logical, dimension(:,:), pointer :: overlap_minimization
+    logical, dimension(:,:), pointer :: minimize_overlap
   end type t_reduced_domain_info
 
 contains
@@ -89,7 +89,7 @@ contains
 
     deallocate(OverlapResolutions)
 
-    call MinimizeOverlap(Domain, ReducedDomainInfo, DonorGridIDs)
+    call ApplyOverlapMinimization(Domain, ReducedDomainInfo, DonorGridIDs)
 
     call LocateReceivers(Domain, ReducedDomainInfo, DonorGridIDs)
 
@@ -127,7 +127,7 @@ contains
     integer, dimension(:), pointer :: EdgeSmoothing
     integer, dimension(:,:), pointer :: ConnectionType
     integer, dimension(:), pointer :: FringeSize
-    logical, dimension(:,:), pointer :: OverlapMinimization
+    logical, dimension(:,:), pointer :: MinimizeOverlap
 
     call PrintDomainSummary(Domain)
 
@@ -264,10 +264,10 @@ contains
 
     allocate(ReducedDomainInfo%connection_type(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%fringe_size(NumGrids))
-    allocate(ReducedDomainInfo%overlap_minimization(NumGrids,NumGrids))
+    allocate(ReducedDomainInfo%minimize_overlap(NumGrids,NumGrids))
     ConnectionType => ReducedDomainInfo%connection_type
     FringeSize => ReducedDomainInfo%fringe_size
-    OverlapMinimization => ReducedDomainInfo%overlap_minimization
+    MinimizeOverlap => ReducedDomainInfo%minimize_overlap
 
     do n = 1, NumGrids
       q = IndexToID(n)
@@ -281,9 +281,9 @@ contains
         end if
         ! Overlap minimization only affects occluded regions
         if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
-          OverlapMinimization(m,n) = AssemblyOptions%overlap_minimization(p,q)
+          MinimizeOverlap(m,n) = AssemblyOptions%minimize_overlap(p,q)
         else
-          OverlapMinimization(m,n) = .false.
+          MinimizeOverlap(m,n) = .false.
         end if
       end do
       ! Leave fringe size alone -- want orphans if no suitable overlap is found
@@ -1124,7 +1124,7 @@ contains
 
   end subroutine ChooseDonors
 
-  subroutine MinimizeOverlap(Domain, ReducedDomainInfo, DonorGridIDs)
+  subroutine ApplyOverlapMinimization(Domain, ReducedDomainInfo, DonorGridIDs)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
@@ -1135,7 +1135,7 @@ contains
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:), pointer :: FringeSize
-    logical, dimension(:,:), pointer :: OverlapMinimization
+    logical, dimension(:,:), pointer :: MinimizeOverlap
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
     type(ovk_field_logical), dimension(:), allocatable :: OverlapMinimizationMasks
@@ -1150,7 +1150,7 @@ contains
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     FringeSize => ReducedDomainInfo%fringe_size
-    OverlapMinimization => ReducedDomainInfo%overlap_minimization
+    MinimizeOverlap => ReducedDomainInfo%minimize_overlap
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Minimizing overlap..."
@@ -1161,10 +1161,10 @@ contains
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
-      if (any(OverlapMinimization(:,n))) then
+      if (any(MinimizeOverlap(:,n))) then
         OverlapMinimizationMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
         do m = 1, NumGrids
-          if (OverlapMinimization(m,n)) then
+          if (MinimizeOverlap(m,n)) then
             OverlapMinimizationMasks(n)%values = OverlapMinimizationMasks(n)%values .or. &
               DonorGridIDs(n)%values == IndexToID(m)
           end if
@@ -1208,7 +1208,7 @@ contains
 
     do n = 1, NumGrids
       UpdateGrid(n) = .false.
-      if (any(OverlapMinimization(:,n))) then
+      if (any(MinimizeOverlap(:,n))) then
         if (any(OverlapMinimizationMasks(n)%values)) then
           UpdateGrid(n) = .true.
         end if
@@ -1261,7 +1261,7 @@ contains
       write (*, '(a)') "Finished updating grids and overlap information."
     end if
 
-  end subroutine MinimizeOverlap
+  end subroutine ApplyOverlapMinimization
 
   subroutine LocateReceivers(Domain, ReducedDomainInfo, DonorGridIDs)
 
@@ -1498,7 +1498,7 @@ contains
     deallocate(ReducedDomainInfo%edge_smoothing)
     deallocate(ReducedDomainInfo%connection_type)
     deallocate(ReducedDomainInfo%fringe_size)
-    deallocate(ReducedDomainInfo%overlap_minimization)
+    deallocate(ReducedDomainInfo%minimize_overlap)
 
     call ResetDomainEdits(Domain)
 
