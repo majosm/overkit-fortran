@@ -5,6 +5,7 @@ module Overkit
 
   use ovkArray
   use ovkAssembly
+  use ovkAssemblyOptions
   use ovkBoundingBox
   use ovkCart
   use ovkConnectivity
@@ -37,6 +38,34 @@ module Overkit
 
   ! ovkAssembly
   public :: ovkAssemble
+
+  ! ovkAssemblyOptions
+  public :: ovk_assembly_options
+  public :: ovk_assembly_options_
+  public :: ovkGetAssemblyOptionsDimension
+  public :: ovkGetAssemblyOptionsGridCount
+  public :: ovkGetAssemblyOptionOverlappable
+  public :: ovkSetAssemblyOptionOverlappable
+  public :: ovkGetAssemblyOptionOverlapTolerance
+  public :: ovkSetAssemblyOptionOverlapTolerance
+  public :: ovkGetAssemblyOptionOverlapAccelQualityAdjust
+  public :: ovkSetAssemblyOptionOverlapAccelQualityAdjust
+  public :: ovkGetAssemblyOptionInferBoundaries
+  public :: ovkSetAssemblyOptionInferBoundaries
+  public :: ovkGetAssemblyOptionBoundaryHoleCutting
+  public :: ovkSetAssemblyOptionBoundaryHoleCutting
+  public :: ovkGetAssemblyOptionOccludes
+  public :: ovkSetAssemblyOptionOccludes
+  public :: ovkGetAssemblyOptionEdgePadding
+  public :: ovkSetAssemblyOptionEdgePadding
+  public :: ovkGetAssemblyOptionEdgeSmoothing
+  public :: ovkSetAssemblyOptionEdgeSmoothing
+  public :: ovkGetAssemblyOptionConnectionType
+  public :: ovkSetAssemblyOptionConnectionType
+  public :: ovkGetAssemblyOptionFringeSize
+  public :: ovkSetAssemblyOptionFringeSize
+  public :: ovkGetAssemblyOptionOverlapMinimization
+  public :: ovkSetAssemblyOptionOverlapMinimization
 
   ! ovkBoundingBox
   public :: ovk_bbox
@@ -86,7 +115,6 @@ module Overkit
   public :: ovkGetConnectivityPropertyConnectionCount
   public :: ovkDonorSize
   public :: ovkFindDonor
-  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_NEAREST, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
 
   ! ovkDomain
   public :: ovk_domain
@@ -110,28 +138,6 @@ module Overkit
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
   public :: ovkSetDomainPropertyVerbose
-  public :: ovkGetDomainPropertyOverlappable
-  public :: ovkSetDomainPropertyOverlappable
-  public :: ovkGetDomainPropertyOverlapTolerance
-  public :: ovkSetDomainPropertyOverlapTolerance
-  public :: ovkGetDomainPropertyOverlapAccelQualityAdjust
-  public :: ovkSetDomainPropertyOverlapAccelQualityAdjust
-  public :: ovkGetDomainPropertyInferBoundaries
-  public :: ovkSetDomainPropertyInferBoundaries
-  public :: ovkGetDomainPropertyBoundaryHoleCutting
-  public :: ovkSetDomainPropertyBoundaryHoleCutting
-  public :: ovkGetDomainPropertyOccludes
-  public :: ovkSetDomainPropertyOccludes
-  public :: ovkGetDomainPropertyEdgePadding
-  public :: ovkSetDomainPropertyEdgePadding
-  public :: ovkGetDomainPropertyEdgeSmoothing
-  public :: ovkSetDomainPropertyEdgeSmoothing
-  public :: ovkGetDomainPropertyConnectionType
-  public :: ovkSetDomainPropertyConnectionType
-  public :: ovkGetDomainPropertyFringeSize
-  public :: ovkSetDomainPropertyFringeSize
-  public :: ovkGetDomainPropertyOverlapMinimization
-  public :: ovkSetDomainPropertyOverlapMinimization
 
   ! ovkField
   public :: ovk_field_int
@@ -214,6 +220,7 @@ module Overkit
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_P3D_STANDARD, OVK_P3D_EXTENDED
   public :: OVK_ALL_GRIDS
+  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_NEAREST, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
 
   ! ovkGrid
   public :: ovk_grid

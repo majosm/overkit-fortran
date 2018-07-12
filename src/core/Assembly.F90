@@ -4,6 +4,7 @@
 module ovkAssembly
 
   use ovkArray
+  use ovkAssemblyOptions
   use ovkBoundingBox
   use ovkCart
   use ovkConnectivity
@@ -40,9 +41,10 @@ module ovkAssembly
 
 contains
 
-  subroutine ovkAssemble(Domain)
+  subroutine ovkAssemble(Domain, AssemblyOptions)
 
     type(ovk_domain), intent(inout) :: Domain
+    type(ovk_assembly_options), intent(in) :: AssemblyOptions
 
     integer :: ClockInitial, ClockFinal, ClockRate
     type(t_reduced_domain_info) :: ReducedDomainInfo
@@ -65,7 +67,7 @@ contains
       end if
     end if
 
-    call InitAssembly(Domain, ReducedDomainInfo)
+    call InitAssembly(Domain, AssemblyOptions, ReducedDomainInfo)
 
     call CollideGrids(Domain, ReducedDomainInfo)
 
@@ -93,7 +95,7 @@ contains
 
     call FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 
-    call FinalizeAssembly(Domain, ReducedDomainInfo)
+    call FinalizeAssembly(Domain, ReducedDomainInfo, AssemblyOptions)
 
     if (Domain%logger%verbose) then
       call system_clock(ClockFinal, ClockRate)
@@ -103,15 +105,17 @@ contains
 
   end subroutine ovkAssemble
 
-  subroutine InitAssembly(Domain, ReducedDomainInfo)
+  subroutine InitAssembly(Domain, AssemblyOptions, ReducedDomainInfo)
 
     type(ovk_domain), intent(inout) :: Domain
+    type(ovk_assembly_options), intent(in) :: AssemblyOptions
     type(t_reduced_domain_info), intent(out) :: ReducedDomainInfo
 
     integer :: m, n, p, q
+    type(ovk_grid), pointer :: Grid_m, Grid_n
     integer :: NumGrids
     logical :: GridExists
-    logical :: GridIsOverlappable
+    logical :: GridOverlaps
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:,:), pointer :: Overlappable
     real(rk), dimension(:,:), pointer :: OverlapTolerance
@@ -127,13 +131,33 @@ contains
 
     call PrintDomainSummary(Domain)
 
+    ! Clear out any old assembly data
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      do m = 1, NumGrids
+        Grid_m => Domain%grid(IndexToID(m))
+        if (ovkOverlapExists(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
+          call DestroyOverlap(Domain%overlap(Grid_m%properties%id,Grid_n%properties%id))
+        end if
+        if (ovkConnectivityExists(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
+          call DestroyConnectivity(Domain%connectivity(Grid_m%properties%id,Grid_n%properties%id))
+        end if
+      end do
+      call ovkResetGridState(Grid_n)
+    end do
+
     ! Ignore empty and non-overlapping grids
     NumGrids = 0
-    do n = 1, Domain%properties%ngrids
-      GridExists = .not. ovkCartIsEmpty(Domain%grid(n)%cart)
-      GridIsOverlappable = any(Domain%properties%overlappable(:,n)) .or. &
-        any(Domain%properties%overlappable(n,:))
-      if (GridExists .and. GridIsOverlappable) then
+    do q = 1, Domain%properties%ngrids
+      GridExists = .not. ovkCartIsEmpty(Domain%grid(q)%cart)
+      GridOverlaps = .false.
+      do p = 1, Domain%properties%ngrids
+        if (p /= q) then
+          GridOverlaps = GridOverlaps .or. AssemblyOptions%overlappable(p,q) .or. &
+            AssemblyOptions%overlappable(q,p)
+        end if
+      end do
+      if (GridExists .and. GridOverlaps) then
         NumGrids = NumGrids + 1
       end if
     end do
@@ -143,14 +167,19 @@ contains
     allocate(ReducedDomainInfo%index_to_id(NumGrids))
     IndexToID => ReducedDomainInfo%index_to_id
 
-    m = 1
-    do n = 1, Domain%properties%ngrids
-      GridExists = .not. ovkCartIsEmpty(Domain%grid(n)%cart)
-      GridIsOverlappable = any(Domain%properties%overlappable(:,n)) .or. &
-        any(Domain%properties%overlappable(n,:))
-      if (GridExists .and. GridIsOverlappable) then
-        IndexToID(m) = n
-        m = m + 1
+    n = 1
+    do q = 1, Domain%properties%ngrids
+      GridExists = .not. ovkCartIsEmpty(Domain%grid(q)%cart)
+      GridOverlaps = .false.
+      do p = 1, Domain%properties%ngrids
+        if (p /= q) then
+          GridOverlaps = GridOverlaps .or. AssemblyOptions%overlappable(p,q) .or. &
+            AssemblyOptions%overlappable(q,p)
+        end if
+      end do
+      if (GridExists .and. GridOverlaps) then
+        IndexToID(n) = q
+        n = n + 1
       end if
     end do
 
@@ -165,10 +194,24 @@ contains
       q = IndexToID(n)
       do m = 1, NumGrids
         p = IndexToID(m)
-        Overlappable(m,n) = Domain%properties%overlappable(p,q)
-        OverlapTolerance(m,n) = Domain%properties%overlap_tolerance(p,q)
+        if (p /= q) then
+          Overlappable(m,n) = AssemblyOptions%overlappable(p,q)
+        else
+          Overlappable(m,n) = .false.
+        end if
+        ! Tolerance only used if overlappable
+        if (Overlappable(m,n)) then
+          OverlapTolerance(m,n) = AssemblyOptions%overlap_tolerance(p,q)
+        else
+          OverlapTolerance(m,n) = 0._rk
+        end if
       end do
-      OverlapAccelQualityAdjust(n) = Domain%properties%overlap_accel_quality_adjust(q)
+      ! Quality adjust only used if overlappable
+      if (any(Overlappable(:,n))) then
+        OverlapAccelQualityAdjust(n) = AssemblyOptions%overlap_accel_quality_adjust(q)
+      else
+        OverlapAccelQualityAdjust(n) = 0._rk
+      end if
     end do
 
     allocate(ReducedDomainInfo%infer_boundaries(NumGrids))
@@ -178,10 +221,15 @@ contains
 
     do n = 1, NumGrids
       q = IndexToID(n)
-      InferBoundaries(n) = Domain%properties%infer_boundaries(q)
+      InferBoundaries(n) = AssemblyOptions%infer_boundaries(q)
       do m = 1, NumGrids
         p = IndexToID(m)
-        BoundaryHoleCutting(m,n) = Domain%properties%boundary_hole_cutting(p,q)
+        ! Need overlap data to cut
+        if (Overlappable(m,n)) then
+          BoundaryHoleCutting(m,n) = AssemblyOptions%boundary_hole_cutting(p,q)
+        else
+          BoundaryHoleCutting(m,n) = .false.
+        end if
       end do
     end do
 
@@ -196,10 +244,22 @@ contains
       q = IndexToID(n)
       do m = 1, NumGrids
         p = IndexToID(m)
-        Occludes(m,n) = Domain%properties%occludes(p,q)
-        EdgePadding(m,n) = Domain%properties%edge_padding(p,q)
+        ! Can't occlude if it doesn't overlap
+        if (Overlappable(m,n)) then
+          Occludes(m,n) = AssemblyOptions%occludes(p,q)
+        else
+          Occludes(m,n) = OVK_FALSE
+        end if
+        ! Padding still needed even if occlusion is disabled (used for deciding where to switch from
+        ! one donor grid to the other in 3-grid interfaces)
+        EdgePadding(m,n) = AssemblyOptions%edge_padding(p,q)
       end do
-      EdgeSmoothing(n) = Domain%properties%edge_smoothing(q)
+      ! Smoothing only used if some occlusion exists
+      if (any(Occludes(:,n) /= OVK_FALSE)) then
+        EdgeSmoothing(n) = AssemblyOptions%edge_smoothing(q)
+      else
+        EdgeSmoothing(n) = 0
+      end if
     end do
 
     allocate(ReducedDomainInfo%connection_type(NumGrids,NumGrids))
@@ -211,13 +271,23 @@ contains
 
     do n = 1, NumGrids
       q = IndexToID(n)
-      FringeSize(n) = Domain%properties%fringe_size(q)
       do m = 1, NumGrids
         p = IndexToID(m)
-        Occludes(m,n) = Domain%properties%occludes(p,q)
-        ConnectionType(m,n) = Domain%properties%connection_type(p,q)
-        OverlapMinimization(m,n) = Domain%properties%overlap_minimization(p,q)
+        ! Can't communicate if it doesn't overlap
+        if (Overlappable(m,n)) then
+          ConnectionType(m,n) = AssemblyOptions%connection_type(p,q)
+        else
+          ConnectionType(m,n) = OVK_CONNECTION_NONE
+        end if
+        ! Overlap minimization only affects occluded regions
+        if (Occludes(m,n) /= OVK_FALSE) then
+          OverlapMinimization(m,n) = AssemblyOptions%overlap_minimization(p,q)
+        else
+          OverlapMinimization(m,n) = .false.
+        end if
       end do
+      ! Leave fringe size alone -- want orphans if no suitable overlap is found
+      FringeSize(n) = AssemblyOptions%fringe_size(q)
     end do
 
   end subroutine InitAssembly
@@ -251,6 +321,17 @@ contains
     Overlappable => ReducedDomainInfo%overlappable
     OverlapTolerance => ReducedDomainInfo%overlap_tolerance
     OverlapAccelQualityAdjust => ReducedDomainInfo%overlap_accel_quality_adjust
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      do m = 1, NumGrids
+        Grid_m => Domain%grid(IndexToID(m))
+        if (Overlappable(m,n)) then
+          call CreateOverlap(Domain%overlap(Grid_m%properties%id,Grid_n%properties%id), &
+            Grid_m%properties%id, Grid_n%properties%id, Domain%logger, Grid_n%cart)
+        end if
+      end do
+    end do
 
     allocate(Bounds(NumGrids,NumGrids))
 
@@ -1284,6 +1365,7 @@ contains
     type(ovk_overlap), pointer :: Overlap
     type(ovk_connectivity), pointer :: Connectivity
     type(ovk_connectivity_properties), pointer :: ConnectivityProperties
+    integer, dimension(MAX_ND) :: DonorSize
     integer :: MaxDonorSize
     type(ovk_field_logical) :: ReceiverMask
     integer, dimension(MAX_ND) :: ReceiverPoint
@@ -1299,6 +1381,20 @@ contains
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     ConnectionType => ReducedDomainInfo%connection_type
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      do m = 1, NumGrids
+        Grid_m => Domain%grid(IndexToID(m))
+        if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
+          DonorSize = 1
+          DonorSize(:NumDims) = ovkDonorSize(NumDims, ConnectionType(m,n))
+          MaxDonorSize = maxval(DonorSize)
+          call CreateConnectivity(Domain%connectivity(Grid_m%properties%id, Grid_n%properties%id), &
+            Grid_m%properties%id, Grid_n%properties%id, Domain%logger, NumDims, MaxDonorSize)
+        end if
+      end do
+    end do
 
     allocate(NumConnections(NumGrids))
 
@@ -1385,10 +1481,11 @@ contains
 
   end subroutine FillConnectivity
 
-  subroutine FinalizeAssembly(Domain, ReducedDomainInfo)
+  subroutine FinalizeAssembly(Domain, ReducedDomainInfo, AssemblyOptions)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(inout) :: ReducedDomainInfo
+    type(ovk_assembly_options), intent(in) :: AssemblyOptions
 
     deallocate(ReducedDomainInfo%index_to_id)
     deallocate(ReducedDomainInfo%overlappable)
@@ -1404,6 +1501,8 @@ contains
     deallocate(ReducedDomainInfo%overlap_minimization)
 
     call ResetDomainEdits(Domain)
+
+    Domain%cached_assembly_options = AssemblyOptions
 
   end subroutine FinalizeAssembly
 

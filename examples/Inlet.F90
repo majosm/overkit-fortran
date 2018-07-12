@@ -19,15 +19,14 @@ program Inlet
   real(rk) :: hX, hY
   integer :: iLeftBoundary, iRightBoundary, jBoundary
   type(ovk_domain) :: Domain
-  type(ovk_domain_properties), pointer :: Properties
   type(ovk_grid), pointer :: Grid
   type(ovk_field_real), pointer :: X, Y
   type(ovk_field_int), pointer :: State
   real(rk) :: U, V
+  type(ovk_assembly_options) :: AssemblyOptions
   integer, dimension(2,2) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
   type(ovk_cart) :: Cart
-  integer :: ConnectionType
   type(ovk_connectivity), pointer :: Connectivity
   integer, dimension(:,:), pointer :: ReceiverPoints
   integer, dimension(MAX_ND) :: Point
@@ -50,26 +49,6 @@ program Inlet
 
   ! Initialize the domain
   call ovkCreateDomain(Domain, NumDims=2, NumGrids=2, Verbose=.true.)
-
-  call ovkEditDomainProperties(Domain, Properties)
-
-  ! Indicate which grids can intersect
-  call ovkSetDomainPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetDomainPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1.e-10_rk)
-
-  ! Automatically define boundaries in non-overlapping regions
-  call ovkSetDomainPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
-
-  ! Retain some extra overlap between grids
-  call ovkSetDomainPropertyEdgePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
-  call ovkSetDomainPropertyEdgeSmoothing(Properties, OVK_ALL_GRIDS, 2)
-
-  ! Indicate which grids can communicate and how
-  call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
-  call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
-  call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-
-  call ovkReleaseDomainProperties(Domain, Properties)
 
   !==========
   ! Box grid
@@ -164,7 +143,29 @@ program Inlet
   ! Overset assembly
   !==================
 
-  call ovkAssemble(Domain)
+  AssemblyOptions = ovk_assembly_options_(2, 2)
+
+  ! Indicate which grids can intersect
+  call ovkSetAssemblyOptionOverlappable(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblyOptionOverlapTolerance(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1.e-10_rk)
+
+  ! Automatically define boundaries in non-overlapping regions
+  call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
+
+  ! Indicate how to treat overlap between grids
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_TRUE)
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_FALSE)
+
+  ! Retain some extra overlap between grids
+  call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblyOptionEdgeSmoothing(AssemblyOptions, OVK_ALL_GRIDS, 2)
+
+  ! Indicate which grids can communicate and how
+  call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
+  call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+
+  call ovkAssemble(Domain, AssemblyOptions)
 
   !========
   ! Output
@@ -176,8 +177,6 @@ program Inlet
   ! Write a PLOT3D grid file
   call ovkCreateP3D(GridFile, "inlet.xyz", NumDims=2, NumGrids=2, NumPointsAll=NumPointsAll, &
     WithIBlank=.true., Verbose=.true.)
-
-  call ovkGetDomainProperties(Domain, Properties)
 
   do n = 1, 2
 
@@ -196,8 +195,7 @@ program Inlet
 
     ! IBlank == -N => Receives from grid N
     do m = 1, 2
-      call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
-      if (ConnectionType /= OVK_CONNECTION_NONE) then
+      if (ovkConnectivityExists(Domain, m, n)) then
         call ovkGetConnectivity(Domain, m, n, Connectivity)
         call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
         do i = 1, size(ReceiverPoints,2)

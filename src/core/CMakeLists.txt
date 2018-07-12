@@ -8,6 +8,7 @@
 set(OVERKIT_SOURCES
   Array.F90
   Assembly.F90
+  AssemblyOptions.F90
   BoundingBox.F90
   Cart.F90
   Connectivity.F90

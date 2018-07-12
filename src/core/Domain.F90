@@ -3,6 +3,7 @@
 
 module ovkDomain
 
+  use ovkAssemblyOptions
   use ovkCart
   use ovkConnectivity
   use ovkField
@@ -40,28 +41,6 @@ module ovkDomain
   public :: ovkGetDomainPropertyGridCount
   public :: ovkGetDomainPropertyVerbose
   public :: ovkSetDomainPropertyVerbose
-  public :: ovkGetDomainPropertyOverlappable
-  public :: ovkSetDomainPropertyOverlappable
-  public :: ovkGetDomainPropertyOverlapTolerance
-  public :: ovkSetDomainPropertyOverlapTolerance
-  public :: ovkGetDomainPropertyOverlapAccelQualityAdjust
-  public :: ovkSetDomainPropertyOverlapAccelQualityAdjust
-  public :: ovkGetDomainPropertyInferBoundaries
-  public :: ovkSetDomainPropertyInferBoundaries
-  public :: ovkGetDomainPropertyBoundaryHoleCutting
-  public :: ovkSetDomainPropertyBoundaryHoleCutting
-  public :: ovkGetDomainPropertyOccludes
-  public :: ovkSetDomainPropertyOccludes
-  public :: ovkGetDomainPropertyEdgePadding
-  public :: ovkSetDomainPropertyEdgePadding
-  public :: ovkGetDomainPropertyEdgeSmoothing
-  public :: ovkSetDomainPropertyEdgeSmoothing
-  public :: ovkGetDomainPropertyConnectionType
-  public :: ovkSetDomainPropertyConnectionType
-  public :: ovkGetDomainPropertyFringeSize
-  public :: ovkSetDomainPropertyFringeSize
-  public :: ovkGetDomainPropertyOverlapMinimization
-  public :: ovkSetDomainPropertyOverlapMinimization
 
   ! Internal
   public :: ovk_domain_
@@ -78,17 +57,6 @@ module ovkDomain
     integer :: ngrids
     ! Read/write
     logical :: verbose
-    logical, dimension(:,:), allocatable :: overlappable
-    real(rk), dimension(:,:), allocatable :: overlap_tolerance
-    real(rk), dimension(:), allocatable :: overlap_accel_quality_adjust
-    logical, dimension(:), allocatable :: infer_boundaries
-    logical, dimension(:,:), allocatable :: boundary_hole_cutting
-    integer, dimension(:,:), allocatable :: occludes
-    integer, dimension(:,:), allocatable :: edge_padding
-    integer, dimension(:), allocatable :: edge_smoothing
-    integer, dimension(:,:), allocatable :: connection_type
-    integer, dimension(:), allocatable :: fringe_size
-    logical, dimension(:,:), allocatable :: overlap_minimization
   end type ovk_domain_properties
 
   type t_domain_edits
@@ -110,6 +78,7 @@ module ovkDomain
     integer, dimension(:,:), allocatable :: overlap_edit_ref_counts
     type(ovk_connectivity), dimension(:,:), pointer :: connectivity
     integer, dimension(:,:), allocatable :: connectivity_edit_ref_counts
+    type(ovk_assembly_options) :: cached_assembly_options
   end type ovk_domain
 
 contains
@@ -126,6 +95,7 @@ contains
     nullify(Domain%grid)
     nullify(Domain%overlap)
     nullify(Domain%connectivity)
+    Domain%cached_assembly_options = ovk_assembly_options_()
 
   end function ovk_domain_
 
@@ -187,6 +157,8 @@ contains
     allocate(Domain%connectivity_edit_ref_counts(NumGrids,NumGrids))
     Domain%connectivity_edit_ref_counts = 0
 
+    Domain%cached_assembly_options = ovk_assembly_options_(NumDims, NumGrids)
+
   end subroutine ovkCreateDomain
 
   subroutine ovkDestroyDomain(Domain)
@@ -208,7 +180,7 @@ contains
 
     do n = 1, Domain%properties%ngrids
       do m = 1, Domain%properties%ngrids
-        if (Domain%properties%overlappable(m,n)) then
+        if (OverlapExists(Domain%overlap(m,n))) then
           call DestroyOverlap(Domain%overlap(m,n))
         end if
       end do
@@ -219,7 +191,7 @@ contains
 
     do n = 1, Domain%properties%ngrids
       do m = 1, Domain%properties%ngrids
-        if (Domain%properties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
+        if (ConnectivityExists(Domain%connectivity(m,n))) then
           call DestroyConnectivity(Domain%connectivity(m,n))
         end if
       end do
@@ -234,6 +206,8 @@ contains
 
     deallocate(Domain%properties)
     if (associated(Domain%prev_properties)) deallocate(Domain%prev_properties)
+
+    Domain%cached_assembly_options = ovk_assembly_options_()
 
   end subroutine ovkDestroyDomain
 
@@ -291,14 +265,9 @@ contains
     type(ovk_domain), intent(inout) :: Domain
     type(ovk_domain_properties), pointer, intent(inout) :: Properties
 
-    integer :: m, n
     integer :: NumGrids
     logical :: Success, EndEdit
     type(ovk_domain_properties), pointer :: PrevProperties
-    type(t_domain_edits), pointer :: Edits
-    type(ovk_connectivity), pointer :: Connectivity
-    type(ovk_connectivity_properties), pointer :: ConnectivityProperties
-    integer :: MaxDonorSize, PrevMaxDonorSize
 
     if (associated(Properties, Domain%properties)) then
 
@@ -316,131 +285,6 @@ contains
           if (Properties%verbose .neqv. PrevProperties%verbose) then
             Domain%logger%verbose = Domain%properties%verbose
           end if
-
-          do n = 1, NumGrids
-            ! No self-intersections
-            Domain%properties%overlappable(n,n) = .false.
-            ! No overlap => no hole cutting, no occlusion, no connectivity, no overlap minimization
-            do m = 1, NumGrids
-              if (.not. Domain%properties%overlappable(m,n)) then
-                Domain%properties%boundary_hole_cutting(m,n) = .false.
-                Domain%properties%occludes(m,n) = OVK_FALSE
-                Domain%properties%connection_type(m,n) = OVK_CONNECTION_NONE
-                Domain%properties%overlap_minimization(m,n) = .false.
-              end if
-            end do
-          end do
-
-          do n = 1, NumGrids
-            do m = 1, NumGrids
-              if (Properties%overlappable(m,n) .and. .not. PrevProperties%overlappable(m,n)) then
-                call CreateOverlap(Domain%overlap(m,n), m, n, Domain%logger, Domain%grid(n)%cart)
-              else if (.not. Properties%overlappable(m,n) .and. PrevProperties%overlappable(m,n)) then
-                call DestroyOverlap(Domain%overlap(m,n))
-              end if
-            end do
-          end do
-
-          do n = 1, NumGrids
-            do m = 1, NumGrids
-              if (Properties%connection_type(m,n) /= OVK_CONNECTION_NONE .and. &
-                PrevProperties%connection_type(m,n) == OVK_CONNECTION_NONE) then
-                MaxDonorSize = GetMaxDonorSize(Properties, m, n)
-                call CreateConnectivity(Domain%connectivity(m,n), m, n, Domain%logger, &
-                  Domain%properties%nd, MaxDonorSize)
-              else if (Properties%connection_type(m,n) == OVK_CONNECTION_NONE .and. &
-                PrevProperties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
-                call DestroyConnectivity(Domain%connectivity(m,n))
-              else if (Properties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
-                MaxDonorSize = GetMaxDonorSize(Properties, m, n)
-                PrevMaxDonorSize = GetMaxDonorSize(PrevProperties, m, n)
-                if (MaxDonorSize /= PrevMaxDonorSize) then
-                  call ovkEditConnectivity(Domain, m, n, Connectivity)
-                  call ovkEditConnectivityProperties(Connectivity, ConnectivityProperties)
-                  call SetConnectivityPropertyMaxDonorSize(ConnectivityProperties, MaxDonorSize)
-                  call ovkReleaseConnectivityProperties(Connectivity, ConnectivityProperties)
-                  call ovkReleaseConnectivity(Domain, Connectivity)
-                end if
-              end if
-            end do
-          end do
-
-          Edits => Domain%edits
-
-          ! TODO: Fix this and clean it up
-
-!           do n = 1, NumGrids
-!             do m = 1, NumGrids
-!               if (Properties%overlappable(m,n) .neqv. PrevProperties%overlappable(m,n) .or. &
-!                 Properties%overlap_tolerance(m,n) /= PrevProperties%overlap_tolerance(m,n)) then
-!                 Edits%overlap_dependencies(m,n) = .true.
-!                 Edits%boundary_hole_dependencies(m) = .true.
-!                 Edits%boundary_hole_dependencies(n) = .true.
-!                 Edits%connectivity_dependencies(:,:) = .true.
-!               end if
-!             end do
-!           end do
-
-!           do m = 1, NumGrids
-!             if (Properties%infer_boundaries(m) .neqv. PrevProperties%infer_boundaries(m)) then
-!               Edits%boundary_hole_dependencies(m) = .true.
-!               Edits%connectivity_dependencies(:,:) = .true.
-!             end if
-!           end do
-
-!           do n = 1, NumGrids
-!             do m = 1, NumGrids
-!               if (Properties%boundary_hole_cutting(m,n) .neqv. PrevProperties%boundary_hole_cutting(m,n) .or. &
-!                 Properties%overlap_hole_cutting(m,n) .neqv. PrevProperties%overlap_hole_cutting(m,n)) then
-!                 Edits%boundary_hole_dependencies(m) = .true.
-!                 Edits%boundary_hole_dependencies(n) = .true.
-!                 Edits%connectivity_dependencies(:,:) = .true.
-!               end if
-!             end do
-!           end do
-
-!           do n = 1, NumGrids
-!             if (Properties%fringe_size(n) /= PrevProperties%fringe_size(n)) then
-!               Edits%boundary_hole_dependencies(n) = .true.
-!               Edits%connectivity_dependencies(:,:) = .true.
-!             end if
-!           end do
-
-!           do n = 1, NumGrids
-!             do m = 1, NumGrids
-!               if (Properties%connection_type(m,n) /= PrevProperties%connection_type(m,n) .or. &
-!                 Properties%edge_padding(m,n) /= PrevProperties%edge_padding(m,n)) then
-!                 Edits%boundary_hole_dependencies(n) = .true.
-!                 Edits%connectivity_dependencies(:,:) = .true.
-!               end if
-!             end do
-!           end do
-
-!           deallocate(PrevProperties)
-
-          Edits%overlap_dependencies = .true.
-          Edits%boundary_hole_dependencies = .true.
-          Edits%connectivity_dependencies = .true.
-
-          do n = 1, NumGrids
-            do m = 1, NumGrids
-              if (Edits%overlap_dependencies(m,n)) then
-                if (Domain%properties%overlappable(m,n)) then
-                  call ResetOverlap(Domain%overlap(m,n))
-                end if
-              end if
-            end do
-          end do
-
-          do n = 1, NumGrids
-            do m = 1, NumGrids
-              if (Edits%connectivity_dependencies(m,n)) then
-                if (Domain%properties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
-                  call ResizeConnectivity(Domain%connectivity(m,n), 0_lk)
-                end if
-              end if
-            end do
-          end do
 
         end if
 
@@ -478,14 +322,12 @@ contains
     real(rk), dimension(Domain%properties%nd), intent(in), optional :: PeriodicLength
     integer, intent(in), optional :: GeometryType
 
-    integer :: m
     logical, dimension(Domain%properties%nd) :: Periodic_
     integer :: PeriodicStorage_
     real(rk), dimension(Domain%properties%nd) :: PeriodicLength_
     integer :: GeometryType_
     logical :: Success
     type(ovk_cart) :: Cart
-    integer :: MaxDonorSize
     type(t_domain_edits), pointer :: Edits
 
     if (present(Periodic)) then
@@ -528,30 +370,6 @@ contains
         call CreateGrid(Domain%grid(GridID), GridID, Domain%logger, Cart, PeriodicLength_, &
           GeometryType_)
 
-        do m = 1, Domain%properties%ngrids
-          if (Domain%properties%overlappable(m,GridID)) then
-            call CreateOverlap(Domain%overlap(m,GridID), m, GridID, Domain%logger, &
-              Domain%grid(GridID)%cart)
-          end if
-          if (Domain%properties%overlappable(GridID,m)) then
-            call CreateOverlap(Domain%overlap(GridID,m), GridID, m, Domain%logger, &
-              Domain%grid(m)%cart)
-          end if
-        end do
-
-        do m = 1, Domain%properties%ngrids
-          if (Domain%properties%connection_type(m,GridID) /= OVK_CONNECTION_NONE) then
-            MaxDonorSize = GetMaxDonorSize(Domain%properties, m, GridID)
-            call CreateConnectivity(Domain%connectivity(m,GridID), m, GridID, Domain%logger, &
-              Domain%properties%nd, MaxDonorSize)
-          end if
-          if (Domain%properties%connection_type(GridID,m) /= OVK_CONNECTION_NONE) then
-            MaxDonorSize = GetMaxDonorSize(Domain%properties, GridID, m)
-            call CreateConnectivity(Domain%connectivity(GridID,m), GridID, m, Domain%logger, &
-              Domain%properties%nd, MaxDonorSize)
-          end if
-        end do
-
         Edits => Domain%edits
 
         Edits%overlap_dependencies(GridID,:) = .true.
@@ -589,7 +407,6 @@ contains
     type(ovk_domain), intent(inout) :: Domain
     integer, intent(in) :: GridID
 
-    integer :: m
     logical :: Success
     type(t_domain_edits), pointer :: Edits
 
@@ -605,24 +422,6 @@ contains
       if (Success) then
 
         call DestroyGrid(Domain%grid(GridID))
-
-        do m = 1, Domain%properties%ngrids
-          if (Domain%properties%overlappable(m,GridID)) then
-            call DestroyOverlap(Domain%overlap(m,GridID))
-          end if
-          if (Domain%properties%overlappable(GridID,m)) then
-            call DestroyOverlap(Domain%overlap(GridID,m))
-          end if
-        end do
-
-        do m = 1, Domain%properties%ngrids
-          if (Domain%properties%connection_type(m,GridID) /= OVK_CONNECTION_NONE) then
-            call DestroyConnectivity(Domain%connectivity(m,GridID))
-          end if
-          if (Domain%properties%connection_type(GridID,m) /= OVK_CONNECTION_NONE) then
-            call DestroyConnectivity(Domain%connectivity(GridID,m))
-          end if
-        end do
 
         Edits => Domain%edits
 
@@ -738,7 +537,7 @@ contains
     type(ovk_domain), intent(inout) :: Domain
     type(ovk_grid), pointer, intent(inout) :: Grid
 
-    integer :: m, n
+    integer :: m
     integer :: GridID
     logical :: Success, EndEdit
     type(t_domain_edits), pointer :: Edits
@@ -775,26 +574,6 @@ contains
             Edits%boundary_hole_dependencies(:) = .true.
             Edits%connectivity_dependencies(:,:) = .true.
           end if
-
-          do n = 1, Domain%properties%ngrids
-            do m = 1, Domain%properties%ngrids
-              if (Domain%edits%overlap_dependencies(m,n)) then
-                if (Domain%properties%overlappable(m,n)) then
-                  call ResetOverlap(Domain%overlap(m,n))
-                end if
-              end if
-            end do
-          end do
-
-          do n = 1, Domain%properties%ngrids
-            do m = 1, Domain%properties%ngrids
-              if (Domain%edits%connectivity_dependencies(m,n)) then
-                if (Domain%properties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
-                  call ResizeConnectivity(Domain%connectivity(m,n), 0_lk)
-                end if
-              end if
-            end do
-          end do
 
         end if
 
@@ -1448,57 +1227,7 @@ contains
     Properties%ngrids = NumGrids
     Properties%verbose = .false.
 
-    allocate(Properties%overlappable(NumGrids,NumGrids))
-    Properties%overlappable = .false.
-
-    allocate(Properties%overlap_tolerance(NumGrids,NumGrids))
-    Properties%overlap_tolerance = 1.e-12_rk
-
-    allocate(Properties%overlap_accel_quality_adjust(NumGrids))
-    Properties%overlap_accel_quality_adjust = 0._rk
-
-    allocate(Properties%infer_boundaries(NumGrids))
-    Properties%infer_boundaries = .false.
-
-    allocate(Properties%boundary_hole_cutting(NumGrids,NumGrids))
-    Properties%boundary_hole_cutting = .false.
-
-    allocate(Properties%occludes(NumGrids,NumGrids))
-    Properties%occludes = OVK_AUTO
-
-    allocate(Properties%edge_padding(NumGrids,NumGrids))
-    Properties%edge_padding = 0
-
-    allocate(Properties%edge_smoothing(NumGrids))
-    Properties%edge_smoothing = 0
-
-    allocate(Properties%connection_type(NumGrids,NumGrids))
-    Properties%connection_type = OVK_CONNECTION_NONE
-
-    allocate(Properties%fringe_size(NumGrids))
-    Properties%fringe_size = 0
-
-    allocate(Properties%overlap_minimization(NumGrids,NumGrids))
-    Properties%overlap_minimization = .false.
-
   end function ovk_domain_properties_
-
-  function t_domain_edits_(NumDims, NumGrids) result(Edits)
-
-    integer, intent(in) :: NumDims
-    integer, intent(in) :: NumGrids
-    type(t_domain_edits) :: Edits
-
-    allocate(Edits%overlap_dependencies(NumGrids,NumGrids))
-    Edits%overlap_dependencies = .false.
-
-    allocate(Edits%boundary_hole_dependencies(NumGrids))
-    Edits%boundary_hole_dependencies = .false.
-
-    allocate(Edits%connectivity_dependencies(NumGrids,NumGrids))
-    Edits%connectivity_dependencies = .false.
-
-  end function t_domain_edits_
 
   subroutine ovkGetDomainPropertyDimension(Properties, NumDims)
 
@@ -1536,393 +1265,22 @@ contains
 
   end subroutine ovkSetDomainPropertyVerbose
 
-  subroutine ovkGetDomainPropertyOverlappable(Properties, OverlappingGridID, OverlappedGridID, &
-    Overlappable)
+  function t_domain_edits_(NumDims, NumGrids) result(Edits)
 
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(out) :: Overlappable
-
-    Overlappable = Properties%overlappable(OverlappingGridID,OverlappedGridID)
-
-  end subroutine ovkGetDomainPropertyOverlappable
-
-  subroutine ovkSetDomainPropertyOverlappable(Properties, OverlappingGridID, OverlappedGridID, &
-    Overlappable)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(in) :: Overlappable
-
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    call GridIDRange(Properties%ngrids, OverlappingGridID, ms, me)
-    call GridIDRange(Properties%ngrids, OverlappedGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%overlappable(m,n) = Overlappable
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyOverlappable
-
-  subroutine ovkGetDomainPropertyOverlapTolerance(Properties, OverlappingGridID, &
-    OverlappedGridID, OverlapTolerance)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    real(rk), intent(out) :: OverlapTolerance
-
-    OverlapTolerance = Properties%overlap_tolerance(OverlappingGridID,OverlappedGridID)
-
-  end subroutine ovkGetDomainPropertyOverlapTolerance
-
-  subroutine ovkSetDomainPropertyOverlapTolerance(Properties, OverlappingGridID, &
-    OverlappedGridID, OverlapTolerance)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    real(rk), intent(in) :: OverlapTolerance
-
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    if (OVK_DEBUG) then
-      if (OverlapTolerance < 0._rk) then
-        write (ERROR_UNIT, '(a)') "ERROR: Overlap tolerance must be nonnegative."
-        stop 1
-      end if
-    end if
-
-    call GridIDRange(Properties%ngrids, OverlappingGridID, ms, me)
-    call GridIDRange(Properties%ngrids, OverlappedGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%overlap_tolerance(m,n) = OverlapTolerance
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyOverlapTolerance
-
-  subroutine ovkGetDomainPropertyOverlapAccelQualityAdjust(Properties, GridID, OverlapAccelQualityAdjust)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: GridID
-    real(rk), intent(out) :: OverlapAccelQualityAdjust
-
-    OverlapAccelQualityAdjust = Properties%overlap_accel_quality_adjust(GridID)
-
-  end subroutine ovkGetDomainPropertyOverlapAccelQualityAdjust
-
-  subroutine ovkSetDomainPropertyOverlapAccelQualityAdjust(Properties, GridID, OverlapAccelQualityAdjust)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: GridID
-    real(rk), intent(in) :: OverlapAccelQualityAdjust
-
-    integer :: m
-    integer :: ms, me
-
-    call GridIDRange(Properties%ngrids, GridID, ms, me)
-
-    do m = ms, me
-      Properties%overlap_accel_quality_adjust(m) = OverlapAccelQualityAdjust
-    end do
-
-  end subroutine ovkSetDomainPropertyOverlapAccelQualityAdjust
-
-  subroutine ovkGetDomainPropertyInferBoundaries(Properties, GridID, InferBoundaries)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: GridID
-    logical, intent(out) :: InferBoundaries
-
-    InferBoundaries = Properties%infer_boundaries(GridID)
-
-  end subroutine ovkGetDomainPropertyInferBoundaries
-
-  subroutine ovkSetDomainPropertyInferBoundaries(Properties, GridID, InferBoundaries)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: GridID
-    logical, intent(in) :: InferBoundaries
-
-    integer :: m
-    integer :: ms, me
-
-    call GridIDRange(Properties%ngrids, GridID, ms, me)
-
-    do m = ms, me
-      Properties%infer_boundaries(m) = InferBoundaries
-    end do
-
-  end subroutine ovkSetDomainPropertyInferBoundaries
-
-  subroutine ovkGetDomainPropertyBoundaryHoleCutting(Properties, CuttingGridID, CutGridID, &
-    BoundaryHoleCutting)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: CuttingGridID, CutGridID
-    logical, intent(out) :: BoundaryHoleCutting
-
-    BoundaryHoleCutting = Properties%boundary_hole_cutting(CuttingGridID,CutGridID)
-
-  end subroutine ovkGetDomainPropertyBoundaryHoleCutting
-
-  subroutine ovkSetDomainPropertyBoundaryHoleCutting(Properties, CuttingGridID, CutGridID, &
-    BoundaryHoleCutting)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: CuttingGridID, CutGridID
-    logical, intent(in) :: BoundaryHoleCutting
-
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    call GridIDRange(Properties%ngrids, CuttingGridID, ms, me)
-    call GridIDRange(Properties%ngrids, CutGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%boundary_hole_cutting(m,n) = BoundaryHoleCutting
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyBoundaryHoleCutting
-
-  subroutine ovkGetDomainPropertyOccludes(Properties, OccludingGridID, OccludedGridID, &
-    Occludes)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: OccludingGridID, OccludedGridID
-    integer, intent(out) :: Occludes
-
-    Occludes = Properties%occludes(OccludingGridID,OccludedGridID)
-
-  end subroutine ovkGetDomainPropertyOccludes
-
-  subroutine ovkSetDomainPropertyOccludes(Properties, OccludingGridID, OccludedGridID, &
-    Occludes)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: OccludingGridID, OccludedGridID
-    integer, intent(in) :: Occludes
-
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    call GridIDRange(Properties%ngrids, OccludingGridID, ms, me)
-    call GridIDRange(Properties%ngrids, OccludedGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%occludes(m,n) = Occludes
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyOccludes
-
-  subroutine ovkGetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, &
-    EdgePadding)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(out) :: EdgePadding
-
-    EdgePadding = Properties%edge_padding(DonorGridID,ReceiverGridID)
-
-  end subroutine ovkGetDomainPropertyEdgePadding
-
-  subroutine ovkSetDomainPropertyEdgePadding(Properties, DonorGridID, ReceiverGridID, &
-    EdgePadding)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(in) :: EdgePadding
-
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    if (OVK_DEBUG) then
-      if (EdgePadding < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Edge padding must be nonnegative."
-        stop 1
-      end if
-    end if
-
-    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%edge_padding(m,n) = EdgePadding
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyEdgePadding
-
-  subroutine ovkGetDomainPropertyEdgeSmoothing(Properties, GridID, EdgeSmoothing)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: GridID
-    integer, intent(out) :: EdgeSmoothing
-
-    EdgeSmoothing = Properties%edge_smoothing(GridID)
-
-  end subroutine ovkGetDomainPropertyEdgeSmoothing
-
-  subroutine ovkSetDomainPropertyEdgeSmoothing(Properties, GridID, EdgeSmoothing)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: GridID
-    integer, intent(in) :: EdgeSmoothing
-
-    integer :: n
-    integer :: ns, ne
-
-    if (OVK_DEBUG) then
-      if (EdgeSmoothing < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Edge smoothing must be nonnegative."
-        stop 1
-      end if
-    end if
-
-    call GridIDRange(Properties%ngrids, GridID, ns, ne)
-
-    do n = ns, ne
-      Properties%edge_smoothing(n) = EdgeSmoothing
-    end do
-
-  end subroutine ovkSetDomainPropertyEdgeSmoothing
-
-  subroutine ovkGetDomainPropertyConnectionType(Properties, DonorGridID, ReceiverGridID, &
-    ConnectionType)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(out) :: ConnectionType
-
-    ConnectionType = Properties%connection_type(DonorGridID,ReceiverGridID)
-
-  end subroutine ovkGetDomainPropertyConnectionType
-
-  subroutine ovkSetDomainPropertyConnectionType(Properties, DonorGridID, ReceiverGridID, &
-    ConnectionType)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer, intent(in) :: ConnectionType
-
-    logical :: ValidValue
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    if (OVK_DEBUG) then
-      ValidValue = &
-        ConnectionType == OVK_CONNECTION_NONE .or. &
-        ConnectionType == OVK_CONNECTION_LINEAR .or. &
-        ConnectionType == OVK_CONNECTION_CUBIC
-      if (.not. ValidValue) then
-        write (ERROR_UNIT, '(a)') "ERROR: Invalid connection type."
-        stop 1
-      end if
-    end if
-
-    call GridIDRange(Properties%ngrids, DonorGridID, ms, me)
-    call GridIDRange(Properties%ngrids, ReceiverGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%connection_type(m,n) = ConnectionType
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyConnectionType
-
-  subroutine ovkGetDomainPropertyFringeSize(Properties, GridID, FringeSize)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: GridID
-    integer, intent(out) :: FringeSize
-
-    FringeSize = Properties%fringe_size(GridID)
-
-  end subroutine ovkGetDomainPropertyFringeSize
-
-  subroutine ovkSetDomainPropertyFringeSize(Properties, GridID, FringeSize)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: GridID
-    integer, intent(in) :: FringeSize
-
-    integer :: n
-    integer :: ns, ne
-
-    if (OVK_DEBUG) then
-      if (FringeSize < 0) then
-        write (ERROR_UNIT, '(a)') "ERROR: Fringe size must be nonnegative."
-        stop 1
-      end if
-    end if
-
-    call GridIDRange(Properties%ngrids, GridID, ns, ne)
-
-    do n = ns, ne
-      Properties%fringe_size(n) = FringeSize
-    end do
-
-  end subroutine ovkSetDomainPropertyFringeSize
-
-  subroutine ovkGetDomainPropertyOverlapMinimization(Properties, OverlappingGridID, OverlappedGridID, &
-    OverlapMinimization)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(out) :: OverlapMinimization
-
-    OverlapMinimization = Properties%overlap_minimization(OverlappingGridID,OverlappedGridID)
-
-  end subroutine ovkGetDomainPropertyOverlapMinimization
-
-  subroutine ovkSetDomainPropertyOverlapMinimization(Properties, OverlappingGridID, OverlappedGridID, &
-    OverlapMinimization)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical, intent(in) :: OverlapMinimization
-
-    integer :: m, n
-    integer :: ms, me, ns, ne
-
-    call GridIDRange(Properties%ngrids, OverlappingGridID, ms, me)
-    call GridIDRange(Properties%ngrids, OverlappedGridID, ns, ne)
-
-    do n = ns, ne
-      do m = ms, me
-        Properties%overlap_minimization(m,n) = OverlapMinimization
-      end do
-    end do
-
-  end subroutine ovkSetDomainPropertyOverlapMinimization
-
-  subroutine GridIDRange(NumGrids, GridID, StartID, EndID)
-
+    integer, intent(in) :: NumDims
     integer, intent(in) :: NumGrids
-    integer, intent(in) :: GridID
-    integer, intent(out) :: StartID, EndID
+    type(t_domain_edits) :: Edits
 
-    if (GridID == OVK_ALL_GRIDS) then
-      StartID = 1
-      EndID = NumGrids
-    else
-      StartID = GridID
-      EndID = GridID
-    end if
+    allocate(Edits%overlap_dependencies(NumGrids,NumGrids))
+    Edits%overlap_dependencies = .false.
 
-  end subroutine GridIDRange
+    allocate(Edits%boundary_hole_dependencies(NumGrids))
+    Edits%boundary_hole_dependencies = .false.
+
+    allocate(Edits%connectivity_dependencies(NumGrids,NumGrids))
+    Edits%connectivity_dependencies = .false.
+
+  end function t_domain_edits_
 
   function ValidID(Domain, GridID)
 
@@ -1933,28 +1291,5 @@ contains
     ValidID = GridID >= 1 .and. GridID <= Domain%properties%ngrids
 
   end function ValidID
-
-  function GetMaxDonorSize(Properties, DonorGridID, ReceiverGridID) result(MaxDonorSize)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(in) :: DonorGridID, ReceiverGridID
-    integer :: MaxDonorSize
-
-    integer :: NumDims
-    integer :: ConnectionType
-    integer, dimension(MAX_ND) :: DonorSize
-
-    NumDims = Properties%nd
-    ConnectionType = Properties%connection_type(DonorGridID,ReceiverGridID)
-
-    if (ConnectionType /= OVK_CONNECTION_NONE) then
-      DonorSize = 1
-      DonorSize(:NumDims) = ovkDonorSize(NumDims, ConnectionType)
-      MaxDonorSize = maxval(DonorSize)
-    else
-      MaxDonorSize = 0
-    end if
-
-  end function GetMaxDonorSize
 
 end module ovkDomain

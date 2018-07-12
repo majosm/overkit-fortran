@@ -33,7 +33,6 @@ module ovkConnectivity
   public :: ovkGetConnectivityPropertyConnectionCount
   public :: ovkDonorSize
   public :: ovkFindDonor
-  public :: OVK_CONNECTION_NONE, OVK_CONNECTION_NEAREST, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
 
   ! Internal
   public :: ovk_connectivity_
@@ -64,11 +63,6 @@ module ovkConnectivity
     real(rk), dimension(:,:), pointer :: donor_coords
     real(rk), dimension(:,:,:), pointer :: donor_interp_coefs
   end type ovk_connectivity
-
-  integer, parameter :: OVK_CONNECTION_NONE = 0
-  integer, parameter :: OVK_CONNECTION_NEAREST = 1
-  integer, parameter :: OVK_CONNECTION_LINEAR = 2
-  integer, parameter :: OVK_CONNECTION_CUBIC = 3
 
 contains
 

@@ -60,7 +60,6 @@ contains
 
     integer :: i, j, m, n
     type(ovk_domain) :: Domain
-    type(ovk_domain_properties), pointer :: Properties
     type(ovk_grid), pointer :: Grid
     type(ovk_field_real), pointer :: X, Y
     type(ovk_field_int), pointer :: State
@@ -68,10 +67,10 @@ contains
     real(rk) :: RMin, RMax
     real(rk) :: Radius
     real(rk) :: Theta
+    type(ovk_assembly_options) :: AssemblyOptions
     integer, dimension(2,2) :: NumPointsAll
     type(ovk_plot3d_grid_file) :: GridFile
     type(ovk_cart) :: Cart
-    integer :: ConnectionType
     type(ovk_connectivity), pointer :: Connectivity
     integer, dimension(:,:), pointer :: ReceiverPoints
     integer, dimension(MAX_ND) :: Point
@@ -124,30 +123,6 @@ contains
     ! Initialize the domain
     call ovkCreateDomain(Domain, NumDims=2, NumGrids=2, Verbose=.true.)
 
-    call ovkEditDomainProperties(Domain, Properties)
-
-    ! Indicate which grids can intersect
-    call ovkSetDomainPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-
-    ! Automatically define boundaries in non-overlapping regions
-    call ovkSetDomainPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
-
-    ! Indicate which grids can cut each other
-    call ovkSetDomainPropertyBoundaryHoleCutting(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
-    call ovkSetDomainPropertyBoundaryHoleCutting(Properties, 2, 1, .true.)
-
-    ! Retain some extra overlap between grids
-    call ovkSetDomainPropertyEdgePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
-    call ovkSetDomainPropertyEdgeSmoothing(Properties, OVK_ALL_GRIDS, 2)
-
-    ! Indicate which grids can communicate and how
-    call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
-    call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
-    call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
-    call ovkSetDomainPropertyOverlapMinimization(Properties, 2, 1, .true.)
-
-    call ovkReleaseDomainProperties(Domain, Properties)
-
     !===============
     ! Grid creation
     !===============
@@ -193,7 +168,33 @@ contains
     ! Overset assembly
     !==================
 
-    call ovkAssemble(Domain)
+    AssemblyOptions = ovk_assembly_options_(2, 2)
+
+    ! Indicate which grids can intersect
+    call ovkSetAssemblyOptionOverlappable(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+
+    ! Automatically define boundaries in non-overlapping regions
+    call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
+
+    ! Indicate which grids can cut each other
+    call ovkSetAssemblyOptionBoundaryHoleCutting(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
+    call ovkSetAssemblyOptionBoundaryHoleCutting(AssemblyOptions, 2, 1, .true.)
+
+    ! Indicate how to treat overlap between grids
+    call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_TRUE)
+    call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_FALSE)
+
+    ! Retain some extra overlap between grids
+    call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
+    call ovkSetAssemblyOptionEdgeSmoothing(AssemblyOptions, OVK_ALL_GRIDS, 2)
+
+    ! Indicate which grids can communicate and how
+    call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
+    call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
+    call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
+    call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, 2, 1, .true.)
+
+    call ovkAssemble(Domain, AssemblyOptions)
 
     ! Update background IBlank with holes (used later if generating remap)
     call ovkGetGrid(Domain, 1, Grid)
@@ -210,8 +211,6 @@ contains
     ! Write a PLOT3D grid file
     call ovkCreateP3D(GridFile, "circle_cylinder.xyz", NumDims=2, NumGrids=2, &
       NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
-
-    call ovkGetDomainProperties(Domain, Properties)
 
     do n = 1, 2
 
@@ -230,8 +229,7 @@ contains
 
       ! IBlank == -N => Receives from grid N
       do m = 1, 2
-        call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
-        if (ConnectionType /= OVK_CONNECTION_NONE) then
+        if (ovkConnectivityExists(Domain, m, n)) then
           call ovkGetConnectivity(Domain, m, n, Connectivity)
           call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
           do i = 1, size(ReceiverPoints,2)
@@ -260,7 +258,6 @@ contains
 
     integer :: i, j, m, n
     type(ovk_domain) :: Domain
-    type(ovk_domain_properties), pointer :: Properties
     type(ovk_grid), pointer :: Grid
     type(ovk_field_real), pointer :: X, Y
     type(ovk_field_int), pointer :: State
@@ -268,10 +265,10 @@ contains
     real(rk) :: RMin, RMax
     real(rk) :: Radius
     real(rk) :: Theta
+    type(ovk_assembly_options) :: AssemblyOptions
     integer, dimension(2,4) :: NumPointsAll
     type(ovk_plot3d_grid_file) :: GridFile
     type(ovk_cart) :: Cart
-    integer :: ConnectionType
     type(ovk_connectivity), pointer :: Connectivity
     integer, dimension(:,:), pointer :: ReceiverPoints
     integer, dimension(MAX_ND) :: Point
@@ -351,18 +348,6 @@ contains
 
     ! Initialize the domain
     call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, Verbose=.true.)
-
-    call ovkEditDomainProperties(Domain, Properties)
-
-    ! Indicate which grids can intersect
-    call ovkSetDomainPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-    call ovkSetDomainPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
-
-    ! Indicate which grids can communicate and how
-    call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
-    call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 1)
-
-    call ovkReleaseDomainProperties(Domain, Properties)
 
     !===============
     ! Grid creation
@@ -456,7 +441,17 @@ contains
     ! Overset assembly
     !==================
 
-    call ovkAssemble(Domain)
+    AssemblyOptions = ovk_assembly_options_(2, 4)
+
+    ! Indicate which grids can intersect
+    call ovkSetAssemblyOptionOverlappable(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+    call ovkSetAssemblyOptionOverlapTolerance(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
+
+    ! Indicate which grids can communicate and how
+    call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
+    call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 1)
+
+    call ovkAssemble(Domain, AssemblyOptions)
 
     !========
     ! Output
@@ -470,8 +465,6 @@ contains
     ! Write a PLOT3D grid file
     call ovkCreateP3D(GridFile, "circle_block.xyz", NumDims=2, NumGrids=4, &
       NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
-
-    call ovkGetDomainProperties(Domain, Properties)
 
     do n = 1, 4
 
@@ -490,8 +483,7 @@ contains
 
       ! IBlank == -N => Receives from grid N
       do m = 1, 4
-        call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
-        if (ConnectionType /= OVK_CONNECTION_NONE) then
+        if (ovkConnectivityExists(Domain, m, n)) then
           call ovkGetConnectivity(Domain, m, n, Connectivity)
           call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
           do i = 1, size(ReceiverPoints,2)
@@ -520,14 +512,13 @@ contains
 
     integer :: i, j, m, n
     type(ovk_domain) :: Domain
-    type(ovk_domain_properties), pointer :: Properties
     type(ovk_grid), pointer :: Grid
     type(ovk_field_real), pointer :: X, Y
     type(ovk_field_int), pointer :: State
+    type(ovk_assembly_options) :: AssemblyOptions
     integer, dimension(2,6) :: NumPointsAll
     type(ovk_plot3d_grid_file) :: GridFile
     type(ovk_cart) :: Cart
-    integer :: ConnectionType
     type(ovk_connectivity), pointer :: Connectivity
     integer, dimension(:,:), pointer :: ReceiverPoints
     integer, dimension(MAX_ND) :: Point
@@ -541,38 +532,6 @@ contains
     ! Initialize the domain
     ! Combined domain with both cylinder (1-2) and block (3-6) grids
     call ovkCreateDomain(Domain, NumDims=2, NumGrids=6, Verbose=.true.)
-
-    call ovkEditDomainProperties(Domain, Properties)
-
-    ! Indicate which grids can intersect
-    call ovkSetDomainPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
-    ! Allow block grids to be overlapped by cylinder grids
-    do n = 3, 6
-      do m = 1, 2
-        call ovkSetDomainPropertyOverlappable(Properties, m, n, .true.)
-      end do
-    end do
-    call ovkSetDomainPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
-
-    ! Indicate how to treat overlap between grids
-    call ovkSetDomainPropertyOccludes(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_FALSE)
-    ! Cylinder grids should occlude block grids everywhere
-    do n = 3, 6
-      do m = 1, 2
-        call ovkSetDomainPropertyOccludes(Properties, m, n, OVK_TRUE)
-      end do
-    end do
-
-    ! Indicate which grids can communicate and how
-    call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_NONE)
-    ! Full grid interpolation from cylinder grids to block grids
-    do n = 3, 6
-      do m = 1, 2
-        call ovkSetDomainPropertyConnectionType(Properties, m, n, OVK_CONNECTION_CUBIC)
-      end do
-    end do
-
-    call ovkReleaseDomainProperties(Domain, Properties)
 
     !===============
     ! Grid creation
@@ -681,7 +640,37 @@ contains
     ! Overset assembly
     !==================
 
-    call ovkAssemble(Domain)
+    AssemblyOptions = ovk_assembly_options_(2, 6)
+
+    ! Indicate which grids can intersect
+    call ovkSetAssemblyOptionOverlappable(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
+    ! Allow block grids to be overlapped by cylinder grids
+    do n = 3, 6
+      do m = 1, 2
+        call ovkSetAssemblyOptionOverlappable(AssemblyOptions, m, n, .true.)
+      end do
+    end do
+    call ovkSetAssemblyOptionOverlapTolerance(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
+
+    ! Indicate how to treat overlap between grids
+    call ovkSetAssemblyOptionOccludes(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_FALSE)
+    ! Cylinder grids should occlude block grids everywhere
+    do n = 3, 6
+      do m = 1, 2
+        call ovkSetAssemblyOptionOccludes(AssemblyOptions, m, n, OVK_TRUE)
+      end do
+    end do
+
+    ! Indicate which grids can communicate and how
+    call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_NONE)
+    ! Full grid interpolation from cylinder grids to block grids
+    do n = 3, 6
+      do m = 1, 2
+        call ovkSetAssemblyOptionConnectionType(AssemblyOptions, m, n, OVK_CONNECTION_CUBIC)
+      end do
+    end do
+
+    call ovkAssemble(Domain, AssemblyOptions)
 
     !========
     ! Output
@@ -697,8 +686,6 @@ contains
     ! Write a PLOT3D grid file
     call ovkCreateP3D(GridFile, "circle_remap.xyz", NumDims=2, NumGrids=6, &
       NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
-
-    call ovkGetDomainProperties(Domain, Properties)
 
     do n = 1, 6
 
@@ -717,8 +704,7 @@ contains
 
       ! IBlank == -N => Receives from grid N
       do m = 1, 6
-        call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
-        if (ConnectionType /= OVK_CONNECTION_NONE) then
+        if (ovkConnectivityExists(Domain, m, n)) then
           call ovkGetConnectivity(Domain, m, n, Connectivity)
           call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
           do i = 1, size(ReceiverPoints,2)

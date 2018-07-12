@@ -21,7 +21,6 @@ program Bump
   integer, dimension(MAX_ND) :: NumPointsBump
   real(rk), dimension(MAX_ND) :: Length
   type(ovk_domain) :: Domain
-  type(ovk_domain_properties), pointer :: Properties
   type(ovk_grid), pointer :: Grid
   real(rk), dimension(:,:,:,:), allocatable :: XYZ
   type(ovk_field_real), pointer :: Coords
@@ -32,6 +31,7 @@ program Bump
   real(rk) :: BumpHeight
   real(rk) :: MinHeight, MaxHeight
   real(rk) :: Shift
+  type(ovk_assembly_options) :: AssemblyOptions
   integer, dimension(MAX_ND,2) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
   type(ovk_cart) :: Cart
@@ -77,29 +77,6 @@ program Bump
 
   ! Initialize the problem
   call ovkCreateDomain(Domain, NumDims=NumDims, NumGrids=2, Verbose=.true.)
-
-  call ovkEditDomainProperties(Domain, Properties)
-
-  ! Indicate which grids can intersect
-  call ovkSetDomainPropertyOverlappable(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-  call ovkSetDomainPropertyOverlapTolerance(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0.1_rk)
-
-  ! Automatically define boundaries in non-overlapping regions
-  call ovkSetDomainPropertyInferBoundaries(Properties, OVK_ALL_GRIDS, .true.)
-
-  ! Indicate which grids can cut each other
-  call ovkSetDomainPropertyBoundaryHoleCutting(Properties, 2, 1, .true.)
-
-  ! Retain some extra overlap between grids
-  call ovkSetDomainPropertyEdgePadding(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
-  call ovkSetDomainPropertyEdgeSmoothing(Properties, OVK_ALL_GRIDS, 3)
-
-  ! Indicate which grids can communicate and how
-  call ovkSetDomainPropertyConnectionType(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, ConnectionType)
-  call ovkSetDomainPropertyFringeSize(Properties, OVK_ALL_GRIDS, 2)
-  call ovkSetDomainPropertyOverlapMinimization(Properties, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
-
-  call ovkReleaseDomainProperties(Domain, Properties)
 
   !=================
   ! Background grid
@@ -219,7 +196,32 @@ program Bump
   ! Overset assembly
   !==================
 
-  call ovkAssemble(Domain)
+  AssemblyOptions = ovk_assembly_options_(NumDims, 2)
+
+  ! Indicate which grids can intersect
+  call ovkSetAssemblyOptionOverlappable(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblyOptionOverlapTolerance(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 0.1_rk)
+
+  ! Automatically define boundaries in non-overlapping regions
+  call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
+
+  ! Indicate which grids can cut each other
+  call ovkSetAssemblyOptionBoundaryHoleCutting(AssemblyOptions, 2, 1, .true.)
+
+  ! Indicate how to treat overlap between grids
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_TRUE)
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_FALSE)
+
+  ! Retain some extra overlap between grids
+  call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 6)
+  call ovkSetAssemblyOptionEdgeSmoothing(AssemblyOptions, OVK_ALL_GRIDS, 3)
+
+  ! Indicate which grids can communicate and how
+  call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, ConnectionType)
+  call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblyOptionOverlapMinimization(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+
+  call ovkAssemble(Domain, AssemblyOptions)
 
   !========
   ! Output
@@ -231,8 +233,6 @@ program Bump
   ! Write a PLOT3D grid file with IBlank to visualize the result
   call ovkCreateP3D(GridFile, "bump.xyz", NumDims=NumDims, NumGrids=2, NumPointsAll=NumPointsAll, &
     WithIBlank=.true.)
-
-  call ovkGetDomainProperties(Domain, Properties)
 
   do n = 1, 2
 
@@ -254,8 +254,7 @@ program Bump
 
     ! IBlank == -N => Receives from grid N
     do m = 1, 2
-      call ovkGetDomainPropertyConnectionType(Properties, m, n, ConnectionType)
-      if (ConnectionType /= OVK_CONNECTION_NONE) then
+      if (ovkConnectivityExists(Domain, m, n)) then
         call ovkGetConnectivity(Domain, m, n, Connectivity)
         call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
         do i = 1, size(ReceiverPoints,2)
