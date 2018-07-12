@@ -52,8 +52,8 @@ module Overkit
   public :: ovkSetAssemblyOptionOverlapAccelQualityAdjust
   public :: ovkGetAssemblyOptionInferBoundaries
   public :: ovkSetAssemblyOptionInferBoundaries
-  public :: ovkGetAssemblyOptionBoundaryHoleCutting
-  public :: ovkSetAssemblyOptionBoundaryHoleCutting
+  public :: ovkGetAssemblyOptionCutBoundaryHoles
+  public :: ovkSetAssemblyOptionCutBoundaryHoles
   public :: ovkGetAssemblyOptionOccludes
   public :: ovkSetAssemblyOptionOccludes
   public :: ovkGetAssemblyOptionEdgePadding

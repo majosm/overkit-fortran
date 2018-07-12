@@ -177,8 +177,8 @@ contains
     call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
 
     ! Indicate which grids can cut each other
-    call ovkSetAssemblyOptionBoundaryHoleCutting(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
-    call ovkSetAssemblyOptionBoundaryHoleCutting(AssemblyOptions, 2, 1, .true.)
+    call ovkSetAssemblyOptionCutBoundaryHoles(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
+    call ovkSetAssemblyOptionCutBoundaryHoles(AssemblyOptions, 2, 1, .true.)
 
     ! Indicate how to treat overlap between grids
     call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_OCCLUDES_ALL)

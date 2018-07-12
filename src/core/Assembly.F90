@@ -30,7 +30,7 @@ module ovkAssembly
     real(rk), dimension(:,:), pointer :: overlap_tolerance
     real(rk), dimension(:), pointer :: overlap_accel_quality_adjust
     logical, dimension(:), pointer :: infer_boundaries
-    logical, dimension(:,:), pointer :: boundary_hole_cutting
+    logical, dimension(:,:), pointer :: cut_boundary_holes
     integer, dimension(:,:), pointer :: occludes
     integer, dimension(:,:), pointer :: edge_padding
     integer, dimension(:), pointer :: edge_smoothing
@@ -73,7 +73,7 @@ contains
 
     call InferNonOverlappingBoundaries(Domain, ReducedDomainInfo)
 
-    call CutBoundaryHoles(Domain, ReducedDomainInfo)
+    call CutHoles(Domain, ReducedDomainInfo)
 
     allocate(OverlapResolutions(ReducedDomainInfo%ngrids,ReducedDomainInfo%ngrids))
 
@@ -121,7 +121,7 @@ contains
     real(rk), dimension(:,:), pointer :: OverlapTolerance
     real(rk), dimension(:), pointer :: OverlapAccelQualityAdjust
     logical, dimension(:), pointer :: InferBoundaries
-    logical, dimension(:,:), pointer :: BoundaryHoleCutting
+    logical, dimension(:,:), pointer :: CutBoundaryHoles
     integer, dimension(:,:), pointer :: Occludes
     integer, dimension(:,:), pointer :: EdgePadding
     integer, dimension(:), pointer :: EdgeSmoothing
@@ -215,9 +215,9 @@ contains
     end do
 
     allocate(ReducedDomainInfo%infer_boundaries(NumGrids))
-    allocate(ReducedDomainInfo%boundary_hole_cutting(NumGrids,NumGrids))
+    allocate(ReducedDomainInfo%cut_boundary_holes(NumGrids,NumGrids))
     InferBoundaries => ReducedDomainInfo%infer_boundaries
-    BoundaryHoleCutting => ReducedDomainInfo%boundary_hole_cutting
+    CutBoundaryHoles => ReducedDomainInfo%cut_boundary_holes
 
     do n = 1, NumGrids
       q = IndexToID(n)
@@ -226,9 +226,9 @@ contains
         p = IndexToID(m)
         ! Need overlap data to cut
         if (Overlappable(m,n)) then
-          BoundaryHoleCutting(m,n) = AssemblyOptions%boundary_hole_cutting(p,q)
+          CutBoundaryHoles(m,n) = AssemblyOptions%cut_boundary_holes(p,q)
         else
-          BoundaryHoleCutting(m,n) = .false.
+          CutBoundaryHoles(m,n) = .false.
         end if
       end do
     end do
@@ -458,7 +458,7 @@ contains
 
   end subroutine InferNonOverlappingBoundaries
 
-  subroutine CutBoundaryHoles(Domain, ReducedDomainInfo)
+  subroutine CutHoles(Domain, ReducedDomainInfo)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
@@ -467,7 +467,7 @@ contains
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
-    logical, dimension(:,:), pointer :: BoundaryHoleCutting
+    logical, dimension(:,:), pointer :: CutBoundaryHoles
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
     type(ovk_field_logical), dimension(:), allocatable :: BoundaryHoleMasks
@@ -487,20 +487,20 @@ contains
     NumDims = Domain%properties%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
-    BoundaryHoleCutting => ReducedDomainInfo%boundary_hole_cutting
+    CutBoundaryHoles => ReducedDomainInfo%cut_boundary_holes
 
     allocate(BoundaryHoleMasks(NumGrids))
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
-      if (any(BoundaryHoleCutting(:,n))) then
+      if (any(CutBoundaryHoles(:,n))) then
         BoundaryMask = ovk_field_logical_(Grid_n%cart, .false.)
         InteriorMask = ovk_field_logical_(Grid_n%cart, .false.)
         do m = 1, NumGrids
           Grid_m => Domain%grid(IndexToID(m))
           Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
           Overlap_nm => Domain%overlap(Grid_n%properties%id,Grid_m%properties%id)
-          if (BoundaryHoleCutting(m,n)) then
+          if (CutBoundaryHoles(m,n)) then
             call ovkDetectEdge(Overlap_mn%mask, OVK_OUTER_EDGE, OVK_MIRROR, .false., EdgeMask1)
             call ovkDetectEdge(Overlap_nm%mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask2)
             call ovkFindOverlappingPoints(Grid_n, Grid_m, Overlap_nm, EdgeMask2, OverlappingMask)
@@ -561,7 +561,7 @@ contains
 
     do n = 1, NumGrids
       UpdateGrid(n) = .false.
-      if (any(BoundaryHoleCutting(:,n))) then
+      if (any(CutBoundaryHoles(:,n))) then
         if (any(BoundaryHoleMasks(n)%values)) then
           UpdateGrid(n) = .true.
         end if
@@ -611,7 +611,7 @@ contains
       write (*, '(a)') "Finished updating grids and overlap information."
     end if
 
-  end subroutine CutBoundaryHoles
+  end subroutine CutHoles
 
   subroutine ComputeOverlapResolutions(Domain, ReducedDomainInfo, OverlapResolutions)
 
@@ -1492,7 +1492,7 @@ contains
     deallocate(ReducedDomainInfo%overlap_tolerance)
     deallocate(ReducedDomainInfo%overlap_accel_quality_adjust)
     deallocate(ReducedDomainInfo%infer_boundaries)
-    deallocate(ReducedDomainInfo%boundary_hole_cutting)
+    deallocate(ReducedDomainInfo%cut_boundary_holes)
     deallocate(ReducedDomainInfo%occludes)
     deallocate(ReducedDomainInfo%edge_padding)
     deallocate(ReducedDomainInfo%edge_smoothing)

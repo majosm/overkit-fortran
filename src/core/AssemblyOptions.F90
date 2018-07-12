@@ -21,8 +21,8 @@ module ovkAssemblyOptions
   public :: ovkSetAssemblyOptionOverlapAccelQualityAdjust
   public :: ovkGetAssemblyOptionInferBoundaries
   public :: ovkSetAssemblyOptionInferBoundaries
-  public :: ovkGetAssemblyOptionBoundaryHoleCutting
-  public :: ovkSetAssemblyOptionBoundaryHoleCutting
+  public :: ovkGetAssemblyOptionCutBoundaryHoles
+  public :: ovkSetAssemblyOptionCutBoundaryHoles
   public :: ovkGetAssemblyOptionOccludes
   public :: ovkSetAssemblyOptionOccludes
   public :: ovkGetAssemblyOptionEdgePadding
@@ -44,7 +44,7 @@ module ovkAssemblyOptions
     real(rk), dimension(:,:), allocatable :: overlap_tolerance
     real(rk), dimension(:), allocatable :: overlap_accel_quality_adjust
     logical, dimension(:), allocatable :: infer_boundaries
-    logical, dimension(:,:), allocatable :: boundary_hole_cutting
+    logical, dimension(:,:), allocatable :: cut_boundary_holes
     integer, dimension(:,:), allocatable :: occludes
     integer, dimension(:,:), allocatable :: edge_padding
     integer, dimension(:), allocatable :: edge_smoothing
@@ -91,8 +91,8 @@ contains
     allocate(Options%infer_boundaries(NumGrids))
     Options%infer_boundaries = .false.
 
-    allocate(Options%boundary_hole_cutting(NumGrids,NumGrids))
-    Options%boundary_hole_cutting = .false.
+    allocate(Options%cut_boundary_holes(NumGrids,NumGrids))
+    Options%cut_boundary_holes = .false.
 
     allocate(Options%occludes(NumGrids,NumGrids))
     Options%occludes = OVK_OCCLUDES_NONE
@@ -259,23 +259,23 @@ contains
 
   end subroutine ovkSetAssemblyOptionInferBoundaries
 
-  subroutine ovkGetAssemblyOptionBoundaryHoleCutting(Options, CuttingGridID, CutGridID, &
-    BoundaryHoleCutting)
+  subroutine ovkGetAssemblyOptionCutBoundaryHoles(Options, CuttingGridID, CutGridID, &
+    CutBoundaryHoles)
 
     type(ovk_assembly_options), intent(in) :: Options
     integer, intent(in) :: CuttingGridID, CutGridID
-    logical, intent(out) :: BoundaryHoleCutting
+    logical, intent(out) :: CutBoundaryHoles
 
-    BoundaryHoleCutting = Options%boundary_hole_cutting(CuttingGridID,CutGridID)
+    CutBoundaryHoles = Options%cut_boundary_holes(CuttingGridID,CutGridID)
 
-  end subroutine ovkGetAssemblyOptionBoundaryHoleCutting
+  end subroutine ovkGetAssemblyOptionCutBoundaryHoles
 
-  subroutine ovkSetAssemblyOptionBoundaryHoleCutting(Options, CuttingGridID, CutGridID, &
-    BoundaryHoleCutting)
+  subroutine ovkSetAssemblyOptionCutBoundaryHoles(Options, CuttingGridID, CutGridID, &
+    CutBoundaryHoles)
 
     type(ovk_assembly_options), intent(inout) :: Options
     integer, intent(in) :: CuttingGridID, CutGridID
-    logical, intent(in) :: BoundaryHoleCutting
+    logical, intent(in) :: CutBoundaryHoles
 
     integer :: m, n
     integer :: ms, me, ns, ne
@@ -285,11 +285,11 @@ contains
 
     do n = ns, ne
       do m = ms, me
-        Options%boundary_hole_cutting(m,n) = BoundaryHoleCutting
+        Options%cut_boundary_holes(m,n) = CutBoundaryHoles
       end do
     end do
 
-  end subroutine ovkSetAssemblyOptionBoundaryHoleCutting
+  end subroutine ovkSetAssemblyOptionCutBoundaryHoles
 
   subroutine ovkGetAssemblyOptionOccludes(Options, OccludingGridID, OccludedGridID, Occludes)
 

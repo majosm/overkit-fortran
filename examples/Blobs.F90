@@ -202,7 +202,7 @@ program Blobs
   ! Automatically define boundaries in non-overlapping regions
   call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
   ! Indicate which grids can cut each other
-  call ovkSetAssemblyOptionBoundaryHoleCutting(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblyOptionCutBoundaryHoles(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
 
   ! Indicate how to treat overlap between grids
   call ovkSetAssemblyOptionOccludes(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_COARSE)
