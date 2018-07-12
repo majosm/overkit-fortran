@@ -58,7 +58,6 @@ contains
 
     if (OVK_DEBUG) then
       if ( &
-        Domain%properties_edit_ref_count > 0 .or. &
         any(Domain%grid_edit_ref_counts > 0) .or. &
         any(Domain%connectivity_edit_ref_counts > 0) &
       ) then
@@ -148,10 +147,10 @@ contains
 
     ! Ignore empty and non-overlapping grids
     NumGrids = 0
-    do q = 1, Domain%properties%ngrids
+    do q = 1, Domain%ngrids
       GridExists = ovkGridExists(Domain%grid(q))
       GridOverlaps = .false.
-      do p = 1, Domain%properties%ngrids
+      do p = 1, Domain%ngrids
         if (p /= q) then
           GridOverlaps = GridOverlaps .or. AssemblyOptions%overlappable(p,q) .or. &
             AssemblyOptions%overlappable(q,p)
@@ -168,10 +167,10 @@ contains
     IndexToID => ReducedDomainInfo%index_to_id
 
     n = 1
-    do q = 1, Domain%properties%ngrids
+    do q = 1, Domain%ngrids
       GridExists = ovkGridExists(Domain%grid(q))
       GridOverlaps = .false.
-      do p = 1, Domain%properties%ngrids
+      do p = 1, Domain%ngrids
         if (p /= q) then
           GridOverlaps = GridOverlaps .or. AssemblyOptions%overlappable(p,q) .or. &
             AssemblyOptions%overlappable(q,p)
@@ -315,7 +314,7 @@ contains
       write (*, '(a)') "Detecting overlap between grids..."
     end if
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     Overlappable => ReducedDomainInfo%overlappable
@@ -484,7 +483,7 @@ contains
       write (*, '(a)') "Cutting boundary holes..."
     end if
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     CutBoundaryHoles => ReducedDomainInfo%cut_boundary_holes
@@ -627,7 +626,7 @@ contains
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
 
@@ -665,7 +664,7 @@ contains
     type(ovk_field_int), pointer :: State
     integer(lk) :: NumFringe
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     FringeSize => ReducedDomainInfo%fringe_size
@@ -751,7 +750,7 @@ contains
     type(ovk_field_logical) :: OverlapMask
     type(ovk_field_int), pointer :: State
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     Overlappable => ReducedDomainInfo%overlappable
@@ -1146,7 +1145,7 @@ contains
     logical, dimension(:), allocatable :: UpdateGrid
     type(ovk_field_int), pointer :: State
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     FringeSize => ReducedDomainInfo%fringe_size
@@ -1284,7 +1283,7 @@ contains
     integer(lk) :: NumReceivers
     integer(lk) :: NumOrphans
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
 
@@ -1370,14 +1369,14 @@ contains
     type(ovk_field_logical) :: ReceiverMask
     integer, dimension(MAX_ND) :: ReceiverPoint
     integer, dimension(MAX_ND,2) :: DonorExtents
-    real(rk), dimension(Domain%properties%nd) :: DonorCoords
+    real(rk), dimension(Domain%nd) :: DonorCoords
     real(rk), dimension(:,:), allocatable :: DonorInterpCoefs
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Generating connectivity information..."
     end if
 
-    NumDims = Domain%properties%nd
+    NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     ConnectionType => ReducedDomainInfo%connection_type
@@ -1520,8 +1519,8 @@ contains
     type(ovk_grid), pointer :: Grid
     type(ovk_plot3d_grid_file) :: GridFile
 
-    NumDims = Domain%properties%nd
-    NumGrids = Domain%properties%ngrids
+    NumDims = Domain%nd
+    NumGrids = Domain%ngrids
 
     allocate(NumPointsAll(MAX_ND,NumGrids))
     do n = 1, NumGrids

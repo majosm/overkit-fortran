@@ -17,13 +17,13 @@ module ovkDomain
 
   ! API
   public :: ovk_domain
-  public :: ovk_domain_properties
   public :: ovkCreateDomain
   public :: ovkDestroyDomain
   public :: ovkDomainExists
-  public :: ovkGetDomainProperties
-  public :: ovkEditDomainProperties
-  public :: ovkReleaseDomainProperties
+  public :: ovkGetDomainDimension
+  public :: ovkGetDomainGridCount
+  public :: ovkGetDomainVerbose
+  public :: ovkSetDomainVerbose
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
   public :: ovkHasGrid
@@ -38,10 +38,6 @@ module ovkDomain
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
   public :: ovkReleaseConnectivity
-  public :: ovkGetDomainPropertyDimension
-  public :: ovkGetDomainPropertyGridCount
-  public :: ovkGetDomainPropertyVerbose
-  public :: ovkSetDomainPropertyVerbose
 
   ! Internal
   public :: ovk_domain_
@@ -49,15 +45,6 @@ module ovkDomain
   public :: GetDomainEdits
   public :: ResetDomainEdits
   public :: PrintDomainSummary
-
-  type ovk_domain_properties
-    type(t_noconstruct) :: noconstruct
-    ! Read-only
-    integer :: nd
-    integer :: ngrids
-    ! Read/write
-    logical :: verbose
-  end type ovk_domain_properties
 
   type t_domain_edits
     logical, dimension(:,:), allocatable :: overlap_dependencies
@@ -68,9 +55,9 @@ module ovkDomain
   type ovk_domain
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
-    type(ovk_domain_properties), pointer :: properties
-    type(ovk_domain_properties), pointer :: prev_properties
-    integer :: properties_edit_ref_count
+    integer :: nd
+    integer :: ngrids
+    logical :: verbose
     type(t_logger), pointer :: logger
     type(t_domain_edits), pointer :: edits
     type(ovk_grid), dimension(:), pointer :: grid
@@ -88,9 +75,9 @@ contains
 
     type(ovk_domain) :: Domain
 
-    nullify(Domain%properties)
-    nullify(Domain%prev_properties)
-    Domain%properties_edit_ref_count = 0
+    Domain%nd = 2
+    Domain%ngrids = 0
+    Domain%verbose = .false.
     nullify(Domain%logger)
     nullify(Domain%edits)
     nullify(Domain%grid)
@@ -118,13 +105,9 @@ contains
       Verbose_ = .false.
     end if
 
-    allocate(Domain%properties)
-    Domain%properties = ovk_domain_properties_(NumDims, NumGrids)
-    Domain%properties%verbose = Verbose_
-
-    nullify(Domain%prev_properties)
-
-    Domain%properties_edit_ref_count = 0
+    Domain%nd = NumDims
+    Domain%ngrids = NumGrids
+    Domain%verbose = Verbose_
 
     allocate(Domain%logger)
     Domain%logger = t_logger_(Verbose_)
@@ -176,7 +159,9 @@ contains
 
     call SetExists(Domain%existence_flag, .false.)
 
-    do m = 1, Domain%properties%ngrids
+    Domain%cached_assembly_options = ovk_assembly_options_()
+
+    do m = 1, Domain%ngrids
       if (ovkGridExists(Domain%grid(m))) then
         call DestroyGrid(Domain%grid(m))
       end if
@@ -185,8 +170,8 @@ contains
 
     deallocate(Domain%grid_edit_ref_counts)
 
-    do n = 1, Domain%properties%ngrids
-      do m = 1, Domain%properties%ngrids
+    do n = 1, Domain%ngrids
+      do m = 1, Domain%ngrids
         if (ovkOverlapExists(Domain%overlap(m,n))) then
           call DestroyOverlap(Domain%overlap(m,n))
         end if
@@ -196,8 +181,8 @@ contains
 
     deallocate(Domain%overlap_edit_ref_counts)
 
-    do n = 1, Domain%properties%ngrids
-      do m = 1, Domain%properties%ngrids
+    do n = 1, Domain%ngrids
+      do m = 1, Domain%ngrids
         if (ovkConnectivityExists(Domain%connectivity(m,n))) then
           call DestroyConnectivity(Domain%connectivity(m,n))
         end if
@@ -211,11 +196,6 @@ contains
 
     deallocate(Domain%logger)
 
-    deallocate(Domain%properties)
-    if (associated(Domain%prev_properties)) deallocate(Domain%prev_properties)
-
-    Domain%cached_assembly_options = ovk_assembly_options_()
-
   end subroutine ovkDestroyDomain
 
   function ovkDomainExists(Domain) result(Exists)
@@ -227,111 +207,56 @@ contains
 
   end function ovkDomainExists
 
-  subroutine ovkGetDomainProperties(Domain, Properties)
+  subroutine ovkGetDomainDimension(Domain, NumDims)
 
     type(ovk_domain), intent(in) :: Domain
-    type(ovk_domain_properties), pointer, intent(out) :: Properties
+    integer, intent(out) :: NumDims
 
-    Properties => Domain%properties
+    NumDims = Domain%nd
 
-  end subroutine ovkGetDomainProperties
+  end subroutine ovkGetDomainDimension
 
-  subroutine ovkEditDomainProperties(Domain, Properties)
+  subroutine ovkGetDomainGridCount(Domain, NumGrids)
 
-    type(ovk_domain), intent(inout) :: Domain
-    type(ovk_domain_properties), pointer, intent(out) :: Properties
+    type(ovk_domain), intent(in) :: Domain
+    integer, intent(out) :: NumGrids
 
-    logical :: Success, StartEdit
+    NumGrids = Domain%ngrids
 
-    call TryEditProperties(Domain, Success, StartEdit)
+  end subroutine ovkGetDomainGridCount
 
-    if (Success) then
-      if (StartEdit) then
-        allocate(Domain%prev_properties)
-        Domain%prev_properties = Domain%properties
-      end if
-      Properties => Domain%properties
-    else
-      if (OVK_DEBUG) then
-        if (EditingGrid(Domain)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing grids."
-        else if (EditingOverlap(Domain)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing overlap."
-        else if (EditingConnectivity(Domain)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing connectivity."
-        end if
-        stop 1
-      end if
-      nullify(Properties)
-    end if
+  subroutine ovkGetDomainVerbose(Domain, Verbose)
 
-  end subroutine ovkEditDomainProperties
+    type(ovk_domain), intent(in) :: Domain
+    logical, intent(out) :: Verbose
 
-  subroutine ovkReleaseDomainProperties(Domain, Properties)
+    Verbose = Domain%verbose
+
+  end subroutine ovkGetDomainVerbose
+
+  subroutine ovkSetDomainVerbose(Domain, Verbose)
 
     type(ovk_domain), intent(inout) :: Domain
-    type(ovk_domain_properties), pointer, intent(inout) :: Properties
+    logical, intent(in) :: Verbose
 
-    integer :: NumGrids
-    logical :: Success, EndEdit
-    type(ovk_domain_properties), pointer :: PrevProperties
+    Domain%verbose = Verbose
 
-    if (associated(Properties, Domain%properties)) then
-
-      call TryReleaseProperties(Domain, Success, EndEdit)
-
-      if (Success) then
-
-        if (EndEdit) then
-
-          NumGrids = Domain%properties%ngrids
-
-          PrevProperties => Domain%prev_properties
-          nullify(Domain%prev_properties)
-
-          if (Properties%verbose .neqv. PrevProperties%verbose) then
-            Domain%logger%verbose = Domain%properties%verbose
-          end if
-
-        end if
-
-      else
-
-        if (OVK_DEBUG) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Unable to release properties; not ", &
-            "currently being edited."
-          stop 1
-        end if
-
-      end if
-
-    else
-
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Unable to release properties; invalid pointer."
-        stop 1
-      end if
-
-    end if
-
-    nullify(Properties)
-
-  end subroutine ovkReleaseDomainProperties
+  end subroutine ovkSetDomainVerbose
 
   subroutine ovkCreateGrid(Domain, GridID, NumPoints, Periodic, PeriodicStorage, PeriodicLength, &
     GeometryType)
 
     type(ovk_domain), intent(inout) :: Domain
     integer, intent(in) :: GridID
-    integer, dimension(Domain%properties%nd), intent(in) :: NumPoints
-    logical, dimension(Domain%properties%nd), intent(in), optional :: Periodic
+    integer, dimension(Domain%nd), intent(in) :: NumPoints
+    logical, dimension(Domain%nd), intent(in), optional :: Periodic
     integer, intent(in), optional :: PeriodicStorage
-    real(rk), dimension(Domain%properties%nd), intent(in), optional :: PeriodicLength
+    real(rk), dimension(Domain%nd), intent(in), optional :: PeriodicLength
     integer, intent(in), optional :: GeometryType
 
-    logical, dimension(Domain%properties%nd) :: Periodic_
+    logical, dimension(Domain%nd) :: Periodic_
     integer :: PeriodicStorage_
-    real(rk), dimension(Domain%properties%nd) :: PeriodicLength_
+    real(rk), dimension(Domain%nd) :: PeriodicLength_
     integer :: GeometryType_
     logical :: Success
     type(ovk_cart) :: Cart
@@ -364,7 +289,6 @@ contains
     if (ValidID(Domain, GridID)) then
 
       Success = &
-        .not. EditingProperties(Domain) .and. &
         .not. EditingGrid(Domain) .and. &
         .not. EditingOverlap(Domain) .and. &
         .not. EditingConnectivity(Domain) .and. &
@@ -372,7 +296,7 @@ contains
 
       if (Success) then
 
-        Cart = ovk_cart_(Domain%properties%nd, NumPoints, Periodic_, PeriodicStorage_)
+        Cart = ovk_cart_(Domain%nd, NumPoints, Periodic_, PeriodicStorage_)
 
         call CreateGrid(Domain%grid(GridID), GridID, Domain%logger, Cart, PeriodicLength_, &
           GeometryType_)
@@ -387,8 +311,7 @@ contains
       else 
 
         if (OVK_DEBUG) then
-          if (EditingProperties(Domain) .or. EditingGrid(Domain) .or. EditingOverlap(Domain) .or. &
-            EditingConnectivity(Domain)) then
+          if (EditingGrid(Domain) .or. EditingOverlap(Domain) .or. EditingConnectivity(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot create grid while editing."
           else if (ovkHasGrid(Domain, GridID)) then
             write (ERROR_UNIT, '(a)') "ERROR: Grid already exists."
@@ -420,7 +343,6 @@ contains
     if (ValidID(Domain, GridID)) then
 
       Success = &
-        .not. EditingProperties(Domain) .and. &
         .not. EditingGrid(Domain) .and. &
         .not. EditingOverlap(Domain) .and. &
         .not. EditingConnectivity(Domain) .and. &
@@ -440,8 +362,7 @@ contains
       else
 
         if (OVK_DEBUG) then
-          if (EditingProperties(Domain) .or. EditingGrid(Domain) .or. EditingOverlap(Domain) .or. &
-            EditingConnectivity(Domain)) then
+          if (EditingGrid(Domain) .or. EditingOverlap(Domain) .or. EditingConnectivity(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot destroy grid while editing."
           else if (.not. ovkHasGrid(Domain, GridID)) then
             write (ERROR_UNIT, '(a)') "ERROR: Grid does not exist."
@@ -514,9 +435,7 @@ contains
         Grid => Domain%grid(GridID)
       else
         if (OVK_DEBUG) then
-          if (EditingProperties(Domain)) then
-            write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid while editing properties."
-          else if (EditingOverlap(Domain)) then
+          if (EditingOverlap(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid while editing overlap."
           else if (EditingConnectivity(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot edit grid while editing connectivity."
@@ -551,7 +470,7 @@ contains
     type(t_grid_edits), pointer :: GridEdits
 
     GridID = 0
-    do m = 1, Domain%properties%ngrids
+    do m = 1, Domain%ngrids
       if (associated(Grid, Domain%grid(m))) then
         GridID = m
         exit
@@ -658,9 +577,7 @@ contains
         Overlap => Domain%overlap(OverlappingGridID,OverlappedGridID)
       else
         if (OVK_DEBUG) then
-          if (EditingProperties(Domain)) then
-            write (ERROR_UNIT, '(a)') "ERROR: Cannot edit overlap while editing properties."
-          else if (EditingGrid(Domain)) then
+          if (EditingGrid(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot edit overlap while editing grid."
           else if (EditingConnectivity(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot edit overlap while editing connectivity."
@@ -694,8 +611,8 @@ contains
 
     OverlappingGridID = 0
     OverlappedGridID = 0
-    do n = 1, Domain%properties%ngrids
-      do m = 1, Domain%properties%ngrids
+    do n = 1, Domain%ngrids
+      do m = 1, Domain%ngrids
         if (associated(Overlap, Domain%overlap(m,n))) then
           OverlappingGridID = m
           OverlappedGridID = n
@@ -786,9 +703,7 @@ contains
         Connectivity => Domain%connectivity(DonorGridID,ReceiverGridID)
       else
         if (OVK_DEBUG) then
-          if (EditingProperties(Domain)) then
-            write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing properties."
-          else if (EditingOverlap(Domain)) then
+          if (EditingOverlap(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing overlap."
           else if (EditingGrid(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot edit connectivity while editing grid."
@@ -822,8 +737,8 @@ contains
 
     DonorGridID = 0
     ReceiverGridID = 0
-    do n = 1, Domain%properties%ngrids
-      do m = 1, Domain%properties%ngrids
+    do n = 1, Domain%ngrids
+      do m = 1, Domain%ngrids
         if (associated(Connectivity, Domain%connectivity(m,n))) then
           DonorGridID = m
           ReceiverGridID = n
@@ -862,15 +777,6 @@ contains
 
   end subroutine ovkReleaseConnectivity
 
-  function EditingProperties(Domain) result(Editing)
-
-    type(ovk_domain), intent(in) :: Domain
-    logical :: Editing
-
-    Editing = Domain%properties_edit_ref_count > 0
-
-  end function EditingProperties
-
   function EditingGrid(Domain, GridID) result(Editing)
 
     type(ovk_domain), intent(in) :: Domain
@@ -883,7 +789,7 @@ contains
       Editing = Domain%grid_edit_ref_counts(GridID) > 0
     else
       Editing = .false.
-      do m = 1, Domain%properties%ngrids
+      do m = 1, Domain%ngrids
         if (Domain%grid_edit_ref_counts(m) > 0) then
           Editing = .true.
           exit
@@ -905,7 +811,7 @@ contains
       Editing = Domain%overlap_edit_ref_counts(OverlappingGridID,OverlappedGridID) > 0
     else if (present(OverlappingGridID)) then
       Editing = .false.
-      do n = 1, Domain%properties%ngrids
+      do n = 1, Domain%ngrids
         if (Domain%overlap_edit_ref_counts(OverlappingGridID,n) > 0) then
           Editing = .true.
           exit
@@ -913,7 +819,7 @@ contains
       end do
     else if (present(OverlappedGridID)) then
       Editing = .false.
-      do m = 1, Domain%properties%ngrids
+      do m = 1, Domain%ngrids
         if (Domain%overlap_edit_ref_counts(m,OverlappedGridID) > 0) then
           Editing = .true.
           exit
@@ -921,8 +827,8 @@ contains
       end do
     else
       Editing = .false.
-      do n = 1, Domain%properties%ngrids
-        do m = 1, Domain%properties%ngrids
+      do n = 1, Domain%ngrids
+        do m = 1, Domain%ngrids
           if (Domain%overlap_edit_ref_counts(m,n) > 0) then
             Editing = .true.
             exit
@@ -945,7 +851,7 @@ contains
       Editing = Domain%connectivity_edit_ref_counts(DonorGridID,ReceiverGridID) > 0
     else if (present(DonorGridID)) then
       Editing = .false.
-      do n = 1, Domain%properties%ngrids
+      do n = 1, Domain%ngrids
         if (Domain%connectivity_edit_ref_counts(DonorGridID,n) > 0) then
           Editing = .true.
           exit
@@ -953,7 +859,7 @@ contains
       end do
     else if (present(ReceiverGridID)) then
       Editing = .false.
-      do m = 1, Domain%properties%ngrids
+      do m = 1, Domain%ngrids
         if (Domain%connectivity_edit_ref_counts(m,ReceiverGridID) > 0) then
           Editing = .true.
           exit
@@ -961,8 +867,8 @@ contains
       end do
     else
       Editing = .false.
-      do n = 1, Domain%properties%ngrids
-        do m = 1, Domain%properties%ngrids
+      do n = 1, Domain%ngrids
+        do m = 1, Domain%ngrids
           if (Domain%connectivity_edit_ref_counts(m,n) > 0) then
             Editing = .true.
             exit
@@ -973,43 +879,6 @@ contains
 
   end function EditingConnectivity
 
-  subroutine TryEditProperties(Domain, Success, StartEdit)
-
-    type(ovk_domain), intent(inout) :: Domain
-    logical, intent(out) :: Success
-    logical, intent(out) :: StartEdit
-
-    Success = &
-      .not. EditingGrid(Domain) .and. &
-      .not. EditingOverlap(Domain) .and. &
-      .not. EditingConnectivity(Domain)
-
-    if (Success) then
-      StartEdit = Domain%properties_edit_ref_count == 0
-      Domain%properties_edit_ref_count = Domain%properties_edit_ref_count + 1
-    else
-      StartEdit = .false.
-    end if
-
-  end subroutine TryEditProperties
-
-  subroutine TryReleaseProperties(Domain, Success, EndEdit)
-
-    type(ovk_domain), intent(inout) :: Domain
-    logical, intent(out) :: Success
-    logical, intent(out) :: EndEdit
-
-    Success = EditingProperties(Domain)
-
-    if (Success) then
-      Domain%properties_edit_ref_count = Domain%properties_edit_ref_count - 1
-      EndEdit = Domain%properties_edit_ref_count == 0
-    else
-      EndEdit = .false.
-    end if
-
-  end subroutine TryReleaseProperties
-
   subroutine TryEditGrid(Domain, GridID, Success, StartEdit)
 
     type(ovk_domain), intent(inout) :: Domain
@@ -1018,7 +887,6 @@ contains
     logical, intent(out) :: StartEdit
 
     Success = &
-      .not. EditingProperties(Domain) .and. &
       .not. EditingOverlap(Domain) .and. &
       .not. EditingConnectivity(Domain)
 
@@ -1057,7 +925,6 @@ contains
     logical, intent(out) :: StartEdit
 
     Success = &
-      .not. EditingProperties(Domain) .and. &
       .not. EditingGrid(Domain) .and. &
       .not. EditingConnectivity(Domain)
 
@@ -1099,7 +966,6 @@ contains
     logical, intent(out) :: StartEdit
 
     Success = &
-      .not. EditingProperties(Domain) .and. &
       .not. EditingGrid(Domain) .and. &
       .not. EditingOverlap(Domain)
 
@@ -1151,23 +1017,23 @@ contains
     Domain%edits%boundary_hole_dependencies = .false.
     Domain%edits%connectivity_dependencies = .false.
 
-    do m = 1, Domain%properties%ngrids
+    do m = 1, Domain%ngrids
       if (ovkGridExists(Domain%grid(m))) then
         call ResetGridEdits(Domain%grid(m))
       end if
     end do
 
-!     do n = 1, Domain%properties%ngrids
-!       do m = 1, Domain%properties%ngrids
-!         if (Domain%properties%overlappable(m,n)) then
+!     do n = 1, Domain%ngrids
+!       do m = 1, Domain%ngrids
+!         if (ovkOverlapExists(Domain%overlap(m,n))) then
 !           call ResetOverlapEdits(Domain%overlap(m,n))
 !         end if
 !       end do
 !     end do
 
-!     do n = 1, Domain%properties%ngrids
-!       do m = 1, Domain%properties%ngrids
-!         if (Domain%properties%connection_type(m,n) /= OVK_CONNECTION_NONE) then
+!     do n = 1, Domain%ngrids
+!       do m = 1, Domain%ngrids
+!         if (ovkConnectivityExists(Domain%connectivity(m,n))) then
 !           call ResetConnectivityEdits(Domain%connectivity(m,n))
 !         end if
 !       end do
@@ -1187,16 +1053,16 @@ contains
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Domain info:"
-      write (*, '(3a)') "* Dimension: ", trim(IntToString(Domain%properties%nd)), "D"
-      write (*, '(2a)') "* Number of grids: ", trim(IntToString(Domain%properties%ngrids))
+      write (*, '(3a)') "* Dimension: ", trim(IntToString(Domain%nd)), "D"
+      write (*, '(2a)') "* Number of grids: ", trim(IntToString(Domain%ngrids))
       TotalPoints = 0_lk
-      do n = 1, Domain%properties%ngrids
+      do n = 1, Domain%ngrids
         Grid => Domain%grid(n)
         TotalPoints = TotalPoints + ovkCartCount(Grid%cart)
       end do
       TotalPointsString = LargeIntToString(TotalPoints)
       write (*, '(2a)') "* Total number of grid points: ", trim(TotalPointsString)
-      do n = 1, Domain%properties%ngrids
+      do n = 1, Domain%ngrids
         Grid => Domain%grid(n)
         if (.not. ovkCartIsEmpty(Grid%cart)) then
           TotalPointsString = LargeIntToString(ovkCartCount(Grid%cart))
@@ -1208,7 +1074,7 @@ contains
           kEString = IntToString(Grid%cart%ie(3))
           write (*, '(3a)', advance="no") "* Grid ", trim(IntToString(Grid%properties%id)), ": "
           write (*, '(2a)', advance="no") trim(TotalPointsString), " points "
-          select case (Domain%properties%nd)
+          select case (Domain%nd)
           case (2)
             write (*, '(9a)', advance="no") "(i=", trim(iSString), ":", trim(iEString), &
               ", j=", trim(jSString), ":", trim(jEString), ")"
@@ -1223,54 +1089,6 @@ contains
     end if
 
   end subroutine PrintDomainSummary
-
-  function ovk_domain_properties_(NumDims, NumGrids) result(Properties)
-
-    integer, intent(in) :: NumDims
-    integer, intent(in) :: NumGrids
-    type(ovk_domain_properties) :: Properties
-
-    Properties%nd = NumDims
-    Properties%ngrids = NumGrids
-    Properties%verbose = .false.
-
-  end function ovk_domain_properties_
-
-  subroutine ovkGetDomainPropertyDimension(Properties, NumDims)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(out) :: NumDims
-
-    NumDims = Properties%nd
-
-  end subroutine ovkGetDomainPropertyDimension
-
-  subroutine ovkGetDomainPropertyGridCount(Properties, NumGrids)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    integer, intent(out) :: NumGrids
-
-    NumGrids = Properties%ngrids
-
-  end subroutine ovkGetDomainPropertyGridCount
-
-  subroutine ovkGetDomainPropertyVerbose(Properties, Verbose)
-
-    type(ovk_domain_properties), intent(in) :: Properties
-    logical, intent(out) :: Verbose
-
-    Verbose = Properties%verbose
-
-  end subroutine ovkGetDomainPropertyVerbose
-
-  subroutine ovkSetDomainPropertyVerbose(Properties, Verbose)
-
-    type(ovk_domain_properties), intent(inout) :: Properties
-    logical, intent(in) :: Verbose
-
-    Properties%verbose = Verbose
-
-  end subroutine ovkSetDomainPropertyVerbose
 
   function t_domain_edits_(NumDims, NumGrids) result(Edits)
 
@@ -1295,7 +1113,7 @@ contains
     integer, intent(in) :: GridID
     logical :: ValidID
 
-    ValidID = GridID >= 1 .and. GridID <= Domain%properties%ngrids
+    ValidID = GridID >= 1 .and. GridID <= Domain%ngrids
 
   end function ValidID
 

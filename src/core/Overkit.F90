@@ -119,13 +119,13 @@ module Overkit
 
   ! ovkDomain
   public :: ovk_domain
-  public :: ovk_domain_properties
   public :: ovkCreateDomain
   public :: ovkDestroyDomain
   public :: ovkDomainExists
-  public :: ovkGetDomainProperties
-  public :: ovkEditDomainProperties
-  public :: ovkReleaseDomainProperties
+  public :: ovkGetDomainDimension
+  public :: ovkGetDomainGridCount
+  public :: ovkGetDomainVerbose
+  public :: ovkSetDomainVerbose
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
   public :: ovkHasGrid
@@ -140,10 +140,6 @@ module Overkit
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
   public :: ovkReleaseConnectivity
-  public :: ovkGetDomainPropertyDimension
-  public :: ovkGetDomainPropertyGridCount
-  public :: ovkGetDomainPropertyVerbose
-  public :: ovkSetDomainPropertyVerbose
 
   ! ovkField
   public :: ovk_field_int
