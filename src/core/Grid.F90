@@ -17,6 +17,7 @@ module ovkGrid
   ! API
   public :: ovk_grid
   public :: ovk_grid_properties
+  public :: ovkGridExists
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties
   public :: ovkReleaseGridProperties
@@ -80,7 +81,6 @@ module ovkGrid
   public :: t_grid_edits
   public :: CreateGrid
   public :: DestroyGrid
-  public :: GridExists
   public :: GetGridEdits
   public :: ResetGridEdits
 
@@ -105,6 +105,7 @@ module ovkGrid
 
   type ovk_grid
     type(t_noconstruct) :: noconstruct
+    type(t_existence_flag) :: existence_flag
     type(ovk_grid_properties), pointer :: properties
     type(ovk_grid_properties), pointer :: prev_properties
     integer :: properties_edit_ref_count
@@ -188,6 +189,8 @@ contains
     Grid%resolution = ovk_field_real_()
     Grid%cell_edge_dist = ovk_field_int_()
 
+    call SetExists(Grid%existence_flag, .false.)
+
   end function ovk_grid_
 
   subroutine CreateGrid(Grid, ID, Logger, Cart, PeriodicLength, GeometryType)
@@ -261,13 +264,17 @@ contains
 
     call UpdateCellEdgeDistance(Grid)
 
+    call SetExists(Grid%existence_flag, .true.)
+
   end subroutine CreateGrid
 
   subroutine DestroyGrid(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
 
-    if (.not. GridExists(Grid)) return
+    if (.not. ovkGridExists(Grid)) return
+
+    call SetExists(Grid%existence_flag, .false.)
 
     deallocate(Grid%coords)
     deallocate(Grid%state)
@@ -288,14 +295,14 @@ contains
 
   end subroutine DestroyGrid
 
-  function GridExists(Grid) result(Exists)
+  function ovkGridExists(Grid) result(Exists)
 
     type(ovk_grid), intent(in) :: Grid
     logical :: Exists
 
-    Exists = associated(Grid%properties)
+    Exists = CheckExists(Grid%existence_flag)
 
-  end function GridExists
+  end function ovkGridExists
 
   subroutine ovkGetGridProperties(Grid, Properties)
 

@@ -226,7 +226,7 @@ contains
 
       ! IBlank == -N => Receives from grid N
       do m = 1, 2
-        if (ovkConnectivityExists(Domain, m, n)) then
+        if (ovkHasConnectivity(Domain, m, n)) then
           call ovkGetConnectivity(Domain, m, n, Connectivity)
           call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
           do i = 1, size(ReceiverPoints,2)
@@ -480,7 +480,7 @@ contains
 
       ! IBlank == -N => Receives from grid N
       do m = 1, 4
-        if (ovkConnectivityExists(Domain, m, n)) then
+        if (ovkHasConnectivity(Domain, m, n)) then
           call ovkGetConnectivity(Domain, m, n, Connectivity)
           call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
           do i = 1, size(ReceiverPoints,2)
@@ -698,7 +698,7 @@ contains
 
       ! IBlank == -N => Receives from grid N
       do m = 1, 6
-        if (ovkConnectivityExists(Domain, m, n)) then
+        if (ovkHasConnectivity(Domain, m, n)) then
           call ovkGetConnectivity(Domain, m, n, Connectivity)
           call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
           do i = 1, size(ReceiverPoints,2)

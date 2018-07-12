@@ -136,10 +136,10 @@ contains
       Grid_n => Domain%grid(IndexToID(n))
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
-        if (ovkOverlapExists(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
+        if (ovkHasOverlap(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
           call DestroyOverlap(Domain%overlap(Grid_m%properties%id,Grid_n%properties%id))
         end if
-        if (ovkConnectivityExists(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
+        if (ovkHasConnectivity(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
           call DestroyConnectivity(Domain%connectivity(Grid_m%properties%id,Grid_n%properties%id))
         end if
       end do
@@ -149,7 +149,7 @@ contains
     ! Ignore empty and non-overlapping grids
     NumGrids = 0
     do q = 1, Domain%properties%ngrids
-      GridExists = .not. ovkCartIsEmpty(Domain%grid(q)%cart)
+      GridExists = ovkGridExists(Domain%grid(q))
       GridOverlaps = .false.
       do p = 1, Domain%properties%ngrids
         if (p /= q) then
@@ -169,7 +169,7 @@ contains
 
     n = 1
     do q = 1, Domain%properties%ngrids
-      GridExists = .not. ovkCartIsEmpty(Domain%grid(q)%cart)
+      GridExists = ovkGridExists(Domain%grid(q))
       GridOverlaps = .false.
       do p = 1, Domain%properties%ngrids
         if (p /= q) then
@@ -425,7 +425,7 @@ contains
           InitialBoundaryMask%values
         do m = 1, NumGrids
           Overlap => Domain%overlap(IndexToID(m),IndexToID(n))
-          if (OverlapExists(Overlap)) then
+          if (ovkOverlapExists(Overlap)) then
             InferredBoundaryMask%values = InferredBoundaryMask%values .and. .not. &
               Overlap%mask%values
           end if
@@ -596,7 +596,7 @@ contains
           Grid_m => Domain%grid(IndexToID(m))
           Grid_n => Domain%grid(IndexToID(n))
           Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-          if (OverlapExists(Overlap_mn)) then
+          if (ovkOverlapExists(Overlap_mn)) then
             call UpdateOverlapAfterCut(Grid_m, Grid_n, Overlap_mn)
           end if
         end if
@@ -636,7 +636,7 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-        if (OverlapExists(Overlap)) then
+        if (ovkOverlapExists(Overlap)) then
           call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%resolution, &
             OverlapResolutions(m,n))
         end if
@@ -1246,7 +1246,7 @@ contains
           Grid_m => Domain%grid(IndexToID(m))
           Grid_n => Domain%grid(IndexToID(n))
           Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-          if (OverlapExists(Overlap)) then
+          if (ovkOverlapExists(Overlap)) then
             call UpdateOverlapAfterCut(Grid_m, Grid_n, Overlap)
           end if
         end if

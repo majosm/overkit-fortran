@@ -20,20 +20,21 @@ module ovkDomain
   public :: ovk_domain_properties
   public :: ovkCreateDomain
   public :: ovkDestroyDomain
+  public :: ovkDomainExists
   public :: ovkGetDomainProperties
   public :: ovkEditDomainProperties
   public :: ovkReleaseDomainProperties
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
-  public :: ovkGridExists
+  public :: ovkHasGrid
   public :: ovkGetGrid
   public :: ovkEditGrid
   public :: ovkReleaseGrid
-  public :: ovkOverlapExists
+  public :: ovkHasOverlap
   public :: ovkGetOverlap
   public :: ovkEditOverlap
   public :: ovkReleaseOverlap
-  public :: ovkConnectivityExists
+  public :: ovkHasConnectivity
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
   public :: ovkReleaseConnectivity
@@ -45,7 +46,6 @@ module ovkDomain
   ! Internal
   public :: ovk_domain_
   public :: t_domain_edits
-  public :: DomainExists
   public :: GetDomainEdits
   public :: ResetDomainEdits
   public :: PrintDomainSummary
@@ -67,6 +67,7 @@ module ovkDomain
 
   type ovk_domain
     type(t_noconstruct) :: noconstruct
+    type(t_existence_flag) :: existence_flag
     type(ovk_domain_properties), pointer :: properties
     type(ovk_domain_properties), pointer :: prev_properties
     integer :: properties_edit_ref_count
@@ -96,6 +97,8 @@ contains
     nullify(Domain%overlap)
     nullify(Domain%connectivity)
     Domain%cached_assembly_options = ovk_assembly_options_()
+
+    call SetExists(Domain%existence_flag, .false.)
 
   end function ovk_domain_
 
@@ -159,6 +162,8 @@ contains
 
     Domain%cached_assembly_options = ovk_assembly_options_(NumDims, NumGrids)
 
+    call SetExists(Domain%existence_flag, .true.)
+
   end subroutine ovkCreateDomain
 
   subroutine ovkDestroyDomain(Domain)
@@ -167,10 +172,12 @@ contains
 
     integer :: m, n
 
-    if (.not. DomainExists(Domain)) return
+    if (.not. ovkDomainExists(Domain)) return
+
+    call SetExists(Domain%existence_flag, .false.)
 
     do m = 1, Domain%properties%ngrids
-      if (GridExists(Domain%grid(m))) then
+      if (ovkGridExists(Domain%grid(m))) then
         call DestroyGrid(Domain%grid(m))
       end if
     end do
@@ -180,7 +187,7 @@ contains
 
     do n = 1, Domain%properties%ngrids
       do m = 1, Domain%properties%ngrids
-        if (OverlapExists(Domain%overlap(m,n))) then
+        if (ovkOverlapExists(Domain%overlap(m,n))) then
           call DestroyOverlap(Domain%overlap(m,n))
         end if
       end do
@@ -191,7 +198,7 @@ contains
 
     do n = 1, Domain%properties%ngrids
       do m = 1, Domain%properties%ngrids
-        if (ConnectivityExists(Domain%connectivity(m,n))) then
+        if (ovkConnectivityExists(Domain%connectivity(m,n))) then
           call DestroyConnectivity(Domain%connectivity(m,n))
         end if
       end do
@@ -211,14 +218,14 @@ contains
 
   end subroutine ovkDestroyDomain
 
-  function DomainExists(Domain) result(Exists)
+  function ovkDomainExists(Domain) result(Exists)
 
     type(ovk_domain), intent(in) :: Domain
     logical :: Exists
 
-    Exists = associated(Domain%properties)
+    Exists = CheckExists(Domain%existence_flag)
 
-  end function DomainExists
+  end function ovkDomainExists
 
   subroutine ovkGetDomainProperties(Domain, Properties)
 
@@ -361,7 +368,7 @@ contains
         .not. EditingGrid(Domain) .and. &
         .not. EditingOverlap(Domain) .and. &
         .not. EditingConnectivity(Domain) .and. &
-        .not. ovkGridExists(Domain, GridID)
+        .not. ovkHasGrid(Domain, GridID)
 
       if (Success) then
 
@@ -383,7 +390,7 @@ contains
           if (EditingProperties(Domain) .or. EditingGrid(Domain) .or. EditingOverlap(Domain) .or. &
             EditingConnectivity(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot create grid while editing."
-          else if (ovkGridExists(Domain, GridID)) then
+          else if (ovkHasGrid(Domain, GridID)) then
             write (ERROR_UNIT, '(a)') "ERROR: Grid already exists."
           end if
           stop 1
@@ -417,7 +424,7 @@ contains
         .not. EditingGrid(Domain) .and. &
         .not. EditingOverlap(Domain) .and. &
         .not. EditingConnectivity(Domain) .and. &
-        ovkGridExists(Domain, GridID)
+        ovkHasGrid(Domain, GridID)
 
       if (Success) then
 
@@ -436,7 +443,7 @@ contains
           if (EditingProperties(Domain) .or. EditingGrid(Domain) .or. EditingOverlap(Domain) .or. &
             EditingConnectivity(Domain)) then
             write (ERROR_UNIT, '(a)') "ERROR: Cannot destroy grid while editing."
-          else if (.not. ovkGridExists(Domain, GridID)) then
+          else if (.not. ovkHasGrid(Domain, GridID)) then
             write (ERROR_UNIT, '(a)') "ERROR: Grid does not exist."
           end if
           stop 1
@@ -455,23 +462,23 @@ contains
 
   end subroutine ovkDestroyGrid
 
-  function ovkGridExists(Domain, GridID) result(Exists)
+  function ovkHasGrid(Domain, GridID) result(HasGrid)
 
     type(ovk_domain), intent(in) :: Domain
     integer, intent(in) :: GridID
-    logical :: Exists
+    logical :: HasGrid
 
     if (ValidID(Domain, GridID)) then
-      Exists = GridExists(Domain%grid(GridID))
+      HasGrid = ovkGridExists(Domain%grid(GridID))
     else
       if (OVK_DEBUG) then
         write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID."
         stop 1
       end if
-      Exists = .false.
+      HasGrid = .false.
     end if
 
-  end function ovkGridExists
+  end function ovkHasGrid
 
   subroutine ovkGetGrid(Domain, GridID, Grid)
 
@@ -479,7 +486,7 @@ contains
     integer, intent(in) :: GridID
     type(ovk_grid), pointer, intent(out) :: Grid
 
-    if (ovkGridExists(Domain, GridID)) then
+    if (ovkHasGrid(Domain, GridID)) then
       Grid => Domain%grid(GridID)
     else
       if (OVK_DEBUG) then
@@ -499,7 +506,7 @@ contains
 
     logical :: Success, StartEdit
 
-    if (ovkGridExists(Domain, GridID)) then
+    if (ovkHasGrid(Domain, GridID)) then
 
       call TryEditGrid(Domain, GridID, Success, StartEdit)
 
@@ -599,23 +606,23 @@ contains
 
   end subroutine ovkReleaseGrid
 
-  function ovkOverlapExists(Domain, OverlappingGridID, OverlappedGridID) result(Exists)
+  function ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID) result(HasOverlap)
 
     type(ovk_domain), intent(in) :: Domain
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
-    logical :: Exists
+    logical :: HasOverlap
 
     if (ValidID(Domain, OverlappingGridID) .and. ValidID(Domain, OverlappedGridID)) then
-      Exists = OverlapExists(Domain%overlap(OverlappingGridID,OverlappedGridID))
+      HasOverlap = ovkOverlapExists(Domain%overlap(OverlappingGridID,OverlappedGridID))
     else
       if (OVK_DEBUG) then
         write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID(s)."
         stop 1
       end if
-      Exists = .false.
+      HasOverlap = .false.
     end if
 
-  end function ovkOverlapExists
+  end function ovkHasOverlap
 
   subroutine ovkGetOverlap(Domain, OverlappingGridID, OverlappedGridID, Overlap)
 
@@ -623,7 +630,7 @@ contains
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
     type(ovk_overlap), pointer, intent(out) :: Overlap
 
-    if (ovkOverlapExists(Domain, OverlappingGridID, OverlappedGridID)) then
+    if (ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID)) then
       Overlap => Domain%overlap(OverlappingGridID,OverlappedGridID)
     else
       if (OVK_DEBUG) then
@@ -643,7 +650,7 @@ contains
 
     logical :: Success, StartEdit
 
-    if (ovkOverlapExists(Domain, OverlappingGridID, OverlappedGridID)) then
+    if (ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID)) then
 
       call TryEditOverlap(Domain, OverlappingGridID, OverlappedGridID, Success, StartEdit)
 
@@ -727,23 +734,23 @@ contains
 
   end subroutine ovkReleaseOverlap
 
-  function ovkConnectivityExists(Domain, DonorGridID, ReceiverGridID) result(Exists)
+  function ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID) result(HasConnectivity)
 
     type(ovk_domain), intent(in) :: Domain
     integer, intent(in) :: DonorGridID, ReceiverGridID
-    logical :: Exists
+    logical :: HasConnectivity
 
     if (ValidID(Domain, DonorGridID) .and. ValidID(Domain, ReceiverGridID)) then
-      Exists = ConnectivityExists(Domain%connectivity(DonorGridID,ReceiverGridID))
+      HasConnectivity = ovkConnectivityExists(Domain%connectivity(DonorGridID,ReceiverGridID))
     else
       if (OVK_DEBUG) then
         write (ERROR_UNIT, '(a)') "ERROR: Invalid grid ID(s)."
         stop 1
       end if
-      Exists = .false.
+      HasConnectivity = .false.
     end if
 
-  end function ovkConnectivityExists
+  end function ovkHasConnectivity
 
   subroutine ovkGetConnectivity(Domain, DonorGridID, ReceiverGridID, Connectivity)
 
@@ -751,7 +758,7 @@ contains
     integer, intent(in) :: DonorGridID, ReceiverGridID
     type(ovk_connectivity), pointer, intent(out) :: Connectivity
 
-    if (ovkConnectivityExists(Domain, DonorGridID, ReceiverGridID)) then
+    if (ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID)) then
       Connectivity => Domain%connectivity(DonorGridID,ReceiverGridID)
     else
       if (OVK_DEBUG) then
@@ -771,7 +778,7 @@ contains
 
     logical :: Success, StartEdit
 
-    if (ovkConnectivityExists(Domain, DonorGridID, ReceiverGridID)) then
+    if (ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID)) then
 
       call TryEditConnectivity(Domain, DonorGridID, ReceiverGridID, Success, StartEdit)
 
@@ -1145,7 +1152,7 @@ contains
     Domain%edits%connectivity_dependencies = .false.
 
     do m = 1, Domain%properties%ngrids
-      if (GridExists(Domain%grid(m))) then
+      if (ovkGridExists(Domain%grid(m))) then
         call ResetGridEdits(Domain%grid(m))
       end if
     end do

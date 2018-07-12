@@ -19,6 +19,7 @@ module ovkConnectivity
   ! API
   public :: ovk_connectivity
   public :: ovk_connectivity_properties
+  public :: ovkConnectivityExists
   public :: ovkGetConnectivityProperties
   public :: ovkEditConnectivityProperties
   public :: ovkReleaseConnectivityProperties
@@ -38,7 +39,6 @@ module ovkConnectivity
   public :: ovk_connectivity_
   public :: CreateConnectivity
   public :: DestroyConnectivity
-  public :: ConnectivityExists
   public :: ResizeConnectivity
   public :: SetConnectivityPropertyMaxDonorSize
 
@@ -54,6 +54,7 @@ module ovkConnectivity
 
   type ovk_connectivity
     type(t_noconstruct) :: noconstruct
+    type(t_existence_flag) :: existence_flag
     type(ovk_connectivity_properties), pointer :: properties
     type(ovk_connectivity_properties), pointer :: prev_properties
     integer :: properties_edit_ref_count
@@ -78,6 +79,8 @@ contains
     nullify(Connectivity%donor_extents)
     nullify(Connectivity%donor_coords)
     nullify(Connectivity%donor_interp_coefs)
+
+    call SetExists(Connectivity%existence_flag, .false.)
 
   end function ovk_connectivity_
 
@@ -107,13 +110,17 @@ contains
     allocate(Connectivity%donor_coords(NumDims,0))
     allocate(Connectivity%donor_interp_coefs(MaxDonorSize,NumDims,0))
 
+    call SetExists(Connectivity%existence_flag, .true.)
+
   end subroutine CreateConnectivity
 
   subroutine DestroyConnectivity(Connectivity)
 
     type(ovk_connectivity), intent(inout) :: Connectivity
 
-    if (.not. ConnectivityExists(Connectivity)) return
+    if (.not. ovkConnectivityExists(Connectivity)) return
+
+    call SetExists(Connectivity%existence_flag, .false.)
 
     deallocate(Connectivity%receiver_points)
     deallocate(Connectivity%donor_extents)
@@ -125,14 +132,14 @@ contains
 
   end subroutine DestroyConnectivity
 
-  function ConnectivityExists(Connectivity) result(Exists)
+  function ovkConnectivityExists(Connectivity) result(Exists)
 
     type(ovk_connectivity), intent(in) :: Connectivity
     logical :: Exists
 
-    Exists = associated(Connectivity%properties)
+    Exists = CheckExists(Connectivity%existence_flag)
 
-  end function ConnectivityExists
+  end function ovkConnectivityExists
 
   subroutine ovkGetConnectivityProperties(Connectivity, Properties)
 

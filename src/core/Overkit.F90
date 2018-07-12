@@ -101,6 +101,7 @@ module Overkit
   ! ovkConnectivity
   public :: ovk_connectivity
   public :: ovk_connectivity_properties
+  public :: ovkConnectivityExists
   public :: ovkGetConnectivityProperties
   public :: ovkEditConnectivityProperties
   public :: ovkReleaseConnectivityProperties
@@ -121,16 +122,21 @@ module Overkit
   public :: ovk_domain_properties
   public :: ovkCreateDomain
   public :: ovkDestroyDomain
+  public :: ovkDomainExists
   public :: ovkGetDomainProperties
   public :: ovkEditDomainProperties
   public :: ovkReleaseDomainProperties
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
-  public :: ovkGridExists
+  public :: ovkHasGrid
   public :: ovkGetGrid
   public :: ovkEditGrid
   public :: ovkReleaseGrid
-  public :: ovkConnectivityExists
+  public :: ovkHasOverlap
+  public :: ovkGetOverlap
+  public :: ovkEditOverlap
+  public :: ovkReleaseOverlap
+  public :: ovkHasConnectivity
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
   public :: ovkReleaseConnectivity
@@ -225,6 +231,7 @@ module Overkit
   ! ovkGrid
   public :: ovk_grid
   public :: ovk_grid_properties
+  public :: ovkGridExists
   public :: ovkGetGridProperties
   public :: ovkEditGridProperties
   public :: ovkReleaseGridProperties
@@ -286,6 +293,7 @@ module Overkit
   ! ovkOverlap
   public :: ovk_overlap
   public :: ovk_overlap_properties
+  public :: ovkOverlapExists
   public :: ovkGetOverlapProperties
   public :: ovkGetOverlapCart
   public :: ovkGetOverlapBounds

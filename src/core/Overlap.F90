@@ -20,6 +20,7 @@ module ovkOverlap
   ! API
   public :: ovk_overlap
   public :: ovk_overlap_properties
+  public :: ovkOverlapExists
   public :: ovkGetOverlapProperties
   public :: ovkGetOverlapCart
   public :: ovkGetOverlapBounds
@@ -51,7 +52,6 @@ module ovkOverlap
   public :: ovk_overlap_
   public :: CreateOverlap
   public :: DestroyOverlap
-  public :: OverlapExists
   public :: DetectOverlap
   public :: ResetOverlap
   public :: UpdateOverlapAfterCut
@@ -70,6 +70,7 @@ module ovkOverlap
 
   type ovk_overlap
     type(t_noconstruct) :: noconstruct
+    type(t_existence_flag) :: existence_flag
     type(ovk_overlap_properties), pointer :: properties
     type(t_logger), pointer :: logger
     type(ovk_cart) :: cart
@@ -118,6 +119,8 @@ contains
     nullify(Overlap%cells)
     nullify(Overlap%coords)
 
+    call SetExists(Overlap%existence_flag, .false.)
+
   end function ovk_overlap_
 
   subroutine CreateOverlap(Overlap, OverlappingGridID, OverlappedGridID, Logger, Cart)
@@ -147,13 +150,17 @@ contains
     allocate(Overlap%cells(MAX_ND,0))
     allocate(Overlap%coords(Cart%nd,0))
 
+    call SetExists(Overlap%existence_flag, .true.)
+
   end subroutine CreateOverlap
 
   subroutine DestroyOverlap(Overlap)
 
     type(ovk_overlap), intent(inout) :: Overlap
 
-    if (.not. OverlapExists(Overlap)) return
+    if (.not. ovkOverlapExists(Overlap)) return
+
+    call SetExists(Overlap%existence_flag, .false.)
 
     deallocate(Overlap%mask)
 
@@ -164,14 +171,14 @@ contains
 
   end subroutine DestroyOverlap
 
-  function OverlapExists(Overlap) result(Exists)
+  function ovkOverlapExists(Overlap) result(Exists)
 
     type(ovk_overlap), intent(in) :: Overlap
     logical :: Exists
 
-    Exists = associated(Overlap%properties)
+    Exists = CheckExists(Overlap%existence_flag)
 
-  end function OverlapExists
+  end function ovkOverlapExists
 
   subroutine ovkGetOverlapProperties(Overlap, Properties)
 

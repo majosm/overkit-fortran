@@ -41,6 +41,9 @@ module ovkGlobal
   public :: TupleToString
   public :: CoordsToString
   public :: t_noconstruct
+  public :: t_existence_flag
+  public :: SetExists
+  public :: CheckExists
 
   integer, parameter :: ovk_rk = selected_real_kind(15, 307)
   integer, parameter :: ovk_lk = selected_int_kind(18)
@@ -109,6 +112,12 @@ module ovkGlobal
   ! otherwise don't always produce compiler errors
   type t_noconstruct
   end type t_noconstruct
+
+  ! Reliable check for whether an object exists
+  ! Works even when object hasn't been initialized, due to special properties of allocatable
+  type t_existence_flag
+    integer, allocatable :: value
+  end type t_existence_flag
 
 contains
 
@@ -198,5 +207,33 @@ contains
     CoordsString = trim(CoordsString) // ")"
 
   end function CoordsToString
+
+  pure subroutine SetExists(ExistenceFlag, Value)
+
+    type(t_existence_flag), intent(inout) :: ExistenceFlag
+    logical, intent(in) :: Value
+
+    logical :: OldValue
+
+    OldValue = allocated(ExistenceFlag%value)
+
+    if (Value .neqv. OldValue) then
+      if (.not. OldValue) then
+        allocate(ExistenceFlag%value)
+      else
+        deallocate(ExistenceFlag%value)
+      end if
+    end if
+
+  end subroutine SetExists
+
+  pure function CheckExists(ExistenceFlag) result(Value)
+
+    type(t_existence_flag), intent(in) :: ExistenceFlag
+    logical :: Value
+
+    Value = allocated(ExistenceFlag%value)
+
+  end function CheckExists
 
 end module ovkGlobal

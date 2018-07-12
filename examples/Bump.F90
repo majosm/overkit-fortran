@@ -253,7 +253,7 @@ program Bump
 
     ! IBlank == -N => Receives from grid N
     do m = 1, 2
-      if (ovkConnectivityExists(Domain, m, n)) then
+      if (ovkHasConnectivity(Domain, m, n)) then
         call ovkGetConnectivity(Domain, m, n, Connectivity)
         call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
         do i = 1, size(ReceiverPoints,2)
