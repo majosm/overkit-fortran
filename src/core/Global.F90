@@ -20,13 +20,13 @@ module ovkGlobal
   public :: OVK_TRUE, OVK_FALSE
   public :: OVK_NONE, OVK_ANY, OVK_ALL
   public :: OVK_NO_ERROR, OVK_IO_ERROR
-  public :: OVK_AUTO
   public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_P3D_STANDARD, OVK_P3D_EXTENDED
   public :: OVK_ALL_GRIDS
   public :: OVK_CONNECTION_NONE, OVK_CONNECTION_NEAREST, OVK_CONNECTION_LINEAR, OVK_CONNECTION_CUBIC
+  public :: OVK_OCCLUDES_NONE, OVK_OCCLUDES_ALL, OVK_OCCLUDES_COARSE
 
   ! Internal
   public :: rk
@@ -64,8 +64,6 @@ module ovkGlobal
   integer, parameter :: OVK_NO_ERROR = 0
   integer, parameter :: OVK_IO_ERROR = 1
 
-  integer, parameter :: OVK_AUTO = 2
-
   integer, parameter :: OVK_MIRROR = 2
 
   integer, parameter :: OVK_NO_OVERLAP_PERIODIC = 1
@@ -83,6 +81,10 @@ module ovkGlobal
   integer, parameter :: OVK_CONNECTION_NEAREST = 1
   integer, parameter :: OVK_CONNECTION_LINEAR = 2
   integer, parameter :: OVK_CONNECTION_CUBIC = 3
+
+  integer, parameter :: OVK_OCCLUDES_NONE = 0
+  integer, parameter :: OVK_OCCLUDES_ALL = 1
+  integer, parameter :: OVK_OCCLUDES_COARSE = 2
 
 #ifndef f2003
   integer, parameter :: INPUT_UNIT = 5

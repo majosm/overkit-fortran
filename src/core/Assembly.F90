@@ -248,14 +248,14 @@ contains
         if (Overlappable(m,n)) then
           Occludes(m,n) = AssemblyOptions%occludes(p,q)
         else
-          Occludes(m,n) = OVK_FALSE
+          Occludes(m,n) = OVK_OCCLUDES_NONE
         end if
         ! Padding still needed even if occlusion is disabled (used for deciding where to switch from
         ! one donor grid to the other in 3-grid interfaces)
         EdgePadding(m,n) = AssemblyOptions%edge_padding(p,q)
       end do
       ! Smoothing only used if some occlusion exists
-      if (any(Occludes(:,n) /= OVK_FALSE)) then
+      if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
         EdgeSmoothing(n) = AssemblyOptions%edge_smoothing(q)
       else
         EdgeSmoothing(n) = 0
@@ -280,7 +280,7 @@ contains
           ConnectionType(m,n) = OVK_CONNECTION_NONE
         end if
         ! Overlap minimization only affects occluded regions
-        if (Occludes(m,n) /= OVK_FALSE) then
+        if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
           OverlapMinimization(m,n) = AssemblyOptions%overlap_minimization(p,q)
         else
           OverlapMinimization(m,n) = .false.
@@ -772,24 +772,24 @@ contains
         Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
         Overlap_nm => Domain%overlap(Grid_n%properties%id,Grid_m%properties%id)
         select case (Occludes(m,n))
-        case (OVK_AUTO)
+        case (OVK_OCCLUDES_COARSE)
           call FindCoarsePoints(Grid_n, Overlap_mn, OverlapResolutions(m,n), &
             PairwiseOcclusionMasks(m,n))
-        case (OVK_TRUE)
+        case (OVK_OCCLUDES_ALL)
           PairwiseOcclusionMasks(m,n) = Overlap_mn%mask
-        case (OVK_FALSE)
+        case (OVK_OCCLUDES_NONE)
           PairwiseOcclusionMasks(m,n) = ovk_field_logical_(NumDims)
         end select
         select case (Occludes(n,m))
-        case (OVK_AUTO)
+        case (OVK_OCCLUDES_COARSE)
           call FindCoarsePoints(Grid_m, Overlap_nm, OverlapResolutions(n,m), &
             PairwiseOcclusionMasks(n,m))
-        case (OVK_TRUE)
+        case (OVK_OCCLUDES_ALL)
           PairwiseOcclusionMasks(n,m) = Overlap_nm%mask
-        case (OVK_FALSE)
+        case (OVK_OCCLUDES_NONE)
           PairwiseOcclusionMasks(n,m) = ovk_field_logical_(NumDims)
         end select
-        if (Occludes(m,n) == OVK_AUTO .and. Occludes(n,m) == OVK_AUTO) then
+        if (Occludes(m,n) == OVK_OCCLUDES_COARSE .and. Occludes(n,m) == OVK_OCCLUDES_COARSE) then
           ! Exclude occluded points that are overlapped by occluded points
           call ovkFindOverlappedPoints(Grid_m, Grid_n, Overlap_mn, PairwiseOcclusionMasks(n,m), &
             OverlappedMask_n)
@@ -822,10 +822,10 @@ contains
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
       OcclusionMasks(n) = ovk_field_logical_(Grid_n%cart)
-      if (any(Occludes(:,n) /= OVK_FALSE)) then
+      if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
         OcclusionMasks(n)%values = .not. Grid_n%mask%values
         do m = 1, NumGrids
-          if (Occludes(m,n) /= OVK_FALSE) then
+          if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
             OcclusionMasks(n)%values = OcclusionMasks(n)%values .or. &
               PairwiseOcclusionMasks(m,n)%values
           end if
@@ -875,16 +875,16 @@ contains
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
-      if (any(Occludes(:,n) /= OVK_FALSE)) then
+      if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
         OcclusionMasks(n)%values = .false.
         do m = 1, NumGrids
-          if (Occludes(m,n) /= OVK_FALSE) then
+          if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
             Grid_m => Domain%grid(IndexToID(m))
             Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
             call ovkFilterGridState(Grid_m, OVK_STATE_OUTER_FRINGE, OVK_ANY, OuterFringeMask)
             EdgeMask = ovk_field_logical_(Grid_m%cart)
             EdgeMask%values = OuterFringeMask%values
-            if (Occludes(n,m) /= OVK_FALSE) then
+            if (Occludes(n,m) /= OVK_OCCLUDES_NONE) then
               EdgeMask%values = EdgeMask%values .or. PairwiseOcclusionMasks(n,m)%values .or. &
                 .not. Grid_m%mask%values
             end if
@@ -931,7 +931,7 @@ contains
     do n = 1, NumGrids
       if (EdgeSmoothing(n) > 0) then
         Grid_n => Domain%grid(IndexToID(n))
-        if (any(Occludes(:,n) /= OVK_FALSE)) then
+        if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
           OverlapMask = ovk_field_logical_(Grid_n%cart, .false.)
           do m = 1, NumGrids
             if (Overlappable(m,n)) then
@@ -960,7 +960,7 @@ contains
     end if
 
     do n = 1, NumGrids
-      if (any(Occludes(:,n) /= OVK_FALSE)) then
+      if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
         Grid_n => Domain%grid(IndexToID(n))
         call ovkEditGridState(Grid_n, State)
         do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)

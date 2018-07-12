@@ -95,7 +95,7 @@ contains
     Options%boundary_hole_cutting = .false.
 
     allocate(Options%occludes(NumGrids,NumGrids))
-    Options%occludes = OVK_AUTO
+    Options%occludes = OVK_OCCLUDES_NONE
 
     allocate(Options%edge_padding(NumGrids,NumGrids))
     Options%edge_padding = 0

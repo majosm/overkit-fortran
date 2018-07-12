@@ -153,8 +153,8 @@ program Inlet
   call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
 
   ! Indicate how to treat overlap between grids
-  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_TRUE)
-  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_FALSE)
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_OCCLUDES_ALL)
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_OCCLUDES_NONE)
 
   ! Retain some extra overlap between grids
   call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)

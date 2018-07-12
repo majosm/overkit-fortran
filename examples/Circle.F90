@@ -181,8 +181,8 @@ contains
     call ovkSetAssemblyOptionBoundaryHoleCutting(AssemblyOptions, 2, 1, .true.)
 
     ! Indicate how to treat overlap between grids
-    call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_TRUE)
-    call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_FALSE)
+    call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_OCCLUDES_ALL)
+    call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_OCCLUDES_NONE)
 
     ! Retain some extra overlap between grids
     call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
@@ -653,11 +653,11 @@ contains
     call ovkSetAssemblyOptionOverlapTolerance(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
 
     ! Indicate how to treat overlap between grids
-    call ovkSetAssemblyOptionOccludes(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_FALSE)
+    call ovkSetAssemblyOptionOccludes(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_NONE)
     ! Cylinder grids should occlude block grids everywhere
     do n = 3, 6
       do m = 1, 2
-        call ovkSetAssemblyOptionOccludes(AssemblyOptions, m, n, OVK_TRUE)
+        call ovkSetAssemblyOptionOccludes(AssemblyOptions, m, n, OVK_OCCLUDES_ALL)
       end do
     end do
 
