@@ -154,7 +154,6 @@ program Inlet
 
   ! Indicate how to treat overlap between grids
   call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_OCCLUDES_ALL)
-  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_OCCLUDES_NONE)
 
   ! Retain some extra overlap between grids
   call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
@@ -163,7 +162,7 @@ program Inlet
   ! Indicate which grids can communicate and how
   call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
   call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
-  call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
+  call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, 2, 1, .true.)
 
   call ovkAssemble(Domain, AssemblyOptions)
 

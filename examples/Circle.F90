@@ -177,12 +177,10 @@ contains
     call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
 
     ! Indicate which grids can cut each other
-    call ovkSetAssemblyOptionCutBoundaryHoles(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
     call ovkSetAssemblyOptionCutBoundaryHoles(AssemblyOptions, 2, 1, .true.)
 
     ! Indicate how to treat overlap between grids
     call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_OCCLUDES_ALL)
-    call ovkSetAssemblyOptionOccludes(AssemblyOptions, 1, 2, OVK_OCCLUDES_NONE)
 
     ! Retain some extra overlap between grids
     call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
@@ -191,7 +189,6 @@ contains
     ! Indicate which grids can communicate and how
     call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
     call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
-    call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
     call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, 2, 1, .true.)
 
     call ovkAssemble(Domain, AssemblyOptions)
@@ -643,8 +640,7 @@ contains
     AssemblyOptions = ovk_assembly_options_(2, 6)
 
     ! Indicate which grids can intersect
-    call ovkSetAssemblyOptionOverlappable(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .false.)
-    ! Allow block grids to be overlapped by cylinder grids
+    ! Only need to compute overlap of block grids by cylinder grids
     do n = 3, 6
       do m = 1, 2
         call ovkSetAssemblyOptionOverlappable(AssemblyOptions, m, n, .true.)
@@ -653,8 +649,7 @@ contains
     call ovkSetAssemblyOptionOverlapTolerance(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 1e-6_rk)
 
     ! Indicate how to treat overlap between grids
-    call ovkSetAssemblyOptionOccludes(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_OCCLUDES_NONE)
-    ! Cylinder grids should occlude block grids everywhere
+    ! Cylinder grids should occlude block grids
     do n = 3, 6
       do m = 1, 2
         call ovkSetAssemblyOptionOccludes(AssemblyOptions, m, n, OVK_OCCLUDES_ALL)
@@ -662,7 +657,6 @@ contains
     end do
 
     ! Indicate which grids can communicate and how
-    call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_NONE)
     ! Full grid interpolation from cylinder grids to block grids
     do n = 3, 6
       do m = 1, 2
