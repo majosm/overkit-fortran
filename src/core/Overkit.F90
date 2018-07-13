@@ -247,7 +247,6 @@ module Overkit
   public :: ovkGridResolution
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
-  public :: ovkExportGridCoords
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN

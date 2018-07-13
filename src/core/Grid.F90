@@ -41,7 +41,6 @@ module ovkGrid
   public :: ovkGridResolution
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
-  public :: ovkExportGridCoords
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
@@ -1483,51 +1482,6 @@ contains
     ExtendedCoords = Coords + PositiveAdjustment - NegativeAdjustment
 
   end function ovkPeriodicExtend
-
-  subroutine ovkExportGridCoords(Grid, DimIndex, ExportCart, Coords)
-
-    type(ovk_grid), intent(in) :: Grid
-    integer, intent(in) :: DimIndex
-    type(ovk_cart), intent(in) :: ExportCart
-    type(ovk_field_real), intent(out) :: Coords
-
-    integer :: i, j, k, d
-    integer, dimension(MAX_ND) :: Point
-    integer, dimension(MAX_ND) :: AdjustedPoint
-    real(rk), dimension(Grid%nd) :: PrincipalCoords
-    real(rk), dimension(Grid%nd) :: ExtendedCoords
-
-    if (OVK_DEBUG) then
-      if (.not. ovkCartIsCompatible(ExportCart, Grid%cart)) then
-        write (ERROR_UNIT, '(a)') "ERROR: Export cart is incompatible with grid."
-        stop 1
-      end if
-    end if
-
-    Coords = ovk_field_real_(ExportCart)
-
-    do k = ExportCart%is(3), ExportCart%ie(3)
-      do j = ExportCart%is(2), ExportCart%ie(2)
-        do i = ExportCart%is(1), ExportCart%ie(1)
-          Point = [i,j,k]
-          if (.not. ovkCartContains(Grid%cart, Point)) then
-            AdjustedPoint(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Point)
-            AdjustedPoint(Grid%nd+1:) = 1
-            do d = 1, Grid%nd
-              PrincipalCoords(d) = Grid%coords(d)%values(AdjustedPoint(1),AdjustedPoint(2), &
-                AdjustedPoint(3))
-            end do
-            ExtendedCoords = ovkPeriodicExtend(Grid%cart, Grid%periodic_length, Point, &
-              PrincipalCoords)
-            Coords%values(i,j,k) = ExtendedCoords(DimIndex)
-          else
-            Coords%values(i,j,k) = Grid%coords(DimIndex)%values(Point(1),Point(2),Point(3))
-          end if
-        end do
-      end do
-    end do
-
-  end subroutine ovkExportGridCoords
 
   function t_grid_edits_(NumDims) result(Edits)
 
