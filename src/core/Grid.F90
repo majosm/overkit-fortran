@@ -208,9 +208,7 @@ contains
     Grid%periodic_length(:Cart%nd) = PeriodicLength
     Grid%periodic_length(Cart%nd+1:) = 0._rk
     Grid%geometry_type = GeometryType
-
     Grid%cart = Cart
-
     Grid%cell_cart = ovkCartPointToCell(Grid%cart)
 
     allocate(Grid%coords(Grid%nd))

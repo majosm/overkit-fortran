@@ -284,9 +284,11 @@ module Overkit
 
   ! ovkOverlap
   public :: ovk_overlap
-  public :: ovk_overlap_properties
   public :: ovkOverlapExists
-  public :: ovkGetOverlapProperties
+  public :: ovkGetOverlapOverlappingGridID
+  public :: ovkGetOverlapOverlappedGridID
+  public :: ovkGetOverlapDimension
+  public :: ovkGetOverlapCount
   public :: ovkGetOverlapCart
   public :: ovkGetOverlapBounds
   public :: ovkGetOverlapMask
@@ -296,13 +298,6 @@ module Overkit
   public :: ovkFindOverlappedPoints
   public :: ovkOverlapCollect
   public :: ovkOverlapDisperse
-  public :: ovkGetOverlapPropertyOverlappingGridID
-  public :: ovkGetOverlapPropertyOverlappedGridID
-  public :: ovkGetOverlapPropertyDimension
-  public :: ovkGetOverlapPropertySize
-  public :: ovkGetOverlapPropertyPeriodicity
-  public :: ovkGetOverlapPropertyPeriodicStorage
-  public :: ovkGetOverlapPropertyNumOverlapped
   public :: OVK_COLLECT_SIMPLE
   public :: OVK_COLLECT_MIN
   public :: OVK_COLLECT_MAX

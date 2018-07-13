@@ -19,9 +19,11 @@ module ovkOverlap
 
   ! API
   public :: ovk_overlap
-  public :: ovk_overlap_properties
   public :: ovkOverlapExists
-  public :: ovkGetOverlapProperties
+  public :: ovkGetOverlapOverlappingGridID
+  public :: ovkGetOverlapOverlappedGridID
+  public :: ovkGetOverlapDimension
+  public :: ovkGetOverlapCount
   public :: ovkGetOverlapCart
   public :: ovkGetOverlapBounds
   public :: ovkGetOverlapMask
@@ -31,13 +33,6 @@ module ovkOverlap
   public :: ovkFindOverlappedPoints
   public :: ovkOverlapCollect
   public :: ovkOverlapDisperse
-  public :: ovkGetOverlapPropertyOverlappingGridID
-  public :: ovkGetOverlapPropertyOverlappedGridID
-  public :: ovkGetOverlapPropertyDimension
-  public :: ovkGetOverlapPropertySize
-  public :: ovkGetOverlapPropertyPeriodicity
-  public :: ovkGetOverlapPropertyPeriodicStorage
-  public :: ovkGetOverlapPropertyNumOverlapped
   public :: OVK_COLLECT_SIMPLE
   public :: OVK_COLLECT_MIN
   public :: OVK_COLLECT_MAX
@@ -56,23 +51,14 @@ module ovkOverlap
   public :: ResetOverlap
   public :: UpdateOverlapAfterCut
 
-  type ovk_overlap_properties
-    type(t_noconstruct) :: noconstruct
-    ! Read-only
-    integer :: overlapping_grid_id
-    integer :: overlapped_grid_id
-    integer :: nd
-    integer, dimension(MAX_ND) :: npoints
-    logical, dimension(MAX_ND) :: periodic
-    integer :: periodic_storage
-    integer(lk) :: noverlap
-  end type ovk_overlap_properties
-
   type ovk_overlap
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
-    type(ovk_overlap_properties), pointer :: properties
     type(t_logger), pointer :: logger
+    integer :: overlapping_grid_id
+    integer :: overlapped_grid_id
+    integer :: nd
+    integer(lk) :: noverlap
     type(ovk_cart) :: cart
     type(ovk_bbox) :: bounds
     type(ovk_field_logical), pointer :: mask
@@ -111,8 +97,11 @@ contains
 
     type(ovk_overlap) :: Overlap
 
-    nullify(Overlap%properties)
     nullify(Overlap%logger)
+    Overlap%overlapping_grid_id = 0
+    Overlap%overlapped_grid_id = 0
+    Overlap%nd = 2
+    Overlap%noverlap = 0
     Overlap%cart = ovk_cart_()
     Overlap%bounds = ovk_bbox_()
     nullify(Overlap%mask)
@@ -130,18 +119,13 @@ contains
     type(t_logger), pointer, intent(in) :: Logger
     type(ovk_cart), intent(in) :: Cart
 
-    allocate(Overlap%properties)
-    Overlap%properties = ovk_overlap_properties_(Cart%nd)
-    Overlap%properties%overlapping_grid_id = OverlappingGridID
-    Overlap%properties%overlapped_grid_id = OverlappedGridID
-    Overlap%properties%npoints(:Cart%nd) = ovkCartSize(Cart)
-    Overlap%properties%periodic = Cart%periodic
-    Overlap%properties%periodic_storage = Cart%periodic_storage
-
     Overlap%logger => Logger
 
+    Overlap%overlapping_grid_id = OverlappingGridID
+    Overlap%overlapped_grid_id = OverlappedGridID
+    Overlap%nd = Cart%nd
+    Overlap%noverlap = 0
     Overlap%cart = Cart
-
     Overlap%bounds = ovk_bbox_(Cart%nd)
 
     allocate(Overlap%mask)
@@ -167,8 +151,6 @@ contains
     deallocate(Overlap%cells)
     deallocate(Overlap%coords)
 
-    deallocate(Overlap%properties)
-
   end subroutine DestroyOverlap
 
   function ovkOverlapExists(Overlap) result(Exists)
@@ -180,14 +162,41 @@ contains
 
   end function ovkOverlapExists
 
-  subroutine ovkGetOverlapProperties(Overlap, Properties)
+  subroutine ovkGetOverlapOverlappingGridID(Overlap, OverlappingGridID)
 
     type(ovk_overlap), intent(in) :: Overlap
-    type(ovk_overlap_properties), pointer, intent(out) :: Properties
+    integer, intent(out) :: OverlappingGridID
 
-    Properties => Overlap%properties
+    OverlappingGridID = Overlap%overlapping_grid_id
 
-  end subroutine ovkGetOverlapProperties
+  end subroutine ovkGetOverlapOverlappingGridID
+
+  subroutine ovkGetOverlapOverlappedGridID(Overlap, OverlappedGridID)
+
+    type(ovk_overlap), intent(in) :: Overlap
+    integer, intent(out) :: OverlappedGridID
+
+    OverlappedGridID = Overlap%overlapped_grid_id
+
+  end subroutine ovkGetOverlapOverlappedGridID
+
+  subroutine ovkGetOverlapDimension(Overlap, NumDims)
+
+    type(ovk_overlap), intent(in) :: Overlap
+    integer, intent(out) :: NumDims
+
+    NumDims = Overlap%nd
+
+  end subroutine ovkGetOverlapDimension
+
+  subroutine ovkGetOverlapCount(Overlap, NumOverlapped)
+
+    type(ovk_overlap), intent(in) :: Overlap
+    integer(lk), intent(out) :: NumOverlapped
+
+    NumOverlapped = Overlap%noverlap
+
+  end subroutine ovkGetOverlapCount
 
   subroutine ovkGetOverlapCart(Overlap, Cart)
 
@@ -299,7 +308,7 @@ contains
 
     end if
 
-    Overlap%properties%noverlap = NumOverlappedPoints
+    Overlap%noverlap = NumOverlappedPoints
 
     allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
     allocate(Overlap%coords(NumDims,NumOverlappedPoints))
@@ -359,7 +368,7 @@ contains
     deallocate(Overlap%cells)
     deallocate(Overlap%coords)
 
-    Overlap%properties%noverlap = 0_lk
+    Overlap%noverlap = 0_lk
 
     allocate(Overlap%cells(MAX_ND,0))
     allocate(Overlap%coords(Overlap%cart%nd,0))
@@ -382,7 +391,7 @@ contains
     type(ovk_field_logical) :: OverlappedByHoleMask
     integer(lk) :: NumOverlappedPoints
 
-    if (Overlap%properties%noverlap == 0_lk) return
+    if (Overlap%noverlap == 0_lk) return
 
     OldOverlapMask = Overlap%mask
     OldCells => Overlap%cells
@@ -402,7 +411,7 @@ contains
     allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
     allocate(Overlap%coords(OverlappedGrid%nd,NumOverlappedPoints))
 
-    Overlap%properties%noverlap = NumOverlappedPoints
+    Overlap%noverlap = NumOverlappedPoints
 
     l_old = 1_lk
     l = 1_lk
@@ -706,9 +715,9 @@ contains
     integer(lk) :: l
     integer, dimension(MAX_ND) :: Cell
 
-    CollectedData = ovk_array_int_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_int_(Overlap%noverlap)
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       Cell = Overlap%cells(:,l)
       CollectedData%values(l) = OverlappingGridData%values(Cell(1),Cell(2),Cell(3))
     end do
@@ -725,9 +734,9 @@ contains
     integer(lk) :: l
     integer, dimension(MAX_ND) :: Cell
 
-    CollectedData = ovk_array_large_int_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_large_int_(Overlap%noverlap)
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       Cell = Overlap%cells(:,l)
       CollectedData%values(l) = OverlappingGridData%values(Cell(1),Cell(2),Cell(3))
     end do
@@ -744,9 +753,9 @@ contains
     integer(lk) :: l
     integer, dimension(MAX_ND) :: Cell
 
-    CollectedData = ovk_array_real_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_real_(Overlap%noverlap)
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       Cell = Overlap%cells(:,l)
       CollectedData%values(l) = OverlappingGridData%values(Cell(1),Cell(2),Cell(3))
     end do
@@ -763,9 +772,9 @@ contains
     integer(lk) :: l
     integer, dimension(MAX_ND) :: Cell
 
-    CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_logical_(Overlap%noverlap)
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       Cell = Overlap%cells(:,l)
       CollectedData%values(l) = OverlappingGridData%values(Cell(1),Cell(2),Cell(3))
     end do
@@ -784,13 +793,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     integer, dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_int_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_int_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -812,13 +821,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     integer(lk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_large_int_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_large_int_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -840,13 +849,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     real(rk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_real_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_real_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -868,13 +877,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     integer, dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_int_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_int_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -896,13 +905,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     integer(lk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_large_int_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_large_int_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -924,13 +933,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     real(rk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_real_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_real_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -955,13 +964,13 @@ contains
     real(rk), dimension(0:1,0:1,0:1) :: VertexData
     real(rk) :: Weight
 
-    CollectedData = ovk_array_real_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_real_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -997,13 +1006,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -1024,13 +1033,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -1051,13 +1060,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -1078,13 +1087,13 @@ contains
     integer, dimension(MAX_ND) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
-    CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
+    CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
     Upper(:OverlappingGrid%nd) = 1
     Upper(OverlappingGrid%nd+1:) = 0
 
-    do l = 1_lk, Overlap%properties%noverlap
+    do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
@@ -1264,84 +1273,5 @@ contains
     end do
 
   end subroutine DisperseOverwrite_Logical
-
-  function ovk_overlap_properties_(NumDims) result(Properties)
-
-    integer, intent(in) :: NumDims
-    type(ovk_overlap_properties) :: Properties
-
-    Properties%overlapping_grid_id = 0
-    Properties%overlapped_grid_id = 0
-    Properties%nd = NumDims
-    Properties%npoints(:NumDims) = 0
-    Properties%npoints(NumDims+1:) = 1
-    Properties%periodic = .false.
-    Properties%periodic_storage = OVK_NO_OVERLAP_PERIODIC
-    Properties%noverlap = 0
-
-  end function ovk_overlap_properties_
-
-  subroutine ovkGetOverlapPropertyOverlappingGridID(Properties, OverlappingGridID)
-
-    type(ovk_overlap_properties), intent(in) :: Properties
-    integer, intent(out) :: OverlappingGridID
-
-    OverlappingGridID = Properties%overlapping_grid_id
-
-  end subroutine ovkGetOverlapPropertyOverlappingGridID
-
-  subroutine ovkGetOverlapPropertyOverlappedGridID(Properties, OverlappedGridID)
-
-    type(ovk_overlap_properties), intent(in) :: Properties
-    integer, intent(out) :: OverlappedGridID
-
-    OverlappedGridID = Properties%overlapped_grid_id
-
-  end subroutine ovkGetOverlapPropertyOverlappedGridID
-
-  subroutine ovkGetOverlapPropertyDimension(Properties, NumDims)
-
-    type(ovk_overlap_properties), intent(in) :: Properties
-    integer, intent(out) :: NumDims
-
-    NumDims = Properties%nd
-
-  end subroutine ovkGetOverlapPropertyDimension
-
-  subroutine ovkGetOverlapPropertySize(Properties, NumPoints)
-
-    type(ovk_overlap_properties), intent(in) :: Properties
-    integer, dimension(Properties%nd), intent(out) :: NumPoints
-
-    NumPoints = Properties%npoints(:Properties%nd)
-
-  end subroutine ovkGetOverlapPropertySize
-
-  subroutine ovkGetOverlapPropertyPeriodicity(Properties, Periodic)
-
-    type(ovk_overlap_properties), intent(in) :: Properties
-    logical, dimension(Properties%nd), intent(out) :: Periodic
-
-    Periodic = Properties%periodic(:Properties%nd)
-
-  end subroutine ovkGetOverlapPropertyPeriodicity
-
-  subroutine ovkGetOverlapPropertyPeriodicStorage(Properties, PeriodicStorage)
-
-    type(ovk_overlap_properties), intent(in) :: Properties
-    integer, intent(out) :: PeriodicStorage
-
-    PeriodicStorage = Properties%periodic_storage
-
-  end subroutine ovkGetOverlapPropertyPeriodicStorage
-
-  subroutine ovkGetOverlapPropertyNumOverlapped(Properties, NumOverlapped)
-
-    type(ovk_overlap_properties), intent(in) :: Properties
-    integer(lk), intent(out) :: NumOverlapped
-
-    NumOverlapped = Properties%noverlap
-
-  end subroutine ovkGetOverlapPropertyNumOverlapped
 
 end module ovkOverlap

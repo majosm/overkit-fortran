@@ -372,9 +372,9 @@ contains
             call DetectOverlap(Grid_m, Grid_n, OverlapAccel, Bounds(m,n), OverlapTolerance(m,n), &
               Overlap)
             if (Domain%logger%verbose) then
-              if (Overlap%properties%noverlap > 0_lk) then
+              if (Overlap%noverlap > 0_lk) then
                 write (*, '(7a)') "* Detected ", trim(LargeIntToString( &
-                  Overlap%properties%noverlap)), " points on grid ", &
+                  Overlap%noverlap)), " points on grid ", &
                   trim(IntToString(Grid_n%id)), " overlapped by grid ", &
                   trim(IntToString(Grid_m%id)), "."
               end if
