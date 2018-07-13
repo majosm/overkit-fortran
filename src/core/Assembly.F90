@@ -1363,14 +1363,13 @@ contains
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
     type(ovk_connectivity), pointer :: Connectivity
-    type(ovk_connectivity_properties), pointer :: ConnectivityProperties
+    type(ovk_field_logical) :: ReceiverMask
     integer, dimension(MAX_ND) :: DonorSize
     integer :: MaxDonorSize
-    type(ovk_field_logical) :: ReceiverMask
-    integer, dimension(MAX_ND) :: ReceiverPoint
     integer, dimension(MAX_ND,2) :: DonorExtents
     real(rk), dimension(Domain%nd) :: DonorCoords
     real(rk), dimension(:,:), allocatable :: DonorInterpCoefs
+    integer, dimension(MAX_ND) :: ReceiverPoint
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Generating connectivity information..."
@@ -1386,11 +1385,8 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
-          DonorSize = 1
-          DonorSize(:NumDims) = ovkDonorSize(NumDims, ConnectionType(m,n))
-          MaxDonorSize = maxval(DonorSize)
           call CreateConnectivity(Domain%connectivity(Grid_m%id, Grid_n%id), &
-            Grid_m%id, Grid_n%id, Domain%logger, NumDims, MaxDonorSize)
+            Grid_m%id, Grid_n%id, Domain%logger, NumDims)
         end if
       end do
     end do
@@ -1425,10 +1421,11 @@ contains
 
           if (NumConnections(m) > 0_lk) then
 
-            call ResizeConnectivity(Connectivity, NumConnections(m))
+            DonorSize = 1
+            DonorSize(:NumDims) = ovkDonorSize(NumDims, ConnectionType(m,n))
+            MaxDonorSize = maxval(DonorSize)
 
-            call ovkGetConnectivityProperties(Connectivity, ConnectivityProperties)
-            call ovkGetConnectivityPropertyMaxDonorSize(ConnectivityProperties, MaxDonorSize)
+            call ResizeConnectivity(Connectivity, NumConnections(m), MaxDonorSize)
 
             allocate(DonorInterpCoefs(MaxDonorSize,NumDims))
 
@@ -1443,10 +1440,10 @@ contains
                     ReceiverPoint = [i,j,k]
                     call ovkFindDonor(Grid_m, Grid_n, Overlap, ReceiverPoint, l, &
                       ConnectionType(m,n), DonorExtents, DonorCoords, DonorInterpCoefs)
-                    Connectivity%receiver_points(:,p) = ReceiverPoint
                     Connectivity%donor_extents(:,:,p) = DonorExtents
                     Connectivity%donor_coords(:,p) = DonorCoords
                     Connectivity%donor_interp_coefs(:,:,p) = DonorInterpCoefs
+                    Connectivity%receiver_points(:,p) = ReceiverPoint
                     p = p + 1_lk
                   end if
                   if (Overlap%mask%values(i,j,k)) then

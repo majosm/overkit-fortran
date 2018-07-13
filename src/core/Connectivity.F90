@@ -18,20 +18,16 @@ module ovkConnectivity
 
   ! API
   public :: ovk_connectivity
-  public :: ovk_connectivity_properties
   public :: ovkConnectivityExists
-  public :: ovkGetConnectivityProperties
-  public :: ovkEditConnectivityProperties
-  public :: ovkReleaseConnectivityProperties
-  public :: ovkGetConnectivityReceiverPoints
+  public :: ovkGetConnectivityDonorGridID
+  public :: ovkGetConnectivityReceiverGridID
+  public :: ovkGetConnectivityDimension
+  public :: ovkGetConnectivityMaxDonorSize
+  public :: ovkGetConnectivityCount
   public :: ovkGetConnectivityDonorExtents
   public :: ovkGetConnectivityDonorCoords
   public :: ovkGetConnectivityDonorInterpCoefs
-  public :: ovkGetConnectivityPropertyDonorGridID
-  public :: ovkGetConnectivityPropertyReceiverGridID
-  public :: ovkGetConnectivityPropertyDimension
-  public :: ovkGetConnectivityPropertyMaxDonorSize
-  public :: ovkGetConnectivityPropertyConnectionCount
+  public :: ovkGetConnectivityReceiverPoints
   public :: ovkDonorSize
   public :: ovkFindDonor
 
@@ -40,29 +36,20 @@ module ovkConnectivity
   public :: CreateConnectivity
   public :: DestroyConnectivity
   public :: ResizeConnectivity
-  public :: SetConnectivityPropertyMaxDonorSize
 
-  type ovk_connectivity_properties
+  type ovk_connectivity
     type(t_noconstruct) :: noconstruct
-    ! Read-only
+    type(t_existence_flag) :: existence_flag
+    type(t_logger), pointer :: logger
     integer :: donor_grid_id
     integer :: receiver_grid_id
     integer :: nd
     integer :: max_donor_size
     integer(lk) :: nconnections
-  end type ovk_connectivity_properties
-
-  type ovk_connectivity
-    type(t_noconstruct) :: noconstruct
-    type(t_existence_flag) :: existence_flag
-    type(ovk_connectivity_properties), pointer :: properties
-    type(ovk_connectivity_properties), pointer :: prev_properties
-    integer :: properties_edit_ref_count
-    type(t_logger), pointer :: logger
-    integer, dimension(:,:), pointer :: receiver_points
     integer, dimension(:,:,:), pointer :: donor_extents
     real(rk), dimension(:,:), pointer :: donor_coords
     real(rk), dimension(:,:,:), pointer :: donor_interp_coefs
+    integer, dimension(:,:), pointer :: receiver_points
   end type ovk_connectivity
 
 contains
@@ -71,44 +58,40 @@ contains
 
     type(ovk_connectivity) :: Connectivity
 
-    nullify(Connectivity%properties)
-    nullify(Connectivity%prev_properties)
-    Connectivity%properties_edit_ref_count = 0
     nullify(Connectivity%logger)
-    nullify(Connectivity%receiver_points)
+    Connectivity%donor_grid_id = 0
+    Connectivity%receiver_grid_id = 0
+    Connectivity%nd = 2
+    Connectivity%max_donor_size = 1
+    Connectivity%nconnections = 0
     nullify(Connectivity%donor_extents)
     nullify(Connectivity%donor_coords)
     nullify(Connectivity%donor_interp_coefs)
+    nullify(Connectivity%receiver_points)
 
     call SetExists(Connectivity%existence_flag, .false.)
 
   end function ovk_connectivity_
 
-  subroutine CreateConnectivity(Connectivity, DonorGridID, ReceiverGridID, Logger, NumDims, &
-    MaxDonorSize)
+  subroutine CreateConnectivity(Connectivity, DonorGridID, ReceiverGridID, Logger, NumDims)
 
     type(ovk_connectivity), intent(out) :: Connectivity
     integer, intent(in) :: DonorGridID, ReceiverGridID
     type(t_logger), pointer, intent(in) :: Logger
     integer, intent(in) :: NumDims
-    integer, intent(in) :: MaxDonorSize
-
-    allocate(Connectivity%properties)
-    Connectivity%properties = ovk_connectivity_properties_(NumDims)
-    Connectivity%properties%donor_grid_id = DonorGridID
-    Connectivity%properties%receiver_grid_id = ReceiverGridID
-    Connectivity%properties%max_donor_size = MaxDonorSize
-
-    nullify(Connectivity%prev_properties)
-
-    Connectivity%properties_edit_ref_count = 0
 
     Connectivity%logger => Logger
 
-    allocate(Connectivity%receiver_points(MAX_ND,0))
+    Connectivity%donor_grid_id = DonorGridID
+    Connectivity%receiver_grid_id = ReceiverGridID
+    Connectivity%nd = NumDims
+    Connectivity%max_donor_size = 1
+    Connectivity%nconnections = 0
+
     allocate(Connectivity%donor_extents(MAX_ND,2,0))
     allocate(Connectivity%donor_coords(NumDims,0))
-    allocate(Connectivity%donor_interp_coefs(MaxDonorSize,NumDims,0))
+    allocate(Connectivity%donor_interp_coefs(1,NumDims,0))
+    allocate(Connectivity%receiver_points(MAX_ND,0))
 
     call SetExists(Connectivity%existence_flag, .true.)
 
@@ -122,13 +105,10 @@ contains
 
     call SetExists(Connectivity%existence_flag, .false.)
 
-    deallocate(Connectivity%receiver_points)
     deallocate(Connectivity%donor_extents)
     deallocate(Connectivity%donor_coords)
     deallocate(Connectivity%donor_interp_coefs)
-
-    deallocate(Connectivity%properties)
-    if (associated(Connectivity%prev_properties)) deallocate(Connectivity%prev_properties)
+    deallocate(Connectivity%receiver_points)
 
   end subroutine DestroyConnectivity
 
@@ -141,75 +121,50 @@ contains
 
   end function ovkConnectivityExists
 
-  subroutine ovkGetConnectivityProperties(Connectivity, Properties)
+  subroutine ovkGetConnectivityDonorGridID(Connectivity, DonorGridID)
 
     type(ovk_connectivity), intent(in) :: Connectivity
-    type(ovk_connectivity_properties), pointer, intent(out) :: Properties
+    integer, intent(out) :: DonorGridID
 
-    Properties => Connectivity%properties
+    DonorGridID = Connectivity%donor_grid_id
 
-  end subroutine ovkGetConnectivityProperties
+  end subroutine ovkGetConnectivityDonorGridID
 
-  subroutine ovkEditConnectivityProperties(Connectivity, Properties)
+  subroutine ovkGetConnectivityReceiverGridID(Connectivity, ReceiverGridID)
 
-    type(ovk_connectivity), intent(inout) :: Connectivity
-    type(ovk_connectivity_properties), pointer, intent(out) :: Properties
+    type(ovk_connectivity), intent(in) :: Connectivity
+    integer, intent(out) :: ReceiverGridID
 
-    logical :: Success, StartEdit
+    ReceiverGridID = Connectivity%receiver_grid_id
 
-    call TryEditProperties(Connectivity, Success, StartEdit)
+  end subroutine ovkGetConnectivityReceiverGridID
 
-    if (Success) then
-      if (StartEdit) then
-        allocate(Connectivity%prev_properties)
-        Connectivity%prev_properties = Connectivity%properties
-      end if
-      Properties => Connectivity%properties
-    else
-      ! Can't fail right now
-    end if
+  subroutine ovkGetConnectivityDimension(Connectivity, NumDims)
 
-  end subroutine ovkEditConnectivityProperties
+    type(ovk_connectivity), intent(in) :: Connectivity
+    integer, intent(out) :: NumDims
 
-  subroutine ovkReleaseConnectivityProperties(Connectivity, Properties)
+    NumDims = Connectivity%nd
 
-    type(ovk_connectivity), intent(inout) :: Connectivity
-    type(ovk_connectivity_properties), pointer, intent(inout) :: Properties
+  end subroutine ovkGetConnectivityDimension
 
-    logical :: Success, EndEdit
-    type(ovk_connectivity_properties), pointer :: PrevProperties
+  subroutine ovkGetConnectivityMaxDonorSize(Connectivity, MaxDonorSize)
 
-    if (associated(Properties, Connectivity%properties)) then
+    type(ovk_connectivity), intent(in) :: Connectivity
+    integer, intent(out) :: MaxDonorSize
 
-      call TryReleaseProperties(Connectivity, Success, EndEdit)
+    MaxDonorSize = Connectivity%max_donor_size
 
-      if (Success) then
-        PrevProperties => Connectivity%prev_properties
-        nullify(Connectivity%prev_properties)
-        if (Properties%max_donor_size /= PrevProperties%max_donor_size) then
-          call ResizeConnectivity(Connectivity, 0_lk)
-        end if
-        deallocate(PrevProperties)
-      else
-        if (OVK_DEBUG) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Unable to release properties; not ", &
-            "currently being edited."
-          stop 1
-        end if
-      end if
+  end subroutine ovkGetConnectivityMaxDonorSize
 
-    else
+  subroutine ovkGetConnectivityCount(Connectivity, NumConnections)
 
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Unable to release properties; invalid pointer."
-        stop 1
-      end if
+    type(ovk_connectivity), intent(in) :: Connectivity
+    integer(lk), intent(out) :: NumConnections
 
-    end if
+    NumConnections = Connectivity%nconnections
 
-    nullify(Properties)
-
-  end subroutine ovkReleaseConnectivityProperties
+  end subroutine ovkGetConnectivityCount
 
   subroutine ovkGetConnectivityDonorExtents(Connectivity, DonorExtents)
 
@@ -247,135 +202,26 @@ contains
 
   end subroutine ovkGetConnectivityReceiverPoints
 
-  function EditingProperties(Connectivity) result(Editing)
-
-    type(ovk_connectivity), intent(in) :: Connectivity
-    logical :: Editing
-
-    Editing = Connectivity%properties_edit_ref_count > 0
-
-  end function EditingProperties
-
-  subroutine TryEditProperties(Connectivity, Success, StartEdit)
-
-    type(ovk_connectivity), intent(inout) :: Connectivity
-    logical, intent(out) :: Success
-    logical, intent(out) :: StartEdit
-
-    Success = .true.
-
-    if (Success) then
-      StartEdit = Connectivity%properties_edit_ref_count == 0
-      Connectivity%properties_edit_ref_count = Connectivity%properties_edit_ref_count + 1
-    else
-      StartEdit = .false.
-    end if
-
-  end subroutine TryEditProperties
-
-  subroutine TryReleaseProperties(Connectivity, Success, EndEdit)
-
-    type(ovk_connectivity), intent(inout) :: Connectivity
-    logical, intent(out) :: Success
-    logical, intent(out) :: EndEdit
-
-    Success = EditingProperties(Connectivity)
-
-    if (Success) then
-      Connectivity%properties_edit_ref_count = Connectivity%properties_edit_ref_count - 1
-      EndEdit = Connectivity%properties_edit_ref_count == 0
-    else
-      EndEdit = .false.
-    end if
-
-  end subroutine TryReleaseProperties
-
-  subroutine ResizeConnectivity(Connectivity, NumConnections)
+  subroutine ResizeConnectivity(Connectivity, NumConnections, MaxDonorSize)
 
     type(ovk_connectivity), intent(inout) :: Connectivity
     integer(lk), intent(in) :: NumConnections
+    integer, intent(in) :: MaxDonorSize
 
-    deallocate(Connectivity%receiver_points)
     deallocate(Connectivity%donor_extents)
     deallocate(Connectivity%donor_coords)
     deallocate(Connectivity%donor_interp_coefs)
+    deallocate(Connectivity%receiver_points)
 
-    allocate(Connectivity%receiver_points(MAX_ND,NumConnections))
     allocate(Connectivity%donor_extents(MAX_ND,2,NumConnections))
-    allocate(Connectivity%donor_coords(Connectivity%properties%nd,NumConnections))
-    allocate(Connectivity%donor_interp_coefs(Connectivity%properties%max_donor_size, &
-      Connectivity%properties%nd,NumConnections))
+    allocate(Connectivity%donor_coords(Connectivity%nd,NumConnections))
+    allocate(Connectivity%donor_interp_coefs(MaxDonorSize,Connectivity%nd,NumConnections))
+    allocate(Connectivity%receiver_points(MAX_ND,NumConnections))
 
-    Connectivity%properties%nconnections = NumConnections
+    Connectivity%max_donor_size = MaxDonorSize
+    Connectivity%nconnections = NumConnections
 
   end subroutine ResizeConnectivity
-
-  function ovk_connectivity_properties_(NumDims) result(Properties)
-
-    integer, intent(in) :: NumDims
-    type(ovk_connectivity_properties) :: Properties
-
-    Properties%donor_grid_id = 0
-    Properties%receiver_grid_id = 0
-    Properties%nd = NumDims
-    Properties%max_donor_size = 1
-    Properties%nconnections = 0
-
-  end function ovk_connectivity_properties_
-
-  subroutine ovkGetConnectivityPropertyDonorGridID(Properties, DonorGridID)
-
-    type(ovk_connectivity_properties), intent(in) :: Properties
-    integer, intent(out) :: DonorGridID
-
-    DonorGridID = Properties%donor_grid_id
-
-  end subroutine ovkGetConnectivityPropertyDonorGridID
-
-  subroutine ovkGetConnectivityPropertyReceiverGridID(Properties, ReceiverGridID)
-
-    type(ovk_connectivity_properties), intent(in) :: Properties
-    integer, intent(out) :: ReceiverGridID
-
-    ReceiverGridID = Properties%receiver_grid_id
-
-  end subroutine ovkGetConnectivityPropertyReceiverGridID
-
-  subroutine ovkGetConnectivityPropertyDimension(Properties, NumDims)
-
-    type(ovk_connectivity_properties), intent(in) :: Properties
-    integer, intent(out) :: NumDims
-
-    NumDims = Properties%nd
-
-  end subroutine ovkGetConnectivityPropertyDimension
-
-  subroutine ovkGetConnectivityPropertyMaxDonorSize(Properties, MaxDonorSize)
-
-    type(ovk_connectivity_properties), intent(in) :: Properties
-    integer, intent(out) :: MaxDonorSize
-
-    MaxDonorSize = Properties%max_donor_size
-
-  end subroutine ovkGetConnectivityPropertyMaxDonorSize
-
-  subroutine SetConnectivityPropertyMaxDonorSize(Properties, MaxDonorSize)
-
-    type(ovk_connectivity_properties), intent(inout) :: Properties
-    integer, intent(in) :: MaxDonorSize
-
-    Properties%max_donor_size = MaxDonorSize
-
-  end subroutine SetConnectivityPropertyMaxDonorSize
-
-  subroutine ovkGetConnectivityPropertyConnectionCount(Properties, ConnectionCount)
-
-    type(ovk_connectivity_properties), intent(in) :: Properties
-    integer(lk), intent(out) :: ConnectionCount
-
-    ConnectionCount = Properties%nconnections
-
-  end subroutine ovkGetConnectivityPropertyConnectionCount
 
   function ovkDonorSize(NumDims, ConnectionType) result(DonorSize)
 

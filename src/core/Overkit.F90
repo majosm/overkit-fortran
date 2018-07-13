@@ -100,20 +100,16 @@ module Overkit
 
   ! ovkConnectivity
   public :: ovk_connectivity
-  public :: ovk_connectivity_properties
   public :: ovkConnectivityExists
-  public :: ovkGetConnectivityProperties
-  public :: ovkEditConnectivityProperties
-  public :: ovkReleaseConnectivityProperties
+  public :: ovkGetConnectivityDonorGridID
+  public :: ovkGetConnectivityReceiverGridID
+  public :: ovkGetConnectivityDimension
+  public :: ovkGetConnectivityMaxDonorSize
+  public :: ovkGetConnectivityCount
   public :: ovkGetConnectivityDonorExtents
   public :: ovkGetConnectivityDonorCoords
   public :: ovkGetConnectivityDonorInterpCoefs
   public :: ovkGetConnectivityReceiverPoints
-  public :: ovkGetConnectivityPropertyDonorGridID
-  public :: ovkGetConnectivityPropertyReceiverGridID
-  public :: ovkGetConnectivityPropertyDimension
-  public :: ovkGetConnectivityPropertyMaxDonorSize
-  public :: ovkGetConnectivityPropertyConnectionCount
   public :: ovkDonorSize
   public :: ovkFindDonor
 
