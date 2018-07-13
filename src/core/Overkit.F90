@@ -226,11 +226,14 @@ module Overkit
 
   ! ovkGrid
   public :: ovk_grid
-  public :: ovk_grid_properties
   public :: ovkGridExists
-  public :: ovkGetGridProperties
-  public :: ovkEditGridProperties
-  public :: ovkReleaseGridProperties
+  public :: ovkGetGridID
+  public :: ovkGetGridDimension
+  public :: ovkGetGridSize
+  public :: ovkGetGridPeriodicity
+  public :: ovkGetGridPeriodicStorage
+  public :: ovkGetGridPeriodicLength
+  public :: ovkGetGridGeometryType
   public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
@@ -249,13 +252,6 @@ module Overkit
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
   public :: ovkExportGridCoords
-  public :: ovkGetGridPropertyID
-  public :: ovkGetGridPropertyDimension
-  public :: ovkGetGridPropertySize
-  public :: ovkGetGridPropertyPeriodicity
-  public :: ovkGetGridPropertyPeriodicStorage
-  public :: ovkGetGridPropertyPeriodicLength
-  public :: ovkGetGridPropertyGeometryType
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN

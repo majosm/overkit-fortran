@@ -55,17 +55,17 @@ module ovkDomain
   type ovk_domain
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
+    type(t_logger), pointer :: logger
     integer :: nd
     integer :: ngrids
     logical :: verbose
-    type(t_logger), pointer :: logger
-    type(t_domain_edits), pointer :: edits
     type(ovk_grid), dimension(:), pointer :: grid
     integer, dimension(:), allocatable :: grid_edit_ref_counts
     type(ovk_overlap), dimension(:,:), pointer :: overlap
     integer, dimension(:,:), allocatable :: overlap_edit_ref_counts
     type(ovk_connectivity), dimension(:,:), pointer :: connectivity
     integer, dimension(:,:), allocatable :: connectivity_edit_ref_counts
+    type(t_domain_edits), pointer :: edits
     type(ovk_assembly_options) :: cached_assembly_options
   end type ovk_domain
 
@@ -75,14 +75,14 @@ contains
 
     type(ovk_domain) :: Domain
 
+    nullify(Domain%logger)
     Domain%nd = 2
     Domain%ngrids = 0
     Domain%verbose = .false.
-    nullify(Domain%logger)
-    nullify(Domain%edits)
     nullify(Domain%grid)
     nullify(Domain%overlap)
     nullify(Domain%connectivity)
+    nullify(Domain%edits)
     Domain%cached_assembly_options = ovk_assembly_options_()
 
     call SetExists(Domain%existence_flag, .false.)
@@ -105,15 +105,12 @@ contains
       Verbose_ = .false.
     end if
 
-    Domain%nd = NumDims
-    Domain%ngrids = NumGrids
-    Domain%verbose = Verbose_
-
     allocate(Domain%logger)
     Domain%logger = t_logger_(Verbose_)
 
-    allocate(Domain%edits)
-    Domain%edits = t_domain_edits_(NumDims, NumGrids)
+    Domain%nd = NumDims
+    Domain%ngrids = NumGrids
+    Domain%verbose = Verbose_
 
     allocate(Domain%grid(NumGrids))
     do m = 1, NumGrids
@@ -143,6 +140,9 @@ contains
     allocate(Domain%connectivity_edit_ref_counts(NumGrids,NumGrids))
     Domain%connectivity_edit_ref_counts = 0
 
+    allocate(Domain%edits)
+    Domain%edits = t_domain_edits_(NumDims, NumGrids)
+
     Domain%cached_assembly_options = ovk_assembly_options_(NumDims, NumGrids)
 
     call SetExists(Domain%existence_flag, .true.)
@@ -160,6 +160,8 @@ contains
     call SetExists(Domain%existence_flag, .false.)
 
     Domain%cached_assembly_options = ovk_assembly_options_()
+
+    deallocate(Domain%edits)
 
     do m = 1, Domain%ngrids
       if (ovkGridExists(Domain%grid(m))) then
@@ -191,8 +193,6 @@ contains
     deallocate(Domain%connectivity)
 
     deallocate(Domain%connectivity_edit_ref_counts)
-
-    deallocate(Domain%edits)
 
     deallocate(Domain%logger)
 
@@ -1072,7 +1072,7 @@ contains
           jEString = IntToString(Grid%cart%ie(2))
           kSString = IntToString(Grid%cart%is(3))
           kEString = IntToString(Grid%cart%ie(3))
-          write (*, '(3a)', advance="no") "* Grid ", trim(IntToString(Grid%properties%id)), ": "
+          write (*, '(3a)', advance="no") "* Grid ", trim(IntToString(Grid%id)), ": "
           write (*, '(2a)', advance="no") trim(TotalPointsString), " points "
           select case (Domain%nd)
           case (2)

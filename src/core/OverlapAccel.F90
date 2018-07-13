@@ -84,6 +84,7 @@ contains
     real(rk), intent(in) :: MaxOverlapTolerance
     real(rk), intent(in) :: QualityAdjust
 
+    integer :: NumDims
     integer :: MinCells
     real(rk) :: MinOccupiedVolumeFraction
     real(rk) :: MaxCellVolumeDeviation
@@ -100,6 +101,8 @@ contains
     integer, dimension(:,:), allocatable :: OverlappingCells
     integer(lk), dimension(:), allocatable :: CellIndices
 
+    NumDims = Grid%nd
+
     MinCells = 10000
     MinOccupiedVolumeFraction = 0.5_rk
     MaxCellVolumeDeviation = 0.5_rk
@@ -107,20 +110,20 @@ contains
     BinScale = 0.5_rk**QualityAdjust
 
     if (.not. ovkBBOverlaps(Bounds, Grid%bounds)) then
-      Accel = t_overlap_accel_(Grid%cart%nd)
+      Accel = t_overlap_accel_(NumDims)
       return
     end if
 
     GridCellOverlapMask = ovk_field_logical_(Grid%cell_cart, .false.)
 
-    allocate(GridCellLower(Grid%cell_cart%nd))
-    allocate(GridCellUpper(Grid%cell_cart%nd))
-    do d = 1, Grid%cell_cart%nd
+    allocate(GridCellLower(NumDims))
+    allocate(GridCellUpper(NumDims))
+    do d = 1, NumDims
       GridCellLower(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
       GridCellUpper(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
     end do
 
-    Accel%nd = Grid%cart%nd
+    Accel%nd = NumDims
 
     AccelLower = Bounds%e
     AccelUpper = Bounds%b
@@ -140,7 +143,7 @@ contains
             GridCellBounds = ovkBBScale(GridCellBounds, 1._rk + 2._rk * MaxOverlapTolerance)
             GridCellOverlapMask%values(i,j,k) = ovkBBOverlaps(Bounds, GridCellBounds)
             if (GridCellOverlapMask%values(i,j,k)) then
-              do d = 1, Grid%cell_cart%nd
+              do d = 1, NumDims
                 GridCellLower(d)%values(i,j,k) = GridCellBounds%b(d)
                 GridCellUpper(d)%values(i,j,k) = GridCellBounds%e(d)
               end do
@@ -153,12 +156,12 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    Accel%bounds = ovk_bbox_(Grid%cart%nd, AccelLower, AccelUpper)
+    Accel%bounds = ovk_bbox_(NumDims, AccelLower, AccelUpper)
 
     NumOverlappingCells = ovkCountMask(GridCellOverlapMask)
 
     if (NumOverlappingCells == 0) then
-      Accel = t_overlap_accel_(Grid%cart%nd)
+      Accel = t_overlap_accel_(NumDims)
       return
     end if
 
@@ -631,11 +634,11 @@ contains
 
     type(ovk_grid), intent(in) :: Grid
     type(t_overlap_accel), intent(in) :: Accel
-    real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
+    real(rk), dimension(Grid%nd), intent(in) :: Coords
     real(rk), intent(in) :: OverlapTolerance
-    integer, dimension(Grid%cart%nd) :: Cell
+    integer, dimension(Grid%nd) :: Cell
 
-    Cell = Grid%cart%is(:Grid%cart%nd)-1
+    Cell = Grid%cart%is(:Grid%nd)-1
 
     if (ovkBBContainsPoint(Accel%bounds, Coords)) then
       Cell = FindOverlappingCellInNode(Grid, Accel%root, OverlapTolerance, Coords)
@@ -648,16 +651,16 @@ contains
     type(ovk_grid), intent(in) :: Grid
     type(t_node), intent(in) :: Node
     real(rk), intent(in) :: OverlapTolerance
-    real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
-    integer, dimension(Grid%cart%nd) :: Cell
+    real(rk), dimension(Grid%nd), intent(in) :: Coords
+    integer, dimension(Grid%nd) :: Cell
 
     integer(lk) :: l, m
-    integer, dimension(Grid%cart%nd) :: Bin
+    integer, dimension(Grid%nd) :: Bin
     integer(lk) :: BinStart, BinEnd
     logical :: LeafNode
-    integer, dimension(Grid%cart%nd) :: CandidateCell
+    integer, dimension(Grid%nd) :: CandidateCell
 
-    Cell = Grid%cell_cart%is(:Grid%cell_cart%nd) - 1
+    Cell = Grid%cell_cart%is(:Grid%nd) - 1
 
     LeafNode = associated(Node%hash_grid)
 

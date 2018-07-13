@@ -16,11 +16,14 @@ module ovkGrid
 
   ! API
   public :: ovk_grid
-  public :: ovk_grid_properties
   public :: ovkGridExists
-  public :: ovkGetGridProperties
-  public :: ovkEditGridProperties
-  public :: ovkReleaseGridProperties
+  public :: ovkGetGridID
+  public :: ovkGetGridDimension
+  public :: ovkGetGridSize
+  public :: ovkGetGridPeriodicity
+  public :: ovkGetGridPeriodicStorage
+  public :: ovkGetGridPeriodicLength
+  public :: ovkGetGridGeometryType
   public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
@@ -39,13 +42,6 @@ module ovkGrid
   public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
   public :: ovkExportGridCoords
-  public :: ovkGetGridPropertyID
-  public :: ovkGetGridPropertyDimension
-  public :: ovkGetGridPropertySize
-  public :: ovkGetGridPropertyPeriodicity
-  public :: ovkGetGridPropertyPeriodicStorage
-  public :: ovkGetGridPropertyPeriodicLength
-  public :: ovkGetGridPropertyGeometryType
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
   public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
@@ -84,18 +80,6 @@ module ovkGrid
   public :: GetGridEdits
   public :: ResetGridEdits
 
-  type ovk_grid_properties
-    type(t_noconstruct) :: noconstruct
-    ! Read-only
-    integer :: id
-    integer :: nd
-    integer, dimension(MAX_ND) :: npoints
-    logical, dimension(MAX_ND) :: periodic
-    integer :: periodic_storage
-    real(rk), dimension(MAX_ND) :: periodic_length
-    integer :: geometry_type
-  end type ovk_grid_properties
-
   type t_grid_edits
     logical :: coords
     logical :: mask
@@ -106,11 +90,14 @@ module ovkGrid
   type ovk_grid
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
-    type(ovk_grid_properties), pointer :: properties
-    type(ovk_grid_properties), pointer :: prev_properties
-    integer :: properties_edit_ref_count
     type(t_logger), pointer :: logger
-    type(t_grid_edits), pointer :: edits
+    integer :: id
+    integer :: nd
+    integer, dimension(MAX_ND) :: npoints
+    logical, dimension(MAX_ND) :: periodic
+    integer :: periodic_storage
+    real(rk), dimension(MAX_ND) :: periodic_length
+    integer :: geometry_type
     type(ovk_cart) :: cart
     type(ovk_cart) :: cell_cart
     type(ovk_field_real), dimension(:), pointer :: coords
@@ -118,6 +105,7 @@ module ovkGrid
     type(ovk_field_int), pointer :: state
     type(ovk_field_int), pointer :: prev_state
     integer :: state_edit_ref_count
+    type(t_grid_edits), pointer :: edits
     type(ovk_bbox) :: bounds
     type(ovk_field_logical) :: mask
     type(ovk_field_logical) :: boundary_mask
@@ -168,11 +156,14 @@ contains
 
     type(ovk_grid) :: Grid
 
-    nullify(Grid%properties)
-    nullify(Grid%prev_properties)
-    Grid%properties_edit_ref_count = 0
     nullify(Grid%logger)
-    nullify(Grid%edits)
+    Grid%id = 0
+    Grid%nd = 2
+    Grid%npoints = [0,0,1]
+    Grid%periodic = .false.
+    Grid%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Grid%periodic_length = 0._rk
+    Grid%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
     Grid%cart = ovk_cart_()
     Grid%cell_cart = ovk_cart_()
     nullify(Grid%coords)
@@ -180,6 +171,7 @@ contains
     nullify(Grid%state)
     Grid%state_edit_ref_count = 0
     nullify(Grid%prev_state)
+    nullify(Grid%edits)
     Grid%bounds = ovk_bbox_()
     Grid%mask = ovk_field_logical_()
     Grid%boundary_mask = ovk_field_logical_()
@@ -205,30 +197,24 @@ contains
     integer :: d
     type(ovk_cart) :: CellEdgeDistCart
 
-    allocate(Grid%properties)
-    Grid%properties = ovk_grid_properties_(Cart%nd)
-    Grid%properties%id = ID
-    Grid%properties%npoints(:Cart%nd) = ovkCartSize(Cart)
-    Grid%properties%periodic = Cart%periodic
-    Grid%properties%periodic_storage = Cart%periodic_storage
-    Grid%properties%periodic_length(:Cart%nd) = PeriodicLength
-    Grid%properties%geometry_type = GeometryType
-
-    nullify(Grid%prev_properties)
-
-    Grid%properties_edit_ref_count = 0
-
     Grid%logger => Logger
 
-    allocate(Grid%edits)
-    Grid%edits = t_grid_edits_(Cart%nd)
+    Grid%id = ID
+    Grid%nd = Cart%nd
+    Grid%npoints(:Cart%nd) = ovkCartSize(Cart)
+    Grid%npoints(Cart%nd+1:) = 1
+    Grid%periodic = Cart%periodic
+    Grid%periodic_storage = Cart%periodic_storage
+    Grid%periodic_length(:Cart%nd) = PeriodicLength
+    Grid%periodic_length(Cart%nd+1:) = 0._rk
+    Grid%geometry_type = GeometryType
 
     Grid%cart = Cart
 
     Grid%cell_cart = ovkCartPointToCell(Grid%cart)
 
-    allocate(Grid%coords(Grid%cart%nd))
-    do d = 1, Grid%cart%nd
+    allocate(Grid%coords(Grid%nd))
+    do d = 1, Grid%nd
       Grid%coords(d) = ovk_field_real_(Grid%cart, 0._rk)
     end do
 
@@ -241,10 +227,13 @@ contains
 
     Grid%state_edit_ref_count = 0
 
-    Grid%bounds = ovk_bbox_(Grid%cart%nd)
+    allocate(Grid%edits)
+    Grid%edits = t_grid_edits_(Cart%nd)
+
+    Grid%bounds = ovk_bbox_(Grid%nd)
     if (ovkCartCount(Grid%cart) > 0) then
-      Grid%bounds%b(:Grid%cart%nd) = 0._rk
-      Grid%bounds%e(:Grid%cart%nd) = 0._rk
+      Grid%bounds%b(:Grid%nd) = 0._rk
+      Grid%bounds%e(:Grid%nd) = 0._rk
     end if
 
     Grid%mask = ovk_field_logical_(Grid%cart, .true.)
@@ -255,10 +244,10 @@ contains
     Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
 
     CellEdgeDistCart = Grid%cell_cart
-    CellEdgeDistCart%is(:Grid%cart%nd) = CellEdgeDistCart%is(:Grid%cart%nd) - merge(0, 1, &
-      Grid%cart%periodic(:Grid%cart%nd))
-    CellEdgeDistCart%ie(:Grid%cart%nd) = CellEdgeDistCart%ie(:Grid%cart%nd) + merge(0, 1, &
-      Grid%cart%periodic(:Grid%cart%nd))
+    CellEdgeDistCart%is(:Grid%nd) = CellEdgeDistCart%is(:Grid%nd) - merge(0, 1, &
+      Grid%cart%periodic(:Grid%nd))
+    CellEdgeDistCart%ie(:Grid%nd) = CellEdgeDistCart%ie(:Grid%nd) + merge(0, 1, &
+      Grid%cart%periodic(:Grid%nd))
 
     Grid%cell_edge_dist = ovk_field_int_(CellEdgeDistCart)
 
@@ -276,10 +265,6 @@ contains
 
     call SetExists(Grid%existence_flag, .false.)
 
-    deallocate(Grid%coords)
-    deallocate(Grid%state)
-    if (associated(Grid%prev_state)) deallocate(Grid%prev_state)
-
     Grid%mask = ovk_field_logical_()
     Grid%boundary_mask = ovk_field_logical_()
     Grid%internal_boundary_mask = ovk_field_logical_()
@@ -290,8 +275,9 @@ contains
 
     deallocate(Grid%edits)
 
-    deallocate(Grid%properties)
-    if (associated(Grid%prev_properties)) deallocate(Grid%prev_properties)
+    deallocate(Grid%coords)
+    deallocate(Grid%state)
+    if (associated(Grid%prev_state)) deallocate(Grid%prev_state)
 
   end subroutine DestroyGrid
 
@@ -304,82 +290,68 @@ contains
 
   end function ovkGridExists
 
-  subroutine ovkGetGridProperties(Grid, Properties)
+  subroutine ovkGetGridID(Grid, ID)
 
     type(ovk_grid), intent(in) :: Grid
-    type(ovk_grid_properties), pointer, intent(out) :: Properties
+    integer, intent(out) :: ID
 
-    Properties => Grid%properties
+    ID = Grid%id
 
-  end subroutine ovkGetGridProperties
+  end subroutine ovkGetGridID
 
-  subroutine ovkEditGridProperties(Grid, Properties)
+  subroutine ovkGetGridDimension(Grid, NumDims)
 
-    type(ovk_grid), intent(inout) :: Grid
-    type(ovk_grid_properties), pointer, intent(out) :: Properties
+    type(ovk_grid), intent(in) :: Grid
+    integer, intent(out) :: NumDims
 
-    logical :: Success, StartEdit
+    NumDims = Grid%nd
 
-    call TryEditProperties(Grid, Success, StartEdit)
+  end subroutine ovkGetGridDimension
 
-    if (Success) then
-      if (StartEdit) then
-        allocate(Grid%prev_properties)
-        Grid%prev_properties = Grid%properties
-      end if
-      Properties => Grid%properties
-    else
-      if (OVK_DEBUG) then
-        if (EditingCoords(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing coordinates."
-        else if (EditingState(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit properties while editing state."
-        end if
-        stop 1
-      end if
-      nullify(Properties)
-    end if
+  subroutine ovkGetGridSize(Grid, NumPoints)
 
-  end subroutine ovkEditGridProperties
+    type(ovk_grid), intent(in) :: Grid
+    integer, dimension(Grid%nd), intent(out) :: NumPoints
 
-  subroutine ovkReleaseGridProperties(Grid, Properties)
+    NumPoints = Grid%npoints(:Grid%nd)
 
-    type(ovk_grid), intent(inout) :: Grid
-    type(ovk_grid_properties), pointer, intent(inout) :: Properties
+  end subroutine ovkGetGridSize
 
-    logical :: Success, EndEdit
-    type(ovk_grid_properties), pointer :: PrevProperties
+  subroutine ovkGetGridPeriodicity(Grid, Periodic)
 
-    if (associated(Properties, Grid%properties)) then
+    type(ovk_grid), intent(in) :: Grid
+    logical, dimension(Grid%nd), intent(out) :: Periodic
 
-      call TryReleaseProperties(Grid, Success, EndEdit)
+    Periodic = Grid%periodic(:Grid%nd)
 
-      if (Success) then
-        if (EndEdit) then
-          PrevProperties => Grid%prev_properties
-          nullify(Grid%prev_properties)
-          deallocate(PrevProperties)
-        end if
-      else
-        if (OVK_DEBUG) then
-          write (ERROR_UNIT, '(2a)') "ERROR: Unable to release properties; not ", &
-            "currently being edited."
-          stop 1
-        end if
-      end if
+  end subroutine ovkGetGridPeriodicity
 
-    else
+  subroutine ovkGetGridPeriodicStorage(Grid, PeriodicStorage)
 
-      if (OVK_DEBUG) then
-        write (ERROR_UNIT, '(a)') "ERROR: Unable to release properties; invalid pointer."
-        stop 1
-      end if
+    type(ovk_grid), intent(in) :: Grid
+    integer, intent(out) :: PeriodicStorage
 
-    end if
+    PeriodicStorage = Grid%periodic_storage
 
-    nullify(Properties)
+  end subroutine ovkGetGridPeriodicStorage
 
-  end subroutine ovkReleaseGridProperties
+  subroutine ovkGetGridPeriodicLength(Grid, PeriodicLength)
+
+    type(ovk_grid), intent(in) :: Grid
+    real(rk), dimension(Grid%nd), intent(out) :: PeriodicLength
+
+    PeriodicLength = Grid%periodic_length(:Grid%nd)
+
+  end subroutine ovkGetGridPeriodicLength
+
+  subroutine ovkGetGridGeometryType(Grid, GeometryType)
+
+    type(ovk_grid), intent(in) :: Grid
+    integer, intent(out) :: GeometryType
+
+    GeometryType = Grid%geometry_type
+
+  end subroutine ovkGetGridGeometryType
 
   subroutine ovkGetGridCart(Grid, Cart)
 
@@ -408,17 +380,16 @@ contains
 
     logical :: Success, StartEdit
 
-    if (DimIndex >= 1 .and. DimIndex <= Grid%cart%nd) then
+    if (DimIndex >= 1 .and. DimIndex <= Grid%nd) then
 
       call TryEditCoords(Grid, Success, StartEdit)
 
       if (Success) then
         Coords => Grid%coords(DimIndex)
       else
+        ! This shouldn't happen, since there are currently no mutually exclusive edit
+        ! operations; leaving this here just in case that changes later on
         if (OVK_DEBUG) then
-          if (EditingProperties(Grid)) then
-            write (ERROR_UNIT, '(a)') "ERROR: Cannot edit coordinates while editing properties."
-          end if
           stop 1
         end if
         nullify(Coords)
@@ -447,7 +418,7 @@ contains
     logical :: Success, EndEdit
 
     DimIndex = 0
-    do d = 1, Grid%cart%nd
+    do d = 1, Grid%nd
       if (associated(Coords, Grid%coords(d))) then
         DimIndex = d
         exit
@@ -510,10 +481,9 @@ contains
       Grid%prev_state = Grid%state
       State => Grid%state
     else
+      ! This shouldn't happen, since there are currently no mutually exclusive edit
+      ! operations; leaving this here just in case that changes later on
       if (OVK_DEBUG) then
-        if (EditingProperties(Grid)) then
-          write (ERROR_UNIT, '(a)') "ERROR: Cannot edit state while editing properties."
-        end if
         stop 1
       end if
       nullify(State)
@@ -731,15 +701,6 @@ contains
 
   end subroutine ovkFilterGridState
 
-  function EditingProperties(Grid) result(Editing)
-
-    type(ovk_grid), intent(in) :: Grid
-    logical :: Editing
-
-    Editing = Grid%properties_edit_ref_count > 0
-
-  end function EditingProperties
-
   function EditingCoords(Grid) result(Editing)
 
     type(ovk_grid), intent(in) :: Grid
@@ -758,49 +719,15 @@ contains
 
   end function EditingState
 
-  subroutine TryEditProperties(Grid, Success, StartEdit)
-
-    type(ovk_grid), intent(inout) :: Grid
-    logical, intent(out) :: Success
-    logical, intent(out) :: StartEdit
-
-    Success = &
-      .not. EditingCoords(Grid) .and. &
-      .not. EditingState(Grid)
-
-    if (Success) then
-      StartEdit = Grid%properties_edit_ref_count == 0
-      Grid%properties_edit_ref_count = Grid%properties_edit_ref_count + 1
-    else
-      StartEdit = .false.
-    end if
-
-  end subroutine TryEditProperties
-
-  subroutine TryReleaseProperties(Grid, Success, EndEdit)
-
-    type(ovk_grid), intent(inout) :: Grid
-    logical, intent(out) :: Success
-    logical, intent(out) :: EndEdit
-
-    Success = EditingProperties(Grid)
-
-    if (Success) then
-      Grid%properties_edit_ref_count = Grid%properties_edit_ref_count - 1
-      EndEdit = Grid%properties_edit_ref_count == 0
-    else
-      EndEdit = .false.
-    end if
-
-  end subroutine TryReleaseProperties
-
   subroutine TryEditCoords(Grid, Success, StartEdit)
 
     type(ovk_grid), intent(inout) :: Grid
     logical, intent(out) :: Success
     logical, intent(out) :: StartEdit
 
-    Success = .not. EditingProperties(Grid)
+    ! Currently no mutually exclusive edit operations; leaving this here just in case that changes
+    ! later on
+    Success = .true.
 
     if (Success) then
       StartEdit = Grid%coords_edit_ref_count == 0
@@ -834,7 +761,9 @@ contains
     logical, intent(out) :: Success
     logical, intent(out) :: StartEdit
 
-    Success = .not. EditingProperties(Grid)
+    ! Currently no mutually exclusive edit operations; leaving this here just in case that changes
+    ! later on
+    Success = .true.
 
     if (Success) then
       StartEdit = Grid%state_edit_ref_count == 0
@@ -869,18 +798,18 @@ contains
     integer :: i, j, d, l
     integer :: idir, jdir
     integer, dimension(MAX_ND) :: Point, AdjustedPoint
-    real(rk), dimension(Grid%cart%nd) :: PeriodicCoords
+    real(rk), dimension(Grid%nd) :: PeriodicCoords
 
-    Grid%bounds = ovk_bbox_(Grid%cart%nd)
-    do d = 1, Grid%cart%nd
+    Grid%bounds = ovk_bbox_(Grid%nd)
+    do d = 1, Grid%nd
       Grid%bounds%b(d) = minval(Grid%coords(d)%values)
       Grid%bounds%e(d) = maxval(Grid%coords(d)%values)
     end do
 
     ! Add contribution from periodic points
     if (Grid%cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC .and. &
-      any(Grid%cart%periodic .and. Grid%properties%periodic_length > 0._rk)) then
-      do d = 1, Grid%cart%nd
+      any(Grid%cart%periodic .and. Grid%periodic_length > 0._rk)) then
+      do d = 1, Grid%nd
         if (Grid%cart%periodic(d)) then
           idir = modulo((d+1)-1,MAX_ND) + 1
           jdir = modulo((d+2)-1,MAX_ND) + 1
@@ -892,11 +821,11 @@ contains
               AdjustedPoint(d) = Grid%cart%is(d)
               AdjustedPoint(idir) = i
               AdjustedPoint(jdir) = j
-              do l = 1, Grid%cart%nd
+              do l = 1, Grid%nd
                 PeriodicCoords(l) = Grid%coords(l)%values(AdjustedPoint(1),AdjustedPoint(2), &
                   AdjustedPoint(3))
               end do
-              PeriodicCoords = ovkPeriodicExtend(Grid%cart, Grid%properties%periodic_length, &
+              PeriodicCoords = ovkPeriodicExtend(Grid%cart, Grid%periodic_length, &
                 Point, PeriodicCoords)
               Grid%bounds = ovkBBExtend(Grid%bounds, PeriodicCoords)
             end do
@@ -948,8 +877,8 @@ contains
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
         do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
           VertexLower = [i,j,k]
-          VertexUpper(:Grid%cart%nd) = VertexLower(:Grid%Cart%nd) + 1
-          VertexUpper(Grid%cart%nd+1:) = 1
+          VertexUpper(:Grid%nd) = VertexLower(:Grid%nd) + 1
+          VertexUpper(Grid%nd+1:) = 1
           AwayFromEdge = ovkCartContains(Grid%cart, VertexUpper)
           if (AwayFromEdge) then
             Grid%cell_mask%values(i,j,k) = .true.
@@ -971,7 +900,7 @@ contains
               do n = VertexLower(2), VertexUpper(2)
                 do m = VertexLower(1), VertexUpper(1)
                   Vertex = [m,n,o]
-                  Vertex(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
+                  Vertex(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
                   if (.not. Grid%mask%values(Vertex(1),Vertex(2),Vertex(3))) then
                     Grid%cell_mask%values(i,j,k) = .false.
                     exit L2
@@ -993,7 +922,7 @@ contains
 
     integer :: i, j, k, m, n, o
     integer, dimension(MAX_ND) :: Cell
-    real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
+    real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: NeighborCellLower, NeighborCellUpper
     integer, dimension(MAX_ND) :: Neighbor
@@ -1010,23 +939,23 @@ contains
           Cell = [i,j,k]
           if (Grid%cell_mask%values(i,j,k)) then
             call GetCellVertexCoords(Grid, Cell, VertexCoords)
-            select case (Grid%properties%geometry_type)
+            select case (Grid%geometry_type)
             case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
-              select case (Grid%cart%nd)
+              select case (Grid%nd)
               case (2)
                 Grid%cell_volumes%values(i,j,k) = ovkRectangleSize(VertexCoords)
               case (3)
                 Grid%cell_volumes%values(i,j,k) = ovkCuboidSize(VertexCoords)
               end select
             case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
-              select case (Grid%cart%nd)
+              select case (Grid%nd)
               case (2)
                 Grid%cell_volumes%values(i,j,k) = ovkOrientedRectangleSize(VertexCoords)
               case (3)
                 Grid%cell_volumes%values(i,j,k) = ovkOrientedCuboidSize(VertexCoords)
               end select
             case default
-              select case (Grid%cart%nd)
+              select case (Grid%nd)
               case (2)
                 Grid%cell_volumes%values(i,j,k) = ovkQuadSize(VertexCoords)
               case (3)
@@ -1049,10 +978,10 @@ contains
       do j = Grid%cart%is(2), Grid%cart%ie(2)
         do i = Grid%cart%is(1), Grid%cart%ie(1)
           Point = [i,j,k]
-          NeighborCellLower(:Grid%cart%nd) = Point(:Grid%cart%nd)-1
-          NeighborCellLower(Grid%cart%nd+1:) = 1
-          NeighborCellUpper(:Grid%cart%nd) = Point(:Grid%cart%nd)
-          NeighborCellUpper(Grid%cart%nd+1:) = 1
+          NeighborCellLower(:Grid%nd) = Point(:Grid%nd)-1
+          NeighborCellLower(Grid%nd+1:) = 1
+          NeighborCellUpper(:Grid%nd) = Point(:Grid%nd)
+          NeighborCellUpper(Grid%nd+1:) = 1
           AvgCellVolume = 0._rk
           NumCells = 0
           AwayFromEdge = ovkCartContains(Grid%cell_cart, NeighborCellLower) .and. &
@@ -1073,7 +1002,7 @@ contains
               do n = NeighborCellLower(2), NeighborCellUpper(2)
                 do m = NeighborCellLower(1), NeighborCellUpper(1)
                   Neighbor = [m,n,o]
-                  Neighbor(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cell_cart, Neighbor)
+                  Neighbor(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cell_cart, Neighbor)
                   if (ovkCartContains(Grid%cell_cart, Neighbor)) then
                     if (Grid%cell_mask%values(Neighbor(1),Neighbor(2),Neighbor(3))) then
                       AvgCellVolume = AvgCellVolume + Grid%cell_volumes%values(Neighbor(1), &
@@ -1136,20 +1065,20 @@ contains
   subroutine GetCellVertexCoords(Grid, Cell, VertexCoords)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
-    real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd), intent(out) :: VertexCoords
+    integer, dimension(Grid%nd), intent(in) :: Cell
+    real(rk), dimension(Grid%nd,2**Grid%nd), intent(out) :: VertexCoords
 
     integer :: i, j, k, l, m
     integer, dimension(MAX_ND) :: VertexLower, VertexUpper
     logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Vertex
     integer, dimension(MAX_ND) :: AdjustedVertex
-    real(rk), dimension(Grid%cart%nd) :: PrincipalCoords
+    real(rk), dimension(Grid%nd) :: PrincipalCoords
 
-    VertexLower(:Grid%cart%nd) = Cell
-    VertexLower(Grid%cart%nd+1:) = 1
-    VertexUpper(:Grid%cart%nd) = Cell+1
-    VertexUpper(Grid%cart%nd+1:) = 1
+    VertexLower(:Grid%nd) = Cell
+    VertexLower(Grid%nd+1:) = 1
+    VertexUpper(:Grid%nd) = Cell+1
+    VertexUpper(Grid%nd+1:) = 1
 
     AwayFromEdge = ovkCartContains(Grid%cart, VertexLower) .and. &
       ovkCartContains(Grid%cart, VertexUpper)
@@ -1159,7 +1088,7 @@ contains
       do k = VertexLower(3), VertexUpper(3)
         do j = VertexLower(2), VertexUpper(2)
           do i = VertexLower(1), VertexUpper(1)
-            do m = 1, Grid%cart%nd
+            do m = 1, Grid%nd
               VertexCoords(m,l) = Grid%coords(m)%values(i,j,k)
             end do
             l = l + 1
@@ -1173,12 +1102,12 @@ contains
         do j = VertexLower(2), VertexUpper(2)
           do i = VertexLower(1), VertexUpper(1)
             Vertex = [i,j,k]
-            AdjustedVertex(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
-            do m = 1, Grid%cart%nd
+            AdjustedVertex(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
+            do m = 1, Grid%nd
               PrincipalCoords(m) = Grid%coords(m)%values(AdjustedVertex(1),AdjustedVertex(2), &
                 AdjustedVertex(3))
             end do
-            VertexCoords(:,l) = ovkPeriodicExtend(Grid%cart, Grid%properties%periodic_length, &
+            VertexCoords(:,l) = ovkPeriodicExtend(Grid%cart, Grid%periodic_length, &
               Vertex, PrincipalCoords)
             l = l + 1
           end do
@@ -1191,20 +1120,20 @@ contains
   subroutine GetCubicCellVertexCoords(Grid, Cell, VertexCoords)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
-    real(rk), dimension(Grid%cart%nd,4**Grid%cart%nd), intent(out) :: VertexCoords
+    integer, dimension(Grid%nd), intent(in) :: Cell
+    real(rk), dimension(Grid%nd,4**Grid%nd), intent(out) :: VertexCoords
 
     integer :: i, j, k, l, m
     integer, dimension(MAX_ND) :: VertexLower, VertexUpper
     logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Vertex
     integer, dimension(MAX_ND) :: AdjustedVertex
-    real(rk), dimension(Grid%cart%nd) :: PrincipalCoords
+    real(rk), dimension(Grid%nd) :: PrincipalCoords
 
-    VertexLower(:Grid%cart%nd) = Cell
-    VertexLower(Grid%cart%nd+1:) = 1
-    VertexUpper(:Grid%cart%nd) = Cell+3
-    VertexUpper(Grid%cart%nd+1:) = 1
+    VertexLower(:Grid%nd) = Cell
+    VertexLower(Grid%nd+1:) = 1
+    VertexUpper(:Grid%nd) = Cell+3
+    VertexUpper(Grid%nd+1:) = 1
 
     AwayFromEdge = ovkCartContains(Grid%cart, VertexLower) .and. &
       ovkCartContains(Grid%cart, VertexUpper)
@@ -1214,7 +1143,7 @@ contains
       do k = VertexLower(3), VertexUpper(3)
         do j = VertexLower(2), VertexUpper(2)
           do i = VertexLower(1), VertexUpper(1)
-            do m = 1, Grid%cart%nd
+            do m = 1, Grid%nd
               VertexCoords(m,l) = Grid%coords(m)%values(i,j,k)
             end do
             l = l + 1
@@ -1227,13 +1156,13 @@ contains
         do j = VertexLower(2), VertexUpper(2)
           do i = VertexLower(1), VertexUpper(1)
             Vertex = [i,j,k]
-            AdjustedVertex(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
-            AdjustedVertex(Grid%cart%nd+1:) = 1
-            do m = 1, Grid%cart%nd
+            AdjustedVertex(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
+            AdjustedVertex(Grid%nd+1:) = 1
+            do m = 1, Grid%nd
               PrincipalCoords(m) = Grid%coords(m)%values(AdjustedVertex(1),AdjustedVertex(2), &
                 AdjustedVertex(3))
             end do
-            VertexCoords(:,l) = ovkPeriodicExtend(Grid%cart, Grid%properties%periodic_length, &
+            VertexCoords(:,l) = ovkPeriodicExtend(Grid%cart, Grid%periodic_length, &
               Vertex, PrincipalCoords)
             l = l + 1
           end do
@@ -1246,13 +1175,13 @@ contains
   function ovkGridCellExists(Grid, Cell) result(Exists)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
+    integer, dimension(Grid%nd), intent(in) :: Cell
     logical :: Exists
 
     integer, dimension(MAX_ND) :: PaddedCell
 
-    PaddedCell(:Grid%cart%nd) = Cell
-    PaddedCell(Grid%cart%nd+1:) = 1
+    PaddedCell(:Grid%nd) = Cell
+    PaddedCell(Grid%nd+1:) = 1
 
     Exists = Grid%cell_mask%values(PaddedCell(1),PaddedCell(2),PaddedCell(3))
 
@@ -1261,17 +1190,17 @@ contains
   function ovkGridCellBounds(Grid, Cell) result(CellBounds)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
+    integer, dimension(Grid%nd), intent(in) :: Cell
     type(ovk_bbox) :: CellBounds
 
     integer, dimension(MAX_ND) :: PaddedCell
-    real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
+    real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
 
-    PaddedCell(:Grid%cart%nd) = Cell
-    PaddedCell(Grid%cart%nd+1:) = 1
+    PaddedCell(:Grid%nd) = Cell
+    PaddedCell(Grid%nd+1:) = 1
 
     if (.not. Grid%cell_mask%values(PaddedCell(1),PaddedCell(2),PaddedCell(3))) then
-      CellBounds = ovk_bbox_(Grid%cart%nd)
+      CellBounds = ovk_bbox_(Grid%nd)
       return
     end if
 
@@ -1284,18 +1213,18 @@ contains
   function ovkOverlapsGridCell(Grid, Cell, Coords, OverlapTolerance) result(Overlaps)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
-    real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
+    integer, dimension(Grid%nd), intent(in) :: Cell
+    real(rk), dimension(Grid%nd), intent(in) :: Coords
     real(rk), intent(in) :: OverlapTolerance
     logical :: Overlaps
 
     integer :: i
     integer, dimension(MAX_ND) :: PaddedCell
-    real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
-    real(rk), dimension(Grid%cart%nd) :: Centroid
+    real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
+    real(rk), dimension(Grid%nd) :: Centroid
 
-    PaddedCell(:Grid%cart%nd) = Cell
-    PaddedCell(Grid%cart%nd+1:) = 1
+    PaddedCell(:Grid%nd) = Cell
+    PaddedCell(Grid%nd+1:) = 1
 
     if (.not. Grid%cell_mask%values(PaddedCell(1),PaddedCell(2),PaddedCell(3))) then
       Overlaps = .false.
@@ -1305,29 +1234,29 @@ contains
     call GetCellVertexCoords(Grid, Cell, VertexCoords)
 
     if (OverlapTolerance > 0._rk) then
-      Centroid = sum(VertexCoords,dim=2)/2._rk**Grid%cart%nd
-      do i = 1, 2**Grid%cart%nd
+      Centroid = sum(VertexCoords,dim=2)/2._rk**Grid%nd
+      do i = 1, 2**Grid%nd
         VertexCoords(:,i) = Centroid + (1._rk+OverlapTolerance) * (VertexCoords(:,i)-Centroid)
       end do
     end if
 
-    select case (Grid%properties%geometry_type)
+    select case (Grid%geometry_type)
     case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         Overlaps = ovkOverlapsRectangle(VertexCoords, Coords)
       case (3)
         Overlaps = ovkOverlapsCuboid(VertexCoords, Coords)
       end select
     case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         Overlaps = ovkOverlapsOrientedRectangle(VertexCoords, Coords)
       case (3)
         Overlaps = ovkOverlapsOrientedCuboid(VertexCoords, Coords)
       end select
     case default
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         Overlaps = ovkOverlapsQuad(VertexCoords, Coords)
       case (3)
@@ -1340,35 +1269,35 @@ contains
   function ovkCoordsInGridCell(Grid, Cell, Coords, Guess) result(CoordsInCell)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
-    real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
-    real(rk), dimension(Grid%cart%nd), intent(in), optional :: Guess
-    real(rk), dimension(Grid%cart%nd) :: CoordsInCell
+    integer, dimension(Grid%nd), intent(in) :: Cell
+    real(rk), dimension(Grid%nd), intent(in) :: Coords
+    real(rk), dimension(Grid%nd), intent(in), optional :: Guess
+    real(rk), dimension(Grid%nd) :: CoordsInCell
 
-    real(rk), dimension(Grid%cart%nd,2**Grid%cart%nd) :: VertexCoords
+    real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
     logical :: Success
 
     call GetCellVertexCoords(Grid, Cell, VertexCoords)
 
     Success = .true.
 
-    select case (Grid%properties%geometry_type)
+    select case (Grid%geometry_type)
     case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         CoordsInCell = ovkRectangleIsoInverseLinear(VertexCoords, Coords)
       case (3)
         CoordsInCell = ovkCuboidIsoInverseLinear(VertexCoords, Coords)
       end select
     case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         CoordsInCell = ovkOrientedRectangleIsoInverseLinear(VertexCoords, Coords)
       case (3)
         CoordsInCell = ovkOrientedCuboidIsoInverseLinear(VertexCoords, Coords)
       end select
     case default
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         CoordsInCell = ovkQuadIsoInverseLinear(VertexCoords, Coords, Guess=Guess, Success=Success)
       case (3)
@@ -1381,7 +1310,7 @@ contains
       if (.not. Success) then
         write (ERROR_UNIT, '(6a)') "WARNING: Failed to compute isoparametric coordinates of ", &
           trim(CoordsToString(Coords)), " in cell ", trim(TupleToString(Cell)), &
-          " of grid ", trim(IntToString(Grid%properties%id))
+          " of grid ", trim(IntToString(Grid%id))
       end if
     end if
 
@@ -1390,35 +1319,35 @@ contains
   function ovkCoordsInCubicGridCell(Grid, Cell, Coords, Guess) result(CoordsInCell)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
-    real(rk), dimension(Grid%cart%nd), intent(in) :: Coords
-    real(rk), dimension(Grid%cart%nd), intent(in), optional :: Guess
-    real(rk), dimension(Grid%cart%nd) :: CoordsInCell
+    integer, dimension(Grid%nd), intent(in) :: Cell
+    real(rk), dimension(Grid%nd), intent(in) :: Coords
+    real(rk), dimension(Grid%nd), intent(in), optional :: Guess
+    real(rk), dimension(Grid%nd) :: CoordsInCell
 
-    real(rk), dimension(Grid%cart%nd,4**Grid%cart%nd) :: VertexCoords
+    real(rk), dimension(Grid%nd,4**Grid%nd) :: VertexCoords
     logical :: Success
 
     call GetCubicCellVertexCoords(Grid, Cell, VertexCoords)
 
     Success = .true.
 
-    select case (Grid%properties%geometry_type)
+    select case (Grid%geometry_type)
     case (OVK_GRID_GEOMETRY_CARTESIAN)
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         CoordsInCell = ovkRectangleIsoInverseCubic(VertexCoords, Coords)
       case (3)
         CoordsInCell = ovkCuboidIsoInverseCubic(VertexCoords, Coords)
       end select
     case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         CoordsInCell = ovkOrientedRectangleIsoInverseCubic(VertexCoords, Coords)
       case (3)
         CoordsInCell = ovkOrientedCuboidIsoInverseCubic(VertexCoords, Coords)
       end select
     case default
-      select case (Grid%cart%nd)
+      select case (Grid%nd)
       case (2)
         CoordsInCell = ovkQuadIsoInverseCubic(VertexCoords, Coords, Guess=Guess, &
           Success=Success)
@@ -1432,7 +1361,7 @@ contains
       if (.not. Success) then
         write (ERROR_UNIT, '(6a)') "WARNING: Failed to compute isoparametric coordinates of ", &
           trim(CoordsToString(Coords)), " in cell ", trim(TupleToString(Cell)), &
-          " of grid ", trim(IntToString(Grid%properties%id))
+          " of grid ", trim(IntToString(Grid%id))
       end if
     end if
 
@@ -1441,8 +1370,8 @@ contains
   function ovkGridResolution(Grid, Cell, CoordsInCell) result(Resolution)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%cart%nd), intent(in) :: Cell
-    real(rk), dimension(Grid%cart%nd), intent(in) :: CoordsInCell
+    integer, dimension(Grid%nd), intent(in) :: Cell
+    real(rk), dimension(Grid%nd), intent(in) :: CoordsInCell
     real(rk) :: Resolution
 
     integer :: i, j, k
@@ -1456,16 +1385,16 @@ contains
 
     InterpBasis(1,:) = ovkInterpBasisLinear(CoordsInCell(1))
     InterpBasis(2,:) = ovkInterpBasisLinear(CoordsInCell(2))
-    if (Grid%cart%nd == 3) then
+    if (Grid%nd == 3) then
       InterpBasis(3,:) = ovkInterpBasisLinear(CoordsInCell(3))
     else
       InterpBasis(3,:) = ovkInterpBasisLinear(0._rk)
     end if
 
-    CellLower(:Grid%cart%nd) = Cell
-    CellLower(Grid%cart%nd+1:) = 1
-    CellUpper(:Grid%cart%nd) = Cell+1
-    CellUpper(Grid%cart%nd+1:) = 1
+    CellLower(:Grid%nd) = Cell
+    CellLower(Grid%nd+1:) = 1
+    CellUpper(:Grid%nd) = Cell+1
+    CellUpper(Grid%nd+1:) = 1
 
     InterpolatedCellVolume = 0._rk
 
@@ -1476,8 +1405,8 @@ contains
         do j = CellLower(2), CellUpper(2)
           do i = CellLower(1), CellUpper(1)
             Point = [i,j,k]
-            BasisIndex(:Grid%cart%nd) = Point(:Grid%cart%nd) - CellLower(:Grid%cart%nd)
-            BasisIndex(Grid%cart%nd+1:) = 0
+            BasisIndex(:Grid%nd) = Point(:Grid%nd) - CellLower(:Grid%nd)
+            BasisIndex(Grid%nd+1:) = 0
             CellVolume = 1._rk/Grid%resolution%values(i,j,k)
             InterpolatedCellVolume = InterpolatedCellVolume + CellVolume * &
               InterpBasis(1,BasisIndex(1)) * InterpBasis(2,BasisIndex(2)) * &
@@ -1490,9 +1419,9 @@ contains
         do j = CellLower(2), CellUpper(2)
           do i = CellLower(1), CellUpper(1)
             Point = [i,j,k]
-            BasisIndex(:Grid%cart%nd) = Point(:Grid%cart%nd) - CellLower(:Grid%cart%nd)
-            BasisIndex(Grid%cart%nd+1:) = 0
-            Point(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Point)
+            BasisIndex(:Grid%nd) = Point(:Grid%nd) - CellLower(:Grid%nd)
+            BasisIndex(Grid%nd+1:) = 0
+            Point(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Point)
             CellVolume = 1._rk/Grid%resolution%values(Point(1),Point(2),Point(3))
             InterpolatedCellVolume = InterpolatedCellVolume + CellVolume * &
               InterpBasis(1,BasisIndex(1)) * InterpBasis(2,BasisIndex(2)) * &
@@ -1513,14 +1442,14 @@ contains
     type(ovk_field_logical), intent(out) :: BBOverlapMask
 
     integer :: i, j, k, l
-    real(rk), dimension(Grid%cart%nd) :: Coords
+    real(rk), dimension(Grid%nd) :: Coords
 
     BBOverlapMask = ovk_field_logical_(Grid%cart)
 
     do k = Grid%cart%is(3), Grid%cart%ie(3)
       do j = Grid%cart%is(2), Grid%cart%ie(2)
         do i = Grid%cart%is(1), Grid%cart%ie(1)
-          do l = 1, Grid%cart%nd
+          do l = 1, Grid%nd
             Coords(l) = Grid%coords(l)%values(i,j,k)
           end do
           BBOverlapMask%values(i,j,k) = ovkBBContainsPoint(Bounds, Coords)
@@ -1567,8 +1496,8 @@ contains
     integer :: i, j, k, d
     integer, dimension(MAX_ND) :: Point
     integer, dimension(MAX_ND) :: AdjustedPoint
-    real(rk), dimension(Grid%cart%nd) :: PrincipalCoords
-    real(rk), dimension(Grid%cart%nd) :: ExtendedCoords
+    real(rk), dimension(Grid%nd) :: PrincipalCoords
+    real(rk), dimension(Grid%nd) :: ExtendedCoords
 
     if (OVK_DEBUG) then
       if (.not. ovkCartIsCompatible(ExportCart, Grid%cart)) then
@@ -1584,13 +1513,13 @@ contains
         do i = ExportCart%is(1), ExportCart%ie(1)
           Point = [i,j,k]
           if (.not. ovkCartContains(Grid%cart, Point)) then
-            AdjustedPoint(:Grid%cart%nd) = ovkCartPeriodicAdjust(Grid%cart, Point)
-            AdjustedPoint(Grid%cart%nd+1:) = 1
-            do d = 1, Grid%cart%nd
+            AdjustedPoint(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Point)
+            AdjustedPoint(Grid%nd+1:) = 1
+            do d = 1, Grid%nd
               PrincipalCoords(d) = Grid%coords(d)%values(AdjustedPoint(1),AdjustedPoint(2), &
                 AdjustedPoint(3))
             end do
-            ExtendedCoords = ovkPeriodicExtend(Grid%cart, Grid%properties%periodic_length, Point, &
+            ExtendedCoords = ovkPeriodicExtend(Grid%cart, Grid%periodic_length, Point, &
               PrincipalCoords)
             Coords%values(i,j,k) = ExtendedCoords(DimIndex)
           else
@@ -1601,85 +1530,6 @@ contains
     end do
 
   end subroutine ovkExportGridCoords
-
-  function ovk_grid_properties_(NumDims) result(Properties)
-
-    integer, intent(in) :: NumDims
-    type(ovk_grid_properties) :: Properties
-
-    Properties%id = 0
-    Properties%nd = NumDims
-    Properties%npoints(:NumDims) = 0
-    Properties%npoints(NumDims+1:) = 1
-    Properties%periodic = .false.
-    Properties%periodic_storage = OVK_NO_OVERLAP_PERIODIC
-    Properties%periodic_length = 0._rk
-    Properties%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
-
-  end function ovk_grid_properties_
-
-  subroutine ovkGetGridPropertyID(Properties, ID)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    integer, intent(out) :: ID
-
-    ID = Properties%id
-
-  end subroutine ovkGetGridPropertyID
-
-  subroutine ovkGetGridPropertyDimension(Properties, NumDims)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    integer, intent(out) :: NumDims
-
-    NumDims = Properties%nd
-
-  end subroutine ovkGetGridPropertyDimension
-
-  subroutine ovkGetGridPropertySize(Properties, NumPoints)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    integer, dimension(Properties%nd), intent(out) :: NumPoints
-
-    NumPoints = Properties%npoints(:Properties%nd)
-
-  end subroutine ovkGetGridPropertySize
-
-  subroutine ovkGetGridPropertyPeriodicity(Properties, Periodic)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    logical, dimension(Properties%nd), intent(out) :: Periodic
-
-    Periodic = Properties%periodic(:Properties%nd)
-
-  end subroutine ovkGetGridPropertyPeriodicity
-
-  subroutine ovkGetGridPropertyPeriodicStorage(Properties, PeriodicStorage)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    integer, intent(out) :: PeriodicStorage
-
-    PeriodicStorage = Properties%periodic_storage
-
-  end subroutine ovkGetGridPropertyPeriodicStorage
-
-  subroutine ovkGetGridPropertyPeriodicLength(Properties, PeriodicLength)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    real(rk), dimension(Properties%nd), intent(out) :: PeriodicLength
-
-    PeriodicLength = Properties%periodic_length(:Properties%nd)
-
-  end subroutine ovkGetGridPropertyPeriodicLength
-
-  subroutine ovkGetGridPropertyGeometryType(Properties, GeometryType)
-
-    type(ovk_grid_properties), intent(in) :: Properties
-    integer, intent(out) :: GeometryType
-
-    GeometryType = Properties%geometry_type
-
-  end subroutine ovkGetGridPropertyGeometryType
 
   function t_grid_edits_(NumDims) result(Edits)
 

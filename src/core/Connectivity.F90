@@ -445,7 +445,7 @@ contains
     integer :: NumDims
     integer, dimension(MAX_ND) :: NearestPoint
 
-    NumDims = DonorGrid%cart%nd
+    NumDims = DonorGrid%nd
 
     NearestPoint = 1
     do d = 1, NumDims
@@ -481,7 +481,7 @@ contains
     integer :: d
     integer :: NumDims
 
-    NumDims = DonorGrid%cart%nd
+    NumDims = DonorGrid%nd
 
     DonorExtents(:,1) = Overlap%cells(:,OverlapIndex)
     DonorExtents(:NumDims,2) = Overlap%cells(:NumDims,OverlapIndex) + 1
@@ -509,15 +509,15 @@ contains
 
     integer :: d, i, j, k
     integer :: NumDims
-    real(rk), dimension(DonorGrid%cart%nd) :: ReceiverCoords
+    real(rk), dimension(DonorGrid%nd) :: ReceiverCoords
     integer, dimension(MAX_ND) :: OverlapCell
-    real(rk), dimension(DonorGrid%cart%nd) :: OverlapCoords
+    real(rk), dimension(DonorGrid%nd) :: OverlapCoords
     logical :: Success
     integer :: NumWarnings
     integer, dimension(MAX_ND) :: CellShift
     integer, dimension(MAX_ND) :: PrevCell, NextCell
     integer :: PrevDistance, NextDistance
-    real(rk), dimension(DonorGrid%cart%nd) :: Gradient
+    real(rk), dimension(DonorGrid%nd) :: Gradient
     integer, dimension(MAX_ND) :: Offset
     integer, dimension(MAX_ND) :: ShiftedCell
     integer, dimension(MAX_ND) :: BestOffset
@@ -525,13 +525,13 @@ contains
     integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
     integer, dimension(MAX_ND) :: Neighbor
     logical :: AwayFromBoundary
-    real(rk), dimension(DonorGrid%cart%nd) :: Displacement
+    real(rk), dimension(DonorGrid%nd) :: Displacement
     character(len=STRING_LENGTH) :: DonorCellString
     character(len=STRING_LENGTH) :: DonorGridIDString
     character(len=STRING_LENGTH) :: ReceiverPointString
     character(len=STRING_LENGTH) :: ReceiverGridIDString
 
-    NumDims = DonorGrid%cart%nd
+    NumDims = DonorGrid%nd
 
     do d = 1, NumDims
       ReceiverCoords(d) = ReceiverGrid%coords(d)%values(ReceiverPoint(1),ReceiverPoint(2), &
@@ -550,7 +550,7 @@ contains
     else
       ! Choose a neighboring cell in the direction that most closely matches the edge
       ! distance gradient
-      do d = 1, DonorGrid%cart%nd
+      do d = 1, NumDims
         PrevCell = OverlapCell
         PrevCell(d) = PrevCell(d) - 1
         PrevCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_edge_dist%cart, PrevCell)
@@ -635,10 +635,10 @@ contains
       end do
     else
       if (DonorGrid%logger%verbose) then
-        DonorCellString = TupleToString(DonorExtents(:DonorGrid%cart%nd,1))
-        DonorGridIDString = IntToString(DonorGrid%properties%id)
-        ReceiverPointString = TupleToString(ReceiverPoint(:ReceiverGrid%cart%nd))
-        ReceiverGridIDString = IntToString(ReceiverGrid%properties%id)
+        DonorCellString = TupleToString(DonorExtents(:NumDims,1))
+        DonorGridIDString = IntToString(DonorGrid%id)
+        ReceiverPointString = TupleToString(ReceiverPoint(:NumDims))
+        ReceiverGridIDString = IntToString(ReceiverGrid%id)
         write (ERROR_UNIT, '(10a)') "WARNING: Could not use cubic ", &
           "interpolation for donor cell ", trim(DonorCellString), " of grid ", &
           trim(DonorGridIDString), " corresponding to receiver point ", &

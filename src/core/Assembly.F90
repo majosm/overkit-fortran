@@ -135,11 +135,11 @@ contains
       Grid_n => Domain%grid(IndexToID(n))
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
-        if (ovkHasOverlap(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
-          call DestroyOverlap(Domain%overlap(Grid_m%properties%id,Grid_n%properties%id))
+        if (ovkHasOverlap(Domain, Grid_m%id, Grid_n%id)) then
+          call DestroyOverlap(Domain%overlap(Grid_m%id,Grid_n%id))
         end if
-        if (ovkHasConnectivity(Domain, Grid_m%properties%id, Grid_n%properties%id)) then
-          call DestroyConnectivity(Domain%connectivity(Grid_m%properties%id,Grid_n%properties%id))
+        if (ovkHasConnectivity(Domain, Grid_m%id, Grid_n%id)) then
+          call DestroyConnectivity(Domain%connectivity(Grid_m%id,Grid_n%id))
         end if
       end do
       call ovkResetGridState(Grid_n)
@@ -326,8 +326,8 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         if (Overlappable(m,n)) then
-          call CreateOverlap(Domain%overlap(Grid_m%properties%id,Grid_n%properties%id), &
-            Grid_m%properties%id, Grid_n%properties%id, Domain%logger, Grid_n%cart)
+          call CreateOverlap(Domain%overlap(Grid_m%id,Grid_n%id), &
+            Grid_m%id, Grid_n%id, Domain%logger, Grid_n%cart)
         end if
       end do
     end do
@@ -349,7 +349,7 @@ contains
       if (any(Overlappable(m,:))) then
         if (Domain%logger%verbose) then
           write (*, '(3a)') "* Generating overlap search accelerator on grid ", &
-            trim(IntToString(Grid_m%properties%id)), "..."
+            trim(IntToString(Grid_m%id)), "..."
         end if
         AccelBounds = ovk_bbox_(NumDims)
         AccelMaxOverlapTolerance = 0._rk
@@ -363,20 +363,20 @@ contains
           OverlapAccelQualityAdjust(m))
         if (Domain%logger%verbose) then
           write (*, '(3a)') "* Finished generating overlap search accelerator on grid ", &
-            trim(IntToString(Grid_m%properties%id)), "."
+            trim(IntToString(Grid_m%id)), "."
         end if
         do n = 1, NumGrids
           Grid_n => Domain%grid(IndexToID(n))
           if (Overlappable(m,n)) then
-            Overlap => Domain%overlap(Grid_m%properties%id, Grid_n%properties%id)
+            Overlap => Domain%overlap(Grid_m%id, Grid_n%id)
             call DetectOverlap(Grid_m, Grid_n, OverlapAccel, Bounds(m,n), OverlapTolerance(m,n), &
               Overlap)
             if (Domain%logger%verbose) then
               if (Overlap%properties%noverlap > 0_lk) then
                 write (*, '(7a)') "* Detected ", trim(LargeIntToString( &
                   Overlap%properties%noverlap)), " points on grid ", &
-                  trim(IntToString(Grid_n%properties%id)), " overlapped by grid ", &
-                  trim(IntToString(Grid_m%properties%id)), "."
+                  trim(IntToString(Grid_n%id)), " overlapped by grid ", &
+                  trim(IntToString(Grid_m%id)), "."
               end if
             end if
           end if
@@ -445,7 +445,7 @@ contains
           NumBoundaryPoints = ovkCountMask(InferredBoundaryMask)
           if (NumBoundaryPoints > 0_lk) then
             write (*, '(5a)') "* ", trim(LargeIntToString(NumBoundaryPoints)), &
-              " points marked as boundaries on grid ", trim(IntToString(Grid%properties%id)), "."
+              " points marked as boundaries on grid ", trim(IntToString(Grid%id)), "."
           end if
         end if
       end if
@@ -497,8 +497,8 @@ contains
         InteriorMask = ovk_field_logical_(Grid_n%cart, .false.)
         do m = 1, NumGrids
           Grid_m => Domain%grid(IndexToID(m))
-          Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-          Overlap_nm => Domain%overlap(Grid_n%properties%id,Grid_m%properties%id)
+          Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
+          Overlap_nm => Domain%overlap(Grid_n%id,Grid_m%id)
           if (CutBoundaryHoles(m,n)) then
             call ovkDetectEdge(Overlap_mn%mask, OVK_OUTER_EDGE, OVK_MIRROR, .false., EdgeMask1)
             call ovkDetectEdge(Overlap_nm%mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask2)
@@ -541,7 +541,7 @@ contains
             NumRemoved = ovkCountMask(BoundaryHoleMasks(n))
             if (NumRemoved > 0_lk) then
               write (*, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
-                " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+                " points removed from grid ", trim(IntToString(Grid_n%id)), "."
             end if
           end if
         end if
@@ -585,7 +585,7 @@ contains
         call ovkReleaseGridState(Grid_n, State)
       end if
       if (Domain%logger%verbose) then
-        write (*, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%properties%id)), "."
+        write (*, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
@@ -594,7 +594,7 @@ contains
         if (UpdateGrid(m) .or. UpdateGrid(n)) then
           Grid_m => Domain%grid(IndexToID(m))
           Grid_n => Domain%grid(IndexToID(n))
-          Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+          Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
           if (ovkOverlapExists(Overlap_mn)) then
             call UpdateOverlapAfterCut(Grid_m, Grid_n, Overlap_mn)
           end if
@@ -602,7 +602,7 @@ contains
       end do
       if (Domain%logger%verbose) then
         write (*, '(3a)') "* Done updating overlap information on grid ", &
-          trim(IntToString(Grid_n%properties%id)), "."
+          trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
@@ -634,7 +634,7 @@ contains
       Grid_n => Domain%grid(IndexToID(n))
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
-        Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+        Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
         if (ovkOverlapExists(Overlap)) then
           call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%resolution, &
             OverlapResolutions(m,n))
@@ -706,7 +706,7 @@ contains
           NumFringe = ovkCountMask(OuterFringeMask)
           if (NumFringe > 0_lk) then
             write (*, '(5a)') "* ", trim(LargeIntToString(NumFringe)), &
-              " outer fringe points on grid ", trim(IntToString(Grid%properties%id)), "."
+              " outer fringe points on grid ", trim(IntToString(Grid%id)), "."
           end if
         end if
       end if
@@ -768,8 +768,8 @@ contains
       Grid_n => Domain%grid(IndexToID(n))
       do m = n+1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
-        Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-        Overlap_nm => Domain%overlap(Grid_n%properties%id,Grid_m%properties%id)
+        Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
+        Overlap_nm => Domain%overlap(Grid_n%id,Grid_m%id)
         select case (Occludes(m,n))
         case (OVK_OCCLUDES_COARSE)
           call FindCoarsePoints(Grid_n, Overlap_mn, OverlapResolutions(m,n), &
@@ -803,14 +803,14 @@ contains
           PointCount = ovkCountMask(PairwiseOcclusionMasks(m,n))
           if (PointCount > 0_lk) then
             write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
-              trim(IntToString(Grid_n%properties%id)), " occluded by grid ", &
-              trim(IntToString(Grid_m%properties%id)), "."
+              trim(IntToString(Grid_n%id)), " occluded by grid ", &
+              trim(IntToString(Grid_m%id)), "."
           end if
           PointCount = ovkCountMask(PairwiseOcclusionMasks(n,m))
           if (PointCount > 0_lk) then
             write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
-              trim(IntToString(Grid_m%properties%id)), " occluded by grid ", &
-              trim(IntToString(Grid_n%properties%id)), "."
+              trim(IntToString(Grid_m%id)), " occluded by grid ", &
+              trim(IntToString(Grid_n%id)), "."
           end if
         end if
       end do
@@ -852,7 +852,7 @@ contains
       do m = 1, NumGrids
         if (Overlappable(m,n)) then
           Grid_m => Domain%grid(IndexToID(m))
-          Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+          Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
           l = 1_lk
           do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
             do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
@@ -861,7 +861,7 @@ contains
                   if ((OcclusionMasks(n)%values(i,j,k) .or. OuterFringeMask%values(i,j,k)) .and. &
                     OverlapResolutions(m,n)%values(l) > BestResolutions%values(i,j,k)) then
                     BestResolutions%values(i,j,k) = OverlapResolutions(m,n)%values(l)
-                    FinestOverlappingGrid(n)%values(i,j,k) = Grid_m%properties%id
+                    FinestOverlappingGrid(n)%values(i,j,k) = Grid_m%id
                   end if
                   l = l + 1_lk
                 end if
@@ -879,7 +879,7 @@ contains
         do m = 1, NumGrids
           if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
             Grid_m => Domain%grid(IndexToID(m))
-            Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+            Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
             call ovkFilterGridState(Grid_m, OVK_STATE_OUTER_FRINGE, OVK_ANY, OuterFringeMask)
             EdgeMask = ovk_field_logical_(Grid_m%cart)
             EdgeMask%values = OuterFringeMask%values
@@ -910,8 +910,8 @@ contains
               PointCount = ovkCountMask(PaddingMask)
               if (PointCount > 0_lk) then
                 write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
-                  trim(IntToString(Grid_n%properties%id)), " marked as not occluded by grid ", &
-                  trim(IntToString(Grid_m%properties%id)), " due to padding."
+                  trim(IntToString(Grid_n%id)), " marked as not occluded by grid ", &
+                  trim(IntToString(Grid_m%id)), " due to padding."
               end if
             end if
           end if
@@ -935,7 +935,7 @@ contains
           do m = 1, NumGrids
             if (Overlappable(m,n)) then
               Grid_m => Domain%grid(IndexToID(m))
-              Overlap_mn => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+              Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
               OverlapMask%values = OverlapMask%values .or. Overlap_mn%mask%values
             end if
           end do
@@ -945,7 +945,7 @@ contains
         end if
         if (Domain%logger%verbose) then
           write (*, '(3a)') "* Done applying edge smoothing to grid ", &
-            trim(IntToString(Grid_n%properties%id)), "."
+            trim(IntToString(Grid_n%id)), "."
         end if
       end if
     end do
@@ -976,7 +976,7 @@ contains
           PointCount = ovkCountMask(OcclusionMasks(n))
           if (PointCount > 0_lk) then
             write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
-              " occluded points on grid ", trim(IntToString(Grid_n%properties%id)), "."
+              " occluded points on grid ", trim(IntToString(Grid_n%id)), "."
           end if
         end if
       end if
@@ -1071,7 +1071,7 @@ contains
       do m = 1, NumGrids
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
           Grid_m => Domain%grid(IndexToID(m))
-          Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+          Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
           call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), &
             CellReceiverDistance)
           OverlapReceiverDistance = ovk_field_int_(Grid_n%cart, -1)
@@ -1083,7 +1083,7 @@ contains
               do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
                 if (ReceiverMasks(n)%values(i,j,k) .and. Overlap%mask%values(i,j,k)) then
                   if (DonorGridIDs(n)%values(i,j,k) == 0) then
-                    DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
+                    DonorGridIDs(n)%values(i,j,k) = Grid_m%id
                     DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
                       kind=rk)/real(max(EdgePadding(m,n),1),kind=rk),1._rk)
                     DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
@@ -1097,7 +1097,7 @@ contains
                       BetterDonor = Resolution > DonorResolution%values(i,j,k)
                     end if
                     if (BetterDonor) then
-                      DonorGridIDs(n)%values(i,j,k) = Grid_m%properties%id
+                      DonorGridIDs(n)%values(i,j,k) = Grid_m%id
                       DonorDistance%values(i,j,k) = Distance
                       DonorResolution%values(i,j,k) = Resolution
                     end if
@@ -1113,7 +1113,7 @@ contains
       end do
       if (Domain%logger%verbose) then
         write (*, '(3a)') "* Done choosing donors on grid ", &
-          trim(IntToString(Grid_n%properties%id)), "."
+          trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
@@ -1189,7 +1189,7 @@ contains
           NumRemoved = ovkCountMask(OverlapMinimizationMasks(n))
           if (NumRemoved > 0_lk) then
             write (*, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
-              " points removed from grid ", trim(IntToString(Grid_n%properties%id)), "."
+              " points removed from grid ", trim(IntToString(Grid_n%id)), "."
           end if
         end if
       end if
@@ -1235,7 +1235,7 @@ contains
         call ovkReleaseGridState(Grid_n, State)
       end if
       if (Domain%logger%verbose) then
-        write (*, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%properties%id)), "."
+        write (*, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
@@ -1244,7 +1244,7 @@ contains
         if (UpdateGrid(m) .or. UpdateGrid(n)) then
           Grid_m => Domain%grid(IndexToID(m))
           Grid_n => Domain%grid(IndexToID(n))
-          Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
+          Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
           if (ovkOverlapExists(Overlap)) then
             call UpdateOverlapAfterCut(Grid_m, Grid_n, Overlap)
           end if
@@ -1252,7 +1252,7 @@ contains
       end do
       if (Domain%logger%verbose) then
         write (*, '(3a)') "* Done updating overlap information on grid ", &
-          trim(IntToString(Grid_n%properties%id)), "."
+          trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
@@ -1322,8 +1322,8 @@ contains
               if (OrphanMask%values(i,j,k)) then
                 if (NumWarnings <= 100) then
                   write (ERROR_UNIT, '(4a)') "WARNING: Could not find suitable donor for point ", &
-                    trim(TupleToString(Point(:Grid%cart%nd))), " of grid ", &
-                    trim(IntToString(Grid%properties%id))
+                    trim(TupleToString(Point(:Grid%nd))), " of grid ", &
+                    trim(IntToString(Grid%id))
                   if (NumWarnings == 100) then
                     write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
                   end if
@@ -1336,7 +1336,7 @@ contains
         NumReceivers = ovkCountMask(ReceiverMask)
         NumOrphans = ovkCountMask(OrphanMask)
         write (*, '(7a)') "* ", trim(LargeIntToString(NumReceivers)), &
-          " receiver points on grid ", trim(IntToString(Grid%properties%id)), " (", &
+          " receiver points on grid ", trim(IntToString(Grid%id)), " (", &
           trim(LargeIntToString(NumOrphans)), " orphans)."
       end if
     end do
@@ -1389,8 +1389,8 @@ contains
           DonorSize = 1
           DonorSize(:NumDims) = ovkDonorSize(NumDims, ConnectionType(m,n))
           MaxDonorSize = maxval(DonorSize)
-          call CreateConnectivity(Domain%connectivity(Grid_m%properties%id, Grid_n%properties%id), &
-            Grid_m%properties%id, Grid_n%properties%id, Domain%logger, NumDims, MaxDonorSize)
+          call CreateConnectivity(Domain%connectivity(Grid_m%id, Grid_n%id), &
+            Grid_m%id, Grid_n%id, Domain%logger, NumDims, MaxDonorSize)
         end if
       end do
     end do
@@ -1420,8 +1420,8 @@ contains
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
 
           Grid_m => Domain%grid(IndexToID(m))
-          Overlap => Domain%overlap(Grid_m%properties%id,Grid_n%properties%id)
-          Connectivity => Domain%connectivity(Grid_m%properties%id,Grid_n%properties%id)
+          Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
+          Connectivity => Domain%connectivity(Grid_m%id,Grid_n%id)
 
           if (NumConnections(m) > 0_lk) then
 
@@ -1439,7 +1439,7 @@ contains
               do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
                 do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
                   if (ReceiverMask%values(i,j,k) .and. DonorGridIDs(n)%values(i,j,k) == &
-                    Grid_m%properties%id) then
+                    Grid_m%id) then
                     ReceiverPoint = [i,j,k]
                     call ovkFindDonor(Grid_m, Grid_n, Overlap, ReceiverPoint, l, &
                       ConnectionType(m,n), DonorExtents, DonorCoords, DonorInterpCoefs)
@@ -1461,8 +1461,8 @@ contains
             if (Domain%logger%verbose) then
               if (NumConnections(m) > 0_lk) then
                 write (*, '(7a)') "* ", trim(LargeIntToString(NumConnections(m))), &
-                  " donor/receiver pairs between grid ", trim(IntToString(Grid_m%properties%id)), &
-                  " and grid ", trim(IntToString(Grid_n%properties%id)), "."
+                  " donor/receiver pairs between grid ", trim(IntToString(Grid_m%id)), &
+                  " and grid ", trim(IntToString(Grid_n%id)), "."
               end if
             end if
 

@@ -244,14 +244,17 @@ contains
     type(ovk_overlap), intent(inout) :: Overlap
 
     integer :: d, i, j, k
+    integer :: NumDims
     integer(lk) :: l
     type(ovk_bbox) :: Bounds
     type(ovk_field_large_int) :: OverlappingCells
     integer(lk) :: NumOverlappedPoints
     type(ovk_field_large_int) :: OverlapIndices
-    real(rk), dimension(OverlappedGrid%cart%nd) :: OverlappedCoords
+    real(rk), dimension(OverlappedGrid%nd) :: OverlappedCoords
     integer, dimension(MAX_ND) :: Cell
-    real(rk), dimension(OverlappingGrid%cart%nd) :: CoordsInCell
+    real(rk), dimension(OverlappingGrid%nd) :: CoordsInCell
+
+    NumDims = OverlappingGrid%nd
 
     Overlap%mask%values = .false.
 
@@ -274,13 +277,13 @@ contains
         do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
           do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
             if (OverlappedGrid%mask%values(i,j,k)) then
-              do d = 1, OverlappedGrid%cart%nd
+              do d = 1, NumDims
                 OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
               end do
               if (ovkBBContainsPoint(Bounds, OverlappedCoords)) then
-                Cell(:OverlappingGrid%cart%nd) = FindOverlappingCell(OverlappingGrid, &
-                  OverlapAccel, OverlappedCoords, OverlapTolerance)
-                Cell(OverlappingGrid%cart%nd+1:) = 1
+                Cell(:NumDims) = FindOverlappingCell(OverlappingGrid, OverlapAccel, &
+                  OverlappedCoords, OverlapTolerance)
+                Cell(NumDims+1:) = 1
                 if (ovkCartContains(OverlappingGrid%cell_cart, Cell)) then
                   Overlap%mask%values(i,j,k) = .true.
                   OverlappingCells%values(i,j,k) = ovkCartTupleToIndex(OverlappingGrid%cart, Cell)
@@ -299,9 +302,9 @@ contains
     Overlap%properties%noverlap = NumOverlappedPoints
 
     allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
-    allocate(Overlap%coords(Overlap%cart%nd,NumOverlappedPoints))
+    allocate(Overlap%coords(NumDims,NumOverlappedPoints))
 
-    Overlap%bounds = ovk_bbox_(Overlap%cart%nd)
+    Overlap%bounds = ovk_bbox_(NumDims)
 
     if (NumOverlappedPoints > 0_lk) then
 
@@ -327,13 +330,13 @@ contains
           do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
             if (Overlap%mask%values(i,j,k)) then
               l = OverlapIndices%values(i,j,k)
-              do d = 1, OverlappedGrid%cart%nd
+              do d = 1, NumDims
                 OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
               end do
               Overlap%bounds = ovkBBExtend(Overlap%bounds, OverlappedCoords)
-              Cell(:OverlappingGrid%cart%nd) = ovkCartIndexToTuple(OverlappingGrid%cart, &
+              Cell(:NumDims) = ovkCartIndexToTuple(OverlappingGrid%cart, &
                 OverlappingCells%values(i,j,k))
-              Cell(OverlappingGrid%cart%nd+1:) = 1
+              Cell(NumDims+1:) = 1
               CoordsInCell = ovkCoordsInGridCell(OverlappingGrid, Cell, OverlappedCoords)
               Overlap%cells(:,l) = Cell
               Overlap%coords(:,l) = CoordsInCell
@@ -397,7 +400,7 @@ contains
     NumOverlappedPoints = ovkCountMask(Overlap%mask)
 
     allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
-    allocate(Overlap%coords(OverlappedGrid%cart%nd,NumOverlappedPoints))
+    allocate(Overlap%coords(OverlappedGrid%nd,NumOverlappedPoints))
 
     Overlap%properties%noverlap = NumOverlappedPoints
 
@@ -466,8 +469,8 @@ contains
             if (OverlappedSubset%values(i,j,k)) then
               l = OverlapIndices%values(i,j,k)
               CellLower = Overlap%cells(:,l)
-              CellUpper(:OverlappingGrid%cart%nd) = CellLower(:OverlappingGrid%cart%nd)+1
-              CellUpper(OverlappingGrid%cart%nd+1:) = 1
+              CellUpper(:OverlappingGrid%nd) = CellLower(:OverlappingGrid%nd)+1
+              CellUpper(OverlappingGrid%nd+1:) = 1
               AwayFromEdge = ovkCartContains(PrincipalCart, CellLower) .and. &
                 ovkCartContains(PrincipalCart, CellUpper)
               if (AwayFromEdge) then
@@ -484,7 +487,7 @@ contains
                   do n = CellLower(2), CellUpper(2)
                     do m = CellLower(1), CellUpper(1)
                       Vertex = [m,n,o]
-                      Vertex(:OverlappingGrid%cart%nd) = ovkCartPeriodicAdjust(PrincipalCart, &
+                      Vertex(:OverlappingGrid%nd) = ovkCartPeriodicAdjust(PrincipalCart, &
                         Vertex)
                       OverlappingMask%values(Vertex(1),Vertex(2),Vertex(3)) = .true.
                     end do
@@ -546,8 +549,8 @@ contains
             l = OverlapIndices%values(i,j,k)
 
             CellLower = Overlap%cells(:,l)
-            CellUpper(:OverlappingGrid%cart%nd) = CellLower(:OverlappingGrid%cart%nd)+1
-            CellUpper(OverlappingGrid%cart%nd+1:) = 1
+            CellUpper(:OverlappingGrid%nd) = CellLower(:OverlappingGrid%nd)+1
+            CellUpper(OverlappingGrid%nd+1:) = 1
 
             AwayFromEdge = ovkCartContains(OverlappingGrid%cart, CellLower) .and. &
               ovkCartContains(OverlappingGrid%cart, CellUpper)
@@ -574,7 +577,7 @@ contains
                 do n = CellLower(2), CellUpper(2)
                   do m = CellLower(1), CellUpper(1)
                     Vertex = [m,n,o]
-                    Vertex(:OverlappingGrid%cart%nd) = ovkCartPeriodicAdjust(OverlappingGrid%cart, &
+                    Vertex(:OverlappingGrid%nd) = ovkCartPeriodicAdjust(OverlappingGrid%cart, &
                       Vertex)
                     if (OverlappingSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
                       OverlappedMask%values(i,j,k) = .true.
@@ -784,8 +787,8 @@ contains
     CollectedData = ovk_array_int_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -812,8 +815,8 @@ contains
     CollectedData = ovk_array_large_int_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -840,8 +843,8 @@ contains
     CollectedData = ovk_array_real_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -868,8 +871,8 @@ contains
     CollectedData = ovk_array_int_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -896,8 +899,8 @@ contains
     CollectedData = ovk_array_large_int_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -924,8 +927,8 @@ contains
     CollectedData = ovk_array_real_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -955,8 +958,8 @@ contains
     CollectedData = ovk_array_real_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -964,7 +967,7 @@ contains
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
       InterpBasis(1,:) = ovkInterpBasisLinear(Overlap%coords(1,l))
       InterpBasis(2,:) = ovkInterpBasisLinear(Overlap%coords(2,l))
-      if (OverlappingGrid%cart%nd == 3) then
+      if (OverlappingGrid%nd == 3) then
         InterpBasis(3,:) = ovkInterpBasisLinear(Overlap%coords(3,l))
       else
         InterpBasis(3,:) = ovkInterpBasisLinear(0._rk)
@@ -997,8 +1000,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -1024,8 +1027,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -1051,8 +1054,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -1078,8 +1081,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%properties%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%cart%nd) = 1
-    Upper(OverlappingGrid%cart%nd+1:) = 0
+    Upper(:OverlappingGrid%nd) = 1
+    Upper(OverlappingGrid%nd+1:) = 0
 
     do l = 1_lk, Overlap%properties%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
