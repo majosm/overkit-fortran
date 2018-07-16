@@ -102,10 +102,10 @@ contains
       do i = 1, NumPointsCylinder(1)
         U = real(i-1, kind=rk)/real(NumPointsCylinder(1)-1, kind=rk)
         V = real(j-1, kind=rk)/real(NumPointsCylinder(2)-1, kind=rk)
-        Theta = 2._rk * Pi * V
         RMin = 0.3_rk
         RMax = 0.7_rk
         Radius = RMin * (RMax/RMin)**U
+        Theta = 2._rk * Pi * V
         CoordsCylinder(i,j,1) = Radius * cos(Theta)
         CoordsCylinder(i,j,2) = Radius * sin(Theta)
       end do

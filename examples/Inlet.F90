@@ -8,23 +8,26 @@ program Inlet
   use ovsGlobal
   implicit none
 
-  integer :: i, j, m, n
+  integer :: i, j, k, m, n
   character(len=256), dimension(:), allocatable :: RawArguments
   character(len=256) :: Usage
   character(len=256) :: Description
   type(t_cmd_opt), dimension(1) :: Options
   integer :: NumPoints
-  integer, dimension(2) :: NumPointsBox, NumPointsInlet
-  type(ovk_bbox) :: BoundsBox, BoundsInlet
-  real(rk) :: hX, hY
-  integer :: iLeftBoundary, iRightBoundary, jBoundary
   type(ovk_domain) :: Domain
   type(ovk_grid), pointer :: Grid
-  type(ovk_field_real), pointer :: X, Y
+  type(ovk_field_real), pointer :: X, Y, Z
   type(ovk_field_int), pointer :: State
-  real(rk) :: U, V
+  integer, dimension(3) :: NumPointsBox, NumPointsInletOuter, NumPointsInletInner
+  type(ovk_bbox) :: BoundsBox
+  integer :: iBoundary, kBoundary
+  real(rk) :: U, V, W
+  real(rk) :: RMin, RMax
+  real(rk) :: Radius
+  real(rk) :: Theta
+  real(rk) :: ZShift
   type(ovk_assembly_options) :: AssemblyOptions
-  integer, dimension(2,2) :: NumPointsAll
+  integer, dimension(3,3) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
   type(ovk_cart) :: Cart
   type(ovk_connectivity), pointer :: Connectivity
@@ -39,24 +42,24 @@ program Inlet
   end do
 
   Usage = "Inlet [<options> ...]"
-  Description = "Generates an overset mesh representing a box with an inlet."
+  Description = "Generates an overset mesh representing a box with a cylindrical inlet."
   Options(1) = t_cmd_opt_("size", "N", CMD_OPT_INTEGER, "Size of box grid in each " // &
-    "direction (inlet grid is proportional) [ Default: 101 ]")
+    "direction (inlet grids are proportional) [ Default: 81 ]")
 
   call ParseArguments(RawArguments, Usage=Usage, Description=Description, Options=Options)
 
-  call GetOptionValue(Options(1), NumPoints, 101)
+  call GetOptionValue(Options(1), NumPoints, 81)
 
   ! Initialize the domain
-  call ovkCreateDomain(Domain, NumDims=2, NumGrids=2, Verbose=.true.)
+  call ovkCreateDomain(Domain, NumDims=3, NumGrids=3, Verbose=.true.)
 
   !==========
   ! Box grid
   !==========
 
-  NumPointsBox = [NumPoints,NumPoints/2]
+  NumPointsBox = [NumPoints,NumPoints,NumPoints]
 
-  BoundsBox = ovk_bbox_(2, [-1._rk, -0.5_rk], [1._rk, 0.5_rk])
+  BoundsBox = ovk_bbox_(3, [-1._rk, -1._rk, -1._rk], [1._rk, 1._rk, 1._rk])
 
   ! Initialize grid data structure for box grid
   ! Set geometry type as a hint for potential performance improvements
@@ -66,74 +69,147 @@ program Inlet
   ! Generate coordinates for box grid
   call ovkEditGridCoords(Grid, 1, X)
   call ovkEditGridCoords(Grid, 2, Y)
-  do j = 1, NumPointsBox(2)
-    do i = 1, NumPointsBox(1)
-      U = real(i-1,kind=rk)/real(NumPointsBox(1)-1,kind=rk)
-      V = real(j-1,kind=rk)/real(NumPointsBox(2)-1,kind=rk)
-      X%values(i,j,1) = (1._rk-U)*BoundsBox%b(1) + U*BoundsBox%e(1)
-      Y%values(i,j,1) = (1._rk-V)*BoundsBox%b(2) + V*BoundsBox%e(2)
+  call ovkEditGridCoords(Grid, 3, Z)
+  do k = 1, NumPointsBox(3)
+    do j = 1, NumPointsBox(2)
+      do i = 1, NumPointsBox(1)
+        U = real(i-1,kind=rk)/real(NumPointsBox(1)-1,kind=rk)
+        V = real(j-1,kind=rk)/real(NumPointsBox(2)-1,kind=rk)
+        W = real(k-1,kind=rk)/real(NumPointsBox(3)-1,kind=rk)
+        X%values(i,j,k) = (1._rk-U)*BoundsBox%b(1) + U*BoundsBox%e(1)
+        Y%values(i,j,k) = (1._rk-V)*BoundsBox%b(2) + V*BoundsBox%e(2)
+        Z%values(i,j,k) = (1._rk-W)*BoundsBox%b(3) + W*BoundsBox%e(3)
+      end do
     end do
   end do
   call ovkReleaseGridCoords(Grid, X)
   call ovkReleaseGridCoords(Grid, Y)
+  call ovkReleaseGridCoords(Grid, Z)
 
   ! Lower wall boundary (other boundaries can be inferred)
   call ovkEditGridState(Grid, State)
-  State%values(:,1,1) = OVK_DOMAIN_BOUNDARY_POINT
+  State%values(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
   call ovkReleaseGridState(Grid, State)
 
   call ovkReleaseGrid(Domain, Grid)
 
-  !============
-  ! Inlet grid
-  !============
+  !==================
+  ! Inlet outer grid
+  !==================
 
-  NumPointsInlet = [NumPoints,NumPoints]
+  NumPointsInletOuter = [NumPoints/3,2*NumPoints,NumPoints]
 
-  iLeftBoundary = NumPointsInlet(1)/4+1
-  iRightBoundary = NumPointsInlet(1)-(NumPointsInlet(1)/4+1)
-  jBoundary = NumPointsInlet(2)/2+1
-
-  hX = 0.5_rk/real(iRightBoundary-iLeftBoundary+1,kind=rk)
-  hY = 0.5_rk/real(jBoundary-1,kind=rk)
-
-  BoundsInlet = ovk_bbox_(2)
-  BoundsInlet%b(1) = -0.25_rk - hX*real(iLeftBoundary-1,kind=rk)
-  BoundsInlet%e(1) = 0.25_rk + hX*real(NumPointsInlet(1)-iRightBoundary,kind=rk)
-  BoundsInlet%b(2) = BoundsBox%b(2) - 0.5_rk
-  BoundsInlet%e(2) = BoundsBox%b(2) + hY*real(NumPointsInlet(2)-jBoundary,kind=rk)
+  iBoundary = (2*NumPointsInletOuter(1))/3+1
+  kBoundary = NumPointsInletOuter(3)/2+1
 
   ! Initialize grid data structure for inlet grid
-  ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 2, NumPoints=NumPointsInlet, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+  call ovkCreateGrid(Domain, 2, NumPoints=NumPointsInletOuter, Periodic=[.false.,.true.,.false.], &
+    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+
   call ovkEditGrid(Domain, 2, Grid)
 
   ! Generate coordinates for inlet grid
   call ovkEditGridCoords(Grid, 1, X)
   call ovkEditGridCoords(Grid, 2, Y)
-  do j = 1, NumPointsInlet(2)
-    do i = 1, NumPointsInlet(1)
-      U = real(i-1, kind=rk)/real(NumPointsInlet(1)-1, kind=rk)
-      V = real(j-1, kind=rk)/real(NumPointsInlet(2)-1, kind=rk)
-      X%values(i,j,1) = (1._rk-U)*BoundsInlet%b(1) + U*BoundsInlet%e(1)
-      Y%values(i,j,1) = (1._rk-V)*BoundsInlet%b(2) + V*BoundsInlet%e(2)
+  call ovkEditGridCoords(Grid, 3, Z)
+
+  ! Initially place in the center of the box
+  do k = 1, NumPointsInletOuter(3)
+    do j = 1, NumPointsInletOuter(2)
+      do i = 1, NumPointsInletOuter(1)
+        U = real(i-1,kind=rk)/real(NumPointsInletOuter(1)-1,kind=rk)
+        V = real(j-1,kind=rk)/real(NumPointsInletOuter(2)-1,kind=rk)
+        W = real(k-1,kind=rk)/real(NumPointsInletOuter(3)-1,kind=rk)
+        RMin = 0.2_rk
+        RMax = 0.8_rk
+        Radius = (RMin+0.5_rk) * ((RMax+0.5_rk)/(RMin+0.5_rk))**U - 0.5_rk
+        Theta = 2._rk * Pi * V
+        X%values(i,j,k) = Radius * cos(Theta)
+        Y%values(i,j,k) = Radius * sin(Theta)
+        Z%values(i,j,k) = (1._rk-W)*BoundsBox%b(3) + W*BoundsBox%e(3)
+      end do
     end do
   end do
+
+  ! Then shift down so kBoundary point lines up with box wall
+  ZShift = -(Z%values(1,1,kBoundary)+1._rk)
+  do k = 1, NumPointsInletOuter(3)
+    do j = 1, NumPointsInletOuter(2)
+      do i = 1, NumPointsInletOuter(1)
+        Z%values(i,j,k) = Z%values(i,j,k) + ZShift
+      end do
+    end do
+  end do
+
   call ovkReleaseGridCoords(Grid, X)
   call ovkReleaseGridCoords(Grid, Y)
+  call ovkReleaseGridCoords(Grid, Z)
 
   call ovkEditGridState(Grid, State)
 
   ! Collar hole regions
-  State%values(:iLeftBoundary-1,:jBoundary-1,1) = OVK_HOLE_POINT
-  State%values(iRightBoundary+1:,:jBoundary-1,1) = OVK_HOLE_POINT
+  State%values(iBoundary+1:,:,:kBoundary-1) = OVK_HOLE_POINT
 
   ! Inlet boundaries
-  State%values(:iLeftBoundary,jBoundary,1) = OVK_DOMAIN_BOUNDARY_POINT
-  State%values(iLeftBoundary,:jBoundary,1) = OVK_DOMAIN_BOUNDARY_POINT
-  State%values(iRightBoundary,:jBoundary,1) = OVK_DOMAIN_BOUNDARY_POINT
-  State%values(iRightBoundary:,jBoundary,1) = OVK_DOMAIN_BOUNDARY_POINT
-  State%values(iLeftBoundary:iRightBoundary,1,1) = OVK_DOMAIN_BOUNDARY_POINT
+  State%values(:iBoundary,:,1) = OVK_DOMAIN_BOUNDARY_POINT
+  State%values(iBoundary,:,:kBoundary) = OVK_DOMAIN_BOUNDARY_POINT
+  State%values(iBoundary:,:,kBoundary) = OVK_DOMAIN_BOUNDARY_POINT
+
+  call ovkReleaseGridState(Grid, State)
+
+  call ovkReleaseGrid(Domain, Grid)
+
+  !==================
+  ! Inlet inner grid
+  !==================
+
+  NumPointsInletInner = [NumPoints/2,NumPoints/2,NumPoints]
+
+  kBoundary = NumPointsInletInner(3)/2+1
+
+  ! Initialize grid data structure for inlet grid
+  ! Set geometry type as a hint for potential performance improvements
+  call ovkCreateGrid(Domain, 3, NumPoints=NumPointsInletInner, &
+    GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+  call ovkEditGrid(Domain, 3, Grid)
+
+  ! Generate coordinates for inlet grid
+  call ovkEditGridCoords(Grid, 1, X)
+  call ovkEditGridCoords(Grid, 2, Y)
+  call ovkEditGridCoords(Grid, 3, Z)
+
+  ! Initially place in the center of the box
+  do k = 1, NumPointsInletInner(3)
+    do j = 1, NumPointsInletInner(2)
+      do i = 1, NumPointsInletInner(1)
+        U = real(i-1,kind=rk)/real(NumPointsInletInner(1)-1,kind=rk)
+        V = real(j-1,kind=rk)/real(NumPointsInletInner(2)-1,kind=rk)
+        W = real(k-1,kind=rk)/real(NumPointsInletInner(3)-1,kind=rk)
+        X%values(i,j,k) = (1._rk-U)*0.3_rk*BoundsBox%b(1) + U*0.3_rk*BoundsBox%e(1)
+        Y%values(i,j,k) = (1._rk-V)*0.3_rk*BoundsBox%b(2) + V*0.3_rk*BoundsBox%e(2)
+        Z%values(i,j,k) = (1._rk-W)*BoundsBox%b(3) + W*BoundsBox%e(3)
+      end do
+    end do
+  end do
+
+  ! Then shift down so kBoundary point lines up with box wall
+  ZShift = -(Z%values(1,1,kBoundary)+1._rk)
+  do k = 1, NumPointsInletInner(3)
+    do j = 1, NumPointsInletInner(2)
+      do i = 1, NumPointsInletInner(1)
+        Z%values(i,j,k) = Z%values(i,j,k) + ZShift
+      end do
+    end do
+  end do
+
+  call ovkReleaseGridCoords(Grid, X)
+  call ovkReleaseGridCoords(Grid, Y)
+  call ovkReleaseGridCoords(Grid, Z)
+
+  call ovkEditGridState(Grid, State)
+
+  ! Inlet boundaries
+  State%values(:,:,1) = OVK_DOMAIN_BOUNDARY_POINT
 
   call ovkReleaseGridState(Grid, State)
 
@@ -143,7 +219,7 @@ program Inlet
   ! Overset assembly
   !==================
 
-  AssemblyOptions = ovk_assembly_options_(2, 2)
+  AssemblyOptions = ovk_assembly_options_(3, 3)
 
   ! Indicate which grids can intersect
   call ovkSetAssemblyOptionOverlappable(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, .true.)
@@ -152,17 +228,23 @@ program Inlet
   ! Automatically define boundaries in non-overlapping regions
   call ovkSetAssemblyOptionInferBoundaries(AssemblyOptions, OVK_ALL_GRIDS, .true.)
 
+  ! Indicate which grids can cut each other
+  call ovkSetAssemblyOptionCutBoundaryHoles(AssemblyOptions, 2, 3, .true.)
+
   ! Indicate how to treat overlap between grids
   call ovkSetAssemblyOptionOccludes(AssemblyOptions, 2, 1, OVK_OCCLUDES_ALL)
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 3, 1, OVK_OCCLUDES_ALL)
+  call ovkSetAssemblyOptionOccludes(AssemblyOptions, 3, 2, OVK_OCCLUDES_ALL)
 
   ! Retain some extra overlap between grids
   call ovkSetAssemblyOptionEdgePadding(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, 2)
-  call ovkSetAssemblyOptionEdgeSmoothing(AssemblyOptions, OVK_ALL_GRIDS, 2)
+  call ovkSetAssemblyOptionEdgeSmoothing(AssemblyOptions, OVK_ALL_GRIDS, 4)
 
   ! Indicate which grids can communicate and how
   call ovkSetAssemblyOptionConnectionType(AssemblyOptions, OVK_ALL_GRIDS, OVK_ALL_GRIDS, OVK_CONNECTION_CUBIC)
   call ovkSetAssemblyOptionFringeSize(AssemblyOptions, OVK_ALL_GRIDS, 2)
-  call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, 2, 1, .true.)
+  call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, OVK_ALL_GRIDS, 1, .true.)
+  call ovkSetAssemblyOptionMinimizeOverlap(AssemblyOptions, OVK_ALL_GRIDS, 2, .true.)
 
   call ovkAssemble(Domain, AssemblyOptions)
 
@@ -171,18 +253,20 @@ program Inlet
   !========
 
   NumPointsAll(:,1) = NumPointsBox
-  NumPointsAll(:,2) = NumPointsInlet
+  NumPointsAll(:,2) = NumPointsInletOuter
+  NumPointsAll(:,3) = NumPointsInletInner
 
   ! Write a PLOT3D grid file
-  call ovkCreateP3D(GridFile, "inlet.xyz", NumDims=2, NumGrids=2, NumPointsAll=NumPointsAll, &
+  call ovkCreateP3D(GridFile, "inlet.xyz", NumDims=3, NumGrids=3, NumPointsAll=NumPointsAll, &
     WithIBlank=.true., Verbose=.true.)
 
-  do n = 1, 2
+  do n = 1, 3
 
     call ovkGetGrid(Domain, n, Grid)
     call ovkGetGridCart(Grid, Cart)
     call ovkGetGridCoords(Grid, 1, X)
     call ovkGetGridCoords(Grid, 2, Y)
+    call ovkGetGridCoords(Grid, 3, Z)
 
     ! Use IBlank data to visualize status of grid points
     ! IBlank == 1 => Normal
@@ -193,7 +277,7 @@ program Inlet
     IBlank%values = merge(0, IBlank%values, Mask%values)
 
     ! IBlank == -N => Receives from grid N
-    do m = 1, 2
+    do m = 1, 3
       if (ovkHasConnectivity(Domain, m, n)) then
         call ovkGetConnectivity(Domain, m, n, Connectivity)
         call ovkGetConnectivityReceiverPoints(Connectivity, ReceiverPoints)
@@ -208,7 +292,7 @@ program Inlet
     call ovkFilterGridState(Grid, OVK_STATE_ORPHAN, OVK_ALL, Mask)
     IBlank%values = merge(7, IBlank%values, Mask%values)
 
-    call ovkWriteP3D(GridFile, n, X, Y, IBlank)
+    call ovkWriteP3D(GridFile, n, X, Y, Z, IBlank)
 
   end do
 
