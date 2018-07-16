@@ -49,6 +49,7 @@ contains
     integer :: ClockInitial, ClockFinal, ClockRate
     type(t_reduced_domain_info) :: ReducedDomainInfo
     type(ovk_array_real), dimension(:,:), allocatable :: OverlapResolutions
+    type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseOcclusionMasks
     type(ovk_field_int), dimension(:), allocatable :: DonorGridIDs
 
     if (Domain%logger%verbose) then
@@ -80,7 +81,9 @@ contains
 
     call LocateOuterFringe(Domain, ReducedDomainInfo)
 
-    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions)
+    allocate(PairwiseOcclusionMasks(ReducedDomainInfo%ngrids,ReducedDomainInfo%ngrids))
+
+    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, PairwiseOcclusionMasks)
 
     allocate(DonorGridIDs(ReducedDomainInfo%ngrids))
 
@@ -88,7 +91,9 @@ contains
 
     deallocate(OverlapResolutions)
 
-    call ApplyOverlapMinimization(Domain, ReducedDomainInfo, DonorGridIDs)
+    call ApplyOverlapMinimization(Domain, ReducedDomainInfo, PairwiseOcclusionMasks)
+
+    deallocate(PairwiseOcclusionMasks)
 
     call LocateReceivers(Domain, ReducedDomainInfo, DonorGridIDs)
 
@@ -718,11 +723,13 @@ contains
 
   end subroutine LocateOuterFringe
 
-  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions)
+  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, &
+    PairwiseOcclusionMasks)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
     type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
+    type(ovk_field_logical), dimension(:,:), intent(out) :: PairwiseOcclusionMasks
 
     integer :: i, j, k, m, n
     integer :: NumDims
@@ -734,7 +741,6 @@ contains
     integer, dimension(:), pointer :: EdgeSmoothing
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
-    type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseOcclusionMasks
     type(ovk_field_logical) :: OverlappedMask_m, OverlappedMask_n
     integer(lk) :: PointCount
     type(ovk_field_logical), dimension(:,:), allocatable :: PaddingMasks
@@ -758,8 +764,6 @@ contains
     if (Domain%logger%verbose) then
       write (*, '(a)') "Detecting pairwise occlusion..."
     end if
-
-    allocate(PairwiseOcclusionMasks(NumGrids,NumGrids))
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
@@ -1073,16 +1077,17 @@ contains
 
   end subroutine ChooseDonors
 
-  subroutine ApplyOverlapMinimization(Domain, ReducedDomainInfo, DonorGridIDs)
+  subroutine ApplyOverlapMinimization(Domain, ReducedDomainInfo, PairwiseOcclusionMasks)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_field_int), dimension(:), intent(in) :: DonorGridIDs
+    type(ovk_field_logical), dimension(:,:), intent(in) :: PairwiseOcclusionMasks
 
     integer :: i, j, k, m, n
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
+    integer, dimension(:,:), pointer :: Occludes
     integer, dimension(:), pointer :: FringeSize
     logical, dimension(:,:), pointer :: MinimizeOverlap
     type(ovk_grid), pointer :: Grid_m, Grid_n
@@ -1098,6 +1103,7 @@ contains
     NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
+    Occludes => ReducedDomainInfo%occludes
     FringeSize => ReducedDomainInfo%fringe_size
     MinimizeOverlap => ReducedDomainInfo%minimize_overlap
 
@@ -1113,9 +1119,9 @@ contains
       if (any(MinimizeOverlap(:,n))) then
         OverlapMinimizationMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
         do m = 1, NumGrids
-          if (MinimizeOverlap(m,n)) then
+          if (Occludes(m,n) /= OVK_OCCLUDES_NONE .and. MinimizeOverlap(m,n)) then
             OverlapMinimizationMasks(n)%values = OverlapMinimizationMasks(n)%values .or. &
-              DonorGridIDs(n)%values == IndexToID(m)
+              PairwiseOcclusionMasks(m,n)%values
           end if
         end do
         if (FringeSize(n) > 0) then
