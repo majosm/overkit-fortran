@@ -725,7 +725,6 @@ contains
     type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
 
     integer :: i, j, k, m, n
-    integer(lk) :: l
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -739,9 +738,7 @@ contains
     type(ovk_field_logical) :: OverlappedMask_m, OverlappedMask_n
     integer(lk) :: PointCount
     type(ovk_field_logical), dimension(:), allocatable :: OcclusionMasks
-    type(ovk_field_int), dimension(:), allocatable :: FinestOverlappingGrid
     type(ovk_field_logical) :: OuterFringeMask
-    type(ovk_field_real) :: BestResolutions
     type(ovk_field_int) :: OverlapEdgeDistance
     type(ovk_field_logical) :: EdgeMask
     type(ovk_field_int) :: EdgeDistance
@@ -841,36 +838,6 @@ contains
     if (Domain%logger%verbose) then
       write (*, '(a)') "Applying edge padding..."
     end if
-
-    allocate(FinestOverlappingGrid(NumGrids))
-
-    do n = 1, NumGrids
-      Grid_n => Domain%grid(IndexToID(n))
-      call ovkFilterGridState(Grid_n, OVK_STATE_OUTER_FRINGE, OVK_ANY, OuterFringeMask)
-      FinestOverlappingGrid(n) = ovk_field_int_(Grid_n%cart, -1)
-      BestResolutions = ovk_field_real_(Grid_n%cart, 0._rk)
-      do m = 1, NumGrids
-        if (Overlappable(m,n)) then
-          Grid_m => Domain%grid(IndexToID(m))
-          Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
-          l = 1_lk
-          do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-            do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-              do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-                if (Overlap_mn%mask%values(i,j,k)) then
-                  if ((OcclusionMasks(n)%values(i,j,k) .or. OuterFringeMask%values(i,j,k)) .and. &
-                    OverlapResolutions(m,n)%values(l) > BestResolutions%values(i,j,k)) then
-                    BestResolutions%values(i,j,k) = OverlapResolutions(m,n)%values(l)
-                    FinestOverlappingGrid(n)%values(i,j,k) = Grid_m%id
-                  end if
-                  l = l + 1_lk
-                end if
-              end do
-            end do
-          end do
-        end if
-      end do
-    end do
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
