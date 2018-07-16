@@ -737,14 +737,14 @@ contains
     type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseOcclusionMasks
     type(ovk_field_logical) :: OverlappedMask_m, OverlappedMask_n
     integer(lk) :: PointCount
-    type(ovk_field_logical), dimension(:), allocatable :: OcclusionMasks
+    type(ovk_field_logical), dimension(:,:), allocatable :: PaddingMasks
+    type(ovk_field_logical) :: BaseOcclusionMask
+    type(ovk_field_logical) :: OcclusionMask
     type(ovk_field_logical) :: OuterFringeMask
     type(ovk_field_int) :: OverlapEdgeDistance
     type(ovk_field_logical) :: EdgeMask
     type(ovk_field_int) :: EdgeDistance
     type(ovk_array_int) :: CellEdgeDistance
-    type(ovk_field_logical) :: PaddingMask
-    type(ovk_field_logical) :: OverlapMask
     type(ovk_field_int), pointer :: State
 
     NumDims = Domain%nd
@@ -813,36 +813,27 @@ contains
       end do
     end do
 
-    allocate(OcclusionMasks(NumGrids))
-
-    do n = 1, NumGrids
-      Grid_n => Domain%grid(IndexToID(n))
-      OcclusionMasks(n) = ovk_field_logical_(Grid_n%cart)
-      if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
-        OcclusionMasks(n)%values = .not. Grid_n%mask%values
-        do m = 1, NumGrids
-          if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
-            OcclusionMasks(n)%values = OcclusionMasks(n)%values .or. &
-              PairwiseOcclusionMasks(m,n)%values
-          end if
-        end do
-      else
-        OcclusionMasks(n)%values = .false.
-      end if
-    end do
-
     if (Domain%logger%verbose) then
       write (*, '(a)') "Finished detecting pairwise occlusion."
     end if
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Applying edge padding..."
+      write (*, '(a)') "Applying edge padding and smoothing..."
     end if
 
+    allocate(PaddingMasks(NumGrids,NumGrids))
+
     do n = 1, NumGrids
-      Grid_n => Domain%grid(IndexToID(n))
       if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
-        OcclusionMasks(n)%values = .false.
+        Grid_n => Domain%grid(IndexToID(n))
+        BaseOcclusionMask = ovk_field_logical_(Grid_n%cart, .false.)
+        do m = 1, NumGrids
+          if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
+            BaseOcclusionMask%values = BaseOcclusionMask%values .or. &
+              PairwiseOcclusionMasks(m,n)%values
+          end if
+        end do
+        OcclusionMask = ovk_field_logical_(Grid_n%cart, .false.)
         do m = 1, NumGrids
           if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
             Grid_m => Domain%grid(IndexToID(m))
@@ -860,25 +851,28 @@ contains
             OverlapEdgeDistance = ovk_field_int_(Grid_n%cart, -1)
             call ovkOverlapDisperse(Grid_n, Overlap_mn, OVK_DISPERSE_OVERWRITE, CellEdgeDistance, &
               OverlapEdgeDistance)
-            PaddingMask = ovk_field_logical_(Grid_n%cart, .false.)
-            do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-              do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-                do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-                  if (PairwiseOcclusionMasks(m,n)%values(i,j,k) .and. &
-                    OverlapEdgeDistance%values(i,j,k) <= EdgePadding(m,n)) then
-                    PaddingMask%values(i,j,k) = .true.
-                  end if
-                end do
-              end do
-            end do
-            OcclusionMasks(n)%values = OcclusionMasks(n)%values .or. &
-              (PairwiseOcclusionMasks(m,n)%values .and. .not. PaddingMask%values)
+            PaddingMasks(m,n) = ovk_field_logical_(Grid_n%cart)
+            PaddingMasks(m,n)%values = PairwiseOcclusionMasks(m,n)%values .and. &
+              OverlapEdgeDistance%values <= EdgePadding(m,n)
+            OcclusionMask%values = OcclusionMask%values .or. (PairwiseOcclusionMasks(m,n)%values &
+              .and. .not. PaddingMasks(m,n)%values)
+          end if
+        end do
+        if (EdgeSmoothing(n) > 0) then
+          call ovkDilate(OcclusionMask, EdgeSmoothing(n), OVK_MIRROR)
+          call ovkErode(OcclusionMask, EdgeSmoothing(n), OVK_MIRROR)
+          OcclusionMask%values = OcclusionMask%values .and. BaseOcclusionMask%values
+        end if
+        do m = 1, NumGrids
+          if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
+            Grid_m => Domain%grid(IndexToID(m))
+            PaddingMasks(m,n)%values = PaddingMasks(m,n)%values .and. .not. OcclusionMask%values
             if (Domain%logger%verbose) then
-              PointCount = ovkCountMask(PaddingMask)
+              PointCount = ovkCountMask(PaddingMasks(m,n))
               if (PointCount > 0_lk) then
                 write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
                   trim(IntToString(Grid_n%id)), " marked as not occluded by grid ", &
-                  trim(IntToString(Grid_m%id)), " due to padding."
+                  trim(IntToString(Grid_m%id)), " due to padding/smoothing."
               end if
             end if
           end if
@@ -886,39 +880,22 @@ contains
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished applying edge padding."
-    end if
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Applying edge smoothing..."
-    end if
-
     do n = 1, NumGrids
-      if (EdgeSmoothing(n) > 0) then
+      if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
         Grid_n => Domain%grid(IndexToID(n))
-        if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
-          OverlapMask = ovk_field_logical_(Grid_n%cart, .false.)
-          do m = 1, NumGrids
-            if (Overlappable(m,n)) then
-              Grid_m => Domain%grid(IndexToID(m))
-              Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
-              OverlapMask%values = OverlapMask%values .or. Overlap_mn%mask%values
-            end if
-          end do
-          call ovkDilate(OcclusionMasks(n), EdgeSmoothing(n), OVK_MIRROR)
-          call ovkErode(OcclusionMasks(n), EdgeSmoothing(n), OVK_MIRROR)
-          OcclusionMasks(n)%values = OcclusionMasks(n)%values .and. OverlapMask%values
-        end if
-        if (Domain%logger%verbose) then
-          write (*, '(3a)') "* Done applying edge smoothing to grid ", &
-            trim(IntToString(Grid_n%id)), "."
-        end if
+        do m = 1, NumGrids
+          if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
+            PairwiseOcclusionMasks(m,n)%values = PairwiseOcclusionMasks(m,n)%values .and. .not. &
+              PaddingMasks(m,n)%values
+          end if
+        end do
       end if
     end do
 
+    deallocate(PaddingMasks)
+
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished applying edge smoothing."
+      write (*, '(a)') "Finished applying edge padding and smoothing."
     end if
 
     if (Domain%logger%verbose) then
@@ -928,11 +905,17 @@ contains
     do n = 1, NumGrids
       if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
         Grid_n => Domain%grid(IndexToID(n))
+        OcclusionMask = ovk_field_logical_(Grid_n%cart, .false.)
+        do m = 1, NumGrids
+          if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
+            OcclusionMask%values = OcclusionMask%values .or. PairwiseOcclusionMasks(m,n)%values
+          end if
+        end do
         call ovkEditGridState(Grid_n, State)
         do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
             do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-              if (OcclusionMasks(n)%values(i,j,k)) then
+              if (OcclusionMask%values(i,j,k)) then
                 State%values(i,j,k) = ior(State%values(i,j,k),OVK_STATE_OCCLUDED)
               end if
             end do
@@ -940,7 +923,7 @@ contains
         end do
         call ovkReleaseGridState(Grid_n, State)
         if (Domain%logger%verbose) then
-          PointCount = ovkCountMask(OcclusionMasks(n))
+          PointCount = ovkCountMask(OcclusionMask)
           if (PointCount > 0_lk) then
             write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
               " occluded points on grid ", trim(IntToString(Grid_n%id)), "."
