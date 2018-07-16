@@ -85,17 +85,17 @@ contains
 
     call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, PairwiseOcclusionMasks)
 
+    call ApplyOverlapMinimization(Domain, ReducedDomainInfo, PairwiseOcclusionMasks)
+
+    deallocate(PairwiseOcclusionMasks)
+
+    call LocateReceivers(Domain, ReducedDomainInfo)
+
     allocate(DonorGridIDs(ReducedDomainInfo%ngrids))
 
     call ChooseDonors(Domain, ReducedDomainInfo, OverlapResolutions, DonorGridIDs)
 
     deallocate(OverlapResolutions)
-
-    call ApplyOverlapMinimization(Domain, ReducedDomainInfo, PairwiseOcclusionMasks)
-
-    deallocate(PairwiseOcclusionMasks)
-
-    call LocateReceivers(Domain, ReducedDomainInfo, DonorGridIDs)
 
     call FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 
@@ -971,112 +971,6 @@ contains
 
   end subroutine FindCoarsePoints
 
-  subroutine ChooseDonors(Domain, ReducedDomainInfo, OverlapResolutions, DonorGridIDs)
-
-    type(ovk_domain), intent(in) :: Domain
-    type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
-    type(ovk_field_int), dimension(:), intent(out) :: DonorGridIDs
-
-    integer :: i, j, k, m, n
-    integer(lk) :: l
-    integer :: NumGrids
-    integer, dimension(:), pointer :: IndexToID
-    integer, dimension(:,:), pointer :: ConnectionType
-    integer, dimension(:,:), pointer :: EdgePadding
-    type(ovk_grid), pointer :: Grid_m, Grid_n
-    type(ovk_overlap), pointer :: Overlap
-    type(ovk_field_logical), dimension(:), allocatable :: ReceiverMasks
-    type(ovk_field_int), dimension(:), allocatable :: ReceiverDistances
-    type(ovk_field_real) :: DonorDistance
-    type(ovk_field_real) :: DonorResolution
-    type(ovk_array_int) :: CellReceiverDistance
-    type(ovk_field_int) :: OverlapReceiverDistance
-    real(rk) :: Distance
-    real(rk) :: Resolution
-    logical :: BetterDonor
-
-    real(rk), parameter :: TOLERANCE = 1.e-12_rk
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Choosing donors..."
-    end if
-
-    NumGrids = ReducedDomainInfo%ngrids
-    IndexToID => ReducedDomainInfo%index_to_id
-    EdgePadding => ReducedDomainInfo%edge_padding
-    ConnectionType => ReducedDomainInfo%connection_type
-
-    allocate(ReceiverMasks(NumGrids))
-    allocate(ReceiverDistances(NumGrids))
-
-    do n = 1, NumGrids
-      Grid_n => Domain%grid(IndexToID(n))
-      call ovkFilterGridState(Grid_n, ior(OVK_STATE_OUTER_FRINGE, OVK_STATE_OCCLUDED), OVK_ANY, &
-        ReceiverMasks(n))
-      call ovkDistanceField(ReceiverMasks(n), OVK_MIRROR, ReceiverDistances(n))
-    end do
-
-    do n = 1, NumGrids
-      Grid_n => Domain%grid(IndexToID(n))
-      DonorGridIDs(n) = ovk_field_int_(Grid_n%cart, 0)
-      DonorDistance = ovk_field_real_(Grid_n%cart)
-      DonorResolution = ovk_field_real_(Grid_n%cart)
-      do m = 1, NumGrids
-        if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
-          Grid_m => Domain%grid(IndexToID(m))
-          Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
-          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), &
-            CellReceiverDistance)
-          OverlapReceiverDistance = ovk_field_int_(Grid_n%cart, -1)
-          call ovkOverlapDisperse(Grid_n, Overlap, OVK_DISPERSE_OVERWRITE, CellReceiverDistance, &
-            OverlapReceiverDistance)
-          l = 1_lk
-          do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-            do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-              do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-                if (ReceiverMasks(n)%values(i,j,k) .and. Overlap%mask%values(i,j,k)) then
-                  if (DonorGridIDs(n)%values(i,j,k) == 0) then
-                    DonorGridIDs(n)%values(i,j,k) = Grid_m%id
-                    DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
-                      kind=rk)/real(max(EdgePadding(m,n),1),kind=rk),1._rk)
-                    DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
-                  else
-                    Distance = min(real(OverlapReceiverDistance%values(i,j,k),kind=rk)/ &
-                      real(max(EdgePadding(m,n),1),kind=rk),1._rk)
-                    Resolution = OverlapResolutions(m,n)%values(l)
-                    if (abs(Distance-DonorDistance%values(i,j,k)) > TOLERANCE) then
-                      BetterDonor = Distance > DonorDistance%values(i,j,k)
-                    else
-                      BetterDonor = Resolution > DonorResolution%values(i,j,k)
-                    end if
-                    if (BetterDonor) then
-                      DonorGridIDs(n)%values(i,j,k) = Grid_m%id
-                      DonorDistance%values(i,j,k) = Distance
-                      DonorResolution%values(i,j,k) = Resolution
-                    end if
-                  end if
-                end if
-                if (Overlap%mask%values(i,j,k)) then
-                  l = l + 1_lk
-                end if
-              end do
-            end do
-          end do
-        end if
-      end do
-      if (Domain%logger%verbose) then
-        write (*, '(3a)') "* Done choosing donors on grid ", &
-          trim(IntToString(Grid_n%id)), "."
-      end if
-    end do
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished choosing donors."
-    end if
-
-  end subroutine ChooseDonors
-
   subroutine ApplyOverlapMinimization(Domain, ReducedDomainInfo, PairwiseOcclusionMasks)
 
     type(ovk_domain), intent(inout) :: Domain
@@ -1218,11 +1112,10 @@ contains
 
   end subroutine ApplyOverlapMinimization
 
-  subroutine LocateReceivers(Domain, ReducedDomainInfo, DonorGridIDs)
+  subroutine LocateReceivers(Domain, ReducedDomainInfo)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_field_int), dimension(:), intent(in) :: DonorGridIDs
 
     integer :: i, j, k, n
     integer :: NumDims
@@ -1232,12 +1125,8 @@ contains
     type(ovk_field_logical) :: FringeMask
     type(ovk_field_logical) :: OcclusionMask
     type(ovk_field_logical) :: ReceiverMask
-    type(ovk_field_logical) :: OrphanMask
     type(ovk_field_int), pointer :: State
-    integer :: NumWarnings
-    integer, dimension(MAX_ND) :: Point
     integer(lk) :: NumReceivers
-    integer(lk) :: NumOrphans
 
     NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
@@ -1253,33 +1142,153 @@ contains
       call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_OCCLUDED), OVK_ALL, OcclusionMask)
       ReceiverMask = ovk_field_logical_(Grid%cart)
       ReceiverMask%values = FringeMask%values .or. OcclusionMask%values
-      OrphanMask = ovk_field_logical_(Grid%cart)
-      OrphanMask%values = ReceiverMask%values .and. DonorGridIDs(n)%values == 0
-      ReceiverMask%values = ReceiverMask%values .and. .not. OrphanMask%values
       call ovkEditGridState(Grid, State)
       do k = Grid%cart%is(3), Grid%cart%ie(3)
         do j = Grid%cart%is(2), Grid%cart%ie(2)
           do i = Grid%cart%is(1), Grid%cart%ie(1)
             if (ReceiverMask%values(i,j,k)) then
               State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_RECEIVER)
-            else if (OrphanMask%values(i,j,k)) then
-              State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_ORPHAN)
             end if
           end do
         end do
       end do
       call ovkReleaseGridState(Grid, State)
       if (Domain%logger%verbose) then
+        NumReceivers = ovkCountMask(ReceiverMask)
+        write (*, '(5a)') "* ", trim(LargeIntToString(NumReceivers)), &
+          " receiver points on grid ", trim(IntToString(Grid%id)), "."
+      end if
+    end do
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Finished locating receiver points."
+    end if
+
+  end subroutine LocateReceivers
+
+  subroutine ChooseDonors(Domain, ReducedDomainInfo, OverlapResolutions, DonorGridIDs)
+
+    type(ovk_domain), intent(in) :: Domain
+    type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
+    type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
+    type(ovk_field_int), dimension(:), intent(out) :: DonorGridIDs
+
+    integer :: i, j, k, m, n
+    integer(lk) :: l
+    integer :: NumGrids
+    integer, dimension(:), pointer :: IndexToID
+    integer, dimension(:,:), pointer :: ConnectionType
+    integer, dimension(:,:), pointer :: EdgePadding
+    type(ovk_grid), pointer :: Grid_m, Grid_n
+    type(ovk_overlap), pointer :: Overlap
+    type(ovk_field_logical), dimension(:), allocatable :: ReceiverMasks
+    type(ovk_field_int), dimension(:), allocatable :: ReceiverDistances
+    type(ovk_field_real) :: DonorDistance
+    type(ovk_field_real) :: DonorResolution
+    type(ovk_array_int) :: CellReceiverDistance
+    type(ovk_field_int) :: OverlapReceiverDistance
+    real(rk) :: Distance
+    real(rk) :: Resolution
+    logical :: BetterDonor
+    type(ovk_field_logical) :: OrphanMask
+    type(ovk_field_int), pointer :: State
+    integer :: NumWarnings
+    integer, dimension(MAX_ND) :: Point
+    integer(lk) :: NumOrphans
+
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
+
+    if (Domain%logger%verbose) then
+      write (*, '(a)') "Choosing donors..."
+    end if
+
+    NumGrids = ReducedDomainInfo%ngrids
+    IndexToID => ReducedDomainInfo%index_to_id
+    EdgePadding => ReducedDomainInfo%edge_padding
+    ConnectionType => ReducedDomainInfo%connection_type
+
+    allocate(ReceiverMasks(NumGrids))
+    allocate(ReceiverDistances(NumGrids))
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      call ovkFilterGridState(Grid_n, OVK_STATE_RECEIVER, OVK_ALL, ReceiverMasks(n))
+      call ovkDistanceField(ReceiverMasks(n), OVK_MIRROR, ReceiverDistances(n))
+    end do
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      DonorGridIDs(n) = ovk_field_int_(Grid_n%cart, 0)
+      DonorDistance = ovk_field_real_(Grid_n%cart)
+      DonorResolution = ovk_field_real_(Grid_n%cart)
+      do m = 1, NumGrids
+        if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
+          Grid_m => Domain%grid(IndexToID(m))
+          Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
+          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), &
+            CellReceiverDistance)
+          OverlapReceiverDistance = ovk_field_int_(Grid_n%cart, -1)
+          call ovkOverlapDisperse(Grid_n, Overlap, OVK_DISPERSE_OVERWRITE, CellReceiverDistance, &
+            OverlapReceiverDistance)
+          l = 1_lk
+          do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+            do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+              do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
+                if (ReceiverMasks(n)%values(i,j,k) .and. Overlap%mask%values(i,j,k)) then
+                  if (DonorGridIDs(n)%values(i,j,k) == 0) then
+                    DonorGridIDs(n)%values(i,j,k) = Grid_m%id
+                    DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
+                      kind=rk)/real(max(EdgePadding(m,n),1),kind=rk),1._rk)
+                    DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
+                  else
+                    Distance = min(real(OverlapReceiverDistance%values(i,j,k),kind=rk)/ &
+                      real(max(EdgePadding(m,n),1),kind=rk),1._rk)
+                    Resolution = OverlapResolutions(m,n)%values(l)
+                    if (abs(Distance-DonorDistance%values(i,j,k)) > TOLERANCE) then
+                      BetterDonor = Distance > DonorDistance%values(i,j,k)
+                    else
+                      BetterDonor = Resolution > DonorResolution%values(i,j,k)
+                    end if
+                    if (BetterDonor) then
+                      DonorGridIDs(n)%values(i,j,k) = Grid_m%id
+                      DonorDistance%values(i,j,k) = Distance
+                      DonorResolution%values(i,j,k) = Resolution
+                    end if
+                  end if
+                end if
+                if (Overlap%mask%values(i,j,k)) then
+                  l = l + 1_lk
+                end if
+              end do
+            end do
+          end do
+        end if
+      end do
+      OrphanMask = ovk_field_logical_(Grid_n%cart)
+      OrphanMask%values = ReceiverMasks(n)%values .and. DonorGridIDs(n)%values == 0
+      call ovkEditGridState(Grid_n, State)
+      do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+        do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+          do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
+            if (OrphanMask%values(i,j,k)) then
+              State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_RECEIVER))
+              State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_ORPHAN)
+            end if
+          end do
+        end do
+      end do
+      call ovkReleaseGridState(Grid_n, State)
+      if (Domain%logger%verbose) then
         NumWarnings = 0
-        do k = Grid%cart%is(3), Grid%cart%ie(3)
-          do j = Grid%cart%is(2), Grid%cart%ie(2)
-            do i = Grid%cart%is(1), Grid%cart%ie(1)
+        do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+          do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+            do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
               Point = [i,j,k]
               if (OrphanMask%values(i,j,k)) then
                 if (NumWarnings <= 100) then
                   write (ERROR_UNIT, '(4a)') "WARNING: Could not find suitable donor for point ", &
-                    trim(TupleToString(Point(:Grid%nd))), " of grid ", &
-                    trim(IntToString(Grid%id))
+                    trim(TupleToString(Point(:Grid_n%nd))), " of grid ", &
+                    trim(IntToString(Grid_n%id))
                   if (NumWarnings == 100) then
                     write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
                   end if
@@ -1289,19 +1298,17 @@ contains
             end do
           end do
         end do
-        NumReceivers = ovkCountMask(ReceiverMask)
         NumOrphans = ovkCountMask(OrphanMask)
-        write (*, '(7a)') "* ", trim(LargeIntToString(NumReceivers)), &
-          " receiver points on grid ", trim(IntToString(Grid%id)), " (", &
-          trim(LargeIntToString(NumOrphans)), " orphans)."
+        write (*, '(5a)') "* Done choosing donors on grid ", trim(IntToString(Grid_n%id)), " (", &
+          trim(LargeIntToString(NumOrphans)), " orphans found)."
       end if
     end do
 
     if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished locating receiver points."
+      write (*, '(a)') "Finished choosing donors."
     end if
 
-  end subroutine LocateReceivers
+  end subroutine ChooseDonors
 
   subroutine FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 
