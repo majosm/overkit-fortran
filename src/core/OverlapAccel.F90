@@ -194,7 +194,7 @@ contains
 
     allocate(Accel%root)
     call GenerateOverlapAccelNode(Accel%root, Grid%cell_cart, Accel%bounds, GridCellLower, &
-      GridCellUpper, Grid%cell_volumes, OverlappingCells, CellIndices, Accel%min_cells, &
+      GridCellUpper, Grid%cell_volume, OverlappingCells, CellIndices, Accel%min_cells, &
       Accel%min_occupied_volume_fraction, Accel%max_cell_volume_deviation, &
       Accel%max_hash_grid_size, Accel%bin_scale, Accel%max_depth, 0)
 
