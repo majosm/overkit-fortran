@@ -39,7 +39,6 @@ module ovkGrid
   public :: ovkCoordsInGridCell
   public :: ovkCoordsInCubicGridCell
   public :: ovkGridResolution
-  public :: ovkGenerateBBOverlapMask
   public :: ovkPeriodicExtend
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
@@ -1380,30 +1379,6 @@ contains
     Resolution = 1._rk/InterpolatedVolume
 
   end function ovkGridResolution
-
-  subroutine ovkGenerateBBOverlapMask(Grid, Bounds, BBOverlapMask)
-
-    type(ovk_grid), intent(in) :: Grid
-    type(ovk_bbox), intent(in) :: Bounds
-    type(ovk_field_logical), intent(out) :: BBOverlapMask
-
-    integer :: i, j, k, l
-    real(rk), dimension(Grid%nd) :: Coords
-
-    BBOverlapMask = ovk_field_logical_(Grid%cart)
-
-    do k = Grid%cart%is(3), Grid%cart%ie(3)
-      do j = Grid%cart%is(2), Grid%cart%ie(2)
-        do i = Grid%cart%is(1), Grid%cart%ie(1)
-          do l = 1, Grid%nd
-            Coords(l) = Grid%coords(l)%values(i,j,k)
-          end do
-          BBOverlapMask%values(i,j,k) = ovkBBContainsPoint(Bounds, Coords)
-        end do
-      end do
-    end do
-
-  end subroutine ovkGenerateBBOverlapMask
 
   pure function ovkPeriodicExtend(Cart, PeriodicLength, Point, Coords) result(ExtendedCoords)
 
