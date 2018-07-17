@@ -496,7 +496,7 @@ contains
             Edits%connectivity_dependencies(:,:) = .true.
           end if
 
-          if (GridEdits%boundary_mask .or. GridEdits%internal_boundary_mask) then
+          if (GridEdits%boundary) then
             Edits%boundary_hole_dependencies(:) = .true.
             Edits%connectivity_dependencies(:,:) = .true.
           end if

@@ -82,8 +82,7 @@ module ovkGrid
   type t_grid_edits
     logical :: coords
     logical :: mask
-    logical :: boundary_mask
-    logical :: internal_boundary_mask
+    logical :: boundary
   end type t_grid_edits
 
   type ovk_grid
@@ -107,8 +106,6 @@ module ovkGrid
     type(t_grid_edits), pointer :: edits
     type(ovk_bbox) :: bounds
     type(ovk_field_logical) :: mask
-    type(ovk_field_logical) :: boundary_mask
-    type(ovk_field_logical) :: internal_boundary_mask
     type(ovk_field_logical) :: cell_mask
     type(ovk_field_real) :: cell_volumes
     type(ovk_field_real) :: resolution
@@ -173,8 +170,6 @@ contains
     nullify(Grid%edits)
     Grid%bounds = ovk_bbox_()
     Grid%mask = ovk_field_logical_()
-    Grid%boundary_mask = ovk_field_logical_()
-    Grid%internal_boundary_mask = ovk_field_logical_()
     Grid%cell_mask = ovk_field_logical_()
     Grid%cell_volumes = ovk_field_real_()
     Grid%resolution = ovk_field_real_()
@@ -234,8 +229,6 @@ contains
     end if
 
     Grid%mask = ovk_field_logical_(Grid%cart, .true.)
-    Grid%boundary_mask = ovk_field_logical_(Grid%cart, .false.)
-    Grid%internal_boundary_mask = ovk_field_logical_(Grid%cart, .false.)
     Grid%cell_mask = ovk_field_logical_(Grid%cell_cart, .true.)
     Grid%cell_volumes = ovk_field_real_(Grid%cell_cart, 0._rk)
     Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
@@ -263,8 +256,6 @@ contains
     call SetExists(Grid%existence_flag, .false.)
 
     Grid%mask = ovk_field_logical_()
-    Grid%boundary_mask = ovk_field_logical_()
-    Grid%internal_boundary_mask = ovk_field_logical_()
     Grid%cell_mask = ovk_field_logical_()
     Grid%cell_volumes = ovk_field_real_()
     Grid%resolution = ovk_field_real_()
@@ -428,11 +419,11 @@ contains
 
       if (Success) then
         if (EndEdit) then
-          Grid%edits%coords = .true.
           if (.not. EditingState(Grid)) then
             call UpdateBounds(Grid)
             call UpdateResolution(Grid)
           end if
+          Grid%edits%coords = .true.
         end if
       else
         if (OVK_DEBUG) then
@@ -497,8 +488,7 @@ contains
     logical :: Success, EndEdit
     type(ovk_field_int), pointer :: PrevState
     logical :: ModifiedMask
-    logical :: ModifiedBoundaryMask
-    logical :: ModifiedInternalBoundaryMask
+    logical :: ModifiedBoundary
     integer :: StateValue, PrevStateValue
 
     if (associated(State, Grid%state)) then
@@ -529,39 +519,24 @@ contains
             end do
           end do L1
 
-          ModifiedBoundaryMask = .false.
+          ModifiedBoundary = .false.
           L2: &
           do k = Grid%cart%is(3), Grid%cart%ie(3)
             do j = Grid%cart%is(2), Grid%cart%ie(2)
               do i = Grid%cart%is(1), Grid%cart%ie(1)
                 if (State%values(i,j,k) /= PrevState%values(i,j,k)) then
-                  StateValue = iand(State%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
-                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_STATE_DOMAIN_BOUNDARY)
+                  StateValue = iand(State%values(i,j,k), ior(OVK_STATE_DOMAIN_BOUNDARY, &
+                    OVK_STATE_INTERNAL_BOUNDARY))
+                  PrevStateValue = iand(PrevState%values(i,j,k), ior(OVK_STATE_DOMAIN_BOUNDARY, &
+                    OVK_STATE_INTERNAL_BOUNDARY))
                   if (StateValue /= PrevStateValue) then
-                    ModifiedBoundaryMask = .true.
+                    ModifiedBoundary = .true.
                     exit L2
                   end if
                 end if
               end do
             end do
           end do L2
-
-          ModifiedInternalBoundaryMask = .false.
-          L3: &
-          do k = Grid%cart%is(3), Grid%cart%ie(3)
-            do j = Grid%cart%is(2), Grid%cart%ie(2)
-              do i = Grid%cart%is(1), Grid%cart%ie(1)
-                if (State%values(i,j,k) /= PrevState%values(i,j,k)) then
-                  StateValue = iand(State%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
-                  PrevStateValue = iand(PrevState%values(i,j,k),OVK_STATE_INTERNAL_BOUNDARY)
-                  if (StateValue /= PrevStateValue) then
-                    ModifiedInternalBoundaryMask = .true.
-                    exit L3
-                  end if
-                end if
-              end do
-            end do
-          end do L3
 
           if (ModifiedMask) then
             call UpdateMask(Grid)
@@ -574,14 +549,8 @@ contains
             Grid%edits%mask = .true.
           end if
 
-          if (ModifiedBoundaryMask) then
-            call UpdateBoundaryMask(Grid)
-            Grid%edits%boundary_mask = .true.
-          end if
-
-          if (ModifiedInternalBoundaryMask) then
-            call UpdateInternalBoundaryMask(Grid)
-            Grid%edits%internal_boundary_mask = .true.
+          if (ModifiedBoundary) then
+            Grid%edits%boundary = .true.
           end if
 
           deallocate(PrevState)
@@ -841,23 +810,6 @@ contains
 
   end subroutine UpdateMask
 
-  subroutine UpdateBoundaryMask(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    call ovkFilterGridState(Grid, OVK_STATE_DOMAIN_BOUNDARY, OVK_ALL, Grid%boundary_mask)
-
-  end subroutine UpdateBoundaryMask
-
-  subroutine UpdateInternalBoundaryMask(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    call ovkFilterGridState(Grid, OVK_STATE_INTERNAL_BOUNDARY, OVK_ALL, &
-      Grid%internal_boundary_mask)
-
-  end subroutine UpdateInternalBoundaryMask
-
   subroutine UpdateCellMask(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
@@ -1054,8 +1006,7 @@ contains
 
     Grid%edits%coords = .false.
     Grid%edits%mask = .false.
-    Grid%edits%boundary_mask = .false.
-    Grid%edits%internal_boundary_mask = .false.
+    Grid%edits%boundary = .false.
 
   end subroutine ResetGridEdits
 
@@ -1490,8 +1441,7 @@ contains
 
     Edits%coords = .false.
     Edits%mask = .false.
-    Edits%boundary_mask = .false.
-    Edits%internal_boundary_mask = .false.
+    Edits%boundary = .false.
 
   end function t_grid_edits_
 

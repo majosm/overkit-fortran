@@ -473,6 +473,7 @@ contains
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:,:), pointer :: CutBoundaryHoles
     type(ovk_grid), pointer :: Grid_m, Grid_n
+    type(ovk_field_logical), dimension(:), allocatable :: OwnBoundaryMasks
     type(ovk_overlap), pointer :: Overlap_mn, Overlap_nm
     type(ovk_field_logical), dimension(:), allocatable :: BoundaryHoleMasks
     type(ovk_field_logical) :: EdgeMask1, EdgeMask2
@@ -492,6 +493,14 @@ contains
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     CutBoundaryHoles => ReducedDomainInfo%cut_boundary_holes
+
+    allocate(OwnBoundaryMasks(NumGrids))
+
+    do n = 1, NumGrids
+      Grid_n => Domain%grid(IndexToID(n))
+      call ovkFilterGridState(Grid_n, ior(OVK_STATE_GRID, OVK_STATE_DOMAIN_BOUNDARY), OVK_ALL, &
+        OwnBoundaryMasks(n))
+    end do
 
     allocate(BoundaryHoleMasks(NumGrids))
 
@@ -516,7 +525,7 @@ contains
               EdgeMask1%values = EdgeMask1%values .and. .not. OverlappingMask%values
               i = i + 1
             end do
-            call ovkFindOverlappingPoints(Grid_n, Grid_m, Overlap_nm, Grid_m%boundary_mask, &
+            call ovkFindOverlappingPoints(Grid_n, Grid_m, Overlap_nm, OwnBoundaryMasks(m), &
               OverlappingMask)
             do j = 1, i
               call ovkDilate(OverlappingMask, 1, OVK_FALSE)
@@ -532,12 +541,12 @@ contains
         end do
         BoundaryHoleMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
         if (any(InteriorMask%values)) then
-          BoundaryMask%values = BoundaryMask%values .or. Grid_n%boundary_mask%values
+          BoundaryMask%values = BoundaryMask%values .or. OwnBoundaryMasks(n)%values
           call ovkFlood(InteriorMask, BoundaryMask)
           call ovkDetectEdge(Grid_n%mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask1)
           call ovkDetectEdge(InteriorMask, OVK_OUTER_EDGE, OVK_FALSE, .false., EdgeMask2)
           SpuriousBoundaryMask = ovk_field_logical_(Grid_n%cart)
-          SpuriousBoundaryMask%values = Grid_n%boundary_mask%values .and. EdgeMask1%values &
+          SpuriousBoundaryMask%values = OwnBoundaryMasks(n)%values .and. EdgeMask1%values &
             .and. .not. EdgeMask2%values
           BoundaryMask%values = BoundaryMask%values .and. .not. SpuriousBoundaryMask%values
           BoundaryHoleMasks(n)%values = Grid_n%mask%values .and. .not. (InteriorMask%values .or. &
@@ -552,6 +561,8 @@ contains
         end if
       end if
     end do
+
+    deallocate(OwnBoundaryMasks)
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Finished cutting boundary holes."
@@ -682,8 +693,9 @@ contains
       if (FringeSize(n) > 0) then
         Grid => Domain%grid(IndexToID(n))
         OuterFringeMask = ovk_field_logical_(Grid%cart)
-        BoundaryMask = ovk_field_logical_(Grid%cart)
-        BoundaryMask%values = Grid%boundary_mask%values .or. Grid%internal_boundary_mask%values
+        call ovkFilterGridState(Grid, ior(OVK_STATE_DOMAIN_BOUNDARY, OVK_STATE_INTERNAL_BOUNDARY), &
+          OVK_ANY, BoundaryMask)
+        BoundaryMask%values = BoundaryMask%values .and. Grid%mask%values
         call ovkDetectEdge(BoundaryMask, OVK_OUTER_EDGE, OVK_FALSE, .true., BoundaryEdgeMask)
         NonBoundaryMask = ovk_field_logical_(Grid%cart)
         NonBoundaryMask%values = Grid%mask%values .and. .not. BoundaryMask%values
