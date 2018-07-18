@@ -8,6 +8,10 @@ program Bump
   use ovsGlobal
   implicit none
 
+  type t_field_real_ptr
+    type(ovk_field_real), pointer :: ptr
+  end type t_field_real_ptr
+
   integer :: i, j, k, d, m
   character(len=256), dimension(:), allocatable :: RawArguments
   character(len=256) :: Usage
@@ -20,10 +24,11 @@ program Bump
   integer, dimension(MAX_ND) :: NumPointsBackground
   integer, dimension(MAX_ND) :: NumPointsBump
   real(rk), dimension(MAX_ND) :: Length
+  logical, dimension(MAX_ND) :: Periodic
+  real(rk), dimension(MAX_ND) :: PeriodicLength
   type(ovk_domain) :: Domain
   type(ovk_grid), pointer :: Grid
-  real(rk), dimension(:,:,:,:), allocatable :: XYZ
-  type(ovk_field_real), pointer :: Coords
+  type(t_field_real_ptr), dimension(:), allocatable :: Coords
   type(ovk_field_int), pointer :: State
   integer, dimension(MAX_ND) :: Point
   real(rk) :: U
@@ -75,6 +80,8 @@ program Bump
     stop 1
   end select
 
+  allocate(Coords(NumDims))
+
   ! Initialize the problem
   call ovkCreateDomain(Domain, NumDims=NumDims, NumGrids=2, Verbose=.true.)
 
@@ -89,13 +96,22 @@ program Bump
   Length(:NumDims-1) = 2._rk
   Length(NumDims) = 1._rk
 
+  Periodic(:NumDims-1) = .true.
+  Periodic(NumDims:) = .false.
+
+  PeriodicLength(:NumDims-1) = Length(:NumDims-1)
+  PeriodicLength(NumDims:) = 0._rk
+
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, &
+  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, Periodic=Periodic, &
+    PeriodicStorage=OVK_OVERLAP_PERIODIC, PeriodicLength=PeriodicLength, &
     GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
   call ovkEditGrid(Domain, 1, Grid)
 
-  allocate(XYZ(NumPointsBackground(1),NumPointsBackground(2),NumPointsBackground(3),NumDims))
+  do d = 1, NumDims
+    call ovkEditGridCoords(Grid, d, Coords(d)%ptr)
+  end do
 
   ! Generate coordinates for background grid
   do k = 1, NumPointsBackground(3)
@@ -104,22 +120,17 @@ program Bump
         Point = [i,j,k]
         do d = 1, NumDims-1
           U = real(Point(d)-1,kind=rk)/real(NumPointsBackground(d)-1,kind=rk)
-          XYZ(i,j,k,d) = Length(d) * (U-0.5_rk)
+          Coords(d)%ptr%values(i,j,k) = Length(d) * (U-0.5_rk)
         end do
-          U = real(Point(NumDims)-1,kind=rk)/real(NumPointsBackground(NumDims)-1,kind=rk)
-          XYZ(i,j,k,NumDims) = Length(NumDims) * U
+        U = real(Point(NumDims)-1,kind=rk)/real(NumPointsBackground(NumDims)-1,kind=rk)
+        Coords(NumDims)%ptr%values(i,j,k) = Length(NumDims) * U
       end do
     end do
   end do
 
-  ! Feed them to Overkit
   do d = 1, NumDims
-    call ovkEditGridCoords(Grid, d, Coords)
-    Coords%values = XYZ(:,:,:,d)
-    call ovkReleaseGridCoords(Grid, Coords)
+    call ovkReleaseGridCoords(Grid, Coords(d)%ptr)
   end do
-
-  deallocate(XYZ)
 
   ! Lower edge boundary on background grid
   call ovkEditGridState(Grid, State)
@@ -145,18 +156,22 @@ program Bump
   call ovkCreateGrid(Domain, 2, NumPoints=NumPointsBump)
   call ovkEditGrid(Domain, 2, Grid)
 
-  allocate(XYZ(NumPointsBump(1),NumPointsBump(2),NumPointsBump(3),NumDims))
+  do d = 1, NumDims
+    call ovkEditGridCoords(Grid, d, Coords(d)%ptr)
+  end do
 
   ! Generate coordinates for bump grid
   do k = 1, NumPointsBump(3)
     do j = 1, NumPointsBump(2)
       do i = 1, NumPointsBump(1)
         Point = [i,j,k]
+        R = 0._rk
         do d = 1, NumDims-1
           U = real(Point(d)-1,kind=rk)/real(NumPointsBump(d)-1,kind=rk)
-          XYZ(i,j,k,d) = 0.65_rk*Length(d) * (U-0.5_rk)
+          Coords(d)%ptr%values(i,j,k) = 0.65_rk*Length(d) * (U-0.5_rk)
+          R = R + Coords(d)%ptr%values(i,j,k)**2
         end do
-        R = sqrt(sum(XYZ(i,j,k,:NumDims-1)**2))
+        R = sqrt(R)
         if (R <= 0.499_rk) then
           BumpHeight = 0.25_rk*exp(1._rk-1._rk/(1._rk-(2._rk*R)**2))
         else
@@ -166,19 +181,15 @@ program Bump
         MinHeight = BumpHeight
         MaxHeight = 0.5_rk * Length(NumDims)
         Shift = BumpHeight-0.1_rk
-        XYZ(i,j,k,NumDims) = (MinHeight-Shift)*((MaxHeight-Shift)/(MinHeight-Shift))**U + Shift
+        Coords(NumDims)%ptr%values(i,j,k) = (MinHeight-Shift)*((MaxHeight-Shift)/ &
+          (MinHeight-Shift))**U + Shift
       end do
     end do
   end do
 
-  ! Feed them to Overkit
   do d = 1, NumDims
-    call ovkEditGridCoords(Grid, d, Coords)
-    Coords%values = XYZ(:,:,:,d)
-    call ovkReleaseGridCoords(Grid, Coords)
+    call ovkReleaseGridCoords(Grid, Coords(d)%ptr)
   end do
-
-  deallocate(XYZ)
 
   ! Lower edge boundary on bump grid
   call ovkEditGridState(Grid, State)
