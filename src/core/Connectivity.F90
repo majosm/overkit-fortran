@@ -390,7 +390,7 @@ contains
     Success = .false.
     NumWarnings = 0
 
-    if (DonorGrid%cell_edge_dist%values(OverlapCell(1),OverlapCell(2),OverlapCell(3)) > 1) then
+    if (DonorGrid%cell_edge_dists%values(OverlapCell(1),OverlapCell(2),OverlapCell(3)) > 1) then
       CellShift = 0
       Success = .true.
     else
@@ -399,19 +399,19 @@ contains
       do d = 1, NumDims
         PrevCell = OverlapCell
         PrevCell(d) = PrevCell(d) - 1
-        PrevCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_edge_dist%cart, PrevCell)
+        PrevCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_edge_dists%cart, PrevCell)
         NextCell = OverlapCell
         NextCell(d) = NextCell(d) + 1
-        NextCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_edge_dist%cart, NextCell)
-        PrevDistance = DonorGrid%cell_edge_dist%values(PrevCell(1),PrevCell(2),PrevCell(3))
-        NextDistance = DonorGrid%cell_edge_dist%values(NextCell(1),NextCell(2),NextCell(3))
+        NextCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_edge_dists%cart, NextCell)
+        PrevDistance = DonorGrid%cell_edge_dists%values(PrevCell(1),PrevCell(2),PrevCell(3))
+        NextDistance = DonorGrid%cell_edge_dists%values(NextCell(1),NextCell(2),NextCell(3))
         Gradient(d) = real(NextDistance-PrevDistance,kind=rk)/2._rk
       end do
       Offset(:NumDims) = ClosestOffset(Gradient)
       Offset(NumDims+1:) = 0
       ShiftedCell = OverlapCell + Offset
       ShiftedCell(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_cart, ShiftedCell)
-      if (DonorGrid%cell_edge_dist%values(ShiftedCell(1),ShiftedCell(2),ShiftedCell(3)) > 1) then
+      if (DonorGrid%cell_edge_dists%values(ShiftedCell(1),ShiftedCell(2),ShiftedCell(3)) > 1) then
         CellShift = Offset
         Success = .true.
       else
@@ -429,7 +429,7 @@ contains
             do j = NeighborLower(2), NeighborUpper(2)
               do i = NeighborLower(1), NeighborUpper(1)
                 Neighbor = [i,j,k]
-                if (DonorGrid%cell_edge_dist%values(Neighbor(1),Neighbor(2),Neighbor(3)) > 1) then
+                if (DonorGrid%cell_edge_dists%values(Neighbor(1),Neighbor(2),Neighbor(3)) > 1) then
                   Offset = [i-OverlapCell(1),j-OverlapCell(2),k-OverlapCell(3)]
                   Displacement = real(Offset(:NumDims),kind=rk)
                   OffsetQuality = dot_product(Gradient, Displacement)/sqrt(sum(Displacement**2))
@@ -448,7 +448,7 @@ contains
                 Neighbor = [i,j,k]
                 Neighbor(:NumDims) = ovkCartPeriodicAdjust(DonorGrid%cell_cart, Neighbor)
                 if (ovkCartContains(DonorGrid%cell_cart, Neighbor)) then
-                  if (DonorGrid%cell_edge_dist%values(Neighbor(1),Neighbor(2),Neighbor(3)) > 1) then
+                  if (DonorGrid%cell_edge_dists%values(Neighbor(1),Neighbor(2),Neighbor(3)) > 1) then
                     Offset = [i-OverlapCell(1),j-OverlapCell(2),k-OverlapCell(3)]
                     Displacement = real(Offset(:NumDims),kind=rk)
                     OffsetQuality = dot_product(Gradient, Displacement)/sqrt(sum(Displacement**2))

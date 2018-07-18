@@ -652,7 +652,7 @@ contains
         Grid_m => Domain%grid(IndexToID(m))
         Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
         if (ovkOverlapExists(Overlap)) then
-          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%resolution, &
+          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%resolutions, &
             OverlapResolutions(m,n))
         end if
       end do
@@ -973,7 +973,7 @@ contains
       do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
         do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
           if (Overlap%mask%values(i,j,k)) then
-            CoarseMask%values(i,j,k) = OverlappedGrid%resolution%values(i,j,k) < &
+            CoarseMask%values(i,j,k) = OverlappedGrid%resolutions%values(i,j,k) < &
               (1._rk-TOLERANCE) * OverlapResolutions%values(l)
             l = l + 1_lk
           end if

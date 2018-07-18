@@ -106,9 +106,9 @@ module ovkGrid
     type(ovk_bbox) :: bounds
     type(ovk_field_logical) :: mask
     type(ovk_field_logical) :: cell_mask
-    type(ovk_field_real) :: cell_volume
-    type(ovk_field_real) :: resolution
-    type(ovk_field_int) :: cell_edge_dist
+    type(ovk_field_real) :: cell_volumes
+    type(ovk_field_real) :: resolutions
+    type(ovk_field_int) :: cell_edge_dists
   end type ovk_grid
 
   integer, parameter :: OVK_GRID_GEOMETRY_CARTESIAN = 1
@@ -170,9 +170,9 @@ contains
     Grid%bounds = ovk_bbox_()
     Grid%mask = ovk_field_logical_()
     Grid%cell_mask = ovk_field_logical_()
-    Grid%cell_volume = ovk_field_real_()
-    Grid%resolution = ovk_field_real_()
-    Grid%cell_edge_dist = ovk_field_int_()
+    Grid%cell_volumes = ovk_field_real_()
+    Grid%resolutions = ovk_field_real_()
+    Grid%cell_edge_dists = ovk_field_int_()
 
     call SetExists(Grid%existence_flag, .false.)
 
@@ -229,8 +229,8 @@ contains
 
     Grid%mask = ovk_field_logical_(Grid%cart, .true.)
     Grid%cell_mask = ovk_field_logical_(Grid%cell_cart, .true.)
-    Grid%cell_volume = ovk_field_real_(Grid%cell_cart, 0._rk)
-    Grid%resolution = ovk_field_real_(Grid%cart, 0._rk)
+    Grid%cell_volumes = ovk_field_real_(Grid%cell_cart, 0._rk)
+    Grid%resolutions = ovk_field_real_(Grid%cart, 0._rk)
 
     CellEdgeDistCart = Grid%cell_cart
     CellEdgeDistCart%is(:Grid%nd) = CellEdgeDistCart%is(:Grid%nd) - merge(0, 1, &
@@ -238,9 +238,9 @@ contains
     CellEdgeDistCart%ie(:Grid%nd) = CellEdgeDistCart%ie(:Grid%nd) + merge(0, 1, &
       Grid%cart%periodic(:Grid%nd))
 
-    Grid%cell_edge_dist = ovk_field_int_(CellEdgeDistCart)
+    Grid%cell_edge_dists = ovk_field_int_(CellEdgeDistCart)
 
-    call UpdateCellEdgeDistance(Grid)
+    call UpdateEdgeDistances(Grid)
 
     call SetExists(Grid%existence_flag, .true.)
 
@@ -256,9 +256,9 @@ contains
 
     Grid%mask = ovk_field_logical_()
     Grid%cell_mask = ovk_field_logical_()
-    Grid%cell_volume = ovk_field_real_()
-    Grid%resolution = ovk_field_real_()
-    Grid%cell_edge_dist = ovk_field_int_()
+    Grid%cell_volumes = ovk_field_real_()
+    Grid%resolutions = ovk_field_real_()
+    Grid%cell_edge_dists = ovk_field_int_()
 
     deallocate(Grid%edits)
 
@@ -420,7 +420,7 @@ contains
         if (EndEdit) then
           if (.not. EditingState(Grid)) then
             call UpdateBounds(Grid)
-            call UpdateResolution(Grid)
+            call UpdateResolutions(Grid)
           end if
           Grid%edits%coords = .true.
         end if
@@ -538,12 +538,11 @@ contains
           end do L2
 
           if (ModifiedMask) then
-            call UpdateMask(Grid)
-            call UpdateCellMask(Grid)
-            call UpdateCellEdgeDistance(Grid)
+            call UpdateMasks(Grid)
+            call UpdateEdgeDistances(Grid)
             if (.not. EditingCoords(Grid)) then
               call UpdateBounds(Grid)
-              call UpdateResolution(Grid)
+              call UpdateResolutions(Grid)
             end if
             Grid%edits%mask = .true.
           end if
@@ -801,15 +800,7 @@ contains
 
   end subroutine UpdateBounds
 
-  subroutine UpdateMask(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_ALL, Grid%mask)
-
-  end subroutine UpdateMask
-
-  subroutine UpdateCellMask(Grid)
+  subroutine UpdateMasks(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
 
@@ -817,6 +808,8 @@ contains
     integer, dimension(MAX_ND) :: VertexLower, VertexUpper
     integer, dimension(MAX_ND) :: Vertex
     logical :: AwayFromEdge
+
+    call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_ALL, Grid%mask)
 
 !$OMP PARALLEL DO &
 !$OMP&  DEFAULT(PRIVATE) &
@@ -862,9 +855,9 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-  end subroutine UpdateCellMask
+  end subroutine UpdateMasks
 
-  subroutine UpdateResolution(Grid)
+  subroutine UpdateResolutions(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
 
@@ -891,27 +884,27 @@ contains
             case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
               select case (Grid%nd)
               case (2)
-                Grid%cell_volume%values(i,j,k) = ovkRectangleSize(VertexCoords)
+                Grid%cell_volumes%values(i,j,k) = ovkRectangleSize(VertexCoords)
               case (3)
-                Grid%cell_volume%values(i,j,k) = ovkCuboidSize(VertexCoords)
+                Grid%cell_volumes%values(i,j,k) = ovkCuboidSize(VertexCoords)
               end select
             case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
               select case (Grid%nd)
               case (2)
-                Grid%cell_volume%values(i,j,k) = ovkOrientedRectangleSize(VertexCoords)
+                Grid%cell_volumes%values(i,j,k) = ovkOrientedRectangleSize(VertexCoords)
               case (3)
-                Grid%cell_volume%values(i,j,k) = ovkOrientedCuboidSize(VertexCoords)
+                Grid%cell_volumes%values(i,j,k) = ovkOrientedCuboidSize(VertexCoords)
               end select
             case default
               select case (Grid%nd)
               case (2)
-                Grid%cell_volume%values(i,j,k) = ovkQuadSize(VertexCoords)
+                Grid%cell_volumes%values(i,j,k) = ovkQuadSize(VertexCoords)
               case (3)
-                Grid%cell_volume%values(i,j,k) = ovkHexahedronSize(VertexCoords)
+                Grid%cell_volumes%values(i,j,k) = ovkHexahedronSize(VertexCoords)
               end select
             end select
           else
-            Grid%cell_volume%values(i,j,k) = 0._rk
+            Grid%cell_volumes%values(i,j,k) = 0._rk
           end if
         end do
       end do
@@ -939,7 +932,7 @@ contains
               do n = NeighborCellLower(2), NeighborCellUpper(2)
                 do m = NeighborCellLower(1), NeighborCellUpper(1)
                   if (Grid%cell_mask%values(m,n,o)) then
-                    AvgCellVolume = AvgCellVolume + Grid%cell_volume%values(m,n,o)
+                    AvgCellVolume = AvgCellVolume + Grid%cell_volumes%values(m,n,o)
                     NumCells = NumCells + 1
                   end if
                 end do
@@ -953,7 +946,7 @@ contains
                   Neighbor(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cell_cart, Neighbor)
                   if (ovkCartContains(Grid%cell_cart, Neighbor)) then
                     if (Grid%cell_mask%values(Neighbor(1),Neighbor(2),Neighbor(3))) then
-                      AvgCellVolume = AvgCellVolume + Grid%cell_volume%values(Neighbor(1), &
+                      AvgCellVolume = AvgCellVolume + Grid%cell_volumes%values(Neighbor(1), &
                         Neighbor(2),Neighbor(3))
                       NumCells = NumCells + 1
                     end if
@@ -964,31 +957,31 @@ contains
           end if
           AvgCellVolume = AvgCellVolume/real(max(NumCells,1), kind=rk)
           if (AvgCellVolume > 0._rk) then
-            Grid%resolution%values(i,j,k) = 1._rk/AvgCellVolume
+            Grid%resolutions%values(i,j,k) = 1._rk/AvgCellVolume
           else
-            Grid%resolution%values(i,j,k) = 0._rk
+            Grid%resolutions%values(i,j,k) = 0._rk
           end if
         end do
       end do
     end do
 !$OMP END PARALLEL DO
 
-  end subroutine UpdateResolution
+  end subroutine UpdateResolutions
 
-  subroutine UpdateCellEdgeDistance(Grid)
+  subroutine UpdateEdgeDistances(Grid)
 
     type(ovk_grid), intent(inout) :: Grid
 
     type(ovk_field_logical) :: NotMask
 
-    NotMask = ovk_field_logical_(Grid%cell_edge_dist%cart, .true.)
+    NotMask = ovk_field_logical_(Grid%cell_edge_dists%cart, .true.)
     NotMask%values(Grid%cell_cart%is(1):Grid%cell_cart%ie(1), &
       Grid%cell_cart%is(2):Grid%cell_cart%ie(2),Grid%cell_cart%is(3):Grid%cell_cart%ie(3)) = &
       .not. Grid%cell_mask%values
 
-    call ovkDistanceField(NotMask, OVK_TRUE, Grid%cell_edge_dist)
+    call ovkDistanceField(NotMask, OVK_TRUE, Grid%cell_edge_dists)
 
-  end subroutine UpdateCellEdgeDistance
+  end subroutine UpdateEdgeDistances
 
   subroutine GetGridEdits(Grid, Edits)
 
@@ -1354,7 +1347,7 @@ contains
             Point = [i,j,k]
             BasisIndex(:Grid%nd) = Point(:Grid%nd) - CellLower(:Grid%nd)
             BasisIndex(Grid%nd+1:) = 0
-            Volume = 1._rk/Grid%resolution%values(i,j,k)
+            Volume = 1._rk/Grid%resolutions%values(i,j,k)
             InterpolatedVolume = InterpolatedVolume + Volume * InterpBasis(1,BasisIndex(1)) * &
               InterpBasis(2,BasisIndex(2)) * InterpBasis(3,BasisIndex(3))
           end do
@@ -1368,7 +1361,7 @@ contains
             BasisIndex(:Grid%nd) = Point(:Grid%nd) - CellLower(:Grid%nd)
             BasisIndex(Grid%nd+1:) = 0
             Point(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Point)
-            Volume = 1._rk/Grid%resolution%values(Point(1),Point(2),Point(3))
+            Volume = 1._rk/Grid%resolutions%values(Point(1),Point(2),Point(3))
             InterpolatedVolume = InterpolatedVolume + Volume * InterpBasis(1,BasisIndex(1)) * &
               InterpBasis(2,BasisIndex(2)) * InterpBasis(3,BasisIndex(3))
           end do
