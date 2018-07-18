@@ -244,7 +244,6 @@ module Overkit
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell
   public :: ovkCoordsInCubicGridCell
-  public :: ovkGridResolution
   public :: ovkPeriodicExtend
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_RECTILINEAR

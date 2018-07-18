@@ -48,7 +48,7 @@ contains
 
     integer :: ClockInitial, ClockFinal, ClockRate
     type(t_reduced_domain_info) :: ReducedDomainInfo
-    type(ovk_array_real), dimension(:,:), allocatable :: OverlapResolutions
+    type(ovk_array_real), dimension(:,:), allocatable :: OverlapVolumes
     type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseOcclusionMasks
     type(ovk_field_int), dimension(:), allocatable :: DonorGridIDs
 
@@ -75,15 +75,15 @@ contains
 
     call CutHoles(Domain, ReducedDomainInfo)
 
-    allocate(OverlapResolutions(ReducedDomainInfo%ngrids,ReducedDomainInfo%ngrids))
+    allocate(OverlapVolumes(ReducedDomainInfo%ngrids,ReducedDomainInfo%ngrids))
 
-    call ComputeOverlapResolutions(Domain, ReducedDomainInfo, OverlapResolutions)
+    call ComputeOverlapVolumes(Domain, ReducedDomainInfo, OverlapVolumes)
 
     call LocateOuterFringe(Domain, ReducedDomainInfo)
 
     allocate(PairwiseOcclusionMasks(ReducedDomainInfo%ngrids,ReducedDomainInfo%ngrids))
 
-    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, PairwiseOcclusionMasks)
+    call DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapVolumes, PairwiseOcclusionMasks)
 
     call ApplyOverlapMinimization(Domain, ReducedDomainInfo, PairwiseOcclusionMasks)
 
@@ -93,9 +93,9 @@ contains
 
     allocate(DonorGridIDs(ReducedDomainInfo%ngrids))
 
-    call ChooseDonors(Domain, ReducedDomainInfo, OverlapResolutions, DonorGridIDs)
+    call ChooseDonors(Domain, ReducedDomainInfo, OverlapVolumes, DonorGridIDs)
 
-    deallocate(OverlapResolutions)
+    deallocate(OverlapVolumes)
 
     call FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 
@@ -628,11 +628,11 @@ contains
 
   end subroutine CutHoles
 
-  subroutine ComputeOverlapResolutions(Domain, ReducedDomainInfo, OverlapResolutions)
+  subroutine ComputeOverlapVolumes(Domain, ReducedDomainInfo, OverlapVolumes)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_array_real), dimension(:,:), intent(out) :: OverlapResolutions
+    type(ovk_array_real), dimension(:,:), intent(out) :: OverlapVolumes
 
     integer :: m, n
     integer :: NumDims
@@ -652,13 +652,13 @@ contains
         Grid_m => Domain%grid(IndexToID(m))
         Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
         if (ovkOverlapExists(Overlap)) then
-          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%resolutions, &
-            OverlapResolutions(m,n))
+          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%volumes, &
+            OverlapVolumes(m,n))
         end if
       end do
     end do
 
-  end subroutine ComputeOverlapResolutions
+  end subroutine ComputeOverlapVolumes
 
   subroutine LocateOuterFringe(Domain, ReducedDomainInfo)
 
@@ -735,12 +735,12 @@ contains
 
   end subroutine LocateOuterFringe
 
-  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapResolutions, &
+  subroutine DetectOccludedPoints(Domain, ReducedDomainInfo, OverlapVolumes, &
     PairwiseOcclusionMasks)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
+    type(ovk_array_real), dimension(:,:), intent(in) :: OverlapVolumes
     type(ovk_field_logical), dimension(:,:), intent(out) :: PairwiseOcclusionMasks
 
     integer :: i, j, k, m, n
@@ -785,7 +785,7 @@ contains
         Overlap_nm => Domain%overlap(Grid_n%id,Grid_m%id)
         select case (Occludes(m,n))
         case (OVK_OCCLUDES_COARSE)
-          call FindCoarsePoints(Grid_n, Overlap_mn, OverlapResolutions(m,n), &
+          call FindCoarsePoints(Grid_n, Overlap_mn, OverlapVolumes(m,n), &
             PairwiseOcclusionMasks(m,n))
         case (OVK_OCCLUDES_ALL)
           PairwiseOcclusionMasks(m,n) = Overlap_mn%mask
@@ -794,7 +794,7 @@ contains
         end select
         select case (Occludes(n,m))
         case (OVK_OCCLUDES_COARSE)
-          call FindCoarsePoints(Grid_m, Overlap_nm, OverlapResolutions(n,m), &
+          call FindCoarsePoints(Grid_m, Overlap_nm, OverlapVolumes(n,m), &
             PairwiseOcclusionMasks(n,m))
         case (OVK_OCCLUDES_ALL)
           PairwiseOcclusionMasks(n,m) = Overlap_nm%mask
@@ -954,11 +954,11 @@ contains
 
   end subroutine DetectOccludedPoints
 
-  subroutine FindCoarsePoints(OverlappedGrid, Overlap, OverlapResolutions, CoarseMask)
+  subroutine FindCoarsePoints(OverlappedGrid, Overlap, OverlapVolumes, CoarseMask)
 
     type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
-    type(ovk_array_real), intent(in) :: OverlapResolutions
+    type(ovk_array_real), intent(in) :: OverlapVolumes
     type(ovk_field_logical), intent(out) :: CoarseMask
 
     integer :: i, j, k
@@ -973,8 +973,8 @@ contains
       do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
         do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
           if (Overlap%mask%values(i,j,k)) then
-            CoarseMask%values(i,j,k) = OverlappedGrid%resolutions%values(i,j,k) < &
-              (1._rk-TOLERANCE) * OverlapResolutions%values(l)
+            CoarseMask%values(i,j,k) = OverlappedGrid%volumes%values(i,j,k) > &
+              (1._rk+TOLERANCE) * OverlapVolumes%values(l)
             l = l + 1_lk
           end if
         end do
@@ -1178,11 +1178,11 @@ contains
 
   end subroutine LocateReceivers
 
-  subroutine ChooseDonors(Domain, ReducedDomainInfo, OverlapResolutions, DonorGridIDs)
+  subroutine ChooseDonors(Domain, ReducedDomainInfo, OverlapVolumes, DonorGridIDs)
 
     type(ovk_domain), intent(in) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
-    type(ovk_array_real), dimension(:,:), intent(in) :: OverlapResolutions
+    type(ovk_array_real), dimension(:,:), intent(in) :: OverlapVolumes
     type(ovk_field_int), dimension(:), intent(out) :: DonorGridIDs
 
     integer :: i, j, k, m, n
@@ -1196,11 +1196,11 @@ contains
     type(ovk_field_logical), dimension(:), allocatable :: ReceiverMasks
     type(ovk_field_int), dimension(:), allocatable :: ReceiverDistances
     type(ovk_field_real) :: DonorDistance
-    type(ovk_field_real) :: DonorResolution
+    type(ovk_field_real) :: DonorVolume
     type(ovk_array_int) :: CellReceiverDistance
     type(ovk_field_int) :: OverlapReceiverDistance
     real(rk) :: Distance
-    real(rk) :: Resolution
+    real(rk) :: Volume
     logical :: BetterDonor
     type(ovk_field_logical) :: OrphanMask
     type(ovk_field_int), pointer :: State
@@ -1232,7 +1232,7 @@ contains
       Grid_n => Domain%grid(IndexToID(n))
       DonorGridIDs(n) = ovk_field_int_(Grid_n%cart, 0)
       DonorDistance = ovk_field_real_(Grid_n%cart)
-      DonorResolution = ovk_field_real_(Grid_n%cart)
+      DonorVolume = ovk_field_real_(Grid_n%cart)
       do m = 1, NumGrids
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
           Grid_m => Domain%grid(IndexToID(m))
@@ -1251,20 +1251,20 @@ contains
                     DonorGridIDs(n)%values(i,j,k) = Grid_m%id
                     DonorDistance%values(i,j,k) = min(real(OverlapReceiverDistance%values(i,j,k), &
                       kind=rk)/real(max(EdgePadding(m,n),1),kind=rk),1._rk)
-                    DonorResolution%values(i,j,k) = OverlapResolutions(m,n)%values(l)
+                    DonorVolume%values(i,j,k) = OverlapVolumes(m,n)%values(l)
                   else
                     Distance = min(real(OverlapReceiverDistance%values(i,j,k),kind=rk)/ &
                       real(max(EdgePadding(m,n),1),kind=rk),1._rk)
-                    Resolution = OverlapResolutions(m,n)%values(l)
+                    Volume = OverlapVolumes(m,n)%values(l)
                     if (abs(Distance-DonorDistance%values(i,j,k)) > TOLERANCE) then
                       BetterDonor = Distance > DonorDistance%values(i,j,k)
                     else
-                      BetterDonor = Resolution > DonorResolution%values(i,j,k)
+                      BetterDonor = Volume < DonorVolume%values(i,j,k)
                     end if
                     if (BetterDonor) then
                       DonorGridIDs(n)%values(i,j,k) = Grid_m%id
                       DonorDistance%values(i,j,k) = Distance
-                      DonorResolution%values(i,j,k) = Resolution
+                      DonorVolume%values(i,j,k) = Volume
                     end if
                   end if
                 end if
