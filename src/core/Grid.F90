@@ -90,12 +90,10 @@ module ovkGrid
     integer :: id
     integer :: nd
     integer, dimension(MAX_ND) :: npoints
-    logical, dimension(MAX_ND) :: periodic
-    integer :: periodic_storage
-    real(rk), dimension(MAX_ND) :: periodic_length
-    integer :: geometry_type
     type(ovk_cart) :: cart
     type(ovk_cart) :: cell_cart
+    real(rk), dimension(MAX_ND) :: periodic_length
+    integer :: geometry_type
     type(ovk_field_real), dimension(:), pointer :: coords
     integer :: coords_edit_ref_count
     type(ovk_field_int), pointer :: state
@@ -154,12 +152,10 @@ contains
     Grid%id = 0
     Grid%nd = 2
     Grid%npoints = [0,0,1]
-    Grid%periodic = .false.
-    Grid%periodic_storage = OVK_NO_OVERLAP_PERIODIC
-    Grid%periodic_length = 0._rk
-    Grid%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
     Grid%cart = ovk_cart_()
     Grid%cell_cart = ovk_cart_()
+    Grid%periodic_length = 0._rk
+    Grid%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
     nullify(Grid%coords)
     Grid%coords_edit_ref_count = 0
     nullify(Grid%state)
@@ -195,13 +191,11 @@ contains
     Grid%nd = Cart%nd
     Grid%npoints(:Cart%nd) = ovkCartSize(Cart)
     Grid%npoints(Cart%nd+1:) = 1
-    Grid%periodic = Cart%periodic
-    Grid%periodic_storage = Cart%periodic_storage
+    Grid%cart = Cart
+    Grid%cell_cart = ovkCartPointToCell(Grid%cart)
     Grid%periodic_length(:Cart%nd) = PeriodicLength
     Grid%periodic_length(Cart%nd+1:) = 0._rk
     Grid%geometry_type = GeometryType
-    Grid%cart = Cart
-    Grid%cell_cart = ovkCartPointToCell(Grid%cart)
 
     allocate(Grid%coords(Grid%nd))
     do d = 1, Grid%nd
@@ -308,7 +302,7 @@ contains
     type(ovk_grid), intent(in) :: Grid
     logical, dimension(Grid%nd), intent(out) :: Periodic
 
-    Periodic = Grid%periodic(:Grid%nd)
+    Periodic = Grid%cart%periodic(:Grid%nd)
 
   end subroutine ovkGetGridPeriodicity
 
@@ -317,7 +311,7 @@ contains
     type(ovk_grid), intent(in) :: Grid
     integer, intent(out) :: PeriodicStorage
 
-    PeriodicStorage = Grid%periodic_storage
+    PeriodicStorage = Grid%cart%periodic_storage
 
   end subroutine ovkGetGridPeriodicStorage
 
