@@ -97,7 +97,7 @@ contains
 
     deallocate(OverlapVolumes)
 
-    call FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
+    call GenerateConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 
     call FinalizeAssembly(Domain, ReducedDomainInfo, AssemblyOptions)
 
@@ -1322,29 +1322,24 @@ contains
 
   end subroutine ChooseDonors
 
-  subroutine FillConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
+  subroutine GenerateConnectivity(Domain, ReducedDomainInfo, DonorGridIDs)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
     type(ovk_field_int), dimension(:), intent(in) :: DonorGridIDs
 
-    integer :: i, j, k, m, n
-    integer(lk) :: l, p
+    integer :: m, n
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     integer, dimension(:,:), pointer :: ConnectionType
-    integer(lk), dimension(:), allocatable :: NumConnections
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
     type(ovk_connectivity), pointer :: Connectivity
+    type(t_donor_grid_info), dimension(:), allocatable :: DonorGridInfo
+    integer, dimension(:), allocatable :: DonorGridConnectionType
     type(ovk_field_logical) :: ReceiverMask
-    integer, dimension(MAX_ND) :: DonorSize
-    integer :: MaxDonorSize
-    integer, dimension(MAX_ND,2) :: DonorExtents
-    real(rk), dimension(Domain%nd) :: DonorCoords
-    real(rk), dimension(:,:), allocatable :: DonorInterpCoefs
-    integer, dimension(MAX_ND) :: ReceiverPoint
+    integer(lk) :: NumConnections
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Generating connectivity information..."
@@ -1366,91 +1361,47 @@ contains
       end do
     end do
 
-    allocate(NumConnections(NumGrids))
+    allocate(DonorGridInfo(NumGrids))
+    allocate(DonorGridConnectionType(NumGrids))
+
+    do m = 1, NumGrids
+      Grid_m => Domain%grid(IndexToID(m))
+      do n = 1, NumGrids
+        DonorGridConnectionType(n) = ConnectionType(m,n)
+      end do
+      call CreateDonorGridInfo(Grid_m, NumGrids, DonorGridConnectionType, DonorGridInfo(m))
+    end do
+
+    deallocate(DonorGridConnectionType)
 
     do n = 1, NumGrids
-
       Grid_n => Domain%grid(IndexToID(n))
-
-      call ovkFilterGridState(Grid_n, OVK_STATE_RECEIVER, OVK_ALL, ReceiverMask)
-
-      NumConnections = 0_lk
-      do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-        do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-          do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-            if (ReceiverMask%values(i,j,k)) then
-              m = DonorGridIDs(n)%values(i,j,k)
-              NumConnections(m) = NumConnections(m) + 1_lk
-            end if
-          end do
-        end do
-      end do
-
       do m = 1, NumGrids
-
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
-
           Grid_m => Domain%grid(IndexToID(m))
           Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
           Connectivity => Domain%connectivity(Grid_m%id,Grid_n%id)
-
-          if (NumConnections(m) > 0_lk) then
-
-            DonorSize = 1
-            DonorSize(:NumDims) = ovkDonorSize(NumDims, ConnectionType(m,n))
-            MaxDonorSize = maxval(DonorSize)
-
-            call ResizeConnectivity(Connectivity, NumConnections(m), MaxDonorSize)
-
-            allocate(DonorInterpCoefs(MaxDonorSize,NumDims))
-
-            l = 1_lk
-            p = 1_lk
-            DonorExtents = 1
-            do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
-              do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
-                do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
-                  if (ReceiverMask%values(i,j,k) .and. DonorGridIDs(n)%values(i,j,k) == &
-                    Grid_m%id) then
-                    ReceiverPoint = [i,j,k]
-                    call ovkFindDonor(Grid_m, Grid_n, Overlap, ReceiverPoint, l, &
-                      ConnectionType(m,n), DonorExtents, DonorCoords, DonorInterpCoefs)
-                    Connectivity%donor_extents(:,:,p) = DonorExtents
-                    Connectivity%donor_coords(:,p) = DonorCoords
-                    Connectivity%donor_interp_coefs(:,:,p) = DonorInterpCoefs
-                    Connectivity%receiver_points(:,p) = ReceiverPoint
-                    p = p + 1_lk
-                  end if
-                  if (Overlap%mask%values(i,j,k)) then
-                    l = l + 1_lk
-                  end if
-                end do
-              end do
-            end do
-
-            deallocate(DonorInterpCoefs)
-
-            if (Domain%logger%verbose) then
-              if (NumConnections(m) > 0_lk) then
-                write (*, '(7a)') "* ", trim(LargeIntToString(NumConnections(m))), &
-                  " donor/receiver pairs between grid ", trim(IntToString(Grid_m%id)), &
-                  " and grid ", trim(IntToString(Grid_n%id)), "."
-              end if
+          ReceiverMask = ovk_field_logical_(Grid_n%cart)
+          ReceiverMask%values = DonorGridIDs(n)%values == Grid_m%id
+          call FillConnectivity(Grid_m, Grid_n, Overlap, DonorGridInfo(m), ConnectionType(m,n), &
+            ReceiverMask, Connectivity)
+          if (Domain%logger%verbose) then
+            call ovkGetConnectivityCount(Connectivity, NumConnections)
+            if (NumConnections > 0_lk) then
+              write (*, '(7a)') "* ", trim(LargeIntToString(NumConnections)), &
+                " donor/receiver pairs between grid ", trim(IntToString(Grid_m%id)), &
+                " and grid ", trim(IntToString(Grid_n%id)), "."
             end if
-
           end if
-
         end if
-
       end do
-
     end do
 
     if (Domain%logger%verbose) then
       write (*, '(a)') "Finished generating connectivity information."
     end if
 
-  end subroutine FillConnectivity
+  end subroutine GenerateConnectivity
 
   subroutine FinalizeAssembly(Domain, ReducedDomainInfo, AssemblyOptions)
 

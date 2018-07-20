@@ -110,8 +110,6 @@ module Overkit
   public :: ovkGetConnectivityDonorCoords
   public :: ovkGetConnectivityDonorInterpCoefs
   public :: ovkGetConnectivityReceiverPoints
-  public :: ovkDonorSize
-  public :: ovkFindDonor
 
   ! ovkDomain
   public :: ovk_domain
