@@ -105,7 +105,6 @@ module ovkGrid
     type(ovk_field_logical) :: cell_mask
     type(ovk_field_real) :: volumes
     type(ovk_field_real) :: cell_volumes
-    type(ovk_field_int) :: cell_edge_dists
   end type ovk_grid
 
   integer, parameter :: OVK_GRID_GEOMETRY_CARTESIAN = 1
@@ -167,7 +166,6 @@ contains
     Grid%cell_mask = ovk_field_logical_()
     Grid%volumes = ovk_field_real_()
     Grid%cell_volumes = ovk_field_real_()
-    Grid%cell_edge_dists = ovk_field_int_()
 
     call SetExists(Grid%existence_flag, .false.)
 
@@ -231,10 +229,6 @@ contains
     CellEdgeDistCart%ie(:Grid%nd) = CellEdgeDistCart%ie(:Grid%nd) + merge(0, 1, &
       Grid%cart%periodic(:Grid%nd))
 
-    Grid%cell_edge_dists = ovk_field_int_(CellEdgeDistCart)
-
-    call UpdateEdgeDistances(Grid)
-
     call SetExists(Grid%existence_flag, .true.)
 
   end subroutine CreateGrid
@@ -251,7 +245,6 @@ contains
     Grid%cell_mask = ovk_field_logical_()
     Grid%volumes = ovk_field_real_()
     Grid%cell_volumes = ovk_field_real_()
-    Grid%cell_edge_dists = ovk_field_int_()
 
     deallocate(Grid%edits)
 
@@ -532,7 +525,6 @@ contains
 
           if (ModifiedMask) then
             call UpdateMasks(Grid)
-            call UpdateEdgeDistances(Grid)
             if (.not. EditingCoords(Grid)) then
               call UpdateBounds(Grid)
             end if
@@ -946,21 +938,6 @@ contains
 !$OMP END PARALLEL DO
 
   end subroutine UpdateVolumes
-
-  subroutine UpdateEdgeDistances(Grid)
-
-    type(ovk_grid), intent(inout) :: Grid
-
-    type(ovk_field_logical) :: NotMask
-
-    NotMask = ovk_field_logical_(Grid%cell_edge_dists%cart, .true.)
-    NotMask%values(Grid%cell_cart%is(1):Grid%cell_cart%ie(1), &
-      Grid%cell_cart%is(2):Grid%cell_cart%ie(2),Grid%cell_cart%is(3):Grid%cell_cart%ie(3)) = &
-      .not. Grid%cell_mask%values
-
-    call ovkDistanceField(NotMask, OVK_TRUE, Grid%cell_edge_dists)
-
-  end subroutine UpdateEdgeDistances
 
   subroutine GetGridEdits(Grid, Edits)
 
