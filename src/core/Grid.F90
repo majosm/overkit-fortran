@@ -20,11 +20,11 @@ module ovkGrid
   public :: ovkGetGridID
   public :: ovkGetGridDimension
   public :: ovkGetGridSize
+  public :: ovkGetGridCart
   public :: ovkGetGridPeriodicity
   public :: ovkGetGridPeriodicStorage
   public :: ovkGetGridPeriodicLength
   public :: ovkGetGridGeometryType
-  public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
   public :: ovkReleaseGridCoords
@@ -177,13 +177,28 @@ contains
     integer, intent(in) :: ID
     type(t_logger), pointer, intent(in) :: Logger
     type(ovk_cart), intent(in) :: Cart
-    real(rk), dimension(Cart%nd), intent(in) :: PeriodicLength
-    integer, intent(in) :: GeometryType
+    real(rk), dimension(Cart%nd), intent(in), optional :: PeriodicLength
+    integer, intent(in), optional :: GeometryType
 
     integer :: d
+    real(rk), dimension(MAX_ND) :: PeriodicLength_
+    integer :: GeometryType_
     type(ovk_cart) :: CellEdgeDistCart
 
     Grid%logger => Logger
+
+    if (present(PeriodicLength)) then
+      PeriodicLength_(:Cart%nd) = PeriodicLength
+      PeriodicLength_(Cart%nd+1:) = 0._rk
+    else
+      PeriodicLength_ = 0._rk
+    end if
+
+    if (present(GeometryType)) then
+      GeometryType_ = GeometryType
+    else
+      GeometryType_ = OVK_GRID_GEOMETRY_CURVILINEAR
+    end if
 
     Grid%id = ID
     Grid%nd = Cart%nd
@@ -191,9 +206,8 @@ contains
     Grid%npoints(Cart%nd+1:) = 1
     Grid%cart = Cart
     Grid%cell_cart = ovkCartPointToCell(Grid%cart)
-    Grid%periodic_length(:Cart%nd) = PeriodicLength
-    Grid%periodic_length(Cart%nd+1:) = 0._rk
-    Grid%geometry_type = GeometryType
+    Grid%periodic_length = PeriodicLength_
+    Grid%geometry_type = GeometryType_
 
     allocate(Grid%coords(Grid%nd))
     do d = 1, Grid%nd
@@ -290,6 +304,15 @@ contains
 
   end subroutine ovkGetGridSize
 
+  subroutine ovkGetGridCart(Grid, Cart)
+
+    type(ovk_grid), intent(in) :: Grid
+    type(ovk_cart), intent(out) :: Cart
+
+    Cart = Grid%cart
+
+  end subroutine ovkGetGridCart
+
   subroutine ovkGetGridPeriodicity(Grid, Periodic)
 
     type(ovk_grid), intent(in) :: Grid
@@ -325,15 +348,6 @@ contains
     GeometryType = Grid%geometry_type
 
   end subroutine ovkGetGridGeometryType
-
-  subroutine ovkGetGridCart(Grid, Cart)
-
-    type(ovk_grid), intent(in) :: Grid
-    type(ovk_cart), intent(out) :: Cart
-
-    Cart = Grid%cart
-
-  end subroutine ovkGetGridCart
 
   subroutine ovkGetGridCoords(Grid, DimIndex, Coords)
 

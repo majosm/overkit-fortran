@@ -224,11 +224,11 @@ module Overkit
   public :: ovkGetGridID
   public :: ovkGetGridDimension
   public :: ovkGetGridSize
+  public :: ovkGetGridCart
   public :: ovkGetGridPeriodicity
   public :: ovkGetGridPeriodicStorage
   public :: ovkGetGridPeriodicLength
   public :: ovkGetGridGeometryType
-  public :: ovkGetGridCart
   public :: ovkGetGridCoords
   public :: ovkEditGridCoords
   public :: ovkReleaseGridCoords

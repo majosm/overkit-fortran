@@ -256,8 +256,6 @@ contains
 
     logical, dimension(Domain%nd) :: Periodic_
     integer :: PeriodicStorage_
-    real(rk), dimension(Domain%nd) :: PeriodicLength_
-    integer :: GeometryType_
     logical :: Success
     type(ovk_cart) :: Cart
     type(t_domain_edits), pointer :: Edits
@@ -274,18 +272,6 @@ contains
       PeriodicStorage_ = OVK_NO_OVERLAP_PERIODIC
     end if
 
-    if (present(PeriodicLength)) then
-      PeriodicLength_ = PeriodicLength
-    else
-      PeriodicLength_ = 0._rk
-    end if
-
-    if (present(GeometryType)) then
-      GeometryType_ = GeometryType
-    else
-      GeometryType_ = OVK_GRID_GEOMETRY_CURVILINEAR
-    end if
-
     if (ValidID(Domain, GridID)) then
 
       Success = &
@@ -298,8 +284,8 @@ contains
 
         Cart = ovk_cart_(Domain%nd, NumPoints, Periodic_, PeriodicStorage_)
 
-        call CreateGrid(Domain%grid(GridID), GridID, Domain%logger, Cart, PeriodicLength_, &
-          GeometryType_)
+        call CreateGrid(Domain%grid(GridID), GridID, Domain%logger, Cart, &
+          PeriodicLength=PeriodicLength, GeometryType=GeometryType)
 
         Edits => Domain%edits
 
