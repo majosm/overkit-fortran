@@ -195,8 +195,8 @@ contains
 
     ! Update background IBlank with holes (used later if generating remap)
     call ovkGetGrid(Domain, 1, Grid)
-    call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
-    IBlankBackground = merge(0, IBlankBackground, Mask%values(:,:,1))
+    call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_ALL, Mask)
+    IBlankBackground = merge(IBlankBackground, 0, Mask%values(:,:,1))
 
     !========
     ! Output
@@ -221,7 +221,7 @@ contains
       IBlank = ovk_field_int_(Cart, 1)
 
       ! IBlank == 0 => Hole
-      call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
+      call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
       IBlank%values = merge(0, IBlank%values, Mask%values)
 
       ! IBlank == -N => Receives from grid N
@@ -475,7 +475,7 @@ contains
       IBlank = ovk_field_int_(Cart, 1)
 
       ! IBlank == 0 => Hole
-      call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
+      call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
       IBlank%values = merge(0, IBlank%values, Mask%values)
 
       ! IBlank == -N => Receives from grid N
@@ -553,7 +553,7 @@ contains
     do j = 1, NumPointsBackground(2)
       do i = 1, NumPointsBackground(1)
         if (IBlankBackground(i,j) == 0) then
-          State%values(i,j,1) = OVK_HOLE_POINT
+          State%values(i,j,1) = OVK_EXTERIOR_POINT
         end if
       end do
     end do
@@ -693,7 +693,7 @@ contains
       IBlank = ovk_field_int_(Cart, 1)
 
       ! IBlank == 0 => Hole
-      call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
+      call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
       IBlank%values = merge(0, IBlank%values, Mask%values)
 
       ! IBlank == -N => Receives from grid N

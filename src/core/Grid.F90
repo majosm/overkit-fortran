@@ -47,10 +47,10 @@ module ovkGrid
   public :: OVK_STATE_GRID
   public :: OVK_STATE_INTERIOR
   public :: OVK_STATE_BOUNDARY
+  public :: OVK_STATE_EXTERIOR
   public :: OVK_STATE_DOMAIN_BOUNDARY
-  public :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY
   public :: OVK_STATE_INTERNAL_BOUNDARY
-  public :: OVK_STATE_HOLE
+  public :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY
   public :: OVK_STATE_BOUNDARY_HOLE
   public :: OVK_STATE_FRINGE
   public :: OVK_STATE_OUTER_FRINGE
@@ -67,7 +67,7 @@ module ovkGrid
   public :: OVK_INTERIOR_POINT
   public :: OVK_DOMAIN_BOUNDARY_POINT
   public :: OVK_INTERNAL_BOUNDARY_POINT
-  public :: OVK_HOLE_POINT
+  public :: OVK_EXTERIOR_POINT
 
   ! Internal
   public :: ovk_grid_
@@ -113,33 +113,54 @@ module ovkGrid
   integer, parameter :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR = 4
   integer, parameter :: OVK_GRID_GEOMETRY_CURVILINEAR = 5
 
-  integer, parameter :: OVK_STATE_GRID = ishft(1,0)
-  integer, parameter :: OVK_STATE_INTERIOR = ishft(1,1)
-  integer, parameter :: OVK_STATE_BOUNDARY = ishft(1,2)
-  integer, parameter :: OVK_STATE_DOMAIN_BOUNDARY = ishft(1,3)
-  integer, parameter :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY = ishft(1,4)
-  integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(1,5)
-  integer, parameter :: OVK_STATE_HOLE = ishft(1,6)
-  integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(1,7)
-  integer, parameter :: OVK_STATE_FRINGE = ishft(1,8)
-  integer, parameter :: OVK_STATE_OUTER_FRINGE = ishft(1,9)
-  integer, parameter :: OVK_STATE_INNER_FRINGE = ishft(1,10)
-  integer, parameter :: OVK_STATE_OCCLUDED = ishft(1,11)
-  integer, parameter :: OVK_STATE_OVERLAP_MINIMIZED = ishft(1,12)
-  integer, parameter :: OVK_STATE_RECEIVER = ishft(1,13)
-  integer, parameter :: OVK_STATE_ORPHAN = ishft(1,14)
-  integer, parameter :: OVK_STATE_DEBUG1 = ishft(1,15)
-  integer, parameter :: OVK_STATE_DEBUG2 = ishft(1,16)
-  integer, parameter :: OVK_STATE_DEBUG3 = ishft(1,17)
-  integer, parameter :: OVK_STATE_DEBUG4 = ishft(1,18)
-  integer, parameter :: OVK_STATE_DEBUG5 = ishft(1,19)
+  ! User-modifiable states
+  integer, parameter :: NUM_USER_STATES = 6
+  integer, parameter :: USER_STATE_OFFSET = 0
+  integer, parameter :: USER_STATES = ishft(ishft(1,NUM_USER_STATES)-1,USER_STATE_OFFSET)
+  integer, parameter :: FIRST_USER_STATE = ishft(1,USER_STATE_OFFSET)
 
+  integer, parameter :: OVK_STATE_GRID = ishft(FIRST_USER_STATE,0)
+  integer, parameter :: OVK_STATE_INTERIOR = ishft(FIRST_USER_STATE,1)
+  integer, parameter :: OVK_STATE_BOUNDARY = ishft(FIRST_USER_STATE,2)
+  integer, parameter :: OVK_STATE_EXTERIOR = ishft(FIRST_USER_STATE,3)
+  integer, parameter :: OVK_STATE_DOMAIN_BOUNDARY = ishft(FIRST_USER_STATE,4)
+  integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(FIRST_USER_STATE,5)
+
+  ! Assembly states
+  integer, parameter :: NUM_ASSEMBLY_STATES = 9
+  integer, parameter :: ASSEMBLY_STATE_OFFSET = NUM_USER_STATES
+  integer, parameter :: ASSEMBLY_STATES = ishft(ishft(1,NUM_ASSEMBLY_STATES)-1, ASSEMBLY_STATE_OFFSET)
+  integer, parameter :: FIRST_ASSEMBLY_STATE = ishft(1,ASSEMBLY_STATE_OFFSET)
+
+  integer, parameter :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY = ishft(FIRST_ASSEMBLY_STATE,0)
+  integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(FIRST_ASSEMBLY_STATE,1)
+  integer, parameter :: OVK_STATE_FRINGE = ishft(FIRST_ASSEMBLY_STATE,2)
+  integer, parameter :: OVK_STATE_OUTER_FRINGE = ishft(FIRST_ASSEMBLY_STATE,3)
+  integer, parameter :: OVK_STATE_INNER_FRINGE = ishft(FIRST_ASSEMBLY_STATE,4)
+  integer, parameter :: OVK_STATE_OCCLUDED = ishft(FIRST_ASSEMBLY_STATE,5)
+  integer, parameter :: OVK_STATE_OVERLAP_MINIMIZED = ishft(FIRST_ASSEMBLY_STATE,6)
+  integer, parameter :: OVK_STATE_RECEIVER = ishft(FIRST_ASSEMBLY_STATE,7)
+  integer, parameter :: OVK_STATE_ORPHAN = ishft(FIRST_ASSEMBLY_STATE,8)
+
+  ! Debug states
+  integer, parameter :: NUM_DEBUG_STATES = 5
+  integer, parameter :: DEBUG_STATE_OFFSET = NUM_USER_STATES + NUM_ASSEMBLY_STATES
+  integer, parameter :: DEBUG_STATES = ishft(ishft(1,NUM_DEBUG_STATES)-1, DEBUG_STATE_OFFSET)
+  integer, parameter :: FIRST_DEBUG_STATE = ishft(1,DEBUG_STATE_OFFSET)
+
+  integer, parameter :: OVK_STATE_DEBUG1 = ishft(FIRST_DEBUG_STATE,0)
+  integer, parameter :: OVK_STATE_DEBUG2 = ishft(FIRST_DEBUG_STATE,1)
+  integer, parameter :: OVK_STATE_DEBUG3 = ishft(FIRST_DEBUG_STATE,2)
+  integer, parameter :: OVK_STATE_DEBUG4 = ishft(FIRST_DEBUG_STATE,3)
+  integer, parameter :: OVK_STATE_DEBUG5 = ishft(FIRST_DEBUG_STATE,4)
+
+  ! State presets for users
   integer, parameter :: OVK_INTERIOR_POINT = ior(OVK_STATE_GRID,OVK_STATE_INTERIOR)
   integer, parameter :: OVK_DOMAIN_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
     OVK_STATE_DOMAIN_BOUNDARY))
   integer, parameter :: OVK_INTERNAL_BOUNDARY_POINT = ior(OVK_STATE_GRID,ior(OVK_STATE_BOUNDARY, &
     OVK_STATE_INTERNAL_BOUNDARY))
-  integer, parameter :: OVK_HOLE_POINT = OVK_STATE_HOLE
+  integer, parameter :: OVK_EXTERIOR_POINT = OVK_STATE_EXTERIOR
 
 contains
 
@@ -582,20 +603,8 @@ contains
 
     integer :: i, j, k
     type(ovk_field_int), pointer :: State
-    integer :: AssemblyStates
 
     call ovkEditGridState(Grid, State)
-
-    AssemblyStates = 0
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_INFERRED_DOMAIN_BOUNDARY)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_BOUNDARY_HOLE)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_FRINGE)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_OUTER_FRINGE)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_INNER_FRINGE)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_OCCLUDED)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_OVERLAP_MINIMIZED)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_RECEIVER)
-    AssemblyStates = ior(AssemblyStates, OVK_STATE_ORPHAN)
 
     do k = Grid%cart%is(3), Grid%cart%ie(3)
       do j = Grid%cart%is(2), Grid%cart%ie(2)
@@ -607,11 +616,11 @@ contains
           ! Reset holes
           if (iand(State%values(i,j,k),ior(OVK_STATE_BOUNDARY_HOLE, OVK_STATE_OVERLAP_MINIMIZED)) &
             /= 0) then
-            State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_HOLE))
+            State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_EXTERIOR))
             State%values(i,j,k) = ior(State%values(i,j,k), OVK_STATE_GRID)
           end if
-          ! Remove other assembly states
-          State%values(i,j,k) = iand(State%values(i,j,k),not(AssemblyStates))
+          State%values(i,j,k) = iand(State%values(i,j,k),not(ASSEMBLY_STATES))
+          State%values(i,j,k) = iand(State%values(i,j,k),not(DEBUG_STATES))
         end do
       end do
     end do

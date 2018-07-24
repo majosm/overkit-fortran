@@ -148,7 +148,7 @@ program Inlet
   call ovkEditGridState(Grid, State)
 
   ! Collar hole regions
-  State%values(iBoundary+1:,:,:kBoundary-1) = OVK_HOLE_POINT
+  State%values(iBoundary+1:,:,:kBoundary-1) = OVK_EXTERIOR_POINT
 
   ! Inlet boundaries
   State%values(:iBoundary,:,1) = OVK_DOMAIN_BOUNDARY_POINT
@@ -273,7 +273,7 @@ program Inlet
     IBlank = ovk_field_int_(Cart, 1)
 
     ! IBlank == 0 => Hole
-    call ovkFilterGridState(Grid, OVK_STATE_HOLE, OVK_ALL, Mask)
+    call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
     IBlank%values = merge(0, IBlank%values, Mask%values)
 
     ! IBlank == -N => Receives from grid N

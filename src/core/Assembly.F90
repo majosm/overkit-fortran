@@ -424,7 +424,8 @@ contains
       Grid => Domain%grid(IndexToID(n))
       if (InferBoundaries(n)) then
         call ovkDetectEdge(Grid%mask, OVK_INNER_EDGE, OVK_FALSE, .false., InferredBoundaryMask)
-        call ovkFilterGridState(Grid, OVK_STATE_DOMAIN_BOUNDARY, OVK_ALL, InitialBoundaryMask)
+        call ovkFilterGridState(Grid, ior(OVK_STATE_GRID, OVK_STATE_DOMAIN_BOUNDARY), OVK_ALL, &
+          InitialBoundaryMask)
         InferredBoundaryMask%values = InferredBoundaryMask%values .and. .not. &
           InitialBoundaryMask%values
         do m = 1, NumGrids
@@ -592,7 +593,7 @@ contains
             do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
               if (BoundaryHoleMasks(n)%values(i,j,k)) then
                 State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_GRID))
-                State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_HOLE, &
+                State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_EXTERIOR, &
                   OVK_STATE_BOUNDARY_HOLE))
               end if
             end do
@@ -1085,7 +1086,7 @@ contains
             do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
               if (OverlapMinimizationMasks(n)%values(i,j,k)) then
                 State%values(i,j,k) = iand(State%values(i,j,k), not(OVK_STATE_GRID))
-                State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_HOLE, &
+                State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_EXTERIOR, &
                   OVK_STATE_OVERLAP_MINIMIZED))
               else if (InnerFringeMasks(n)%values(i,j,k)) then
                 State%values(i,j,k) = ior(State%values(i,j,k), ior(OVK_STATE_FRINGE, &

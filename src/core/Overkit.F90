@@ -251,10 +251,10 @@ module Overkit
   public :: OVK_STATE_GRID
   public :: OVK_STATE_INTERIOR
   public :: OVK_STATE_BOUNDARY
+  public :: OVK_STATE_EXTERIOR
   public :: OVK_STATE_DOMAIN_BOUNDARY
-  public :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY
   public :: OVK_STATE_INTERNAL_BOUNDARY
-  public :: OVK_STATE_HOLE
+  public :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY
   public :: OVK_STATE_BOUNDARY_HOLE
   public :: OVK_STATE_FRINGE
   public :: OVK_STATE_OUTER_FRINGE
@@ -271,7 +271,7 @@ module Overkit
   public :: OVK_INTERIOR_POINT
   public :: OVK_DOMAIN_BOUNDARY_POINT
   public :: OVK_INTERNAL_BOUNDARY_POINT
-  public :: OVK_HOLE_POINT
+  public :: OVK_EXTERIOR_POINT
 
   ! ovkOverlap
   public :: ovk_overlap
