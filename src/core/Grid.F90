@@ -33,7 +33,6 @@ module ovkGrid
   public :: ovkReleaseGridState
   public :: ovkResetGridState
   public :: ovkFilterGridState
-  public :: ovkGridCellExists
   public :: ovkGridCellBounds
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell
@@ -1090,21 +1089,6 @@ contains
     end if
 
   end subroutine GetCubicCellVertexCoords
-
-  function ovkGridCellExists(Grid, Cell) result(Exists)
-
-    type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%nd), intent(in) :: Cell
-    logical :: Exists
-
-    integer, dimension(MAX_ND) :: PaddedCell
-
-    PaddedCell(:Grid%nd) = Cell
-    PaddedCell(Grid%nd+1:) = 1
-
-    Exists = Grid%cell_mask%values(PaddedCell(1),PaddedCell(2),PaddedCell(3))
-
-  end function ovkGridCellExists
 
   function ovkGridCellBounds(Grid, Cell) result(CellBounds)
 

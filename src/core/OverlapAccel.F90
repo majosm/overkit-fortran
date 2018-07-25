@@ -138,7 +138,7 @@ contains
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
         do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
           Cell = [i,j,k]
-          if (ovkGridCellExists(Grid, Cell)) then
+          if (Grid%cell_mask%values(Cell(1),Cell(2),Cell(3))) then
             GridCellBounds = ovkGridCellBounds(Grid, Cell)
             GridCellBounds = ovkBBScale(GridCellBounds, 1._rk + 2._rk * MaxOverlapTolerance)
             GridCellOverlapMask%values(i,j,k) = ovkBBOverlaps(Bounds, GridCellBounds)

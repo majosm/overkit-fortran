@@ -237,7 +237,6 @@ module Overkit
   public :: ovkReleaseGridState
   public :: ovkResetGridState
   public :: ovkFilterGridState
-  public :: ovkGridCellExists
   public :: ovkGridCellBounds
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell
