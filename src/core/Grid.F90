@@ -703,8 +703,6 @@ contains
     if (Success) then
       StartEdit = Grid%coords_edit_ref_count == 0
       Grid%coords_edit_ref_count = Grid%coords_edit_ref_count + 1
-    else
-      StartEdit = .false.
     end if
 
   end subroutine TryEditCoords
@@ -720,8 +718,6 @@ contains
     if (Success) then
       Grid%coords_edit_ref_count = Grid%coords_edit_ref_count - 1
       EndEdit = Grid%coords_edit_ref_count == 0
-    else
-      EndEdit = .false.
     end if
 
   end subroutine TryReleaseCoords
@@ -739,8 +735,6 @@ contains
     if (Success) then
       StartEdit = Grid%state_edit_ref_count == 0
       Grid%state_edit_ref_count = Grid%state_edit_ref_count + 1
-    else
-      StartEdit = .false.
     end if
 
   end subroutine TryEditState
@@ -756,8 +750,6 @@ contains
     if (Success) then
       Grid%state_edit_ref_count = Grid%state_edit_ref_count - 1
       EndEdit = Grid%state_edit_ref_count == 0
-    else
-      EndEdit = .false.
     end if
 
   end subroutine TryReleaseState
