@@ -1270,12 +1270,13 @@ contains
 
   end function ovkCoordsInCubicGridCell
 
-  pure function ovkPeriodicExtend(Cart, PeriodicLength, Point, Coords) result(ExtendedCoords)
+  pure function ovkPeriodicExtend(Cart, PeriodicLength, Point, PrincipalCoords) &
+    result(ExtendedCoords)
 
     type(ovk_cart), intent(in) :: Cart
     real(rk), dimension(Cart%nd), intent(in) :: PeriodicLength
     integer, dimension(Cart%nd), intent(in) :: Point
-    real(rk), dimension(Cart%nd), intent(in) :: Coords
+    real(rk), dimension(Cart%nd), intent(in) :: PrincipalCoords
     real(rk), dimension(Cart%nd) :: ExtendedCoords
 
     integer, dimension(Cart%nd) :: PeriodStart, PeriodEnd
@@ -1293,7 +1294,7 @@ contains
     NegativeAdjustment = merge(PeriodicLength, 0._rk, Cart%periodic(:Cart%nd) .and. &
       Point < PeriodStart)
 
-    ExtendedCoords = Coords + PositiveAdjustment - NegativeAdjustment
+    ExtendedCoords = PrincipalCoords + PositiveAdjustment - NegativeAdjustment
 
   end function ovkPeriodicExtend
 

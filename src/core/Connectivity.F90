@@ -277,8 +277,7 @@ contains
         do d = 1, NumDims
           NumCells = NumCells * (StencilCellEnd(d)-StencilCellStart(d)+1)
         end do
-        DonorGridInfo%max_stencil_ncells = max(DonorGridInfo%max_stencil_ncells, &
-          NumCells)
+        DonorGridInfo%max_stencil_ncells = max(DonorGridInfo%max_stencil_ncells, NumCells)
         DonorGridInfo%max_stencil_cell_offset = max(DonorGridInfo%max_stencil_cell_offset, &
           max(-minval(StencilCellStart), maxval(StencilCellEnd)))
       end if
