@@ -17,8 +17,8 @@ module ovkGlobal
   public :: ovk_bk
   public :: ovkCaseID
   public :: OVK_DEBUG
-  public :: OVK_TRUE, OVK_FALSE
-  public :: OVK_NONE, OVK_ANY, OVK_ALL
+  public :: OVK_FALSE, OVK_TRUE
+  public :: OVK_NONE, OVK_ANY, OVK_NOT_ALL, OVK_ALL
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
@@ -57,12 +57,13 @@ module ovkGlobal
   logical, parameter :: OVK_DEBUG = .false.
 #endif
 
-  integer, parameter :: OVK_TRUE = 1
   integer, parameter :: OVK_FALSE = 0
+  integer, parameter :: OVK_TRUE = 1
 
   integer, parameter :: OVK_NONE = 0
   integer, parameter :: OVK_ANY = 1
-  integer, parameter :: OVK_ALL = 2
+  integer, parameter :: OVK_NOT_ALL = 2
+  integer, parameter :: OVK_ALL = 3
 
   integer, parameter :: OVK_NO_ERROR = 0
   integer, parameter :: OVK_IO_ERROR = 1

@@ -660,6 +660,14 @@ contains
           end do
         end do
       end do
+    case (OVK_NOT_ALL)
+      do k = State%cart%is(3), State%cart%ie(3)
+        do j = State%cart%is(2), State%cart%ie(2)
+          do i = State%cart%is(1), State%cart%ie(1)
+            MatchingMask%values(i,j,k) = iand(State%values(i,j,k), StateBits) /= StateBits
+          end do
+        end do
+      end do
     case (OVK_ALL)
       do k = State%cart%is(3), State%cart%ie(3)
         do j = State%cart%is(2), State%cart%ie(2)

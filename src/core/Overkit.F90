@@ -207,8 +207,8 @@ module Overkit
   public :: ovk_bk
   public :: ovkCaseID
   public :: OVK_DEBUG
-  public :: OVK_TRUE, OVK_FALSE
-  public :: OVK_NONE, OVK_ANY, OVK_ALL
+  public :: OVK_FALSE, OVK_TRUE
+  public :: OVK_NONE, OVK_ANY, OVK_NOT_ALL, OVK_ALL
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_MIRROR
   public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
