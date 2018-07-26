@@ -594,8 +594,6 @@ contains
       DonorExtents(:NumDims,1) = ovkCartPeriodicAdjust(DonorGrid%cart, DonorExtents(:,1))
       DonorExtents(:NumDims,2) = DonorExtents(:NumDims,1) + StencilSize(:NumDims)
       DonorCoords = OverlapCoords - real(StencilShift(:NumDims),kind=rk)
-      DonorCoords = ovkCoordsInCubicGridCell(DonorGrid, DonorExtents(:,1), ReceiverCoords, &
-        Guess=DonorCoords)
       DonorInterpCoefs(:,:NumDims) = 0._rk
       do d = 1, NumDims
         DonorInterpCoefs(:,d) = ovkInterpBasisCubic(DonorCoords(d))

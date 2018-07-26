@@ -36,7 +36,6 @@ module ovkGrid
   public :: ovkGridCellBounds
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell
-  public :: ovkCoordsInCubicGridCell
   public :: ovkPeriodicExtend
   public :: OVK_GRID_GEOMETRY_CARTESIAN
   public :: OVK_GRID_GEOMETRY_RECTILINEAR
@@ -883,7 +882,7 @@ contains
       do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
         do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
           Cell = [i,j,k]
-          call GetCellVertexCoords(Grid, Cell, VertexCoords)
+          call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
           select case (Grid%geometry_type)
           case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
             select case (Grid%nd)
@@ -980,7 +979,7 @@ contains
 
   end subroutine ResetGridEdits
 
-  subroutine GetCellVertexCoords(Grid, Cell, VertexCoords)
+  subroutine GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
 
     type(ovk_grid), intent(in) :: Grid
     integer, dimension(Grid%nd), intent(in) :: Cell
@@ -1033,9 +1032,9 @@ contains
       end do
     end if
 
-  end subroutine GetCellVertexCoords
+  end subroutine GetCellVertexCoordsLinear
 
-  subroutine GetCubicCellVertexCoords(Grid, Cell, VertexCoords)
+  subroutine GetCellVertexCoordsCubic(Grid, Cell, VertexCoords)
 
     type(ovk_grid), intent(in) :: Grid
     integer, dimension(Grid%nd), intent(in) :: Cell
@@ -1048,9 +1047,9 @@ contains
     integer, dimension(MAX_ND) :: AdjustedVertex
     real(rk), dimension(Grid%nd) :: PrincipalCoords
 
-    VertexLower(:Grid%nd) = Cell
+    VertexLower(:Grid%nd) = Cell-1
     VertexLower(Grid%nd+1:) = 1
-    VertexUpper(:Grid%nd) = Cell+3
+    VertexUpper(:Grid%nd) = Cell+2
     VertexUpper(Grid%nd+1:) = 1
 
     AwayFromEdge = ovkCartContains(Grid%cart, VertexLower) .and. &
@@ -1088,7 +1087,7 @@ contains
       end do
     end if
 
-  end subroutine GetCubicCellVertexCoords
+  end subroutine GetCellVertexCoordsCubic
 
   function ovkGridCellBounds(Grid, Cell) result(CellBounds)
 
@@ -1107,7 +1106,7 @@ contains
       return
     end if
 
-    call GetCellVertexCoords(Grid, Cell, VertexCoords)
+    call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
 
     CellBounds = ovkBBFromPoints(VertexCoords)
 
@@ -1134,7 +1133,7 @@ contains
       return
     end if
 
-    call GetCellVertexCoords(Grid, Cell, VertexCoords)
+    call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
 
     if (OverlapTolerance > 0._rk) then
       Centroid = sum(VertexCoords,dim=2)/2._rk**Grid%nd
@@ -1169,49 +1168,33 @@ contains
 
   end function ovkOverlapsGridCell
 
-  function ovkCoordsInGridCell(Grid, Cell, Coords, Guess) result(CoordsInCell)
+  function ovkCoordsInGridCell(Grid, Cell_, Coords) result(CoordsInCell)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%nd), intent(in) :: Cell
+    integer, dimension(Grid%nd), intent(in) :: Cell_
     real(rk), dimension(Grid%nd), intent(in) :: Coords
-    real(rk), dimension(Grid%nd), intent(in), optional :: Guess
     real(rk), dimension(Grid%nd) :: CoordsInCell
 
-    real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
     logical :: Success
-
-    call GetCellVertexCoords(Grid, Cell, VertexCoords)
+    integer, dimension(MAX_ND) :: Cell
 
     Success = .true.
 
+    Cell(:Grid%nd) = Cell_
+    Cell(Grid%nd+1:) = 1
+
     select case (Grid%geometry_type)
-    case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
-      select case (Grid%nd)
-      case (2)
-        CoordsInCell = ovkRectangleIsoInverseLinear(VertexCoords, Coords)
-      case (3)
-        CoordsInCell = ovkCuboidIsoInverseLinear(VertexCoords, Coords)
-      end select
-    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
-      select case (Grid%nd)
-      case (2)
-        CoordsInCell = ovkOrientedRectangleIsoInverseLinear(VertexCoords, Coords)
-      case (3)
-        CoordsInCell = ovkOrientedCuboidIsoInverseLinear(VertexCoords, Coords)
-      end select
+    case (OVK_GRID_GEOMETRY_CARTESIAN)
+      CoordsInCell = CoordsInGridCellLinear(Grid, Cell, Coords)
+    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+      CoordsInCell = CoordsInGridCellLinearOriented(Grid, Cell, Coords)
     case default
-      select case (Grid%nd)
-      case (2)
-        CoordsInCell = ovkQuadIsoInverseLinear(VertexCoords, Coords, Guess=Guess, Success=Success)
-      case (3)
-        CoordsInCell = ovkHexahedronIsoInverseLinear(VertexCoords, Coords, Guess=Guess, &
-          Success=Success)
-      end select
+      CoordsInCell = CoordsInGridCellCubic(Grid, Cell, Coords, Success)
     end select
 
     if (Grid%logger%verbose) then
       if (.not. Success) then
-        write (ERROR_UNIT, '(6a)') "WARNING: Failed to compute isoparametric coordinates of ", &
+        write (ERROR_UNIT, '(6a)') "WARNING: Failed to compute local coordinates of ", &
           trim(CoordsToString(Coords)), " in cell ", trim(TupleToString(Cell)), &
           " of grid ", trim(IntToString(Grid%id))
       end if
@@ -1219,56 +1202,84 @@ contains
 
   end function ovkCoordsInGridCell
 
-  function ovkCoordsInCubicGridCell(Grid, Cell, Coords, Guess) result(CoordsInCell)
+  function CoordsInGridCellLinear(Grid, Cell, Coords) result(CoordsInCell)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%nd), intent(in) :: Cell
+    integer, dimension(:), intent(in) :: Cell
     real(rk), dimension(Grid%nd), intent(in) :: Coords
-    real(rk), dimension(Grid%nd), intent(in), optional :: Guess
     real(rk), dimension(Grid%nd) :: CoordsInCell
 
-    real(rk), dimension(Grid%nd,4**Grid%nd) :: VertexCoords
-    logical :: Success
+    real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
 
-    call GetCubicCellVertexCoords(Grid, Cell, VertexCoords)
+    call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
 
-    Success = .true.
-
-    select case (Grid%geometry_type)
-    case (OVK_GRID_GEOMETRY_CARTESIAN)
-      select case (Grid%nd)
-      case (2)
-        CoordsInCell = ovkRectangleIsoInverseCubic(VertexCoords, Coords)
-      case (3)
-        CoordsInCell = ovkCuboidIsoInverseCubic(VertexCoords, Coords)
-      end select
-    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
-      select case (Grid%nd)
-      case (2)
-        CoordsInCell = ovkOrientedRectangleIsoInverseCubic(VertexCoords, Coords)
-      case (3)
-        CoordsInCell = ovkOrientedCuboidIsoInverseCubic(VertexCoords, Coords)
-      end select
-    case default
-      select case (Grid%nd)
-      case (2)
-        CoordsInCell = ovkQuadIsoInverseCubic(VertexCoords, Coords, Guess=Guess, &
-          Success=Success)
-      case (3)
-        CoordsInCell = ovkHexahedronIsoInverseCubic(VertexCoords, Coords, Guess=Guess, &
-          Success=Success)
-      end select
+    select case (Grid%nd)
+    case (2)
+      CoordsInCell = ovkRectangleIsoInverseLinear(VertexCoords, Coords)
+    case (3)
+      CoordsInCell = ovkCuboidIsoInverseLinear(VertexCoords, Coords)
     end select
 
-    if (Grid%logger%verbose) then
-      if (.not. Success) then
-        write (ERROR_UNIT, '(6a)') "WARNING: Failed to compute isoparametric coordinates of ", &
-          trim(CoordsToString(Coords)), " in cell ", trim(TupleToString(Cell)), &
-          " of grid ", trim(IntToString(Grid%id))
-      end if
-    end if
+  end function CoordsInGridCellLinear
 
-  end function ovkCoordsInCubicGridCell
+  function CoordsInGridCellLinearOriented(Grid, Cell, Coords) result(CoordsInCell)
+
+    type(ovk_grid), intent(in) :: Grid
+    integer, dimension(:), intent(in) :: Cell
+    real(rk), dimension(Grid%nd), intent(in) :: Coords
+    real(rk), dimension(Grid%nd) :: CoordsInCell
+
+    real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
+
+    call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
+
+    select case (Grid%nd)
+    case (2)
+      CoordsInCell = ovkOrientedRectangleIsoInverseLinear(VertexCoords, Coords)
+    case (3)
+      CoordsInCell = ovkOrientedCuboidIsoInverseLinear(VertexCoords, Coords)
+    end select
+
+  end function CoordsInGridCellLinearOriented
+
+  function CoordsInGridCellCubic(Grid, Cell, Coords, Success) result(CoordsInCell)
+
+    type(ovk_grid), intent(in) :: Grid
+    integer, dimension(:), intent(in) :: Cell
+    real(rk), dimension(Grid%nd), intent(in) :: Coords
+    logical, intent(out) :: Success
+    real(rk), dimension(Grid%nd) :: CoordsInCell
+
+    integer :: d
+    integer, dimension(MAX_ND) :: StencilShift
+    integer, dimension(MAX_ND) :: ShiftedCell
+    real(rk), dimension(Grid%nd,4**Grid%nd) :: VertexCoords
+
+    StencilShift = 0
+    do d = 1, Grid%nd
+      if (.not. Grid%cart%periodic(d)) then
+        if (Cell(d) == Grid%cell_cart%is(d)) then
+          StencilShift(d) = StencilShift(d) + 1
+        else if (Cell(d) == Grid%cell_cart%ie(d)) then
+          StencilShift(d) = StencilShift(d) - 1
+        end if
+      end if
+    end do
+
+    ShiftedCell = Cell + StencilShift
+
+    call GetCellVertexCoordsCubic(Grid, ShiftedCell, VertexCoords)
+
+    select case (Grid%nd)
+    case (2)
+      CoordsInCell = ovkQuadIsoInverseCubic(VertexCoords, Coords, Success=Success)
+    case (3)
+      CoordsInCell = ovkHexahedronIsoInverseCubic(VertexCoords, Coords, Success=Success)
+    end select
+
+    CoordsInCell = CoordsInCell + real(StencilShift(:Grid%nd),kind=rk)
+
+  end function CoordsInGridCellCubic
 
   pure function ovkPeriodicExtend(Cart, PeriodicLength, Point, PrincipalCoords) &
     result(ExtendedCoords)
