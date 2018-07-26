@@ -127,7 +127,7 @@ contains
     real(rk), dimension(2), intent(in) :: Coords
     logical :: Overlaps
 
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     real(rk), dimension(2) :: LocalCoords
 
@@ -153,7 +153,7 @@ contains
     real(rk), dimension(3), intent(in) :: Coords
     logical :: Overlaps
 
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     real(rk), dimension(3) :: LocalCoords
 
@@ -179,7 +179,7 @@ contains
     real(rk), dimension(2), intent(in) :: Coords
     logical :: Overlaps
 
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     integer, dimension(3,2), parameter :: Triangles = reshape([1,2,3,4,3,2], [3,2])
     integer :: i
@@ -212,7 +212,7 @@ contains
     real(rk), dimension(3), intent(in) :: Coords
     logical :: Overlaps
 
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     integer :: i
     integer, dimension(4,6), parameter :: Tetrahedra = reshape([1,2,3,5,2,3,5,6,3,5,6,7,2,3,6,4, &
@@ -709,7 +709,7 @@ contains
     real(rk), dimension(2) :: LocalCoords
 
     integer, parameter :: MAX_STEPS = 100
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     integer :: i
     real(rk), dimension(2,2) :: BasisValues
@@ -780,7 +780,7 @@ contains
     real(rk), dimension(2) :: LocalCoords
 
     integer, parameter :: MAX_STEPS = 100
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     integer :: i
     real(rk), dimension(4,2) :: BasisValues
@@ -851,7 +851,7 @@ contains
     real(rk), dimension(3) :: LocalCoords
 
     integer, parameter :: MAX_STEPS = 100
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     integer :: i
     real(rk), dimension(2,3) :: BasisValues
@@ -933,7 +933,7 @@ contains
     real(rk), dimension(3) :: LocalCoords
 
     integer, parameter :: MAX_STEPS = 100
-    real(rk), parameter :: TOLERANCE = 1.e-10_rk
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
     integer :: i
     real(rk), dimension(4,3) :: BasisValues
