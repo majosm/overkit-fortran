@@ -604,8 +604,10 @@ contains
             Point = [i,j,k]
             if (.not. ovkCartContains(PrincipalCart, Point)) then
               AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
-              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
-                AdjustedPoint(2),AdjustedPoint(3))
+              if (ovkCartContains(PrincipalCart, AdjustedPoint)) then
+                Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                  AdjustedPoint(2),AdjustedPoint(3))
+              end if
             end if
           end do
         end do
@@ -645,8 +647,10 @@ contains
             Point = [i,j,k]
             if (.not. ovkCartContains(PrincipalCart, Point)) then
               AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
-              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
-                AdjustedPoint(2),AdjustedPoint(3))
+              if (ovkCartContains(PrincipalCart, AdjustedPoint)) then
+                Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                  AdjustedPoint(2),AdjustedPoint(3))
+              end if
             end if
           end do
         end do
@@ -686,8 +690,10 @@ contains
             Point = [i,j,k]
             if (.not. ovkCartContains(PrincipalCart, Point)) then
               AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
-              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
-                AdjustedPoint(2),AdjustedPoint(3))
+              if (ovkCartContains(PrincipalCart, AdjustedPoint)) then
+                Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                  AdjustedPoint(2),AdjustedPoint(3))
+              end if
             end if
           end do
         end do
@@ -727,8 +733,10 @@ contains
             Point = [i,j,k]
             if (.not. ovkCartContains(PrincipalCart, Point)) then
               AdjustedPoint(:PrincipalCart%nd) = ovkCartPeriodicAdjust(PrincipalCart, Point)
-              Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
-                AdjustedPoint(2),AdjustedPoint(3))
+              if (ovkCartContains(PrincipalCart, AdjustedPoint)) then
+                Field%values(Point(1),Point(2),Point(3)) = Field%values(AdjustedPoint(1), &
+                  AdjustedPoint(2),AdjustedPoint(3))
+              end if
             end if
           end do
         end do
