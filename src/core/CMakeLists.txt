@@ -13,6 +13,7 @@ set(OVERKIT_SOURCES
   Cart.F90
   Connectivity.F90
   Domain.F90
+  DonorStencil.F90
   Field.F90
   FieldOps.F90
   Geometry.F90

@@ -9,6 +9,7 @@ module ovkAssembly
   use ovkCart
   use ovkConnectivity
   use ovkDomain
+  use ovkDonorStencil
   use ovkOverlap
   use ovkOverlapAccel
   use ovkField
@@ -1321,7 +1322,12 @@ contains
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
     type(ovk_field_int), dimension(:), intent(in) :: DonorGridIDs
 
-    integer :: m, n
+    type t_donor_grid_info
+      type(t_donor_stencil), dimension(:), allocatable :: stencil
+      integer, dimension(:), allocatable :: stencil_index
+    end type t_donor_grid_info
+
+    integer :: i, j, m, n
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -1329,9 +1335,12 @@ contains
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_overlap), pointer :: Overlap
     type(ovk_connectivity), pointer :: Connectivity
-    type(t_donor_grid_info), dimension(:), allocatable :: DonorGridInfo
-    integer, dimension(:), allocatable :: DonorGridConnectionType
+    type(t_donor_grid_info), dimension(:), allocatable, target :: DonorGridInfo
+    integer :: MinConnectionType, MaxConnectionType
+    logical, dimension(:), allocatable :: HasConnectionType
+    integer :: NumConnectionTypes
     type(ovk_field_logical) :: ReceiverMask
+    type(t_donor_stencil), pointer :: DonorStencil
     integer(lk) :: NumConnections
 
     if (Domain%logger%verbose) then
@@ -1348,24 +1357,46 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
-          call CreateConnectivity(Domain%connectivity(Grid_m%id, Grid_n%id), &
-            Domain%logger, Grid_m, Grid_n)
+          call CreateConnectivity(Domain%connectivity(Grid_m%id, Grid_n%id), Domain%logger, &
+            Grid_m, Grid_n)
         end if
       end do
     end do
 
     allocate(DonorGridInfo(NumGrids))
-    allocate(DonorGridConnectionType(NumGrids))
 
     do m = 1, NumGrids
       Grid_m => Domain%grid(IndexToID(m))
+      MinConnectionType = huge(0)
+      MaxConnectionType = -huge(0)
       do n = 1, NumGrids
-        DonorGridConnectionType(n) = ConnectionType(m,n)
+        if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
+          MinConnectionType = min(MinConnectionType, ConnectionType(m,n))
+          MaxConnectionType = max(MaxConnectionType, ConnectionType(m,n))
+        end if
       end do
-      call CreateDonorGridInfo(Grid_m, NumGrids, DonorGridConnectionType, DonorGridInfo(m))
+      if (MaxConnectionType < MinConnectionType) cycle
+      allocate(HasConnectionType(MinConnectionType:MaxConnectionType))
+      HasConnectionType = .false.
+      do n = 1, NumGrids
+        if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
+          HasConnectionType(ConnectionType(m,n)) = .true.
+        end if
+      end do
+      NumConnectionTypes = count(HasConnectionType)
+      allocate(DonorGridInfo(m)%stencil(NumConnectionTypes))
+      allocate(DonorGridInfo(m)%stencil_index(MinConnectionType:MaxConnectionType))
+      j = 1
+      DonorGridInfo(m)%stencil_index = 0
+      do i = MinConnectionType, MaxConnectionType
+        if (HasConnectionType(i)) then
+          call CreateDonorStencil(DonorGridInfo(m)%stencil(j), Grid_m, i)
+          DonorGridInfo(m)%stencil_index(i) = j
+          j = j + 1
+        end if
+      end do
+      deallocate(HasConnectionType)
     end do
-
-    deallocate(DonorGridConnectionType)
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
@@ -1376,8 +1407,8 @@ contains
           Connectivity => Domain%connectivity(Grid_m%id,Grid_n%id)
           ReceiverMask = ovk_field_logical_(Grid_n%cart)
           ReceiverMask%values = DonorGridIDs(n)%values == Grid_m%id
-          call FillConnectivity(Connectivity, Overlap, DonorGridInfo(m), ConnectionType(m,n), &
-            ReceiverMask)
+          DonorStencil => DonorGridInfo(m)%stencil(DonorGridInfo(m)%stencil_index(ConnectionType(m,n)))
+          call FillConnectivity(Connectivity, Overlap, DonorStencil, ReceiverMask)
           if (Domain%logger%verbose) then
             call ovkGetConnectivityCount(Connectivity, NumConnections)
             if (NumConnections > 0_lk) then
