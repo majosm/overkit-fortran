@@ -20,11 +20,11 @@ module ovkOverlap
   ! API
   public :: ovk_overlap
   public :: ovkOverlapExists
+  public :: ovkResetOverlap
   public :: ovkGetOverlapOverlappingGrid
   public :: ovkGetOverlapOverlappedGrid
   public :: ovkGetOverlapDimension
   public :: ovkGetOverlapCount
-  public :: ovkGetOverlapBounds
   public :: ovkGetOverlapMask
   public :: ovkGetOverlapCells
   public :: ovkGetOverlapCoords
@@ -47,7 +47,6 @@ module ovkOverlap
   public :: CreateOverlap
   public :: DestroyOverlap
   public :: DetectOverlap
-  public :: ResetOverlap
   public :: UpdateOverlapAfterCut
 
   type ovk_overlap
@@ -58,7 +57,6 @@ module ovkOverlap
     type(ovk_grid), pointer :: overlapped_grid
     integer :: nd
     integer(lk) :: noverlap
-    type(ovk_bbox) :: bounds
     type(ovk_field_logical), pointer :: mask
     integer, dimension(:,:), pointer :: cells
     real(rk), dimension(:,:), pointer :: coords
@@ -99,8 +97,7 @@ contains
     nullify(Overlap%overlapping_grid)
     nullify(Overlap%overlapped_grid)
     Overlap%nd = 2
-    Overlap%noverlap = 0
-    Overlap%bounds = ovk_bbox_()
+    Overlap%noverlap = 0_lk
     nullify(Overlap%mask)
     nullify(Overlap%cells)
     nullify(Overlap%coords)
@@ -123,8 +120,7 @@ contains
     Overlap%overlapping_grid => OverlappingGrid
     Overlap%overlapped_grid => OverlappedGrid
     Overlap%nd = NumDims
-    Overlap%noverlap = 0
-    Overlap%bounds = ovk_bbox_(NumDims)
+    Overlap%noverlap = 0_lk
 
     allocate(Overlap%mask)
     Overlap%mask = ovk_field_logical_(OverlappedGrid%cart, .false.)
@@ -158,6 +154,26 @@ contains
     Exists = CheckExists(Overlap%existence_flag)
 
   end function ovkOverlapExists
+
+  subroutine ovkResetOverlap(Overlap, OverlappedMask)
+
+    type(ovk_overlap), intent(inout) :: Overlap
+    type(ovk_field_logical), intent(in) :: OverlappedMask
+
+    Overlap%mask%values = OverlappedMask%values
+
+    deallocate(Overlap%cells)
+    deallocate(Overlap%coords)
+
+    Overlap%noverlap = ovkCountMask(Overlap%mask)
+
+    allocate(Overlap%cells(MAX_ND,Overlap%noverlap))
+
+    Overlap%cells(Overlap%nd+1:,:) = 1
+
+    allocate(Overlap%coords(Overlap%nd,Overlap%noverlap))
+
+  end subroutine ovkResetOverlap
 
   subroutine ovkGetOverlapOverlappingGrid(Overlap, OverlappingGrid)
 
@@ -195,15 +211,6 @@ contains
 
   end subroutine ovkGetOverlapCount
 
-  subroutine ovkGetOverlapBounds(Overlap, Bounds)
-
-    type(ovk_overlap), intent(in) :: Overlap
-    type(ovk_bbox), intent(out) :: Bounds
-
-    Bounds = Overlap%bounds
-
-  end subroutine ovkGetOverlapBounds
-
   subroutine ovkGetOverlapMask(Overlap, OverlapMask)
 
     type(ovk_overlap), intent(in) :: Overlap
@@ -239,12 +246,12 @@ contains
     real(rk), intent(in) :: OverlapTolerance
 
     integer :: d, i, j, k
+    integer(lk) :: l
     integer :: NumDims
     type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
-    integer(lk) :: l
+    type(ovk_field_logical) :: OverlappedMask
     type(ovk_bbox) :: Bounds
     type(ovk_field_large_int) :: OverlappingCells
-    integer(lk) :: NumOverlappedPoints
     type(ovk_field_large_int) :: OverlapIndices
     real(rk), dimension(Overlap%nd) :: OverlappedCoords
     integer, dimension(MAX_ND) :: Cell
@@ -254,14 +261,9 @@ contains
     OverlappingGrid => Overlap%overlapping_grid
     OverlappedGrid => Overlap%overlapped_grid
 
-    Overlap%mask%values = .false.
-
-    deallocate(Overlap%cells)
-    deallocate(Overlap%coords)
+    OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
 
     Bounds = ovkBBScale(OverlapBounds, 1._rk + OverlapTolerance)
-
-    NumOverlappedPoints = 0_lk
 
     if (.not. ovkBBIsEmpty(Bounds)) then
 
@@ -283,7 +285,7 @@ contains
                   OverlappedCoords, OverlapTolerance)
                 Cell(NumDims+1:) = 1
                 if (ovkCartContains(OverlappingGrid%cell_cart, Cell)) then
-                  Overlap%mask%values(i,j,k) = .true.
+                  OverlappedMask%values(i,j,k) = .true.
                   OverlappingCells%values(i,j,k) = ovkCartTupleToIndex(OverlappingGrid%cart, Cell)
                 end if
               end if
@@ -293,18 +295,11 @@ contains
       end do
 !$OMP END PARALLEL DO
 
-      NumOverlappedPoints = ovkCountMask(Overlap%mask)
-
     end if
 
-    Overlap%noverlap = NumOverlappedPoints
+    call ovkResetOverlap(Overlap, OverlappedMask)
 
-    allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
-    allocate(Overlap%coords(NumDims,NumOverlappedPoints))
-
-    Overlap%bounds = ovk_bbox_(NumDims)
-
-    if (NumOverlappedPoints > 0_lk) then
+    if (Overlap%noverlap > 0_lk) then
 
       OverlapIndices = ovk_field_large_int_(OverlappedGrid%cart)
 
@@ -331,7 +326,6 @@ contains
               do d = 1, NumDims
                 OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
               end do
-              Overlap%bounds = ovkBBExtend(Overlap%bounds, OverlappedCoords)
               Cell(:NumDims) = ovkCartIndexToTuple(OverlappingGrid%cart, &
                 OverlappingCells%values(i,j,k))
               Cell(NumDims+1:) = 1
@@ -348,24 +342,6 @@ contains
 
   end subroutine DetectOverlap
 
-  subroutine ResetOverlap(Overlap)
-
-    type(ovk_overlap), intent(inout) :: Overlap
-
-    Overlap%mask%values = .false.
-
-    deallocate(Overlap%cells)
-    deallocate(Overlap%coords)
-
-    Overlap%noverlap = 0_lk
-
-    allocate(Overlap%cells(MAX_ND,0))
-    allocate(Overlap%coords(Overlap%nd,0))
-
-    Overlap%bounds = ovk_bbox_(Overlap%nd)
-
-  end subroutine ResetOverlap
-
   subroutine UpdateOverlapAfterCut(Overlap)
 
     type(ovk_overlap), intent(inout) :: Overlap
@@ -373,53 +349,57 @@ contains
     integer :: i, j, k
     integer(lk) :: l_old, l
     type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
-    type(ovk_field_logical) :: OldOverlapMask
-    integer, dimension(:,:), pointer :: OldCells
-    real(rk), dimension(:,:), pointer :: OldCoords
+    type(ovk_field_logical) :: OldOverlappedMask
+    integer, dimension(:,:), allocatable :: OldCells
+    real(rk), dimension(:,:), allocatable :: OldCoords
     type(ovk_field_logical) :: HoleMask
     type(ovk_field_logical) :: OverlappedByHoleMask
-    integer(lk) :: NumOverlappedPoints
+    type(ovk_field_logical) :: OverlappedMask
 
     if (Overlap%noverlap == 0_lk) return
 
     OverlappingGrid => Overlap%overlapping_grid
     OverlappedGrid => Overlap%overlapped_grid
 
-    OldOverlapMask = Overlap%mask
-    OldCells => Overlap%cells
-    OldCoords => Overlap%coords
+    OldOverlappedMask = Overlap%mask
+
+    allocate(OldCells(MAX_ND,Overlap%noverlap))
+    OldCells = Overlap%cells
+
+    allocate(OldCoords(Overlap%nd,Overlap%noverlap))
+    OldCoords = Overlap%coords
 
     HoleMask = ovk_field_logical_(OverlappingGrid%cart)
     HoleMask%values = .not. OverlappingGrid%mask%values
 
     call ovkFindOverlappedPoints(Overlap, HoleMask, OverlappedByHoleMask)
 
-    Overlap%mask%values = Overlap%mask%values .and. OverlappedGrid%mask%values .and. &
+    OverlappedMask = ovk_field_logical_(OverlappedGrid%cart)
+    OverlappedMask%values = OldOverlappedMask%values .and. OverlappedGrid%mask%values .and. &
       .not. OverlappedByHoleMask%values
 
-    NumOverlappedPoints = ovkCountMask(Overlap%mask)
+    call ovkResetOverlap(Overlap, OverlappedMask)
 
-    allocate(Overlap%cells(MAX_ND,NumOverlappedPoints))
-    allocate(Overlap%coords(OverlappedGrid%nd,NumOverlappedPoints))
+    if (Overlap%noverlap > 0_lk) then
 
-    Overlap%noverlap = NumOverlappedPoints
-
-    l_old = 1_lk
-    l = 1_lk
-    do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
-      do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
-        do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
-          if (OldOverlapMask%values(i,j,k)) then
-            if (Overlap%mask%values(i,j,k)) then
-              Overlap%cells(:,l) = OldCells(:,l_old)
-              Overlap%coords(:,l) = OldCoords(:,l_old)
-              l = l + 1_lk
+      l_old = 1_lk
+      l = 1_lk
+      do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
+        do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
+          do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
+            if (OldOverlappedMask%values(i,j,k)) then
+              if (Overlap%mask%values(i,j,k)) then
+                Overlap%cells(:,l) = OldCells(:,l_old)
+                Overlap%coords(:,l) = OldCoords(:,l_old)
+                l = l + 1_lk
+              end if
+              l_old = l_old + 1_lk
             end if
-            l_old = l_old + 1_lk
-          end if
+          end do
         end do
       end do
-    end do
+
+    end if
 
   end subroutine UpdateOverlapAfterCut
 
@@ -471,8 +451,8 @@ contains
             if (OverlappedSubset%values(i,j,k)) then
               l = OverlapIndices%values(i,j,k)
               CellLower = Overlap%cells(:,l)
-              CellUpper(:OverlappingGrid%nd) = CellLower(:OverlappingGrid%nd)+1
-              CellUpper(OverlappingGrid%nd+1:) = 1
+              CellUpper(:Overlap%nd) = CellLower(:Overlap%nd)+1
+              CellUpper(Overlap%nd+1:) = 1
               AwayFromEdge = ovkCartContains(PrincipalCart, CellLower) .and. &
                 ovkCartContains(PrincipalCart, CellUpper)
               if (AwayFromEdge) then
@@ -489,8 +469,7 @@ contains
                   do n = CellLower(2), CellUpper(2)
                     do m = CellLower(1), CellUpper(1)
                       Vertex = [m,n,o]
-                      Vertex(:OverlappingGrid%nd) = ovkCartPeriodicAdjust(PrincipalCart, &
-                        Vertex)
+                      Vertex(:Overlap%nd) = ovkCartPeriodicAdjust(PrincipalCart, Vertex)
                       OverlappingMask%values(Vertex(1),Vertex(2),Vertex(3)) = .true.
                     end do
                   end do
@@ -553,8 +532,8 @@ contains
             l = OverlapIndices%values(i,j,k)
 
             CellLower = Overlap%cells(:,l)
-            CellUpper(:OverlappingGrid%nd) = CellLower(:OverlappingGrid%nd)+1
-            CellUpper(OverlappingGrid%nd+1:) = 1
+            CellUpper(:Overlap%nd) = CellLower(:Overlap%nd)+1
+            CellUpper(Overlap%nd+1:) = 1
 
             AwayFromEdge = ovkCartContains(OverlappingGrid%cart, CellLower) .and. &
               ovkCartContains(OverlappingGrid%cart, CellUpper)
@@ -581,8 +560,7 @@ contains
                 do n = CellLower(2), CellUpper(2)
                   do m = CellLower(1), CellUpper(1)
                     Vertex = [m,n,o]
-                    Vertex(:OverlappingGrid%nd) = ovkCartPeriodicAdjust(OverlappingGrid%cart, &
-                      Vertex)
+                    Vertex(:Overlap%nd) = ovkCartPeriodicAdjust(OverlappingGrid%cart, Vertex)
                     if (OverlappingSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
                       OverlappedMask%values(i,j,k) = .true.
                       exit L2

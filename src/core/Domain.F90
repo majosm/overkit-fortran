@@ -30,10 +30,14 @@ module ovkDomain
   public :: ovkGetGrid
   public :: ovkEditGrid
   public :: ovkReleaseGrid
+  public :: ovkCreateOverlap
+  public :: ovkDestroyOverlap
   public :: ovkHasOverlap
   public :: ovkGetOverlap
   public :: ovkEditOverlap
   public :: ovkReleaseOverlap
+  public :: ovkCreateConnectivity
+  public :: ovkDestroyConnectivity
   public :: ovkHasConnectivity
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
@@ -294,7 +298,7 @@ contains
         Edits%boundary_hole_dependencies(:) = .true.
         Edits%connectivity_dependencies(:,:) = .true.
 
-      else 
+      else
 
         if (OVK_DEBUG) then
           if (EditingGrid(Domain) .or. EditingOverlap(Domain) .or. EditingConnectivity(Domain)) then
@@ -511,6 +515,93 @@ contains
 
   end subroutine ovkReleaseGrid
 
+  subroutine ovkCreateOverlap(Domain, OverlappingGridID, OverlappedGridID)
+
+    type(ovk_domain), intent(inout) :: Domain
+    integer, intent(in) :: OverlappingGridID, OverlappedGridID
+
+    logical :: Success
+
+    if (ValidID(Domain, OverlappingGridID) .and. ValidID(Domain, OverlappedGridID)) then
+
+      Success = &
+        .not. EditingGrid(Domain) .and. &
+        .not. EditingOverlap(Domain) .and. &
+        .not. EditingConnectivity(Domain) .and. &
+        .not. ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID)
+
+      if (Success) then
+
+        call CreateOverlap(Domain%overlap(OverlappingGridID,OverlappedGridID), Domain%logger, &
+          Domain%grid(OverlappingGridID), Domain%grid(OverlappedGridID))
+
+      else
+
+        if (OVK_DEBUG) then
+          if (EditingGrid(Domain) .or. EditingOverlap(Domain) .or. EditingConnectivity(Domain)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Cannot create overlap while editing."
+          else if (ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Overlap already exists."
+          end if
+          stop 1
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to create overlap; invalid grid ID(s)."
+        stop 1
+      end if
+
+    end if
+
+  end subroutine ovkCreateOverlap
+
+  subroutine ovkDestroyOverlap(Domain, OverlappingGridID, OverlappedGridID)
+
+    type(ovk_domain), intent(inout) :: Domain
+    integer, intent(in) :: OverlappingGridID, OverlappedGridID
+
+    logical :: Success
+
+    if (ValidID(Domain, OverlappingGridID) .and. ValidID(Domain, OverlappedGridID)) then
+
+      Success = &
+        .not. EditingGrid(Domain) .and. &
+        .not. EditingOverlap(Domain) .and. &
+        .not. EditingConnectivity(Domain) .and. &
+        ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID)
+
+      if (Success) then
+
+        call DestroyOverlap(Domain%overlap(OverlappingGridID,OverlappedGridID))
+
+      else
+
+        if (OVK_DEBUG) then
+          if (EditingGrid(Domain) .or. EditingOverlap(Domain) .or. EditingConnectivity(Domain)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Cannot destroy overlap while editing."
+          else if (.not. ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Overlap does not exist."
+          end if
+          stop 1
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to destroy overlap; invalid grid ID(s)."
+        stop 1
+      end if
+
+    end if
+
+  end subroutine ovkDestroyOverlap
+
   function ovkHasOverlap(Domain, OverlappingGridID, OverlappedGridID) result(HasOverlap)
 
     type(ovk_domain), intent(in) :: Domain
@@ -636,6 +727,93 @@ contains
     nullify(Overlap)
 
   end subroutine ovkReleaseOverlap
+
+  subroutine ovkCreateConnectivity(Domain, DonorGridID, ReceiverGridID)
+
+    type(ovk_domain), intent(inout) :: Domain
+    integer, intent(in) :: DonorGridID, ReceiverGridID
+
+    logical :: Success
+
+    if (ValidID(Domain, DonorGridID) .and. ValidID(Domain, ReceiverGridID)) then
+
+      Success = &
+        .not. EditingGrid(Domain) .and. &
+        .not. EditingOverlap(Domain) .and. &
+        .not. EditingConnectivity(Domain) .and. &
+        .not. ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID)
+
+      if (Success) then
+
+        call CreateConnectivity(Domain%connectivity(DonorGridID,ReceiverGridID), Domain%logger, &
+          Domain%grid(DonorGridID), Domain%grid(ReceiverGridID))
+
+      else
+
+        if (OVK_DEBUG) then
+          if (EditingGrid(Domain) .or. EditingOverlap(Domain) .or. EditingConnectivity(Domain)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Cannot create connectivity while editing."
+          else if (ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Connectivity already exists."
+          end if
+          stop 1
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to create connectivity; invalid grid ID(s)."
+        stop 1
+      end if
+
+    end if
+
+  end subroutine ovkCreateConnectivity
+
+  subroutine ovkDestroyConnectivity(Domain, DonorGridID, ReceiverGridID)
+
+    type(ovk_domain), intent(inout) :: Domain
+    integer, intent(in) :: DonorGridID, ReceiverGridID
+
+    logical :: Success
+
+    if (ValidID(Domain, DonorGridID) .and. ValidID(Domain, ReceiverGridID)) then
+
+      Success = &
+        .not. EditingGrid(Domain) .and. &
+        .not. EditingOverlap(Domain) .and. &
+        .not. EditingConnectivity(Domain) .and. &
+        ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID)
+
+      if (Success) then
+
+        call DestroyConnectivity(Domain%connectivity(DonorGridID,ReceiverGridID))
+
+      else
+
+        if (OVK_DEBUG) then
+          if (EditingGrid(Domain) .or. EditingOverlap(Domain) .or. EditingConnectivity(Domain)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Cannot destroy connectivity while editing."
+          else if (.not. ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID)) then
+            write (ERROR_UNIT, '(a)') "ERROR: Connectivity does not exist."
+          end if
+          stop 1
+        end if
+
+      end if
+
+    else
+
+      if (OVK_DEBUG) then
+        write (ERROR_UNIT, '(a)') "ERROR: Unable to destroy connectivity; invalid grid ID(s)."
+        stop 1
+      end if
+
+    end if
+
+  end subroutine ovkDestroyConnectivity
 
   function ovkHasConnectivity(Domain, DonorGridID, ReceiverGridID) result(HasConnectivity)
 

@@ -101,6 +101,7 @@ module Overkit
   ! ovkConnectivity
   public :: ovk_connectivity
   public :: ovkConnectivityExists
+  public :: ovkResetConnectivity
   public :: ovkGetConnectivityDonorGrid
   public :: ovkGetConnectivityReceiverGrid
   public :: ovkGetConnectivityDimension
@@ -126,10 +127,14 @@ module Overkit
   public :: ovkGetGrid
   public :: ovkEditGrid
   public :: ovkReleaseGrid
+  public :: ovkCreateOverlap
+  public :: ovkDestroyOverlap
   public :: ovkHasOverlap
   public :: ovkGetOverlap
   public :: ovkEditOverlap
   public :: ovkReleaseOverlap
+  public :: ovkCreateConnectivity
+  public :: ovkDestroyConnectivity
   public :: ovkHasConnectivity
   public :: ovkGetConnectivity
   public :: ovkEditConnectivity
@@ -274,11 +279,11 @@ module Overkit
   ! ovkOverlap
   public :: ovk_overlap
   public :: ovkOverlapExists
+  public :: ovkResetOverlap
   public :: ovkGetOverlapOverlappingGrid
   public :: ovkGetOverlapOverlappedGrid
   public :: ovkGetOverlapDimension
   public :: ovkGetOverlapCount
-  public :: ovkGetOverlapBounds
   public :: ovkGetOverlapMask
   public :: ovkGetOverlapCells
   public :: ovkGetOverlapCoords

@@ -25,6 +25,7 @@ module ovkConnectivity
   public :: ovkGetConnectivityDimension
   public :: ovkGetConnectivityMaxDonorSize
   public :: ovkGetConnectivityCount
+  public :: ovkResetConnectivity
   public :: ovkGetConnectivityDonorExtents
   public :: ovkGetConnectivityDonorCoords
   public :: ovkGetConnectivityDonorInterpCoefs
@@ -34,7 +35,6 @@ module ovkConnectivity
   public :: ovk_connectivity_
   public :: CreateConnectivity
   public :: DestroyConnectivity
-  public :: ResizeConnectivity
   public :: FillConnectivity
 
   type ovk_connectivity
@@ -63,7 +63,7 @@ contains
     nullify(Connectivity%receiver_grid)
     Connectivity%nd = 2
     Connectivity%max_donor_size = 1
-    Connectivity%nconnections = 0
+    Connectivity%nconnections = 0_lk
     nullify(Connectivity%donor_extents)
     nullify(Connectivity%donor_coords)
     nullify(Connectivity%donor_interp_coefs)
@@ -88,7 +88,7 @@ contains
     Connectivity%receiver_grid => ReceiverGrid
     Connectivity%nd = NumDims
     Connectivity%max_donor_size = 1
-    Connectivity%nconnections = 0
+    Connectivity%nconnections = 0_lk
 
     allocate(Connectivity%donor_extents(MAX_ND,2,0))
     allocate(Connectivity%donor_coords(NumDims,0))
@@ -204,7 +204,7 @@ contains
 
   end subroutine ovkGetConnectivityReceiverPoints
 
-  subroutine ResizeConnectivity(Connectivity, NumConnections, MaxDonorSize)
+  subroutine ovkResetConnectivity(Connectivity, NumConnections, MaxDonorSize)
 
     type(ovk_connectivity), intent(inout) :: Connectivity
     integer(lk), intent(in) :: NumConnections
@@ -215,15 +215,19 @@ contains
     deallocate(Connectivity%donor_interp_coefs)
     deallocate(Connectivity%receiver_points)
 
+    Connectivity%max_donor_size = MaxDonorSize
+    Connectivity%nconnections = NumConnections
+
     allocate(Connectivity%donor_extents(MAX_ND,2,NumConnections))
     allocate(Connectivity%donor_coords(Connectivity%nd,NumConnections))
     allocate(Connectivity%donor_interp_coefs(MaxDonorSize,Connectivity%nd,NumConnections))
     allocate(Connectivity%receiver_points(MAX_ND,NumConnections))
 
-    Connectivity%max_donor_size = MaxDonorSize
-    Connectivity%nconnections = NumConnections
+    Connectivity%donor_extents(Connectivity%nd+1:,:,:) = 1
+    Connectivity%donor_interp_coefs = 0._rk
+    Connectivity%receiver_points(Connectivity%nd+1:,:) = 1
 
-  end subroutine ResizeConnectivity
+  end subroutine ovkResetConnectivity
 
   subroutine FillConnectivity(Connectivity, Overlap, DonorStencil, ReceiverMask)
 
@@ -244,7 +248,7 @@ contains
 
       call GetDonorStencilSize(DonorStencil, DonorSize)
 
-      call ResizeConnectivity(Connectivity, NumConnections, maxval(DonorSize))
+      call ovkResetConnectivity(Connectivity, NumConnections, maxval(DonorSize))
 
       allocate(OverlapIndices(NumConnections))
 

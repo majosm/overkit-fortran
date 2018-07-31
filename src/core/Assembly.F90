@@ -142,10 +142,10 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         if (ovkHasOverlap(Domain, Grid_m%id, Grid_n%id)) then
-          call DestroyOverlap(Domain%overlap(Grid_m%id,Grid_n%id))
+          call ovkDestroyOverlap(Domain, Grid_m%id, Grid_n%id)
         end if
         if (ovkHasConnectivity(Domain, Grid_m%id, Grid_n%id)) then
-          call DestroyConnectivity(Domain%connectivity(Grid_m%id,Grid_n%id))
+          call ovkDestroyConnectivity(Domain, Grid_m%id, Grid_n%id)
         end if
       end do
       call ovkResetGridState(Grid_n)
@@ -299,7 +299,7 @@ contains
 
   subroutine CollideGrids(Domain, ReducedDomainInfo)
 
-    type(ovk_domain), intent(in) :: Domain
+    type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
     integer :: m, n
@@ -332,7 +332,7 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         if (Overlappable(m,n)) then
-          call CreateOverlap(Domain%overlap(Grid_m%id,Grid_n%id), Domain%logger, Grid_m, Grid_n)
+          call ovkCreateOverlap(Domain, Grid_m%id, Grid_n%id)
         end if
       end do
     end do
@@ -1357,8 +1357,7 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
-          call CreateConnectivity(Domain%connectivity(Grid_m%id, Grid_n%id), Domain%logger, &
-            Grid_m, Grid_n)
+          call ovkCreateConnectivity(Domain, Grid_m%id, Grid_n%id)
         end if
       end do
     end do
