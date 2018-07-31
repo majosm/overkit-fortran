@@ -20,11 +20,10 @@ module ovkOverlap
   ! API
   public :: ovk_overlap
   public :: ovkOverlapExists
-  public :: ovkGetOverlapOverlappingGridID
-  public :: ovkGetOverlapOverlappedGridID
+  public :: ovkGetOverlapOverlappingGrid
+  public :: ovkGetOverlapOverlappedGrid
   public :: ovkGetOverlapDimension
   public :: ovkGetOverlapCount
-  public :: ovkGetOverlapCart
   public :: ovkGetOverlapBounds
   public :: ovkGetOverlapMask
   public :: ovkGetOverlapCells
@@ -55,11 +54,10 @@ module ovkOverlap
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
     type(t_logger), pointer :: logger
-    integer :: overlapping_grid_id
-    integer :: overlapped_grid_id
+    type(ovk_grid), pointer :: overlapping_grid
+    type(ovk_grid), pointer :: overlapped_grid
     integer :: nd
     integer(lk) :: noverlap
-    type(ovk_cart) :: cart
     type(ovk_bbox) :: bounds
     type(ovk_field_logical), pointer :: mask
     integer, dimension(:,:), pointer :: cells
@@ -98,11 +96,10 @@ contains
     type(ovk_overlap) :: Overlap
 
     nullify(Overlap%logger)
-    Overlap%overlapping_grid_id = 0
-    Overlap%overlapped_grid_id = 0
+    nullify(Overlap%overlapping_grid)
+    nullify(Overlap%overlapped_grid)
     Overlap%nd = 2
     Overlap%noverlap = 0
-    Overlap%cart = ovk_cart_()
     Overlap%bounds = ovk_bbox_()
     nullify(Overlap%mask)
     nullify(Overlap%cells)
@@ -112,27 +109,28 @@ contains
 
   end function ovk_overlap_
 
-  subroutine CreateOverlap(Overlap, OverlappingGridID, OverlappedGridID, Logger, Cart)
+  subroutine CreateOverlap(Overlap, Logger, OverlappingGrid, OverlappedGrid)
 
     type(ovk_overlap), intent(out) :: Overlap
-    integer, intent(in) :: OverlappingGridID, OverlappedGridID
     type(t_logger), pointer, intent(in) :: Logger
-    type(ovk_cart), intent(in) :: Cart
+    type(ovk_grid), pointer, intent(in) :: OverlappingGrid, OverlappedGrid
+
+    integer :: NumDims
+
+    NumDims = OverlappingGrid%nd
 
     Overlap%logger => Logger
-
-    Overlap%overlapping_grid_id = OverlappingGridID
-    Overlap%overlapped_grid_id = OverlappedGridID
-    Overlap%nd = Cart%nd
+    Overlap%overlapping_grid => OverlappingGrid
+    Overlap%overlapped_grid => OverlappedGrid
+    Overlap%nd = NumDims
     Overlap%noverlap = 0
-    Overlap%cart = Cart
-    Overlap%bounds = ovk_bbox_(Cart%nd)
+    Overlap%bounds = ovk_bbox_(NumDims)
 
     allocate(Overlap%mask)
-    Overlap%mask = ovk_field_logical_(Cart, .false.)
+    Overlap%mask = ovk_field_logical_(OverlappedGrid%cart, .false.)
 
     allocate(Overlap%cells(MAX_ND,0))
-    allocate(Overlap%coords(Cart%nd,0))
+    allocate(Overlap%coords(NumDims,0))
 
     call SetExists(Overlap%existence_flag, .true.)
 
@@ -147,7 +145,6 @@ contains
     call SetExists(Overlap%existence_flag, .false.)
 
     deallocate(Overlap%mask)
-
     deallocate(Overlap%cells)
     deallocate(Overlap%coords)
 
@@ -162,23 +159,23 @@ contains
 
   end function ovkOverlapExists
 
-  subroutine ovkGetOverlapOverlappingGridID(Overlap, OverlappingGridID)
+  subroutine ovkGetOverlapOverlappingGrid(Overlap, OverlappingGrid)
 
     type(ovk_overlap), intent(in) :: Overlap
-    integer, intent(out) :: OverlappingGridID
+    type(ovk_grid), pointer, intent(out) :: OverlappingGrid
 
-    OverlappingGridID = Overlap%overlapping_grid_id
+    OverlappingGrid => Overlap%overlapping_grid
 
-  end subroutine ovkGetOverlapOverlappingGridID
+  end subroutine ovkGetOverlapOverlappingGrid
 
-  subroutine ovkGetOverlapOverlappedGridID(Overlap, OverlappedGridID)
+  subroutine ovkGetOverlapOverlappedGrid(Overlap, OverlappedGrid)
 
     type(ovk_overlap), intent(in) :: Overlap
-    integer, intent(out) :: OverlappedGridID
+    type(ovk_grid), pointer, intent(out) :: OverlappedGrid
 
-    OverlappedGridID = Overlap%overlapped_grid_id
+    OverlappedGrid => Overlap%overlapped_grid
 
-  end subroutine ovkGetOverlapOverlappedGridID
+  end subroutine ovkGetOverlapOverlappedGrid
 
   subroutine ovkGetOverlapDimension(Overlap, NumDims)
 
@@ -197,15 +194,6 @@ contains
     NumOverlapped = Overlap%noverlap
 
   end subroutine ovkGetOverlapCount
-
-  subroutine ovkGetOverlapCart(Overlap, Cart)
-
-    type(ovk_overlap), intent(in) :: Overlap
-    type(ovk_cart), intent(out) :: Cart
-
-    Cart = Overlap%cart
-
-  end subroutine ovkGetOverlapCart
 
   subroutine ovkGetOverlapBounds(Overlap, Bounds)
 
@@ -243,27 +231,28 @@ contains
 
   end subroutine ovkGetOverlapCoords
 
-  subroutine DetectOverlap(OverlappingGrid, OverlappedGrid, OverlapAccel, OverlapBounds, &
-    OverlapTolerance, Overlap)
+  subroutine DetectOverlap(Overlap, OverlapAccel, OverlapBounds, OverlapTolerance)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid, OverlappedGrid
+    type(ovk_overlap), intent(inout) :: Overlap
     type(t_overlap_accel), intent(in) :: OverlapAccel
     type(ovk_bbox), intent(in) :: OverlapBounds
     real(rk), intent(in) :: OverlapTolerance
-    type(ovk_overlap), intent(inout) :: Overlap
 
     integer :: d, i, j, k
     integer :: NumDims
+    type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     integer(lk) :: l
     type(ovk_bbox) :: Bounds
     type(ovk_field_large_int) :: OverlappingCells
     integer(lk) :: NumOverlappedPoints
     type(ovk_field_large_int) :: OverlapIndices
-    real(rk), dimension(OverlappedGrid%nd) :: OverlappedCoords
+    real(rk), dimension(Overlap%nd) :: OverlappedCoords
     integer, dimension(MAX_ND) :: Cell
-    real(rk), dimension(OverlappingGrid%nd) :: CoordsInCell
+    real(rk), dimension(Overlap%nd) :: CoordsInCell
 
-    NumDims = OverlappingGrid%nd
+    NumDims = Overlap%nd
+    OverlappingGrid => Overlap%overlapping_grid
+    OverlappedGrid => Overlap%overlapped_grid
 
     Overlap%mask%values = .false.
 
@@ -317,7 +306,7 @@ contains
 
     if (NumOverlappedPoints > 0_lk) then
 
-      OverlapIndices = ovk_field_large_int_(Overlap%cart)
+      OverlapIndices = ovk_field_large_int_(OverlappedGrid%cart)
 
       l = 1_lk
       do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
@@ -371,19 +360,19 @@ contains
     Overlap%noverlap = 0_lk
 
     allocate(Overlap%cells(MAX_ND,0))
-    allocate(Overlap%coords(Overlap%cart%nd,0))
+    allocate(Overlap%coords(Overlap%nd,0))
 
-    Overlap%bounds = ovk_bbox_(Overlap%cart%nd)
+    Overlap%bounds = ovk_bbox_(Overlap%nd)
 
   end subroutine ResetOverlap
 
-  subroutine UpdateOverlapAfterCut(OverlappingGrid, OverlappedGrid, Overlap)
+  subroutine UpdateOverlapAfterCut(Overlap)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid, OverlappedGrid
     type(ovk_overlap), intent(inout) :: Overlap
 
     integer :: i, j, k
     integer(lk) :: l_old, l
+    type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     type(ovk_field_logical) :: OldOverlapMask
     integer, dimension(:,:), pointer :: OldCells
     real(rk), dimension(:,:), pointer :: OldCoords
@@ -393,6 +382,9 @@ contains
 
     if (Overlap%noverlap == 0_lk) return
 
+    OverlappingGrid => Overlap%overlapping_grid
+    OverlappedGrid => Overlap%overlapped_grid
+
     OldOverlapMask = Overlap%mask
     OldCells => Overlap%cells
     OldCoords => Overlap%coords
@@ -400,8 +392,7 @@ contains
     HoleMask = ovk_field_logical_(OverlappingGrid%cart)
     HoleMask%values = .not. OverlappingGrid%mask%values
 
-    call ovkFindOverlappedPoints(OverlappingGrid, OverlappedGrid, Overlap, HoleMask, &
-      OverlappedByHoleMask)
+    call ovkFindOverlappedPoints(Overlap, HoleMask, OverlappedByHoleMask)
 
     Overlap%mask%values = Overlap%mask%values .and. OverlappedGrid%mask%values .and. &
       .not. OverlappedByHoleMask%values
@@ -432,22 +423,24 @@ contains
 
   end subroutine UpdateOverlapAfterCut
 
-  subroutine ovkFindOverlappingPoints(OverlappingGrid, OverlappedGrid, Overlap, OverlappedSubset, &
-    OverlappingMask)
+  subroutine ovkFindOverlappingPoints(Overlap, OverlappedSubset, OverlappingMask)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid, OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_logical), intent(in) :: OverlappedSubset
     type(ovk_field_logical), intent(out) :: OverlappingMask
 
     integer :: i, j, k, m, n, o
     integer(lk) :: l
+    type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     type(ovk_cart) :: PrincipalCart
     type(ovk_field_large_int) :: OverlapIndices
     integer, dimension(MAX_ND) :: CellLower
     integer, dimension(MAX_ND) :: CellUpper
     logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Vertex
+
+    OverlappingGrid => Overlap%overlapping_grid
+    OverlappedGrid => Overlap%overlapped_grid
 
     OverlappingMask = ovk_field_logical_(OverlappingGrid%cart, .false.)
 
@@ -514,21 +507,23 @@ contains
 
   end subroutine ovkFindOverlappingPoints
 
-  subroutine ovkFindOverlappedPoints(OverlappingGrid, OverlappedGrid, Overlap, OverlappingSubset, &
-    OverlappedMask)
+  subroutine ovkFindOverlappedPoints(Overlap, OverlappingSubset, OverlappedMask)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid, OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_logical), intent(in) :: OverlappingSubset
     type(ovk_field_logical), intent(out) :: OverlappedMask
 
     integer :: i, j, k, m, n, o
     integer(lk) :: l
+    type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     type(ovk_field_large_int) :: OverlapIndices
     integer, dimension(MAX_ND) :: CellLower
     integer, dimension(MAX_ND) :: CellUpper
     logical :: AwayFromEdge
     integer, dimension(MAX_ND) :: Vertex
+
+    OverlappingGrid => Overlap%overlapping_grid
+    OverlappedGrid => Overlap%overlapped_grid
 
     OverlappedMask = ovk_field_logical_(OverlappedGrid%cart, .false.)
 
@@ -607,10 +602,9 @@ contains
 
   end subroutine ovkFindOverlappedPoints
 
-  subroutine ovkOverlapCollect_Integer(OverlappingGrid, Overlap, CollectOp, OverlappingGridData, &
+  subroutine ovkOverlapCollect_Integer(Overlap, CollectOp, OverlappingGridData, &
     CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: CollectOp
     type(ovk_field_int), intent(in) :: OverlappingGridData
@@ -618,11 +612,11 @@ contains
 
     select case (CollectOp)
     case (OVK_COLLECT_SIMPLE)
-      call CollectSimple_Integer(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectSimple_Integer(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_MIN)
-      call CollectMin_Integer(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectMin_Integer(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_MAX)
-      call CollectMax_Integer(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectMax_Integer(Overlap, OverlappingGridData, CollectedData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
       stop 1
@@ -630,10 +624,8 @@ contains
 
   end subroutine ovkOverlapCollect_Integer
 
-  subroutine ovkOverlapCollect_LargeInteger(OverlappingGrid, Overlap, CollectOp, &
-    OverlappingGridData, CollectedData)
+  subroutine ovkOverlapCollect_LargeInteger(Overlap, CollectOp, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: CollectOp
     type(ovk_field_large_int), intent(in) :: OverlappingGridData
@@ -641,11 +633,11 @@ contains
 
     select case (CollectOp)
     case (OVK_COLLECT_SIMPLE)
-      call CollectSimple_LargeInteger(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectSimple_LargeInteger(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_MIN)
-      call CollectMin_LargeInteger(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectMin_LargeInteger(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_MAX)
-      call CollectMax_LargeInteger(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectMax_LargeInteger(Overlap, OverlappingGridData, CollectedData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
       stop 1
@@ -653,10 +645,8 @@ contains
 
   end subroutine ovkOverlapCollect_LargeInteger
 
-  subroutine ovkOverlapCollect_Real(OverlappingGrid, Overlap, CollectOp, OverlappingGridData, &
-    CollectedData)
+  subroutine ovkOverlapCollect_Real(Overlap, CollectOp, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: CollectOp
     type(ovk_field_real), intent(in) :: OverlappingGridData
@@ -664,13 +654,13 @@ contains
 
     select case (CollectOp)
     case (OVK_COLLECT_SIMPLE)
-      call CollectSimple_Real(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectSimple_Real(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_MIN)
-      call CollectMin_Real(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectMin_Real(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_MAX)
-      call CollectMax_Real(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectMax_Real(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_INTERPOLATE)
-      call CollectInterpolate(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectInterpolate(Overlap, OverlappingGridData, CollectedData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
       stop 1
@@ -678,10 +668,9 @@ contains
 
   end subroutine ovkOverlapCollect_Real
 
-  subroutine ovkOverlapCollect_Logical(OverlappingGrid, Overlap, CollectOp, OverlappingGridData, &
+  subroutine ovkOverlapCollect_Logical(Overlap, CollectOp, OverlappingGridData, &
     CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: CollectOp
     type(ovk_field_logical), intent(in) :: OverlappingGridData
@@ -689,15 +678,15 @@ contains
 
     select case (CollectOp)
     case (OVK_COLLECT_SIMPLE)
-      call CollectSimple_Logical(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectSimple_Logical(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_NONE)
-      call CollectNone(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectNone(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_ANY)
-      call CollectAny(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectAny(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_NOT_ALL)
-      call CollectNotAll(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectNotAll(Overlap, OverlappingGridData, CollectedData)
     case (OVK_COLLECT_ALL)
-      call CollectAll(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+      call CollectAll(Overlap, OverlappingGridData, CollectedData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid collect operation."
       stop 1
@@ -705,9 +694,8 @@ contains
 
   end subroutine ovkOverlapCollect_Logical
 
-  subroutine CollectSimple_Integer(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectSimple_Integer(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_int), intent(in) :: OverlappingGridData
     type(ovk_array_int), intent(out) :: CollectedData
@@ -724,9 +712,8 @@ contains
 
   end subroutine CollectSimple_Integer
 
-  subroutine CollectSimple_LargeInteger(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectSimple_LargeInteger(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_large_int), intent(in) :: OverlappingGridData
     type(ovk_array_large_int), intent(out) :: CollectedData
@@ -743,9 +730,8 @@ contains
 
   end subroutine CollectSimple_LargeInteger
 
-  subroutine CollectSimple_Real(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectSimple_Real(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_real), intent(in) :: OverlappingGridData
     type(ovk_array_real), intent(out) :: CollectedData
@@ -762,9 +748,8 @@ contains
 
   end subroutine CollectSimple_Real
 
-  subroutine CollectSimple_Logical(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectSimple_Logical(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_logical), intent(in) :: OverlappingGridData
     type(ovk_array_logical), intent(out) :: CollectedData
@@ -781,9 +766,8 @@ contains
 
   end subroutine CollectSimple_Logical
 
-  subroutine CollectMin_Integer(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectMin_Integer(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_int), intent(in) :: OverlappingGridData
     type(ovk_array_int), intent(out) :: CollectedData
@@ -796,8 +780,8 @@ contains
     CollectedData = ovk_array_int_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -809,9 +793,8 @@ contains
 
   end subroutine CollectMin_Integer
 
-  subroutine CollectMin_LargeInteger(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectMin_LargeInteger(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_large_int), intent(in) :: OverlappingGridData
     type(ovk_array_large_int), intent(out) :: CollectedData
@@ -824,8 +807,8 @@ contains
     CollectedData = ovk_array_large_int_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -837,9 +820,8 @@ contains
 
   end subroutine CollectMin_LargeInteger
 
-  subroutine CollectMin_Real(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectMin_Real(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_real), intent(in) :: OverlappingGridData
     type(ovk_array_real), intent(out) :: CollectedData
@@ -852,8 +834,8 @@ contains
     CollectedData = ovk_array_real_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -865,9 +847,8 @@ contains
 
   end subroutine CollectMin_Real
 
-  subroutine CollectMax_Integer(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectMax_Integer(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_int), intent(in) :: OverlappingGridData
     type(ovk_array_int), intent(out) :: CollectedData
@@ -880,8 +861,8 @@ contains
     CollectedData = ovk_array_int_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -893,9 +874,8 @@ contains
 
   end subroutine CollectMax_Integer
 
-  subroutine CollectMax_LargeInteger(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectMax_LargeInteger(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_large_int), intent(in) :: OverlappingGridData
     type(ovk_array_large_int), intent(out) :: CollectedData
@@ -908,8 +888,8 @@ contains
     CollectedData = ovk_array_large_int_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -921,9 +901,8 @@ contains
 
   end subroutine CollectMax_LargeInteger
 
-  subroutine CollectMax_Real(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectMax_Real(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_real), intent(in) :: OverlappingGridData
     type(ovk_array_real), intent(out) :: CollectedData
@@ -936,8 +915,8 @@ contains
     CollectedData = ovk_array_real_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -949,9 +928,8 @@ contains
 
   end subroutine CollectMax_Real
 
-  subroutine CollectInterpolate(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectInterpolate(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_real), intent(in) :: OverlappingGridData
     type(ovk_array_real), intent(out) :: CollectedData
@@ -967,8 +945,8 @@ contains
     CollectedData = ovk_array_real_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -976,7 +954,7 @@ contains
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
       InterpBasis(1,:) = ovkInterpBasisLinear(Overlap%coords(1,l))
       InterpBasis(2,:) = ovkInterpBasisLinear(Overlap%coords(2,l))
-      if (OverlappingGrid%nd == 3) then
+      if (Overlap%nd == 3) then
         InterpBasis(3,:) = ovkInterpBasisLinear(Overlap%coords(3,l))
       else
         InterpBasis(3,:) = ovkInterpBasisLinear(0._rk)
@@ -994,9 +972,8 @@ contains
 
   end subroutine CollectInterpolate
 
-  subroutine CollectNone(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectNone(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_logical), intent(in) :: OverlappingGridData
     type(ovk_array_logical), intent(out) :: CollectedData
@@ -1009,8 +986,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -1021,9 +998,8 @@ contains
 
   end subroutine CollectNone
 
-  subroutine CollectAny(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectAny(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_logical), intent(in) :: OverlappingGridData
     type(ovk_array_logical), intent(out) :: CollectedData
@@ -1036,8 +1012,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -1048,9 +1024,8 @@ contains
 
   end subroutine CollectAny
 
-  subroutine CollectNotAll(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectNotAll(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_logical), intent(in) :: OverlappingGridData
     type(ovk_array_logical), intent(out) :: CollectedData
@@ -1063,8 +1038,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -1075,9 +1050,8 @@ contains
 
   end subroutine CollectNotAll
 
-  subroutine CollectAll(OverlappingGrid, Overlap, OverlappingGridData, CollectedData)
+  subroutine CollectAll(Overlap, OverlappingGridData, CollectedData)
 
-    type(ovk_grid), intent(in) :: OverlappingGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_field_logical), intent(in) :: OverlappingGridData
     type(ovk_array_logical), intent(out) :: CollectedData
@@ -1090,8 +1064,8 @@ contains
     CollectedData = ovk_array_logical_(Overlap%noverlap)
 
     Lower = 0
-    Upper(:OverlappingGrid%nd) = 1
-    Upper(OverlappingGrid%nd+1:) = 0
+    Upper(:Overlap%nd) = 1
+    Upper(Overlap%nd+1:) = 0
 
     do l = 1_lk, Overlap%noverlap
       VertexStart = Overlap%cells(:,l) + Lower
@@ -1102,10 +1076,9 @@ contains
 
   end subroutine CollectAll
 
-  subroutine ovkOverlapDisperse_Integer(OverlappedGrid, Overlap, DisperseOp, CollectedData, &
+  subroutine ovkOverlapDisperse_Integer(Overlap, DisperseOp, CollectedData, &
     OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: DisperseOp
     type(ovk_array_int), intent(in) :: CollectedData
@@ -1113,7 +1086,7 @@ contains
 
     select case (DisperseOp)
     case (OVK_DISPERSE_OVERWRITE)
-      call DisperseOverwrite_Integer(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+      call DisperseOverwrite_Integer(Overlap, CollectedData, OverlappedGridData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
       stop 1
@@ -1121,10 +1094,9 @@ contains
 
   end subroutine ovkOverlapDisperse_Integer
 
-  subroutine ovkOverlapDisperse_LargeInteger(OverlappedGrid, Overlap, DisperseOp, &
+  subroutine ovkOverlapDisperse_LargeInteger(Overlap, DisperseOp, &
     CollectedData, OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: DisperseOp
     type(ovk_array_large_int), intent(in) :: CollectedData
@@ -1132,7 +1104,7 @@ contains
 
     select case (DisperseOp)
     case (OVK_DISPERSE_OVERWRITE)
-      call DisperseOverwrite_LargeInteger(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+      call DisperseOverwrite_LargeInteger(Overlap, CollectedData, OverlappedGridData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
       stop 1
@@ -1140,10 +1112,9 @@ contains
 
   end subroutine ovkOverlapDisperse_LargeInteger
 
-  subroutine ovkOverlapDisperse_Real(OverlappedGrid, Overlap, DisperseOp, CollectedData, &
+  subroutine ovkOverlapDisperse_Real(Overlap, DisperseOp, CollectedData, &
     OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: DisperseOp
     type(ovk_array_real), intent(in) :: CollectedData
@@ -1151,7 +1122,7 @@ contains
 
     select case (DisperseOp)
     case (OVK_DISPERSE_OVERWRITE)
-      call DisperseOverwrite_Real(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+      call DisperseOverwrite_Real(Overlap, CollectedData, OverlappedGridData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
       stop 1
@@ -1159,10 +1130,9 @@ contains
 
   end subroutine ovkOverlapDisperse_Real
 
-  subroutine ovkOverlapDisperse_Logical(OverlappedGrid, Overlap, DisperseOp, CollectedData, &
+  subroutine ovkOverlapDisperse_Logical(Overlap, DisperseOp, CollectedData, &
     OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     integer, intent(in) :: DisperseOp
     type(ovk_array_logical), intent(in) :: CollectedData
@@ -1170,7 +1140,7 @@ contains
 
     select case (DisperseOp)
     case (OVK_DISPERSE_OVERWRITE)
-      call DisperseOverwrite_Logical(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+      call DisperseOverwrite_Logical(Overlap, CollectedData, OverlappedGridData)
     case default
       write (ERROR_UNIT, '(a)') "ERROR: Invalid disperse operation."
       stop 1
@@ -1178,15 +1148,17 @@ contains
 
   end subroutine ovkOverlapDisperse_Logical
 
-  subroutine DisperseOverwrite_Integer(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+  subroutine DisperseOverwrite_Integer(Overlap, CollectedData, OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_array_int), intent(in) :: CollectedData
     type(ovk_field_int), intent(inout) :: OverlappedGridData
 
     integer :: i, j, k
     integer(lk) :: l
+    type(ovk_grid), pointer :: OverlappedGrid
+
+    OverlappedGrid => Overlap%overlapped_grid
 
     l = 1_lk
     do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
@@ -1202,15 +1174,17 @@ contains
 
   end subroutine DisperseOverwrite_Integer
 
-  subroutine DisperseOverwrite_LargeInteger(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+  subroutine DisperseOverwrite_LargeInteger(Overlap, CollectedData, OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_array_large_int), intent(in) :: CollectedData
     type(ovk_field_large_int), intent(inout) :: OverlappedGridData
 
     integer :: i, j, k
     integer(lk) :: l
+    type(ovk_grid), pointer :: OverlappedGrid
+
+    OverlappedGrid => Overlap%overlapped_grid
 
     l = 1_lk
     do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
@@ -1226,15 +1200,17 @@ contains
 
   end subroutine DisperseOverwrite_LargeInteger
 
-  subroutine DisperseOverwrite_Real(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+  subroutine DisperseOverwrite_Real(Overlap, CollectedData, OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_array_real), intent(in) :: CollectedData
     type(ovk_field_real), intent(inout) :: OverlappedGridData
 
     integer :: i, j, k
     integer(lk) :: l
+    type(ovk_grid), pointer :: OverlappedGrid
+
+    OverlappedGrid => Overlap%overlapped_grid
 
     l = 1_lk
     do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
@@ -1250,15 +1226,17 @@ contains
 
   end subroutine DisperseOverwrite_Real
 
-  subroutine DisperseOverwrite_Logical(OverlappedGrid, Overlap, CollectedData, OverlappedGridData)
+  subroutine DisperseOverwrite_Logical(Overlap, CollectedData, OverlappedGridData)
 
-    type(ovk_grid), intent(in) :: OverlappedGrid
     type(ovk_overlap), intent(in) :: Overlap
     type(ovk_array_logical), intent(in) :: CollectedData
     type(ovk_field_logical), intent(inout) :: OverlappedGridData
 
     integer :: i, j, k
     integer(lk) :: l
+    type(ovk_grid), pointer :: OverlappedGrid
+
+    OverlappedGrid => Overlap%overlapped_grid
 
     l = 1_lk
     do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)

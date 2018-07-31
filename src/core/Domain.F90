@@ -284,7 +284,7 @@ contains
 
         Cart = ovk_cart_(Domain%nd, NumPoints, Periodic_, PeriodicStorage_)
 
-        call CreateGrid(Domain%grid(GridID), GridID, Domain%logger, Cart, &
+        call CreateGrid(Domain%grid(GridID), Domain%logger, GridID, Cart, &
           PeriodicLength=PeriodicLength, GeometryType=GeometryType)
 
         Edits => Domain%edits

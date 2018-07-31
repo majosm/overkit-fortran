@@ -19,8 +19,8 @@ module ovkConnectivity
   ! API
   public :: ovk_connectivity
   public :: ovkConnectivityExists
-  public :: ovkGetConnectivityDonorGridID
-  public :: ovkGetConnectivityReceiverGridID
+  public :: ovkGetConnectivityDonorGrid
+  public :: ovkGetConnectivityReceiverGrid
   public :: ovkGetConnectivityDimension
   public :: ovkGetConnectivityMaxDonorSize
   public :: ovkGetConnectivityCount
@@ -43,8 +43,8 @@ module ovkConnectivity
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
     type(t_logger), pointer :: logger
-    integer :: donor_grid_id
-    integer :: receiver_grid_id
+    type(ovk_grid), pointer :: donor_grid
+    type(ovk_grid), pointer :: receiver_grid
     integer :: nd
     integer :: max_donor_size
     integer(lk) :: nconnections
@@ -68,8 +68,8 @@ contains
     type(ovk_connectivity) :: Connectivity
 
     nullify(Connectivity%logger)
-    Connectivity%donor_grid_id = 0
-    Connectivity%receiver_grid_id = 0
+    nullify(Connectivity%donor_grid)
+    nullify(Connectivity%receiver_grid)
     Connectivity%nd = 2
     Connectivity%max_donor_size = 1
     Connectivity%nconnections = 0
@@ -82,17 +82,19 @@ contains
 
   end function ovk_connectivity_
 
-  subroutine CreateConnectivity(Connectivity, DonorGridID, ReceiverGridID, Logger, NumDims)
+  subroutine CreateConnectivity(Connectivity, Logger, DonorGrid, ReceiverGrid)
 
     type(ovk_connectivity), intent(out) :: Connectivity
-    integer, intent(in) :: DonorGridID, ReceiverGridID
     type(t_logger), pointer, intent(in) :: Logger
-    integer, intent(in) :: NumDims
+    type(ovk_grid), pointer, intent(in) :: DonorGrid, ReceiverGrid
+
+    integer :: NumDims
+
+    NumDims = DonorGrid%nd
 
     Connectivity%logger => Logger
-
-    Connectivity%donor_grid_id = DonorGridID
-    Connectivity%receiver_grid_id = ReceiverGridID
+    Connectivity%donor_grid => DonorGrid
+    Connectivity%receiver_grid => ReceiverGrid
     Connectivity%nd = NumDims
     Connectivity%max_donor_size = 1
     Connectivity%nconnections = 0
@@ -130,23 +132,23 @@ contains
 
   end function ovkConnectivityExists
 
-  subroutine ovkGetConnectivityDonorGridID(Connectivity, DonorGridID)
+  subroutine ovkGetConnectivityDonorGrid(Connectivity, DonorGrid)
 
     type(ovk_connectivity), intent(in) :: Connectivity
-    integer, intent(out) :: DonorGridID
+    type(ovk_grid), pointer, intent(out) :: DonorGrid
 
-    DonorGridID = Connectivity%donor_grid_id
+    DonorGrid => Connectivity%donor_grid
 
-  end subroutine ovkGetConnectivityDonorGridID
+  end subroutine ovkGetConnectivityDonorGrid
 
-  subroutine ovkGetConnectivityReceiverGridID(Connectivity, ReceiverGridID)
+  subroutine ovkGetConnectivityReceiverGrid(Connectivity, ReceiverGrid)
 
     type(ovk_connectivity), intent(in) :: Connectivity
-    integer, intent(out) :: ReceiverGridID
+    type(ovk_grid), pointer, intent(out) :: ReceiverGrid
 
-    ReceiverGridID = Connectivity%receiver_grid_id
+    ReceiverGrid => Connectivity%receiver_grid
 
-  end subroutine ovkGetConnectivityReceiverGridID
+  end subroutine ovkGetConnectivityReceiverGrid
 
   subroutine ovkGetConnectivityDimension(Connectivity, NumDims)
 
@@ -330,28 +332,29 @@ contains
 
   end subroutine CreateDonorGridInfo
 
-  subroutine FillConnectivity(DonorGrid, ReceiverGrid, Overlap, DonorGridInfo, ConnectionType, &
-    ReceiverMask, Connectivity)
+  subroutine FillConnectivity(Connectivity, Overlap, DonorGridInfo, ConnectionType, ReceiverMask)
 
-    type(ovk_grid), intent(in) :: DonorGrid, ReceiverGrid
+    type(ovk_connectivity), intent(inout) :: Connectivity
     type(ovk_overlap), intent(in) :: Overlap
     type(t_donor_grid_info), intent(in) :: DonorGridInfo
     integer, intent(in) :: ConnectionType
     type(ovk_field_logical), intent(in) :: ReceiverMask
-    type(ovk_connectivity), intent(inout) :: Connectivity
 
     integer :: i, j, k
     integer(lk) :: l, p
+    type(ovk_grid), pointer :: DonorGrid, ReceiverGrid
     integer :: NumDims
     integer(lk) :: NumConnections
     integer, dimension(MAX_ND) :: StencilLower, StencilUpper
     integer, dimension(MAX_ND) :: StencilSize
     integer :: MaxDonorSize
     integer, dimension(MAX_ND,2) :: DonorExtents
-    real(rk), dimension(DonorGrid%nd) :: DonorCoords
+    real(rk), dimension(Connectivity%nd) :: DonorCoords
     real(rk), dimension(:,:), allocatable :: DonorInterpCoefs
     integer, dimension(MAX_ND) :: ReceiverPoint
 
+    DonorGrid => Connectivity%donor_grid
+    ReceiverGrid => Connectivity%receiver_grid
     NumDims = DonorGrid%nd
 
     NumConnections = ovkCountMask(ReceiverMask)

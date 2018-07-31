@@ -190,11 +190,11 @@ contains
 
   end function ovk_grid_
 
-  subroutine CreateGrid(Grid, ID, Logger, Cart, PeriodicLength, GeometryType)
+  subroutine CreateGrid(Grid, Logger, ID, Cart, PeriodicLength, GeometryType)
 
     type(ovk_grid), intent(out) :: Grid
-    integer, intent(in) :: ID
     type(t_logger), pointer, intent(in) :: Logger
+    integer, intent(in) :: ID
     type(ovk_cart), intent(in) :: Cart
     real(rk), dimension(Cart%nd), intent(in), optional :: PeriodicLength
     integer, intent(in), optional :: GeometryType

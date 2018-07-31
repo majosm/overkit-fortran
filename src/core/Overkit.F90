@@ -101,8 +101,8 @@ module Overkit
   ! ovkConnectivity
   public :: ovk_connectivity
   public :: ovkConnectivityExists
-  public :: ovkGetConnectivityDonorGridID
-  public :: ovkGetConnectivityReceiverGridID
+  public :: ovkGetConnectivityDonorGrid
+  public :: ovkGetConnectivityReceiverGrid
   public :: ovkGetConnectivityDimension
   public :: ovkGetConnectivityMaxDonorSize
   public :: ovkGetConnectivityCount
@@ -274,11 +274,10 @@ module Overkit
   ! ovkOverlap
   public :: ovk_overlap
   public :: ovkOverlapExists
-  public :: ovkGetOverlapOverlappingGridID
-  public :: ovkGetOverlapOverlappedGridID
+  public :: ovkGetOverlapOverlappingGrid
+  public :: ovkGetOverlapOverlappedGrid
   public :: ovkGetOverlapDimension
   public :: ovkGetOverlapCount
-  public :: ovkGetOverlapCart
   public :: ovkGetOverlapBounds
   public :: ovkGetOverlapMask
   public :: ovkGetOverlapCells

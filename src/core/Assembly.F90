@@ -331,8 +331,7 @@ contains
       do m = 1, NumGrids
         Grid_m => Domain%grid(IndexToID(m))
         if (Overlappable(m,n)) then
-          call CreateOverlap(Domain%overlap(Grid_m%id,Grid_n%id), &
-            Grid_m%id, Grid_n%id, Domain%logger, Grid_n%cart)
+          call CreateOverlap(Domain%overlap(Grid_m%id,Grid_n%id), Domain%logger, Grid_m, Grid_n)
         end if
       end do
     end do
@@ -374,8 +373,7 @@ contains
           Grid_n => Domain%grid(IndexToID(n))
           if (Overlappable(m,n)) then
             Overlap => Domain%overlap(Grid_m%id, Grid_n%id)
-            call DetectOverlap(Grid_m, Grid_n, OverlapAccel, Bounds(m,n), OverlapTolerance(m,n), &
-              Overlap)
+            call DetectOverlap(Overlap, OverlapAccel, Bounds(m,n), OverlapTolerance(m,n))
             if (Domain%logger%verbose) then
               if (Overlap%noverlap > 0_lk) then
                 write (*, '(7a)') "* Detected ", trim(LargeIntToString( &
@@ -517,7 +515,7 @@ contains
           if (CutBoundaryHoles(m,n)) then
             call ovkDetectEdge(Overlap_mn%mask, OVK_OUTER_EDGE, OVK_MIRROR, .false., EdgeMask1)
             call ovkDetectEdge(Overlap_nm%mask, OVK_INNER_EDGE, OVK_FALSE, .false., EdgeMask2)
-            call ovkFindOverlappingPoints(Grid_n, Grid_m, Overlap_nm, EdgeMask2, OverlappingMask)
+            call ovkFindOverlappingPoints(Overlap_nm, EdgeMask2, OverlappingMask)
             EdgeMask1%values = EdgeMask1%values .and. .not. OverlappingMask%values
             i = 0
             ! Explicit conversion to logical in order to work around GCC 4.7 bug
@@ -526,8 +524,7 @@ contains
               EdgeMask1%values = EdgeMask1%values .and. .not. OverlappingMask%values
               i = i + 1
             end do
-            call ovkFindOverlappingPoints(Grid_n, Grid_m, Overlap_nm, OwnBoundaryMasks(m), &
-              OverlappingMask)
+            call ovkFindOverlappingPoints(Overlap_nm, OwnBoundaryMasks(m), OverlappingMask)
             do j = 1, i
               call ovkDilate(OverlappingMask, 1, OVK_FALSE)
             end do
@@ -613,7 +610,7 @@ contains
           Grid_n => Domain%grid(IndexToID(n))
           Overlap_mn => Domain%overlap(Grid_m%id,Grid_n%id)
           if (ovkOverlapExists(Overlap_mn)) then
-            call UpdateOverlapAfterCut(Grid_m, Grid_n, Overlap_mn)
+            call UpdateOverlapAfterCut(Overlap_mn)
           end if
         end if
       end do
@@ -653,8 +650,7 @@ contains
         Grid_m => Domain%grid(IndexToID(m))
         Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
         if (ovkOverlapExists(Overlap)) then
-          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%volumes, &
-            OverlapVolumes(m,n))
+          call ovkOverlapCollect(Overlap, OVK_COLLECT_INTERPOLATE, Grid_m%volumes, OverlapVolumes(m,n))
         end if
       end do
     end do
@@ -804,12 +800,10 @@ contains
         end select
         if (Occludes(m,n) == OVK_OCCLUDES_COARSE .and. Occludes(n,m) == OVK_OCCLUDES_COARSE) then
           ! Exclude occluded points that are overlapped by occluded points
-          call ovkFindOverlappedPoints(Grid_m, Grid_n, Overlap_mn, PairwiseOcclusionMasks(n,m), &
-            OverlappedMask_n)
+          call ovkFindOverlappedPoints(Overlap_mn, PairwiseOcclusionMasks(n,m), OverlappedMask_n)
           PairwiseOcclusionMasks(m,n)%values = PairwiseOcclusionMasks(m,n)%values .and. .not. &
             OverlappedMask_n%values
-          call ovkFindOverlappedPoints(Grid_n, Grid_m, Overlap_nm, PairwiseOcclusionMasks(m,n), &
-            OverlappedMask_m)
+          call ovkFindOverlappedPoints(Overlap_nm, PairwiseOcclusionMasks(m,n), OverlappedMask_m)
           PairwiseOcclusionMasks(n,m)%values = PairwiseOcclusionMasks(n,m)%values .and. .not. &
             OverlappedMask_m%values
         end if
@@ -863,10 +857,9 @@ contains
                 .not. Grid_m%mask%values
             end if
             call ovkDistanceField(EdgeMask, OVK_MIRROR, EdgeDistance)
-            call ovkOverlapCollect(Grid_m, Overlap_mn, OVK_COLLECT_MIN, EdgeDistance, &
-              CellEdgeDistance)
+            call ovkOverlapCollect(Overlap_mn, OVK_COLLECT_MIN, EdgeDistance, CellEdgeDistance)
             OverlapEdgeDistance = ovk_field_int_(Grid_n%cart, -1)
-            call ovkOverlapDisperse(Grid_n, Overlap_mn, OVK_DISPERSE_OVERWRITE, CellEdgeDistance, &
+            call ovkOverlapDisperse(Overlap_mn, OVK_DISPERSE_OVERWRITE, CellEdgeDistance, &
               OverlapEdgeDistance)
             PaddingMasks(m,n) = ovk_field_logical_(Grid_n%cart)
             PaddingMasks(m,n)%values = PairwiseOcclusionMasks(m,n)%values .and. &
@@ -1109,7 +1102,7 @@ contains
           Grid_n => Domain%grid(IndexToID(n))
           Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
           if (ovkOverlapExists(Overlap)) then
-            call UpdateOverlapAfterCut(Grid_m, Grid_n, Overlap)
+            call UpdateOverlapAfterCut(Overlap)
           end if
         end if
       end do
@@ -1238,10 +1231,9 @@ contains
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
           Grid_m => Domain%grid(IndexToID(m))
           Overlap => Domain%overlap(Grid_m%id,Grid_n%id)
-          call ovkOverlapCollect(Grid_m, Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), &
-            CellReceiverDistance)
+          call ovkOverlapCollect(Overlap, OVK_COLLECT_MIN, ReceiverDistances(m), CellReceiverDistance)
           OverlapReceiverDistance = ovk_field_int_(Grid_n%cart, -1)
-          call ovkOverlapDisperse(Grid_n, Overlap, OVK_DISPERSE_OVERWRITE, CellReceiverDistance, &
+          call ovkOverlapDisperse(Overlap, OVK_DISPERSE_OVERWRITE, CellReceiverDistance, &
             OverlapReceiverDistance)
           l = 1_lk
           do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
@@ -1357,7 +1349,7 @@ contains
         Grid_m => Domain%grid(IndexToID(m))
         if (ConnectionType(m,n) /= OVK_CONNECTION_NONE) then
           call CreateConnectivity(Domain%connectivity(Grid_m%id, Grid_n%id), &
-            Grid_m%id, Grid_n%id, Domain%logger, NumDims)
+            Domain%logger, Grid_m, Grid_n)
         end if
       end do
     end do
@@ -1384,8 +1376,8 @@ contains
           Connectivity => Domain%connectivity(Grid_m%id,Grid_n%id)
           ReceiverMask = ovk_field_logical_(Grid_n%cart)
           ReceiverMask%values = DonorGridIDs(n)%values == Grid_m%id
-          call FillConnectivity(Grid_m, Grid_n, Overlap, DonorGridInfo(m), ConnectionType(m,n), &
-            ReceiverMask, Connectivity)
+          call FillConnectivity(Connectivity, Overlap, DonorGridInfo(m), ConnectionType(m,n), &
+            ReceiverMask)
           if (Domain%logger%verbose) then
             call ovkGetConnectivityCount(Connectivity, NumConnections)
             if (NumConnections > 0_lk) then
