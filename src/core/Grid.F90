@@ -1089,19 +1089,19 @@ contains
 
   end subroutine GetCellVertexCoordsCubic
 
-  function ovkGridCellBounds(Grid, Cell) result(CellBounds)
+  function ovkGridCellBounds(Grid, Cell_) result(CellBounds)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%nd), intent(in) :: Cell
+    integer, dimension(Grid%nd), intent(in) :: Cell_
     type(ovk_bbox) :: CellBounds
 
-    integer, dimension(MAX_ND) :: PaddedCell
+    integer, dimension(MAX_ND) :: Cell
     real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
 
-    PaddedCell(:Grid%nd) = Cell
-    PaddedCell(Grid%nd+1:) = 1
+    Cell(:Grid%nd) = Cell_
+    Cell(Grid%nd+1:) = 1
 
-    if (.not. Grid%cell_mask%values(PaddedCell(1),PaddedCell(2),PaddedCell(3))) then
+    if (.not. Grid%cell_mask%values(Cell(1),Cell(2),Cell(3))) then
       CellBounds = ovk_bbox_(Grid%nd)
       return
     end if
@@ -1112,23 +1112,23 @@ contains
 
   end function ovkGridCellBounds
 
-  function ovkOverlapsGridCell(Grid, Cell, Coords, OverlapTolerance) result(Overlaps)
+  function ovkOverlapsGridCell(Grid, Cell_, Coords, OverlapTolerance) result(Overlaps)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(Grid%nd), intent(in) :: Cell
+    integer, dimension(Grid%nd), intent(in) :: Cell_
     real(rk), dimension(Grid%nd), intent(in) :: Coords
     real(rk), intent(in) :: OverlapTolerance
     logical :: Overlaps
 
     integer :: i
-    integer, dimension(MAX_ND) :: PaddedCell
+    integer, dimension(MAX_ND) :: Cell
     real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
     real(rk), dimension(Grid%nd) :: Centroid
 
-    PaddedCell(:Grid%nd) = Cell
-    PaddedCell(Grid%nd+1:) = 1
+    Cell(:Grid%nd) = Cell_
+    Cell(Grid%nd+1:) = 1
 
-    if (.not. Grid%cell_mask%values(PaddedCell(1),PaddedCell(2),PaddedCell(3))) then
+    if (.not. Grid%cell_mask%values(Cell(1),Cell(2),Cell(3))) then
       Overlaps = .false.
       return
     end if
