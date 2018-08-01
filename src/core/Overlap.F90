@@ -526,20 +526,14 @@ contains
     do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
       do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
         do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
-
           if (Overlap%mask%values(i,j,k)) then
-
             l = OverlapIndices%values(i,j,k)
-
             CellLower = Overlap%cells(:,l)
             CellUpper(:Overlap%nd) = CellLower(:Overlap%nd)+1
             CellUpper(Overlap%nd+1:) = 1
-
             AwayFromEdge = ovkCartContains(OverlappingGrid%cart, CellLower) .and. &
               ovkCartContains(OverlappingGrid%cart, CellUpper)
-
             if (AwayFromEdge) then
-
               L1: &
               do o = CellLower(3), CellUpper(3)
                 do n = CellLower(2), CellUpper(2)
@@ -552,9 +546,7 @@ contains
                   end do
                 end do
               end do L1
-
             else
-
               L2: &
               do o = CellLower(3), CellUpper(3)
                 do n = CellLower(2), CellUpper(2)
@@ -568,11 +560,8 @@ contains
                   end do
                 end do
               end do L2
-
             end if
-
           end if
-
         end do
       end do
     end do
