@@ -273,12 +273,6 @@ contains
         NumConnections, Connectivity%receiver_points, OverlapIndices, Connectivity%donor_extents, &
         Connectivity%donor_coords, Connectivity%donor_interp_coefs)
 
-      if (Connectivity%logger%verbose) then
-        write (*, '(7a)') "* ", trim(LargeIntToString(NumConnections)), &
-          " donor/receiver pairs between grid ", trim(IntToString(Connectivity%donor_grid%id)), &
-          " and grid ", trim(IntToString(Connectivity%receiver_grid%id)), "."
-      end if
-
     end if
 
   end subroutine FillConnectivity
