@@ -269,8 +269,8 @@ contains
     logical :: Success
     integer :: NumWarnings
     character(len=STRING_LENGTH) :: DonorCellString
-    character(len=STRING_LENGTH) :: DonorGridIDString
     character(len=STRING_LENGTH) :: ReceiverPointString
+    character(len=STRING_LENGTH) :: DonorGridIDString
     character(len=STRING_LENGTH) :: ReceiverGridIDString
 
     NumDims = DonorGrid%nd
@@ -304,17 +304,20 @@ contains
       else
         if (DonorGrid%logger%verbose) then
           DonorCellString = TupleToString(DonorExtents(:NumDims,1,l))
-          DonorGridIDString = IntToString(DonorGrid%id)
           ReceiverPointString = TupleToString(ReceiverPoints(:NumDims,l))
+          DonorGridIDString = IntToString(DonorGrid%id)
           ReceiverGridIDString = IntToString(ReceiverGrid%id)
-          write (ERROR_UNIT, '(10a)') "WARNING: Could not use cubic ", &
-            "interpolation for donor cell ", trim(DonorCellString), " of grid ", &
-            trim(DonorGridIDString), " corresponding to receiver point ", &
-            trim(ReceiverPointString), " of grid ", trim(ReceiverGridIDString), "; using linear instead."
-          if (NumWarnings == 100) then
-            write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+          if (NumWarnings <= 100) then
+            write (ERROR_UNIT, '(10a)') "WARNING: Could not use cubic ", &
+              "interpolation for donor cell ", trim(DonorCellString), " of grid ", &
+              trim(DonorGridIDString), " corresponding to receiver point ", &
+              trim(ReceiverPointString), " of grid ", trim(ReceiverGridIDString), &
+              "; using linear instead."
+            if (NumWarnings == 100) then
+              write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+            end if
+            NumWarnings = NumWarnings + 1
           end if
-          NumWarnings = NumWarnings + 1
         end if
         DonorExtents(:NumDims,1,l) = ReferenceCell(:NumDims)
         DonorExtents(:NumDims,2,l) = ReferenceCell(:NumDims) + 1

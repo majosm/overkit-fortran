@@ -1168,17 +1168,18 @@ contains
 
   end function ovkOverlapsGridCell
 
-  function ovkCoordsInGridCell(Grid, Cell_, Coords) result(CoordsInCell)
+  function ovkCoordsInGridCell(Grid, Cell_, Coords, Success) result(CoordsInCell)
 
     type(ovk_grid), intent(in) :: Grid
     integer, dimension(Grid%nd), intent(in) :: Cell_
     real(rk), dimension(Grid%nd), intent(in) :: Coords
+    logical, intent(out), optional :: Success
     real(rk), dimension(Grid%nd) :: CoordsInCell
 
-    logical :: Success
+    logical :: Success_
     integer, dimension(MAX_ND) :: Cell
 
-    Success = .true.
+    Success_ = .true.
 
     Cell(:Grid%nd) = Cell_
     Cell(Grid%nd+1:) = 1
@@ -1189,15 +1190,11 @@ contains
     case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
       CoordsInCell = CoordsInGridCellLinearOriented(Grid, Cell, Coords)
     case default
-      CoordsInCell = CoordsInGridCellCubic(Grid, Cell, Coords, Success)
+      CoordsInCell = CoordsInGridCellCubic(Grid, Cell, Coords, Success_)
     end select
 
-    if (Grid%logger%verbose) then
-      if (.not. Success) then
-        write (ERROR_UNIT, '(6a)') "WARNING: Failed to compute local coordinates of ", &
-          trim(CoordsToString(Coords)), " in cell ", trim(TupleToString(Cell)), &
-          " of grid ", trim(IntToString(Grid%id))
-      end if
+    if (present(Success)) then
+      Success = Success_
     end if
 
   end function ovkCoordsInGridCell

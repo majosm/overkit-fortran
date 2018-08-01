@@ -252,10 +252,16 @@ contains
     type(ovk_field_logical) :: OverlappedMask
     type(ovk_bbox) :: Bounds
     type(ovk_field_large_int) :: OverlappingCells
-    type(ovk_field_large_int) :: OverlapIndices
     real(rk), dimension(Overlap%nd) :: OverlappedCoords
     integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_ND) :: Point
     real(rk), dimension(Overlap%nd) :: CoordsInCell
+    logical :: Success
+    integer :: NumWarnings
+    character(len=STRING_LENGTH) :: PointString
+    character(len=STRING_LENGTH) :: CellString
+    character(len=STRING_LENGTH) :: OverlappingGridIDString
+    character(len=STRING_LENGTH) :: OverlappedGridIDString
 
     NumDims = Overlap%nd
     OverlappingGrid => Overlap%overlapping_grid
@@ -301,42 +307,46 @@ contains
 
     if (Overlap%noverlap > 0_lk) then
 
-      OverlapIndices = ovk_field_large_int_(OverlappedGrid%cart)
-
+      NumWarnings = 0
       l = 1_lk
       do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
         do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
           do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
             if (Overlap%mask%values(i,j,k)) then
-              OverlapIndices%values(i,j,k) = l
+              Point = [i,j,k]
+              do d = 1, NumDims
+                OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
+              end do
+              Overlap%cells(:NumDims,l) = ovkCartIndexToTuple(OverlappingGrid%cart, &
+                OverlappingCells%values(i,j,k))
+              Overlap%cells(NumDims+1:,l) = 1
+              CoordsInCell = ovkCoordsInGridCell(OverlappingGrid, Overlap%cells(:,l), &
+                OverlappedCoords, Success=Success)
+              if (Success) then
+                Overlap%coords(:,l) = CoordsInCell
+              else
+                Overlap%coords(:,l) = 0.5_rk
+                if (Overlap%logger%verbose) then
+                  if (NumWarnings <= 100) then
+                    PointString = TupleToString(Point(:NumDims))
+                    CellString = TupleToString(Overlap%cells(:NumDims,l))
+                    OverlappingGridIDString = IntToString(OverlappingGrid%id)
+                    OverlappedGridIDString = IntToString(OverlappedGrid%id)
+                    write (ERROR_UNIT, '(9a)') "WARNING: Failed to compute local coordinates of point ", &
+                      trim(PointString), " of grid ", trim(OverlappedGridIDString), " inside cell ", &
+                      trim(CellString), " of grid ", trim(OverlappingGridIDString), "."
+                    if (NumWarnings == 100) then
+                      write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+                    end if
+                    NumWarnings = NumWarnings + 1
+                  end if
+                end if
+              end if
               l = l + 1_lk
             end if
           end do
         end do
       end do
-
-!$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  SHARED(OverlappingGrid, OverlappedGrid, OverlapAccel, Overlap, OverlappingCells, OverlapIndices)
-      do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
-        do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
-          do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
-            if (Overlap%mask%values(i,j,k)) then
-              l = OverlapIndices%values(i,j,k)
-              do d = 1, NumDims
-                OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
-              end do
-              Cell(:NumDims) = ovkCartIndexToTuple(OverlappingGrid%cart, &
-                OverlappingCells%values(i,j,k))
-              Cell(NumDims+1:) = 1
-              CoordsInCell = ovkCoordsInGridCell(OverlappingGrid, Cell, OverlappedCoords)
-              Overlap%cells(:,l) = Cell
-              Overlap%coords(:,l) = CoordsInCell
-            end if
-          end do
-        end do
-      end do
-!$OMP END PARALLEL DO
 
     end if
 

@@ -1192,8 +1192,10 @@ contains
     logical :: BetterDonor
     type(ovk_field_logical) :: OrphanMask
     type(ovk_field_int), pointer :: State
-    integer :: NumWarnings
     integer, dimension(MAX_ND) :: Point
+    integer :: NumWarnings
+    character(len=STRING_LENGTH) :: PointString
+    character(len=STRING_LENGTH) :: GridIDString
     integer(lk) :: NumOrphans
 
     real(rk), parameter :: TOLERANCE = 1.e-12_rk
@@ -1285,9 +1287,10 @@ contains
               Point = [i,j,k]
               if (OrphanMask%values(i,j,k)) then
                 if (NumWarnings <= 100) then
-                  write (ERROR_UNIT, '(4a)') "WARNING: Could not find suitable donor for point ", &
-                    trim(TupleToString(Point(:Grid_n%nd))), " of grid ", &
-                    trim(IntToString(Grid_n%id))
+                  PointString = TupleToString(Point(:Grid_n%nd))
+                  GridIDString = IntToString(Grid_n%id)
+                  write (ERROR_UNIT, '(5a)') "WARNING: Could not find suitable donor for point ", &
+                    trim(PointString), " of grid ", trim(GridIDString), "."
                   if (NumWarnings == 100) then
                     write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
                   end if
