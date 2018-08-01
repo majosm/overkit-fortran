@@ -117,7 +117,6 @@ contains
     type(t_reduced_domain_info), intent(out) :: ReducedDomainInfo
 
     integer :: m, n, p, q
-    type(ovk_grid), pointer :: Grid_m, Grid_n
     integer :: NumGrids
     logical :: GridExists
     logical :: GridOverlaps
@@ -137,18 +136,12 @@ contains
     call PrintDomainSummary(Domain)
 
     ! Clear out any old assembly data
-    do n = 1, NumGrids
-      Grid_n => Domain%grid(IndexToID(n))
-      do m = 1, NumGrids
-        Grid_m => Domain%grid(IndexToID(m))
-        if (ovkHasOverlap(Domain, Grid_m%id, Grid_n%id)) then
-          call ovkDestroyOverlap(Domain, Grid_m%id, Grid_n%id)
-        end if
-        if (ovkHasConnectivity(Domain, Grid_m%id, Grid_n%id)) then
-          call ovkDestroyConnectivity(Domain, Grid_m%id, Grid_n%id)
-        end if
+    do q = 1, Domain%ngrids
+      do p = 1, Domain%ngrids
+        if (ovkHasOverlap(Domain, p, q)) call ovkDestroyOverlap(Domain, p, q)
+        if (ovkHasConnectivity(Domain, p, q)) call ovkDestroyConnectivity(Domain, p, q)
       end do
-      call ovkResetGridState(Grid_n)
+      call ovkResetGridState(Domain%grid(q))
     end do
 
     ! Ignore empty and non-overlapping grids
