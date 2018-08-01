@@ -119,8 +119,6 @@ module Overkit
   public :: ovkDomainExists
   public :: ovkGetDomainDimension
   public :: ovkGetDomainGridCount
-  public :: ovkGetDomainVerbose
-  public :: ovkSetDomainVerbose
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
   public :: ovkHasGrid

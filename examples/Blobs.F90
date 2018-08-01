@@ -60,7 +60,8 @@ program Blobs
   end if
 
   ! Initialize the domain
-  call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, Verbose=.true.)
+  call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, StatusLogFile=OUTPUT_UNIT, &
+    ErrorLogFile=ERROR_UNIT)
 
   !=================
   ! Background grid
@@ -232,7 +233,7 @@ program Blobs
 
   ! Write a PLOT3D grid file
   call ovkCreateP3D(GridFile, "blobs.xyz", NumDims=2, NumGrids=4, NumPointsAll=NumPointsAll, &
-    WithIBlank=.true., Verbose=.true.)
+    WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   do n = 1, 4
 

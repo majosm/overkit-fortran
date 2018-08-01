@@ -52,7 +52,7 @@ module ovkOverlap
   type ovk_overlap
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
-    type(t_logger), pointer :: logger
+    type(t_logger) :: logger
     type(ovk_grid), pointer :: overlapping_grid
     type(ovk_grid), pointer :: overlapped_grid
     integer :: nd
@@ -93,7 +93,7 @@ contains
 
     type(ovk_overlap) :: Overlap
 
-    nullify(Overlap%logger)
+    Overlap%logger = t_logger_()
     nullify(Overlap%overlapping_grid)
     nullify(Overlap%overlapped_grid)
     Overlap%nd = 2
@@ -109,14 +109,14 @@ contains
   subroutine CreateOverlap(Overlap, Logger, OverlappingGrid, OverlappedGrid)
 
     type(ovk_overlap), intent(out) :: Overlap
-    type(t_logger), pointer, intent(in) :: Logger
+    type(t_logger), intent(in) :: Logger
     type(ovk_grid), pointer, intent(in) :: OverlappingGrid, OverlappedGrid
 
     integer :: NumDims
 
     NumDims = OverlappingGrid%nd
 
-    Overlap%logger => Logger
+    Overlap%logger = Logger
     Overlap%overlapping_grid => OverlappingGrid
     Overlap%overlapped_grid => OverlappedGrid
     Overlap%nd = NumDims
@@ -247,6 +247,7 @@ contains
 
     integer :: d, i, j, k
     integer(lk) :: l
+    type(t_logger) :: Logger
     integer :: NumDims
     type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     type(ovk_field_logical) :: OverlappedMask
@@ -263,6 +264,7 @@ contains
     character(len=STRING_LENGTH) :: OverlappingGridIDString
     character(len=STRING_LENGTH) :: OverlappedGridIDString
 
+    Logger = Overlap%logger
     NumDims = Overlap%nd
     OverlappingGrid => Overlap%overlapping_grid
     OverlappedGrid => Overlap%overlapped_grid
@@ -326,17 +328,18 @@ contains
                 Overlap%coords(:,l) = CoordsInCell
               else
                 Overlap%coords(:,l) = 0.5_rk
-                if (Overlap%logger%verbose) then
+                if (Logger%log_errors) then
                   if (NumWarnings <= 100) then
                     PointString = TupleToString(Point(:NumDims))
                     CellString = TupleToString(Overlap%cells(:NumDims,l))
                     OverlappingGridIDString = IntToString(OverlappingGrid%id)
                     OverlappedGridIDString = IntToString(OverlappedGrid%id)
-                    write (ERROR_UNIT, '(9a)') "WARNING: Failed to compute local coordinates of point ", &
-                      trim(PointString), " of grid ", trim(OverlappedGridIDString), " inside cell ", &
-                      trim(CellString), " of grid ", trim(OverlappingGridIDString), "."
+                    write (Logger%error_file, '(10a)') "WARNING: Failed to compute local ", &
+                      "coordinates of point ", trim(PointString), " of grid ", &
+                      trim(OverlappedGridIDString), " inside cell ", trim(CellString), " of grid ", &
+                      trim(OverlappingGridIDString), "."
                     if (NumWarnings == 100) then
-                      write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+                      write (Logger%error_file, '(a)') "WARNING: Further warnings suppressed."
                     end if
                     NumWarnings = NumWarnings + 1
                   end if

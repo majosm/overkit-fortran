@@ -51,7 +51,8 @@ program Inlet
   call GetOptionValue(Options(1), NumPoints, 81)
 
   ! Initialize the domain
-  call ovkCreateDomain(Domain, NumDims=3, NumGrids=3, Verbose=.true.)
+  call ovkCreateDomain(Domain, NumDims=3, NumGrids=3, StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
   !==========
   ! Box grid
@@ -258,7 +259,7 @@ program Inlet
 
   ! Write a PLOT3D grid file
   call ovkCreateP3D(GridFile, "inlet.xyz", NumDims=3, NumGrids=3, NumPointsAll=NumPointsAll, &
-    WithIBlank=.true., Verbose=.true.)
+    WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   do n = 1, 3
 

@@ -302,19 +302,19 @@ contains
           DonorInterpCoefs(:,d,l) = ovkInterpBasisCubic(DonorCoords(d,l))
         end do
       else
-        if (DonorGrid%logger%verbose) then
+        if (DonorGrid%logger%log_errors) then
           DonorCellString = TupleToString(DonorExtents(:NumDims,1,l))
           ReceiverPointString = TupleToString(ReceiverPoints(:NumDims,l))
           DonorGridIDString = IntToString(DonorGrid%id)
           ReceiverGridIDString = IntToString(ReceiverGrid%id)
           if (NumWarnings <= 100) then
-            write (ERROR_UNIT, '(10a)') "WARNING: Could not use cubic ", &
+            write (DonorGrid%logger%error_file, '(10a)') "WARNING: Could not use cubic ", &
               "interpolation for donor cell ", trim(DonorCellString), " of grid ", &
               trim(DonorGridIDString), " corresponding to receiver point ", &
               trim(ReceiverPointString), " of grid ", trim(ReceiverGridIDString), &
               "; using linear instead."
             if (NumWarnings == 100) then
-              write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+              write (DonorGrid%logger%error_file, '(a)') "WARNING: Further warnings suppressed."
             end if
             NumWarnings = NumWarnings + 1
           end if

@@ -121,7 +121,8 @@ contains
     !========================
 
     ! Initialize the domain
-    call ovkCreateDomain(Domain, NumDims=2, NumGrids=2, Verbose=.true.)
+    call ovkCreateDomain(Domain, NumDims=2, NumGrids=2, StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
     !===============
     ! Grid creation
@@ -207,7 +208,8 @@ contains
 
     ! Write a PLOT3D grid file
     call ovkCreateP3D(GridFile, "circle_cylinder.xyz", NumDims=2, NumGrids=2, &
-      NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
+      NumPointsAll=NumPointsAll, WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
     do n = 1, 2
 
@@ -344,7 +346,8 @@ contains
     !========================
 
     ! Initialize the domain
-    call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, Verbose=.true.)
+    call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
     !===============
     ! Grid creation
@@ -461,7 +464,8 @@ contains
 
     ! Write a PLOT3D grid file
     call ovkCreateP3D(GridFile, "circle_block.xyz", NumDims=2, NumGrids=4, &
-      NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
+      NumPointsAll=NumPointsAll, WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
     do n = 1, 4
 
@@ -528,7 +532,8 @@ contains
 
     ! Initialize the domain
     ! Combined domain with both cylinder (1-2) and block (3-6) grids
-    call ovkCreateDomain(Domain, NumDims=2, NumGrids=6, Verbose=.true.)
+    call ovkCreateDomain(Domain, NumDims=2, NumGrids=6, StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
     !===============
     ! Grid creation
@@ -679,7 +684,8 @@ contains
 
     ! Write a PLOT3D grid file
     call ovkCreateP3D(GridFile, "circle_remap.xyz", NumDims=2, NumGrids=6, &
-      NumPointsAll=NumPointsAll, WithIBlank=.true., Verbose=.true.)
+      NumPointsAll=NumPointsAll, WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
     do n = 1, 6
 

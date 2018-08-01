@@ -22,8 +22,6 @@ module ovkDomain
   public :: ovkDomainExists
   public :: ovkGetDomainDimension
   public :: ovkGetDomainGridCount
-  public :: ovkGetDomainVerbose
-  public :: ovkSetDomainVerbose
   public :: ovkCreateGrid
   public :: ovkDestroyGrid
   public :: ovkHasGrid
@@ -59,10 +57,9 @@ module ovkDomain
   type ovk_domain
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
-    type(t_logger), pointer :: logger
+    type(t_logger) :: logger
     integer :: nd
     integer :: ngrids
-    logical :: verbose
     type(ovk_grid), dimension(:), pointer :: grid
     integer, dimension(:), allocatable :: grid_edit_ref_counts
     type(ovk_overlap), dimension(:,:), pointer :: overlap
@@ -79,10 +76,9 @@ contains
 
     type(ovk_domain) :: Domain
 
-    nullify(Domain%logger)
+    Domain%logger = t_logger_()
     Domain%nd = 2
     Domain%ngrids = 0
-    Domain%verbose = .false.
     nullify(Domain%grid)
     nullify(Domain%overlap)
     nullify(Domain%connectivity)
@@ -93,28 +89,26 @@ contains
 
   end function ovk_domain_
 
-  subroutine ovkCreateDomain(Domain, NumDims, NumGrids, Verbose)
+  subroutine ovkCreateDomain(Domain, NumDims, NumGrids, StatusLogFile, ErrorLogFile)
 
     type(ovk_domain), intent(out) :: Domain
     integer, intent(in) :: NumDims
     integer, intent(in) :: NumGrids
-    logical, intent(in), optional :: Verbose
+    integer, intent(in), optional :: StatusLogFile
+    integer, intent(in), optional :: ErrorLogFile
 
-    logical :: Verbose_
     integer :: m, n
 
-    if (present(Verbose)) then
-      Verbose_ = Verbose
-    else
-      Verbose_ = .false.
+    Domain%logger = t_logger_()
+    if (present(StatusLogFile)) then
+      call EnableStatusLog(Domain%logger, StatusLogFile)
     end if
-
-    allocate(Domain%logger)
-    Domain%logger = t_logger_(Verbose_)
+    if (present(ErrorLogFile)) then
+      call EnableErrorLog(Domain%logger, ErrorLogFile)
+    end if
 
     Domain%nd = NumDims
     Domain%ngrids = NumGrids
-    Domain%verbose = Verbose_
 
     allocate(Domain%grid(NumGrids))
     do m = 1, NumGrids
@@ -198,8 +192,6 @@ contains
 
     deallocate(Domain%connectivity_edit_ref_counts)
 
-    deallocate(Domain%logger)
-
   end subroutine ovkDestroyDomain
 
   function ovkDomainExists(Domain) result(Exists)
@@ -228,24 +220,6 @@ contains
     NumGrids = Domain%ngrids
 
   end subroutine ovkGetDomainGridCount
-
-  subroutine ovkGetDomainVerbose(Domain, Verbose)
-
-    type(ovk_domain), intent(in) :: Domain
-    logical, intent(out) :: Verbose
-
-    Verbose = Domain%verbose
-
-  end subroutine ovkGetDomainVerbose
-
-  subroutine ovkSetDomainVerbose(Domain, Verbose)
-
-    type(ovk_domain), intent(inout) :: Domain
-    logical, intent(in) :: Verbose
-
-    Domain%verbose = Verbose
-
-  end subroutine ovkSetDomainVerbose
 
   subroutine ovkCreateGrid(Domain, GridID, NumPoints, Periodic, PeriodicStorage, PeriodicLength, &
     GeometryType)
@@ -1210,22 +1184,25 @@ contains
     type(ovk_domain), intent(in) :: Domain
 
     integer :: n
+    type(t_logger) :: Logger
     integer(lk) :: TotalPoints
     type(ovk_grid), pointer :: Grid
     character(len=STRING_LENGTH) :: TotalPointsString
     character(len=STRING_LENGTH) :: iSString, iEString, jSString, jEString, kSString, kEString
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Domain info:"
-      write (*, '(3a)') "* Dimension: ", trim(IntToString(Domain%nd)), "D"
-      write (*, '(2a)') "* Number of grids: ", trim(IntToString(Domain%ngrids))
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Domain info:"
+      write (Logger%status_file, '(3a)') "* Dimension: ", trim(IntToString(Domain%nd)), "D"
+      write (Logger%status_file, '(2a)') "* Number of grids: ", trim(IntToString(Domain%ngrids))
       TotalPoints = 0_lk
       do n = 1, Domain%ngrids
         Grid => Domain%grid(n)
         TotalPoints = TotalPoints + ovkCartCount(Grid%cart)
       end do
       TotalPointsString = LargeIntToString(TotalPoints)
-      write (*, '(2a)') "* Total number of grid points: ", trim(TotalPointsString)
+      write (Logger%status_file, '(2a)') "* Total number of grid points: ", trim(TotalPointsString)
       do n = 1, Domain%ngrids
         Grid => Domain%grid(n)
         if (.not. ovkCartIsEmpty(Grid%cart)) then
@@ -1236,18 +1213,19 @@ contains
           jEString = IntToString(Grid%cart%ie(2))
           kSString = IntToString(Grid%cart%is(3))
           kEString = IntToString(Grid%cart%ie(3))
-          write (*, '(3a)', advance="no") "* Grid ", trim(IntToString(Grid%id)), ": "
-          write (*, '(2a)', advance="no") trim(TotalPointsString), " points "
+          write (Logger%status_file, '(3a)', advance="no") "* Grid ", trim(IntToString(Grid%id)), &
+            ": "
+          write (Logger%status_file, '(2a)', advance="no") trim(TotalPointsString), " points "
           select case (Domain%nd)
           case (2)
-            write (*, '(9a)', advance="no") "(i=", trim(iSString), ":", trim(iEString), &
-              ", j=", trim(jSString), ":", trim(jEString), ")"
+            write (Logger%status_file, '(9a)', advance="no") "(i=", trim(iSString), ":", &
+              trim(iEString), ", j=", trim(jSString), ":", trim(jEString), ")"
           case (3)
-            write (*, '(13a)', advance="no") "(i=", trim(iSString), ":", trim(iEString), &
-              ", j=", trim(jSString), ":", trim(jEString), ", k=", trim(kSString), ":", &
-              trim(kEString), ")"
+            write (Logger%status_file, '(13a)', advance="no") "(i=", trim(iSString), ":", &
+              trim(iEString), ", j=", trim(jSString), ":", trim(jEString), ", k=", &
+              trim(kSString), ":", trim(kEString), ")"
           end select
-          write (*, '(a)') ""
+          write (Logger%status_file, '(a)') ""
         end if
       end do
     end if

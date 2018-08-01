@@ -6,6 +6,7 @@ module ovkPLOT3D
   use ovkCart
   use ovkField
   use ovkGlobal
+  use ovkLogger
   use iso_c_binding
   implicit none
 
@@ -23,7 +24,7 @@ module ovkPLOT3D
 
   type ovk_plot3d_grid_file
     type(t_noconstruct) :: noconstruct
-    logical :: verbose
+    type(t_logger) :: logger
     character(len=PATH_LENGTH) :: path
     integer :: endian
     integer :: p3d_format
@@ -242,7 +243,7 @@ contains
 
     type(ovk_plot3d_grid_file) :: GridFile
 
-    GridFile%verbose = .true.
+    GridFile%logger = t_logger_()
     GridFile%path = ""
     GridFile%nd = 2
     GridFile%ngrids = 0
@@ -260,25 +261,30 @@ contains
 
   end function ovkP3DMachineEndian
 
-  subroutine ovkOpenP3D_Grid(GridFile, FilePath, Verbose, Error)
+  subroutine ovkOpenP3D_Grid(GridFile, FilePath, StatusLogFile, ErrorLogFile, Error)
 
     type(ovk_plot3d_grid_file), intent(out) :: GridFile
     character(len=*), intent(in) :: FilePath
-    logical, intent(in), optional :: Verbose
+    integer, intent(in), optional :: StatusLogFile
+    integer, intent(in), optional :: ErrorLogFile
     integer, intent(out), optional :: Error
     
     integer :: m
     integer :: Error_
+    type(t_logger) :: Logger
     integer :: WithIBlankInt
 
-    if (present(Verbose)) then
-      GridFile%verbose = Verbose
-    else
-      GridFile%verbose = .true.
+    Logger = t_logger_()
+    if (present(StatusLogFile)) then
+      call EnableStatusLog(Logger, StatusLogFile)
     end if
+    if (present(ErrorLogFile)) then
+      call EnableErrorLog(Logger, ErrorLogFile)
+    end if
+    GridFile%logger = Logger
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Opening PLOT3D grid file ", trim(FilePath), "..."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Opening PLOT3D grid file ", trim(FilePath), "..."
     end if
 
     GridFile%path = FilePath
@@ -296,8 +302,9 @@ contains
       if (Error_ /= 0) goto 999
     end do
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Successfully opened PLOT3D grid file ", trim(GridFile%path), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Successfully opened PLOT3D grid file ", &
+        trim(GridFile%path), "."
       call PrintGridFileInfo(GridFile)
     end if
 
@@ -313,7 +320,7 @@ contains
   end subroutine ovkOpenP3D_Grid
 
   subroutine ovkCreateP3D_Grid(GridFile, FilePath, NumDims, NumGrids, NumPointsAll, WithIBlank, &
-    Endian, P3DFormat, Verbose, Error)
+    Endian, P3DFormat, StatusLogFile, ErrorLogFile, Error)
 
     type(ovk_plot3d_grid_file), intent(out) :: GridFile
     character(len=*), intent(in) :: FilePath
@@ -323,19 +330,24 @@ contains
     logical, intent(in), optional :: WithIBlank
     integer, intent(in), optional :: Endian
     integer, intent(in), optional :: P3DFormat
-    logical, intent(in), optional :: Verbose
+    integer, intent(in), optional :: StatusLogFile
+    integer, intent(in), optional :: ErrorLogFile
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
 
-    if (present(Verbose)) then
-      GridFile%verbose = Verbose
-    else
-      GridFile%verbose = .true.
+    Logger = t_logger_()
+    if (present(StatusLogFile)) then
+      call EnableStatusLog(Logger, StatusLogFile)
     end if
+    if (present(ErrorLogFile)) then
+      call EnableErrorLog(Logger, ErrorLogFile)
+    end if
+    GridFile%logger = Logger
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Creating PLOT3D grid file ", trim(FilePath), "..."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Creating PLOT3D grid file ", trim(FilePath), "..."
     end if
 
     GridFile%path = FilePath
@@ -369,8 +381,9 @@ contains
       GridFile%npoints, Error_)
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Successfully created PLOT3D grid file ", trim(GridFile%path), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Successfully created PLOT3D grid file ", &
+        trim(GridFile%path), "."
       call PrintGridFileInfo(GridFile)
     end if
 
@@ -389,16 +402,16 @@ contains
 
     type(ovk_plot3d_grid_file), intent(inout) :: GridFile
 
-    logical :: Verbose
+    type(t_logger) :: Logger
     character(len=PATH_LENGTH) :: FilePath
 
-    Verbose = GridFile%verbose
+    Logger = GridFile%logger
     FilePath = GridFile%path
 
     GridFile = ovk_plot3d_grid_file_()
 
-    if (Verbose) then
-      write (*, '(3a)') "Closed grid file ", trim(FilePath), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Closed grid file ", trim(FilePath), "."
     end if
 
   end subroutine ovkCloseP3D_Grid
@@ -412,11 +425,14 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -460,8 +476,8 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -485,11 +501,14 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -542,8 +561,8 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -567,10 +586,13 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -620,8 +642,8 @@ contains
       Error_)
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -646,10 +668,13 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Reading grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -707,8 +732,8 @@ contains
       IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done reading grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -731,11 +756,14 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -779,8 +807,8 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -804,11 +832,14 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     type(ovk_field_int) :: IBlank
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -861,8 +892,8 @@ contains
     end if
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -886,10 +917,13 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -939,8 +973,8 @@ contains
       Error_)
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -965,10 +999,13 @@ contains
     integer, intent(out), optional :: Error
 
     integer :: Error_
+    type(t_logger) :: Logger
     integer(ikoffset) :: Offset
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
+    Logger = GridFile%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Writing grid ", trim(IntToString(GridID)), "..."
     end if
 
     if (OVK_DEBUG) then
@@ -1026,8 +1063,8 @@ contains
       IBlank%values, Error_)
     if (Error_ /= 0) goto 999
 
-    if (GridFile%verbose) then
-      write (*, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(3a)') "Done writing grid ", trim(IntToString(GridID)), "."
     end if
 
 999 if (Error_ /= 0) then
@@ -1059,46 +1096,50 @@ contains
     character(len=STRING_LENGTH) :: NiString, NjString, NkString
 
     integer :: m
+    type(t_logger) :: Logger
 
-    write (*, '(a)') "File details:"
-    write (*, '(3a)') "* Dimension: ", trim(IntToString(GridFile%nd)), "D"
+    Logger = GridFile%logger
+
+    write (Logger%status_file, '(a)') "File details:"
+    write (Logger%status_file, '(3a)') "* Dimension: ", trim(IntToString(GridFile%nd)), "D"
     if (GridFile%endian == OVK_LITTLE_ENDIAN) then
-      write (*, '(a)') "* Endianness: little"
+      write (Logger%status_file, '(a)') "* Endianness: little"
     else
-      write (*, '(a)') "* Endianness: big"
+      write (Logger%status_file, '(a)') "* Endianness: big"
     end if
     if (GridFile%p3d_format == OVK_P3D_STANDARD) then
-      write (*, '(a)') "* Format: standard"
+      write (Logger%status_file, '(a)') "* Format: standard"
     else
-      write (*, '(a)') "* Format: extended"
+      write (Logger%status_file, '(a)') "* Format: extended"
     end if
     if (GridFile%with_iblank) then
-      write (*, '(a)') "* IBlank: yes"
+      write (Logger%status_file, '(a)') "* IBlank: yes"
     else
-      write (*, '(a)') "* IBlank: no"
+      write (Logger%status_file, '(a)') "* IBlank: no"
     end if
-    write (*, '(2a)') "* Number of grids: ", trim(IntToString(GridFile%ngrids))
+    write (Logger%status_file, '(2a)') "* Number of grids: ", trim(IntToString(GridFile%ngrids))
     NumPointsTotal = 0
     do m = 1, GridFile%ngrids
       NumPointsTotal = NumPointsTotal + product(int(GridFile%npoints(:,m),kind=lk))
     end do
     NumPointsTotalString = LargeIntToString(NumPointsTotal)
-    write (*, '(2a)') "* Total number of grid points: ", trim(NumPointsTotalString)
+    write (Logger%status_file, '(2a)') "* Total number of grid points: ", trim(NumPointsTotalString)
     do m = 1, GridFile%ngrids
       NumPointsTotalString = LargeIntToString(product(int(GridFile%npoints(:,m),kind=lk)))
       NiString = IntToString(GridFile%npoints(1,m))
       NjString = IntToString(GridFile%npoints(2,m))
       NkString = IntToString(GridFile%npoints(3,m))
-      write (*, '(3a)', advance="no") "* Grid ", trim(IntToString(m)), ": "
-      write (*, '(2a)', advance="no") trim(NumPointsTotalString), " points "
+      write (Logger%status_file, '(3a)', advance="no") "* Grid ", trim(IntToString(m)), ": "
+      write (Logger%status_file, '(2a)', advance="no") trim(NumPointsTotalString), " points "
       select case (GridFile%nd)
       case (2)
-        write (*, '(5a)', advance="no") "(Ni=", trim(NiString), ", Nj=", trim(NjString), ")"
+        write (Logger%status_file, '(5a)', advance="no") "(Ni=", trim(NiString), ", Nj=", &
+          trim(NjString), ")"
       case (3)
-        write (*, '(7a)', advance="no") "(Ni=", trim(NiString), ", Nj=", trim(NjString), &
-          ", Nk=", trim(NkString), ")"
+        write (Logger%status_file, '(7a)', advance="no") "(Ni=", trim(NiString), ", Nj=", &
+          trim(NjString), ", Nk=", trim(NkString), ")"
       end select
-      write (*, '(a)') ""
+      write (Logger%status_file, '(a)') ""
     end do
 
   end subroutine PrintGridFileInfo

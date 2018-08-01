@@ -40,7 +40,7 @@ module ovkConnectivity
   type ovk_connectivity
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
-    type(t_logger), pointer :: logger
+    type(t_logger) :: logger
     type(ovk_grid), pointer :: donor_grid
     type(ovk_grid), pointer :: receiver_grid
     integer :: nd
@@ -58,7 +58,7 @@ contains
 
     type(ovk_connectivity) :: Connectivity
 
-    nullify(Connectivity%logger)
+    Connectivity%logger = t_logger_()
     nullify(Connectivity%donor_grid)
     nullify(Connectivity%receiver_grid)
     Connectivity%nd = 2
@@ -76,14 +76,14 @@ contains
   subroutine CreateConnectivity(Connectivity, Logger, DonorGrid, ReceiverGrid)
 
     type(ovk_connectivity), intent(out) :: Connectivity
-    type(t_logger), pointer, intent(in) :: Logger
+    type(t_logger), intent(in) :: Logger
     type(ovk_grid), pointer, intent(in) :: DonorGrid, ReceiverGrid
 
     integer :: NumDims
 
     NumDims = DonorGrid%nd
 
-    Connectivity%logger => Logger
+    Connectivity%logger = Logger
     Connectivity%donor_grid => DonorGrid
     Connectivity%receiver_grid => ReceiverGrid
     Connectivity%nd = NumDims

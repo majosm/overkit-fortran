@@ -16,6 +16,7 @@ module ovkAssembly
   use ovkFieldOps
   use ovkGlobal
   use ovkGrid
+  use ovkLogger
   use ovkPLOT3D
   implicit none
 
@@ -47,15 +48,18 @@ contains
     type(ovk_domain), intent(inout) :: Domain
     type(ovk_assembly_options), intent(in) :: AssemblyOptions
 
+    type(t_logger) :: Logger
     integer :: ClockInitial, ClockFinal, ClockRate
     type(t_reduced_domain_info) :: ReducedDomainInfo
     type(ovk_array_real), dimension(:,:), allocatable :: OverlapVolumes
     type(ovk_field_logical), dimension(:,:), allocatable :: PairwiseOcclusionMasks
     type(ovk_field_int), dimension(:), allocatable :: DonorGridIDs
 
-    if (Domain%logger%verbose) then
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
       call system_clock(ClockInitial, ClockRate)
-      write (*, '(a)') "Overset grid assembly started..."
+      write (Logger%status_file, '(a)') "Overset grid assembly started..."
     end if
 
     if (OVK_DEBUG) then
@@ -102,9 +106,9 @@ contains
 
     call FinalizeAssembly(Domain, ReducedDomainInfo, AssemblyOptions)
 
-    if (Domain%logger%verbose) then
+    if (Logger%log_status) then
       call system_clock(ClockFinal, ClockRate)
-      write (*, '(a,f0.3,a)') "Overset grid assembly finished (time: ", &
+      write (Logger%status_file, '(a,f0.3,a)') "Overset grid assembly finished (time: ", &
         real(ClockFinal-ClockInitial,kind=rk)/real(ClockRate,kind=rk), " seconds)."
     end if
 
@@ -296,6 +300,7 @@ contains
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
     integer :: m, n
+    type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -309,8 +314,10 @@ contains
     type(t_overlap_accel) :: OverlapAccel
     type(ovk_overlap), pointer :: Overlap
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Detecting overlap between grids..."
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Detecting overlap between grids..."
     end if
 
     NumDims = Domain%nd
@@ -345,9 +352,9 @@ contains
     do m = 1, NumGrids
       Grid_m => Domain%grid(IndexToID(m))
       if (any(Overlappable(m,:))) then
-        if (Domain%logger%verbose) then
-          write (*, '(3a)') "* Generating overlap search accelerator on grid ", &
-            trim(IntToString(Grid_m%id)), "..."
+        if (Logger%log_status) then
+          write (Logger%status_file, '(4a)') "* Generating overlap search accelerator on ", &
+            "grid ", trim(IntToString(Grid_m%id)), "..."
         end if
         AccelBounds = ovk_bbox_(NumDims)
         AccelMaxOverlapTolerance = 0._rk
@@ -359,21 +366,20 @@ contains
         end do
         call GenerateOverlapAccel(Grid_m, OverlapAccel, AccelBounds, AccelMaxOverlapTolerance, &
           OverlapAccelQualityAdjust(m))
-        if (Domain%logger%verbose) then
-          write (*, '(3a)') "* Finished generating overlap search accelerator on grid ", &
-            trim(IntToString(Grid_m%id)), "."
+        if (Logger%log_status) then
+          write (Logger%status_file, '(4a)') "* Finished generating overlap search ", &
+            "accelerator on grid ", trim(IntToString(Grid_m%id)), "."
         end if
         do n = 1, NumGrids
           Grid_n => Domain%grid(IndexToID(n))
           if (Overlappable(m,n)) then
             Overlap => Domain%overlap(Grid_m%id, Grid_n%id)
             call DetectOverlap(Overlap, OverlapAccel, Bounds(m,n), OverlapTolerance(m,n))
-            if (Domain%logger%verbose) then
+            if (Logger%log_status) then
               if (Overlap%noverlap > 0_lk) then
-                write (*, '(7a)') "* Detected ", trim(LargeIntToString( &
-                  Overlap%noverlap)), " points on grid ", &
-                  trim(IntToString(Grid_n%id)), " overlapped by grid ", &
-                  trim(IntToString(Grid_m%id)), "."
+                write (Logger%status_file, '(7a)') "* Detected ", trim(LargeIntToString( &
+                  Overlap%noverlap)), " points on grid ", trim(IntToString(Grid_n%id)), &
+                  " overlapped by grid ", trim(IntToString(Grid_m%id)), "."
               end if
             end if
           end if
@@ -382,8 +388,8 @@ contains
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished detecting overlap between grids."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished detecting overlap between grids."
     end if
 
   end subroutine CollideGrids
@@ -394,6 +400,7 @@ contains
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
     integer :: i, j, k, m, n
+    type(t_logger) :: Logger
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:), pointer :: InferBoundaries
@@ -404,8 +411,10 @@ contains
     type(ovk_field_int), pointer :: State
     integer(lk) :: NumBoundaryPoints
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Inferring domain boundaries in non-overlapping regions..."
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Inferring domain boundaries in non-overlapping regions..."
     end if
 
     NumGrids = ReducedDomainInfo%ngrids
@@ -439,18 +448,19 @@ contains
           end do
         end do
         call ovkReleaseGridState(Grid, State)
-        if (Domain%logger%verbose) then
+        if (Logger%log_status) then
           NumBoundaryPoints = ovkCountMask(InferredBoundaryMask)
           if (NumBoundaryPoints > 0_lk) then
-            write (*, '(5a)') "* ", trim(LargeIntToString(NumBoundaryPoints)), &
+            write (Logger%status_file, '(5a)') "* ", trim(LargeIntToString(NumBoundaryPoints)), &
               " points marked as boundaries on grid ", trim(IntToString(Grid%id)), "."
           end if
         end if
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished inferring domain boundaries in non-overlapping regions."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(2a)') "Finished inferring domain boundaries in ", &
+        "non-overlapping regions."
     end if
 
   end subroutine InferNonOverlappingBoundaries
@@ -461,6 +471,7 @@ contains
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
     integer :: i, j, k, m, n
+    type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -478,8 +489,10 @@ contains
     logical, dimension(:), allocatable :: UpdateGrid
     type(ovk_field_int), pointer :: State
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Cutting boundary holes..."
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Cutting boundary holes..."
     end if
 
     NumDims = Domain%nd
@@ -543,10 +556,10 @@ contains
           BoundaryMask%values = BoundaryMask%values .and. .not. SpuriousBoundaryMask%values
           BoundaryHoleMasks(n)%values = Grid_n%mask%values .and. .not. (InteriorMask%values .or. &
             BoundaryMask%values)
-          if (Domain%logger%verbose) then
+          if (Logger%log_status) then
             NumRemoved = ovkCountMask(BoundaryHoleMasks(n))
             if (NumRemoved > 0_lk) then
-              write (*, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
+              write (Logger%status_file, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
                 " points removed from grid ", trim(IntToString(Grid_n%id)), "."
             end if
           end if
@@ -556,12 +569,13 @@ contains
 
     deallocate(OwnBoundaryMasks)
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished cutting boundary holes."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished cutting boundary holes."
     end if
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Updating grids and overlap information after boundary hole cutting..."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(2a)') "Updating grids and overlap information after ", &
+        "boundary hole cutting..."
     end if
 
     allocate(UpdateGrid(NumGrids))
@@ -592,8 +606,8 @@ contains
         end do
         call ovkReleaseGridState(Grid_n, State)
       end if
-      if (Domain%logger%verbose) then
-        write (*, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%id)), "."
+      if (Logger%log_status) then
+        write (Logger%status_file, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
@@ -608,14 +622,14 @@ contains
           end if
         end if
       end do
-      if (Domain%logger%verbose) then
-        write (*, '(3a)') "* Done updating overlap information on grid ", &
+      if (Logger%log_status) then
+        write (Logger%status_file, '(3a)') "* Done updating overlap information on grid ", &
           trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished updating grids and overlap information."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished updating grids and overlap information."
     end if
 
   end subroutine CutHoles
@@ -657,6 +671,7 @@ contains
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
     integer :: i, j, k, n
+    type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -671,14 +686,16 @@ contains
     type(ovk_field_int), pointer :: State
     integer(lk) :: NumFringe
 
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Locating outer fringe points..."
+    end if
+
     NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     FringeSize => ReducedDomainInfo%fringe_size
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Locating outer fringe points..."
-    end if
 
     do n = 1, NumGrids
       if (FringeSize(n) > 0) then
@@ -710,18 +727,18 @@ contains
           end do
         end do
         call ovkReleaseGridState(Grid, State)
-        if (Domain%logger%verbose) then
+        if (Logger%log_status) then
           NumFringe = ovkCountMask(OuterFringeMask)
           if (NumFringe > 0_lk) then
-            write (*, '(5a)') "* ", trim(LargeIntToString(NumFringe)), &
+            write (Logger%status_file, '(5a)') "* ", trim(LargeIntToString(NumFringe)), &
               " outer fringe points on grid ", trim(IntToString(Grid%id)), "."
           end if
         end if
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished locating outer fringe points."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished locating outer fringe points."
     end if
 
   end subroutine LocateOuterFringe
@@ -735,6 +752,7 @@ contains
     type(ovk_field_logical), dimension(:,:), intent(out) :: PairwiseOcclusionMasks
 
     integer :: i, j, k, m, n
+    type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -756,6 +774,12 @@ contains
     type(ovk_array_int) :: CellEdgeDistance
     type(ovk_field_int), pointer :: State
 
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Detecting pairwise occlusion..."
+    end if
+
     NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
@@ -763,10 +787,6 @@ contains
     Occludes => ReducedDomainInfo%occludes
     EdgePadding => ReducedDomainInfo%edge_padding
     EdgeSmoothing => ReducedDomainInfo%edge_smoothing
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Detecting pairwise occlusion..."
-    end if
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
@@ -801,29 +821,29 @@ contains
           PairwiseOcclusionMasks(n,m)%values = PairwiseOcclusionMasks(n,m)%values .and. .not. &
             OverlappedMask_m%values
         end if
-        if (Domain%logger%verbose) then
+        if (Logger%log_status) then
           PointCount = ovkCountMask(PairwiseOcclusionMasks(m,n))
           if (PointCount > 0_lk) then
-            write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
-              trim(IntToString(Grid_n%id)), " occluded by grid ", &
+            write (Logger%status_file, '(7a)') "* ", trim(LargeIntToString(PointCount)), &
+              " points on grid ", trim(IntToString(Grid_n%id)), " occluded by grid ", &
               trim(IntToString(Grid_m%id)), "."
           end if
           PointCount = ovkCountMask(PairwiseOcclusionMasks(n,m))
           if (PointCount > 0_lk) then
-            write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
-              trim(IntToString(Grid_m%id)), " occluded by grid ", &
+            write (Logger%status_file, '(7a)') "* ", trim(LargeIntToString(PointCount)), &
+              " points on grid ", trim(IntToString(Grid_m%id)), " occluded by grid ", &
               trim(IntToString(Grid_n%id)), "."
           end if
         end if
       end do
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished detecting pairwise occlusion."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished detecting pairwise occlusion."
     end if
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Applying edge padding and smoothing..."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Applying edge padding and smoothing..."
     end if
 
     allocate(PaddingMasks(NumGrids,NumGrids))
@@ -871,12 +891,13 @@ contains
           if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
             Grid_m => Domain%grid(IndexToID(m))
             PaddingMasks(m,n)%values = PaddingMasks(m,n)%values .and. .not. OcclusionMask%values
-            if (Domain%logger%verbose) then
+            if (Logger%log_status) then
               PointCount = ovkCountMask(PaddingMasks(m,n))
               if (PointCount > 0_lk) then
-                write (*, '(7a)') "* ", trim(LargeIntToString(PointCount)), " points on grid ", &
-                  trim(IntToString(Grid_n%id)), " marked as not occluded by grid ", &
-                  trim(IntToString(Grid_m%id)), " due to padding/smoothing."
+                write (Logger%status_file, '(7a)') "* ", trim(LargeIntToString( &
+                  PointCount)), " points on grid ", trim(IntToString(Grid_n%id)), &
+                  " marked as not occluded by grid ", trim(IntToString(Grid_m%id)), &
+                  " due to padding/smoothing."
               end if
             end if
           end if
@@ -898,12 +919,12 @@ contains
 
     deallocate(PaddingMasks)
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished applying edge padding and smoothing."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished applying edge padding and smoothing."
     end if
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Accumulating occlusion..."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Accumulating occlusion..."
     end if
 
     do n = 1, NumGrids
@@ -926,18 +947,18 @@ contains
           end do
         end do
         call ovkReleaseGridState(Grid_n, State)
-        if (Domain%logger%verbose) then
+        if (Logger%log_status) then
           PointCount = ovkCountMask(OcclusionMask)
           if (PointCount > 0_lk) then
-            write (*, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
+            write (Logger%status_file, '(5a)') "* ", trim(LargeIntToString(PointCount)), &
               " occluded points on grid ", trim(IntToString(Grid_n%id)), "."
           end if
         end if
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished accumulating occlusion."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished accumulating occlusion."
     end if
 
   end subroutine DetectOccludedPoints
@@ -978,6 +999,7 @@ contains
     type(ovk_field_logical), dimension(:,:), intent(in) :: PairwiseOcclusionMasks
 
     integer :: i, j, k, m, n
+    type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -994,16 +1016,18 @@ contains
     logical, dimension(:), allocatable :: UpdateGrid
     type(ovk_field_int), pointer :: State
 
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Minimizing overlap..."
+    end if
+
     NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
     Occludes => ReducedDomainInfo%occludes
     FringeSize => ReducedDomainInfo%fringe_size
     MinimizeOverlap => ReducedDomainInfo%minimize_overlap
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Minimizing overlap..."
-    end if
 
     allocate(OverlapMinimizationMasks(NumGrids))
     allocate(InnerFringeMasks(NumGrids))
@@ -1035,22 +1059,23 @@ contains
             Grid_n%mask%values
           InnerFringeMasks(n) = ovk_field_logical_(Grid_n%cart, .false.)
         end if
-        if (Domain%logger%verbose) then
+        if (Logger%log_status) then
           NumRemoved = ovkCountMask(OverlapMinimizationMasks(n))
           if (NumRemoved > 0_lk) then
-            write (*, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
+            write (Logger%status_file, '(5a)') "* ", trim(LargeIntToString(NumRemoved)), &
               " points removed from grid ", trim(IntToString(Grid_n%id)), "."
           end if
         end if
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished minimizing overlap."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished minimizing overlap."
     end if
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Updating grids and overlap information after overlap minimization..."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(2a)') "Updating grids and overlap information after ", &
+        "overlap minimization..."
     end if
 
     allocate(UpdateGrid(NumGrids))
@@ -1084,8 +1109,8 @@ contains
         end do
         call ovkReleaseGridState(Grid_n, State)
       end if
-      if (Domain%logger%verbose) then
-        write (*, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%id)), "."
+      if (Logger%log_status) then
+        write (Logger%status_file, '(3a)') "* Done updating grid ", trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
@@ -1100,14 +1125,14 @@ contains
           end if
         end if
       end do
-      if (Domain%logger%verbose) then
-        write (*, '(3a)') "* Done updating overlap information on grid ", &
+      if (Logger%log_status) then
+        write (Logger%status_file, '(3a)') "* Done updating overlap information on grid ", &
           trim(IntToString(Grid_n%id)), "."
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished updating grids and overlap information."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished updating grids and overlap information."
     end if
 
   end subroutine ApplyOverlapMinimization
@@ -1118,6 +1143,7 @@ contains
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
     integer :: i, j, k, n
+    type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -1128,13 +1154,15 @@ contains
     type(ovk_field_int), pointer :: State
     integer(lk) :: NumReceivers
 
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Locating receiver points..."
+    end if
+
     NumDims = Domain%nd
     NumGrids = ReducedDomainInfo%ngrids
     IndexToID => ReducedDomainInfo%index_to_id
-
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Locating receiver points..."
-    end if
 
     do n = 1, NumGrids
       Grid => Domain%grid(IndexToID(n))
@@ -1153,15 +1181,15 @@ contains
         end do
       end do
       call ovkReleaseGridState(Grid, State)
-      if (Domain%logger%verbose) then
+      if (Logger%log_status) then
         NumReceivers = ovkCountMask(ReceiverMask)
-        write (*, '(5a)') "* ", trim(LargeIntToString(NumReceivers)), &
+        write (Logger%status_file, '(5a)') "* ", trim(LargeIntToString(NumReceivers)), &
           " receiver points on grid ", trim(IntToString(Grid%id)), "."
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished locating receiver points."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished locating receiver points."
     end if
 
   end subroutine LocateReceivers
@@ -1174,6 +1202,7 @@ contains
     type(ovk_field_int), dimension(:), intent(out) :: DonorGridIDs
 
     integer :: i, j, k, m, n
+    type(t_logger) :: Logger
     integer(lk) :: l
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -1194,14 +1223,14 @@ contains
     type(ovk_field_int), pointer :: State
     integer, dimension(MAX_ND) :: Point
     integer :: NumWarnings
-    character(len=STRING_LENGTH) :: PointString
-    character(len=STRING_LENGTH) :: GridIDString
     integer(lk) :: NumOrphans
 
     real(rk), parameter :: TOLERANCE = 1.e-12_rk
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Choosing donors..."
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Choosing donors..."
     end if
 
     NumGrids = ReducedDomainInfo%ngrids
@@ -1279,7 +1308,7 @@ contains
         end do
       end do
       call ovkReleaseGridState(Grid_n, State)
-      if (Domain%logger%verbose) then
+      if (Logger%log_errors) then
         NumWarnings = 0
         do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
           do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
@@ -1287,12 +1316,11 @@ contains
               Point = [i,j,k]
               if (OrphanMask%values(i,j,k)) then
                 if (NumWarnings <= 100) then
-                  PointString = TupleToString(Point(:Grid_n%nd))
-                  GridIDString = IntToString(Grid_n%id)
-                  write (ERROR_UNIT, '(5a)') "WARNING: Could not find suitable donor for point ", &
-                    trim(PointString), " of grid ", trim(GridIDString), "."
+                  write (Logger%error_file, '(6a)') "WARNING: Could not find suitable ", &
+                    "donor for point ", trim(TupleToString(Point(:Grid_n%nd))), " of grid ", &
+                    trim(IntToString(Grid_n%id)), "."
                   if (NumWarnings == 100) then
-                    write (ERROR_UNIT, '(a)') "WARNING: Further warnings suppressed."
+                    write (Logger%error_file, '(a)') "WARNING: Further warnings suppressed."
                   end if
                   NumWarnings = NumWarnings + 1
                 end if
@@ -1301,13 +1329,13 @@ contains
           end do
         end do
         NumOrphans = ovkCountMask(OrphanMask)
-        write (*, '(5a)') "* Done choosing donors on grid ", trim(IntToString(Grid_n%id)), " (", &
-          trim(LargeIntToString(NumOrphans)), " orphans found)."
+        write (Logger%status_file, '(5a)') "* Done choosing donors on grid ", &
+          trim(IntToString(Grid_n%id)), " (", trim(LargeIntToString(NumOrphans)), " orphans found)."
       end if
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished choosing donors."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished choosing donors."
     end if
 
   end subroutine ChooseDonors
@@ -1324,6 +1352,7 @@ contains
     end type t_donor_grid_info
 
     integer :: i, j, m, n
+    type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
     integer, dimension(:), pointer :: IndexToID
@@ -1339,8 +1368,10 @@ contains
     type(t_donor_stencil), pointer :: DonorStencil
     integer(lk) :: NumConnections
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Generating connectivity information..."
+    Logger = Domain%logger
+
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Generating connectivity information..."
     end if
 
     NumDims = Domain%nd
@@ -1404,20 +1435,20 @@ contains
           ReceiverMask%values = DonorGridIDs(n)%values == Grid_m%id
           DonorStencil => DonorGridInfo(m)%stencil(DonorGridInfo(m)%stencil_index(ConnectionType(m,n)))
           call FillConnectivity(Connectivity, Overlap, DonorStencil, ReceiverMask)
-          if (Domain%logger%verbose) then
+          if (Logger%log_status) then
             call ovkGetConnectivityCount(Connectivity, NumConnections)
             if (NumConnections > 0_lk) then
-              write (*, '(7a)') "* ", trim(LargeIntToString(NumConnections)), &
-                " donor/receiver pairs between grid ", trim(IntToString(Grid_m%id)), &
-                " and grid ", trim(IntToString(Grid_n%id)), "."
+              write (Logger%status_file, '(7a)') "* ", trim(LargeIntToString( &
+                NumConnections)), " donor/receiver pairs between grid ", &
+                trim(IntToString(Grid_m%id)), " and grid ", trim(IntToString(Grid_n%id)), "."
             end if
           end if
         end if
       end do
     end do
 
-    if (Domain%logger%verbose) then
-      write (*, '(a)') "Finished generating connectivity information."
+    if (Logger%log_status) then
+      write (Logger%status_file, '(a)') "Finished generating connectivity information."
     end if
 
   end subroutine GenerateConnectivity

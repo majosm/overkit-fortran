@@ -83,7 +83,8 @@ program Bump
   allocate(Coords(NumDims))
 
   ! Initialize the problem
-  call ovkCreateDomain(Domain, NumDims=NumDims, NumGrids=2, Verbose=.true.)
+  call ovkCreateDomain(Domain, NumDims=NumDims, NumGrids=2, StatusLogFile=OUTPUT_UNIT, &
+      ErrorLogFile=ERROR_UNIT)
 
   !=================
   ! Background grid
@@ -242,7 +243,7 @@ program Bump
 
   ! Write a PLOT3D grid file with IBlank to visualize the result
   call ovkCreateP3D(GridFile, "bump.xyz", NumDims=NumDims, NumGrids=2, NumPointsAll=NumPointsAll, &
-    WithIBlank=.true.)
+    WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   do n = 1, 2
 

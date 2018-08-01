@@ -11,6 +11,7 @@ module ovkOverlapAccel
   use ovkGlobal
   use ovkGrid
   use ovkHashGrid
+  use ovkLogger
   implicit none
 
   private
@@ -32,6 +33,7 @@ module ovkOverlapAccel
 
   type t_overlap_accel
     type(t_noconstruct) :: noconstruct
+    type(t_logger) :: logger
     integer :: nd
     type(ovk_bbox) :: bounds
     integer :: min_cells
@@ -64,6 +66,7 @@ contains
     integer, intent(in) :: NumDims
     type(t_overlap_accel) :: Accel
 
+    Accel%logger = t_logger_()
     Accel%nd = NumDims
     Accel%bounds = ovk_bbox_(NumDims)
     Accel%min_cells = 1
@@ -85,6 +88,7 @@ contains
     real(rk), intent(in) :: QualityAdjust
 
     integer :: NumDims
+    type(t_logger) :: Logger
     integer :: MinCells
     real(rk) :: MinOccupiedVolumeFraction
     real(rk) :: MaxCellVolumeDeviation
@@ -102,6 +106,7 @@ contains
     integer(lk), dimension(:), allocatable :: CellIndices
 
     NumDims = Grid%nd
+    Logger = Grid%logger
 
     MinCells = 10000
     MinOccupiedVolumeFraction = 0.5_rk
@@ -122,6 +127,8 @@ contains
       GridCellLower(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
       GridCellUpper(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
     end do
+
+    Accel%logger = Logger
 
     Accel%nd = NumDims
 
@@ -198,7 +205,7 @@ contains
       Accel%min_occupied_volume_fraction, Accel%max_cell_volume_deviation, &
       Accel%max_hash_grid_size, Accel%bin_scale, Accel%max_depth, 0)
 
-    if (Grid%logger%verbose) then
+    if (Logger%log_status) then
       call PrintStats(Accel)
     end if
 
@@ -700,6 +707,7 @@ contains
 
     type(t_overlap_accel), intent(in) :: Accel
 
+    type(t_logger) :: Logger
     integer(lk) :: NumLeaves
     integer(lk) :: TotalLeafDepth
     integer(lk) :: NumBins
@@ -711,6 +719,8 @@ contains
     real(rk) :: AvgLeafDepth
     integer(lk), dimension(10) :: Histogram
 
+    Logger = Accel%logger
+
     call LeafStats(Accel%root, NumLeaves, TotalLeafDepth)
 
     AvgLeafDepth = real(TotalLeafDepth,kind=rk)/real(NumLeaves,kind=rk)
@@ -721,28 +731,30 @@ contains
     PercentFilled = 100._rk * real(NumNonEmptyBins,kind=rk)/real(NumBins,kind=rk)
     AvgEntriesPerBin = real(TotalBinEntries,kind=rk)/real(NumNonEmptyBins,kind=rk)
 
-    write (*, '(2a)') "* Number of leaf nodes: ", trim(LargeIntToString(NumLeaves))
-    write (*, '(a,f10.4)') "* Average leaf node depth: ", AvgLeafDepth
-    write (*, '(2a)') "* Number of bins: ", trim(LargeIntToString(NumBins))
-    write (*, '(3a,f8.4,a)') "* Number of non-empty bins: ", trim(LargeIntToString(NumNonEmptyBins)), &
-      " (", PercentFilled, "%)"
-    write (*, '(a,f10.4)') "* Average cells per non-empty bin: ", AvgEntriesPerBin
-    write (*, '(2a)') "* Smallest number of cells per bin: ", trim(IntToString(MinBinEntries))
-    write (*, '(2a)') "* Largest number of cells per bin: ", trim(IntToString(MaxBinEntries))
+    write (Logger%status_file, '(2a)') "* Number of leaf nodes: ", trim(LargeIntToString(NumLeaves))
+    write (Logger%status_file, '(a,f10.4)') "* Average leaf node depth: ", AvgLeafDepth
+    write (Logger%status_file, '(2a)') "* Number of bins: ", trim(LargeIntToString(NumBins))
+    write (Logger%status_file, '(3a,f8.4,a)') "* Number of non-empty bins: ", &
+      trim(LargeIntToString(NumNonEmptyBins)), " (", PercentFilled, "%)"
+    write (Logger%status_file, '(a,f10.4)') "* Average cells per non-empty bin: ", AvgEntriesPerBin
+    write (Logger%status_file, '(2a)') "* Smallest number of cells per bin: ", &
+      trim(IntToString(MinBinEntries))
+    write (Logger%status_file, '(2a)') "* Largest number of cells per bin: ", &
+      trim(IntToString(MaxBinEntries))
 
     call BinEntryHistogram(Accel%root, MinBinEntries, MaxBinEntries, 10, Histogram)
 
-    write (*, '(a)') "* Bin cell count histogram:"
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(1))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(2))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(3))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(4))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(5))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(6))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(7))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(8))), "  "
-    write (*, '(2a)', advance='no') trim(LargeIntToString(Histogram(9))), "  "
-    write (*, '(a)') trim(LargeIntToString(Histogram(10)))
+    write (Logger%status_file, '(a)') "* Bin cell count histogram:"
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(1))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(2))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(3))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(4))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(5))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(6))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(7))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(8))), "  "
+    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(9))), "  "
+    write (Logger%status_file, '(a)') trim(LargeIntToString(Histogram(10)))
 
   end subroutine PrintStats
 

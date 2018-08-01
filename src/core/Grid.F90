@@ -84,7 +84,7 @@ module ovkGrid
   type ovk_grid
     type(t_noconstruct) :: noconstruct
     type(t_existence_flag) :: existence_flag
-    type(t_logger), pointer :: logger
+    type(t_logger) :: logger
     integer :: id
     integer :: nd
     integer, dimension(MAX_ND) :: npoints
@@ -166,7 +166,7 @@ contains
 
     type(ovk_grid) :: Grid
 
-    nullify(Grid%logger)
+    Grid%logger = t_logger_()
     Grid%id = 0
     Grid%nd = 2
     Grid%npoints = [0,0,1]
@@ -193,7 +193,7 @@ contains
   subroutine CreateGrid(Grid, Logger, ID, Cart, PeriodicLength, GeometryType)
 
     type(ovk_grid), intent(out) :: Grid
-    type(t_logger), pointer, intent(in) :: Logger
+    type(t_logger), intent(in) :: Logger
     integer, intent(in) :: ID
     type(ovk_cart), intent(in) :: Cart
     real(rk), dimension(Cart%nd), intent(in), optional :: PeriodicLength
@@ -204,7 +204,7 @@ contains
     integer :: GeometryType_
     type(ovk_cart) :: CellEdgeDistCart
 
-    Grid%logger => Logger
+    Grid%logger = Logger
 
     if (present(PeriodicLength)) then
       PeriodicLength_(:Cart%nd) = PeriodicLength
