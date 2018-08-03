@@ -199,9 +199,10 @@ contains
     real(rk), dimension(Cart%nd), intent(in), optional :: PeriodicLength
     integer, intent(in), optional :: GeometryType
 
-    integer :: d
+    integer :: d, i, j, k
     real(rk), dimension(MAX_ND) :: PeriodicLength_
     integer :: GeometryType_
+    integer, dimension(MAX_ND) :: Point
     type(ovk_cart) :: CellEdgeDistCart
 
     Grid%logger = Logger
@@ -230,7 +231,15 @@ contains
 
     allocate(Grid%coords(Grid%nd))
     do d = 1, Grid%nd
-      Grid%coords(d) = ovk_field_real_(Grid%cart, 0._rk)
+      Grid%coords(d) = ovk_field_real_(Grid%cart)
+      do k = Grid%cart%is(3), Grid%cart%ie(3)
+        do j = Grid%cart%is(2), Grid%cart%ie(2)
+          do i = Grid%cart%is(1), Grid%cart%ie(1)
+            Point = [i,j,k]
+            Grid%coords(d)%values(i,j,k) = real(Point(d)-1,kind=rk)
+          end do
+        end do
+      end do
     end do
 
     Grid%coords_edit_ref_count = 0
@@ -246,15 +255,19 @@ contains
     Grid%edits = t_grid_edits_(Cart%nd)
 
     Grid%bounds = ovk_bbox_(Grid%nd)
-    if (ovkCartCount(Grid%cart) > 0) then
-      Grid%bounds%b(:Grid%nd) = 0._rk
-      Grid%bounds%e(:Grid%nd) = 0._rk
-    end if
+    do d = 1, Grid%nd
+      Grid%bounds%b(d) = real(Grid%cart%is(d)-1,kind=rk)
+      if (Grid%cart%periodic(d) .and. Grid%cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC) then
+        Grid%bounds%e(d) = real(Grid%cart%ie(d),kind=rk)
+      else
+        Grid%bounds%e(d) = real(Grid%cart%ie(d)-1,kind=rk)
+      end if
+    end do
 
     Grid%mask = ovk_field_logical_(Grid%cart, .true.)
     Grid%cell_mask = ovk_field_logical_(Grid%cell_cart, .true.)
-    Grid%volumes = ovk_field_real_(Grid%cart, 0._rk)
-    Grid%cell_volumes = ovk_field_real_(Grid%cell_cart, 0._rk)
+    Grid%volumes = ovk_field_real_(Grid%cart, 1._rk)
+    Grid%cell_volumes = ovk_field_real_(Grid%cell_cart, 1._rk)
 
     CellEdgeDistCart = Grid%cell_cart
     CellEdgeDistCart%is(:Grid%nd) = CellEdgeDistCart%is(:Grid%nd) - merge(0, 1, &
