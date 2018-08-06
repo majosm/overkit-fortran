@@ -240,6 +240,7 @@ module Overkit
   public :: ovkReleaseGridState
   public :: ovkResetGridState
   public :: ovkFilterGridState
+  public :: ovkGetGridBounds
   public :: ovkGridCellBounds
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell

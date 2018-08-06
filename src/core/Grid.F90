@@ -33,6 +33,7 @@ module ovkGrid
   public :: ovkReleaseGridState
   public :: ovkResetGridState
   public :: ovkFilterGridState
+  public :: ovkGetGridBounds
   public :: ovkGridCellBounds
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell
@@ -690,6 +691,15 @@ contains
     end select
 
   end subroutine ovkFilterGridState
+
+  subroutine ovkGetGridBounds(Grid, Bounds)
+
+    type(ovk_grid), intent(in) :: Grid
+    type(ovk_bbox), intent(out) :: Bounds
+
+    Bounds = Grid%bounds
+
+  end subroutine ovkGetGridBounds
 
   function EditingCoords(Grid) result(Editing)
 
