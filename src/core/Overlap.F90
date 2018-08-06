@@ -289,8 +289,7 @@ contains
                 OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
               end do
               if (ovkBBContainsPoint(Bounds, OverlappedCoords)) then
-                Cell(:NumDims) = FindOverlappingCell(OverlappingGrid, OverlapAccel, &
-                  OverlappedCoords, OverlapTolerance)
+                Cell(:NumDims) = FindOverlappingCell(OverlapAccel, OverlappedCoords, OverlapTolerance)
                 Cell(NumDims+1:) = 1
                 if (ovkCartContains(OverlappingGrid%cell_cart, Cell)) then
                   OverlappedMask%values(i,j,k) = .true.

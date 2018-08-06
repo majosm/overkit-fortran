@@ -19,8 +19,9 @@ module ovkOverlapAccel
   ! Internal
   public :: t_overlap_accel
   public :: t_overlap_accel_
-  public :: GenerateOverlapAccel
+  public :: CreateOverlapAccel
   public :: DestroyOverlapAccel
+  public :: PopulateOverlapAccel
   public :: FindOverlappingCell
 
   type t_node
@@ -33,22 +34,15 @@ module ovkOverlapAccel
 
   type t_overlap_accel
     type(t_noconstruct) :: noconstruct
-    type(t_logger) :: logger
+    type(ovk_grid), pointer :: grid
     integer :: nd
     type(ovk_bbox) :: bounds
-    integer :: min_cells
-    real(rk) :: min_occupied_volume_fraction
-    real(rk) :: max_cell_volume_deviation
-    integer(lk) :: max_hash_grid_size
-    real(rk) :: bin_scale
-    integer :: max_depth
     type(t_node), pointer :: root
   end type t_overlap_accel
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors
   interface t_overlap_accel_
     module procedure t_overlap_accel_Default
-    module procedure t_overlap_accel_Empty
   end interface t_overlap_accel_
 
 contains
@@ -57,66 +51,80 @@ contains
 
     type(t_overlap_accel) :: Accel
 
-    Accel = t_overlap_accel_Empty(2)
+    nullify(Accel%grid)
+    Accel%nd = 2
+    Accel%bounds = ovk_bbox_()
+    nullify(Accel%root)
 
   end function t_overlap_accel_Default
 
-  pure function t_overlap_accel_Empty(NumDims) result(Accel)
+  subroutine CreateOverlapAccel(Accel, Grid)
 
-    integer, intent(in) :: NumDims
-    type(t_overlap_accel) :: Accel
+    type(t_overlap_accel), intent(out) :: Accel
+    type(ovk_grid), pointer, intent(in) :: Grid
 
-    Accel%logger = t_logger_()
-    Accel%nd = NumDims
-    Accel%bounds = ovk_bbox_(NumDims)
-    Accel%min_cells = 1
-    Accel%min_occupied_volume_fraction = 1._rk
-    Accel%max_cell_volume_deviation = 0._rk
-    Accel%max_hash_grid_size = huge(0_lk)
-    Accel%bin_scale = 0._rk
-    Accel%max_depth = 0
+    Accel%grid => Grid
+    Accel%nd = Grid%nd
+    Accel%bounds = ovk_bbox_(Grid%nd)
     nullify(Accel%root)
 
-  end function t_overlap_accel_Empty
+  end subroutine CreateOverlapAccel
 
-  subroutine GenerateOverlapAccel(Grid, Accel, Bounds, MaxOverlapTolerance, QualityAdjust)
+  subroutine DestroyOverlapAccel(Accel)
 
-    type(ovk_grid), intent(in) :: Grid
-    type(t_overlap_accel), intent(out) :: Accel
+    type(t_overlap_accel), intent(inout) :: Accel
+
+    if (associated(Accel%root)) then
+      call DestroyOverlapAccelNode(Accel%root)
+      deallocate(Accel%root)
+    end if
+
+  end subroutine DestroyOverlapAccel
+
+  subroutine PopulateOverlapAccel(Accel, Bounds, MaxOverlapTolerance, NumCellsLeaf, &
+    MinOccupiedVolumeFraction, MaxCellVolumeDeviation, BinScale)
+
+    type(t_overlap_accel), intent(inout) :: Accel
     type(ovk_bbox), intent(in) :: Bounds
     real(rk), intent(in) :: MaxOverlapTolerance
-    real(rk), intent(in) :: QualityAdjust
+    integer(lk), intent(in) :: NumCellsLeaf
+    real(rk), intent(in) :: MinOccupiedVolumeFraction
+    real(rk), intent(in) :: MaxCellVolumeDeviation
+    real(rk), intent(in) :: BinScale
 
+    integer :: d, i, j, k
     integer :: NumDims
+    type(ovk_grid), pointer :: Grid
     type(t_logger) :: Logger
-    integer :: MinCells
-    real(rk) :: MinOccupiedVolumeFraction
-    real(rk) :: MaxCellVolumeDeviation
-    integer(lk) :: MaxHashGridSize
-    real(rk) :: BinScale
-    integer :: MaxDepth
-    integer :: i, j, k, d
-    real(rk), dimension(MAX_ND) :: AccelLower, AccelUpper
+    type(ovk_bbox) :: GridBounds
     type(ovk_field_logical) :: GridCellOverlapMask
     type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper
+    real(rk), dimension(MAX_ND) :: AccelLower, AccelUpper
     integer, dimension(MAX_ND) :: Cell
     type(ovk_bbox) :: GridCellBounds
     integer(lk) :: NumOverlappingCells, iNextOverlappingCell
     integer, dimension(:,:), allocatable :: OverlappingCells
     integer(lk), dimension(:), allocatable :: CellIndices
+    integer :: MaxDepth
 
-    NumDims = Grid%nd
+    real(rk), parameter :: TOLERANCE = 1.e-12_rk
+
+    NumDims = Accel%nd
+    Grid => Accel%grid
     Logger = Grid%logger
 
-    MinCells = 10000
-    MinOccupiedVolumeFraction = 0.5_rk
-    MaxCellVolumeDeviation = 0.5_rk
-    MaxHashGridSize = 2_lk**26
-    BinScale = 0.5_rk**QualityAdjust
+    if (OVK_DEBUG) then
+      GridBounds = ovkBBScale(Grid%bounds, 1._rk + 2._rk*MaxOverlapTolerance)
+      if (.not. ovkBBOverlaps(Bounds, GridBounds)) then
+        write (ERROR_UNIT, '(2a)') "ERROR: Overlap search accelerator bounds must overlap with ", &
+          "grid bounds."
+        stop 1
+      end if
+    end if
 
-    if (.not. ovkBBOverlaps(Bounds, Grid%bounds)) then
-      Accel = t_overlap_accel_(NumDims)
-      return
+    if (associated(Accel%root)) then
+      call DestroyOverlapAccelNode(Accel%root)
+      deallocate(Accel%root)
     end if
 
     GridCellOverlapMask = ovk_field_logical_(Grid%cell_cart, .false.)
@@ -127,10 +135,6 @@ contains
       GridCellLower(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
       GridCellUpper(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
     end do
-
-    Accel%logger = Logger
-
-    Accel%nd = NumDims
 
     AccelLower = Bounds%e
     AccelUpper = Bounds%b
@@ -147,7 +151,7 @@ contains
           Cell = [i,j,k]
           if (Grid%cell_mask%values(Cell(1),Cell(2),Cell(3))) then
             GridCellBounds = ovkGridCellBounds(Grid, Cell)
-            GridCellBounds = ovkBBScale(GridCellBounds, 1._rk + 2._rk * MaxOverlapTolerance)
+            GridCellBounds = ovkBBScale(GridCellBounds, 1._rk + 2._rk*MaxOverlapTolerance)
             GridCellOverlapMask%values(i,j,k) = ovkBBOverlaps(Bounds, GridCellBounds)
             if (GridCellOverlapMask%values(i,j,k)) then
               do d = 1, NumDims
@@ -167,64 +171,46 @@ contains
 
     NumOverlappingCells = ovkCountMask(GridCellOverlapMask)
 
-    if (NumOverlappingCells == 0) then
-      Accel = t_overlap_accel_(NumDims)
-      return
-    end if
+    if (NumOverlappingCells > 0_lk) then
 
-    allocate(OverlappingCells(NumOverlappingCells,MAX_ND))
-    allocate(CellIndices(NumOverlappingCells))
+      allocate(OverlappingCells(NumOverlappingCells,MAX_ND))
+      allocate(CellIndices(NumOverlappingCells))
 
-    iNextOverlappingCell = 1_lk
-    do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
-      do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
-        do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
-          Cell = [i,j,k]
-          if (GridCellOverlapMask%values(i,j,k)) then
-            OverlappingCells(iNextOverlappingCell,:) = Cell
-            CellIndices(iNextOverlappingCell) = iNextOverlappingCell
-            iNextOverlappingCell = iNextOverlappingCell + 1_lk
-          end if
+      iNextOverlappingCell = 1_lk
+      do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
+        do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
+          do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
+            Cell = [i,j,k]
+            if (GridCellOverlapMask%values(i,j,k)) then
+              OverlappingCells(iNextOverlappingCell,:) = Cell
+              CellIndices(iNextOverlappingCell) = iNextOverlappingCell
+              iNextOverlappingCell = iNextOverlappingCell + 1_lk
+            end if
+          end do
         end do
       end do
-    end do
 
-    MaxDepth = int(ceiling(log(max(real(NumOverlappingCells,kind=rk)/real(MinCells,kind=rk), &
-      1._rk))/log(2._rk)))
+      MaxDepth = 0
+      do while (ishft(NumOverlappingCells/NumCellsLeaf, -MaxDepth) /= 0)
+        MaxDepth = MaxDepth + 1
+      end do
 
-    Accel%min_cells = MinCells
-    Accel%min_occupied_volume_fraction = MinOccupiedVolumeFraction
-    Accel%max_cell_volume_deviation = MaxCellVolumeDeviation
-    Accel%max_hash_grid_size = MaxHashGridSize
-    Accel%bin_scale = BinScale
-    Accel%max_depth = MaxDepth
+      allocate(Accel%root)
+      call GenerateOverlapAccelNode(Accel%root, Grid%cell_cart, Accel%bounds, GridCellLower, &
+        GridCellUpper, Grid%cell_volumes, OverlappingCells, CellIndices, 0, MaxDepth, &
+        NumCellsLeaf, MinOccupiedVolumeFraction, MaxCellVolumeDeviation, BinScale)
 
-    allocate(Accel%root)
-    call GenerateOverlapAccelNode(Accel%root, Grid%cell_cart, Accel%bounds, GridCellLower, &
-      GridCellUpper, Grid%cell_volumes, OverlappingCells, CellIndices, Accel%min_cells, &
-      Accel%min_occupied_volume_fraction, Accel%max_cell_volume_deviation, &
-      Accel%max_hash_grid_size, Accel%bin_scale, Accel%max_depth, 0)
+    end if
 
     if (Logger%log_status) then
       call PrintStats(Accel)
     end if
 
-  end subroutine GenerateOverlapAccel
-
-  subroutine DestroyOverlapAccel(Accel)
-
-    type(t_overlap_accel), intent(inout) :: Accel
-
-    if (associated(Accel%root)) then
-      call DestroyOverlapAccelNode(Accel%root)
-      deallocate(Accel%root)
-    end if
-
-  end subroutine DestroyOverlapAccel
+  end subroutine PopulateOverlapAccel
 
   recursive subroutine GenerateOverlapAccelNode(Node, CellCart, Bounds, AllCellLower, &
-    AllCellUpper, AllCellVolumes, OverlappingCells, CellIndices, MinCells, &
-    MinOccupiedVolumeFraction, MaxCellVolumeDeviation, MaxHashGridSize, BinScale, MaxDepth, Depth)
+    AllCellUpper, AllCellVolumes, OverlappingCells, CellIndices, Depth, MaxDepth, &
+    NumCellsLeaf, MinOccupiedVolumeFraction, MaxCellVolumeDeviation, BinScale)
 
     type(t_node), intent(out) :: Node
     type(ovk_cart), intent(in) :: CellCart
@@ -234,27 +220,25 @@ contains
     type(ovk_field_real), intent(in) :: AllCellVolumes
     integer, dimension(:,:), intent(in) :: OverlappingCells
     integer(lk), dimension(:), intent(in) :: CellIndices
-    integer, intent(in) :: MinCells
+    integer, intent(in) :: Depth
+    integer, intent(in) :: MaxDepth
+    integer(lk), intent(in) :: NumCellsLeaf
     real(rk), intent(in) :: MinOccupiedVolumeFraction
     real(rk), intent(in) :: MaxCellVolumeDeviation
-    integer(lk), intent(in) :: MaxHashGridSize
     real(rk), intent(in) :: BinScale
-    integer, intent(in) :: MaxDepth
-    integer, intent(in) :: Depth
 
     integer :: i, j, k, d
     integer(lk) :: l
     integer(lk) :: NumCells
     integer, dimension(MAX_ND) :: Cell
-    real(rk) :: CellVolume, MeanCellVolume, CellVolumeDeviation
-    real(rk), dimension(CellCart%nd) :: CellSize, MeanCellSize
-    real(rk) :: OccupiedVolume
     real(rk), dimension(MAX_ND) :: CellLower, CellUpper
     real(rk), dimension(MAX_ND) :: ReducedBoundsLower, ReducedBoundsUpper
     type(ovk_bbox) :: ReducedBounds
     real(rk), dimension(CellCart%nd) :: ReducedBoundsSize
     real(rk) :: ReducedBoundsVolume
-    logical :: BelowMinCells, AtMaxDepth
+    real(rk) :: CellVolume, MeanCellVolume, CellVolumeDeviation
+    real(rk), dimension(CellCart%nd) :: CellBoundsSize, MeanCellBoundsSize
+    real(rk) :: OccupiedVolume
     logical :: OccupiedEnough, UniformEnough, NotTooBig
     logical :: LeafNode
     integer :: SplitDir
@@ -268,41 +252,16 @@ contains
     type(ovk_field_int) :: NumBinElements
     integer(lk) :: BinStart, BinEnd
 
+    integer(lk), parameter :: MaxHashGridSize = 2_lk**26
+
     nullify(Node%hash_grid)
     nullify(Node%left_child)
     nullify(Node%right_child)
 
     NumCells = size(CellIndices,kind=lk)
 
-    MeanCellVolume = 0._rk
-    do l = 1_lk, NumCells
-      Cell = OverlappingCells(CellIndices(l),:)
-      CellVolume = AllCellVolumes%values(Cell(1),Cell(2),Cell(3))
-      MeanCellVolume = MeanCellVolume + CellVolume
-    end do
-    MeanCellVolume = MeanCellVolume/real(NumCells,kind=rk)
-
-    if (NumCells > 1_lk) then
-      CellVolumeDeviation = 0._rk
-      OccupiedVolume = 0._rk
-      do l = 1_lk, NumCells
-        Cell = OverlappingCells(CellIndices(l),:)
-        CellVolume = AllCellVolumes%values(Cell(1),Cell(2),Cell(3))
-        CellVolumeDeviation = CellVolumeDeviation + (CellVolume - MeanCellVolume)**2
-        OccupiedVolume = OccupiedVolume + CellVolume
-      end do
-      CellVolumeDeviation = sqrt(CellVolumeDeviation/real(NumCells-1_lk,kind=rk))
-    else
-      CellVolumeDeviation = 0._rk
-      OccupiedVolume = 0._rk
-    end if
-
-    CellVolumeDeviation = CellVolumeDeviation/MeanCellVolume
-
-    ReducedBoundsLower(:CellCart%nd) = huge(0._rk)
-    ReducedBoundsLower(CellCart%nd+1:) = 0._rk
-    ReducedBoundsUpper(:CellCart%nd) = -huge(0._rk)
-    ReducedBoundsUpper(CellCart%nd+1:) = 0._rk
+    ReducedBoundsLower = Bounds%e
+    ReducedBoundsUpper = Bounds%b
 
 ! This isn't working with OpenMP for some reason
 ! !$OMP PARALLEL DO &
@@ -327,14 +286,37 @@ contains
     ReducedBoundsSize = ovkBBSize(ReducedBounds)
     ReducedBoundsVolume = product(ReducedBoundsSize)
 
-    AtMaxDepth = Depth == MaxDepth
-    BelowMinCells = NumCells < MinCells
-    OccupiedEnough = OccupiedVolume/ReducedBoundsVolume >= MinOccupiedVolumeFraction
-    UniformEnough = CellVolumeDeviation <= MaxCellVolumeDeviation
-    NotTooBig = NumCells <= MaxHashGridSize
+    if (Depth == MaxDepth .or. NumCells <= NumCellsLeaf) then
 
-    LeafNode = AtMaxDepth .or. BelowMinCells .or. (OccupiedEnough .and. UniformEnough &
-      .and. NotTooBig)
+      LeafNode = .true.
+
+    else
+
+      MeanCellVolume = 0._rk
+      do l = 1_lk, NumCells
+        Cell = OverlappingCells(CellIndices(l),:)
+        CellVolume = AllCellVolumes%values(Cell(1),Cell(2),Cell(3))
+        MeanCellVolume = MeanCellVolume + CellVolume
+      end do
+      MeanCellVolume = MeanCellVolume/real(NumCells,kind=rk)
+
+      CellVolumeDeviation = 0._rk
+      OccupiedVolume = 0._rk
+      do l = 1_lk, NumCells
+        Cell = OverlappingCells(CellIndices(l),:)
+        CellVolume = AllCellVolumes%values(Cell(1),Cell(2),Cell(3))
+        CellVolumeDeviation = CellVolumeDeviation + (CellVolume - MeanCellVolume)**2
+        OccupiedVolume = OccupiedVolume + CellVolume
+      end do
+      CellVolumeDeviation = sqrt(CellVolumeDeviation/real(NumCells-1_lk,kind=rk))/MeanCellVolume
+
+      OccupiedEnough = OccupiedVolume/ReducedBoundsVolume >= MinOccupiedVolumeFraction
+      UniformEnough = CellVolumeDeviation <= MaxCellVolumeDeviation
+      NotTooBig = NumCells <= MaxHashGridSize
+
+      LeafNode = OccupiedEnough .and. UniformEnough .and. NotTooBig
+
+    end if
 
     if (.not. LeafNode) then
 
@@ -358,34 +340,36 @@ contains
       RightBounds%b(SplitDir) = Split
 
       call GenerateOverlapAccelNode(Node%left_child, CellCart, LeftBounds, AllCellLower, &
-        AllCellUpper, AllCellVolumes, OverlappingCells, LeftCellIndices, MinCells, &
-        MinOccupiedVolumeFraction, MaxCellVolumeDeviation, MaxHashGridSize, BinScale, MaxDepth, &
-        Depth+1)
+        AllCellUpper, AllCellVolumes, OverlappingCells, LeftCellIndices, Depth+1, MaxDepth, &
+        NumCellsLeaf, MinOccupiedVolumeFraction, MaxCellVolumeDeviation, BinScale)
       call GenerateOverlapAccelNode(Node%right_child, CellCart, RightBounds, AllCellLower, &
-        AllCellUpper, AllCellVolumes, OverlappingCells, RightCellIndices, MinCells, &
-        MinOccupiedVolumeFraction, MaxCellVolumeDeviation, MaxHashGridSize, BinScale, MaxDepth, &
-        Depth+1)
+        AllCellUpper, AllCellVolumes, OverlappingCells, RightCellIndices, Depth+1, MaxDepth, &
+        NumCellsLeaf, MinOccupiedVolumeFraction, MaxCellVolumeDeviation, BinScale)
 
     else
 
-      MeanCellSize = 0._rk
+      if (NumCells > 1_lk) then
+        MeanCellBoundsSize = 0._rk
 ! This isn't working with OpenMP for some reason
 ! !$OMP PARALLEL DO &
 ! !$OMP&  DEFAULT(PRIVATE) &
 ! !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLower, AllCellUpper) &
-! !$OMP&  REDUCTION(+:MeanCellSize)
-      do l = 1_lk, NumCells
-        Cell = OverlappingCells(CellIndices(l),:)
-        do d = 1, CellCart%nd
-          CellSize(d) = max(AllCellUpper(d)%values(Cell(1),Cell(2),Cell(3)) - &
-            AllCellLower(d)%values(Cell(1),Cell(2),Cell(3)), 0._rk)
+! !$OMP&  REDUCTION(+:MeanCellBoundsSize)
+        do l = 1_lk, NumCells
+          Cell = OverlappingCells(CellIndices(l),:)
+          do d = 1, CellCart%nd
+            CellBoundsSize(d) = max(AllCellUpper(d)%values(Cell(1),Cell(2),Cell(3)) - &
+              AllCellLower(d)%values(Cell(1),Cell(2),Cell(3)), 0._rk)
+          end do
+          MeanCellBoundsSize = MeanCellBoundsSize + CellBoundsSize
         end do
-        MeanCellSize = MeanCellSize + CellSize
-      end do
 ! !$OMP END PARALLEL DO
-      MeanCellSize = MeanCellSize/real(NumCells,kind=rk)
+        MeanCellBoundsSize = MeanCellBoundsSize/real(max(NumCells,1_lk),kind=rk)
+        NumBins = max(int(ceiling(ReducedBoundsSize/(BinScale * MeanCellBoundsSize))),1)
+      else
+        NumBins = 1
+      end if
 
-      NumBins = max(int(ceiling(ReducedBoundsSize/(BinScale * MeanCellSize))),1)
       BinCart = ovk_cart_(CellCart%nd, NumBins)
 
       call DistributeCellsToBins(BinCart, ReducedBounds, CellCart, AllCellLower, AllCellUpper, &
@@ -637,28 +621,31 @@ contains
 
   end subroutine DestroyOverlapAccelNode
 
-  function FindOverlappingCell(Grid, Accel, Coords, OverlapTolerance) result(Cell)
+  function FindOverlappingCell(Accel, Coords, OverlapTolerance) result(Cell)
 
-    type(ovk_grid), intent(in) :: Grid
     type(t_overlap_accel), intent(in) :: Accel
-    real(rk), dimension(Grid%nd), intent(in) :: Coords
+    real(rk), dimension(Accel%nd), intent(in) :: Coords
     real(rk), intent(in) :: OverlapTolerance
-    integer, dimension(Grid%nd) :: Cell
+    integer, dimension(Accel%nd) :: Cell
+
+    type(ovk_grid), pointer :: Grid
+
+    Grid => Accel%grid
 
     Cell = Grid%cart%is(:Grid%nd)-1
 
     if (ovkBBContainsPoint(Accel%bounds, Coords)) then
-      Cell = FindOverlappingCellInNode(Grid, Accel%root, OverlapTolerance, Coords)
+      Cell = FindOverlappingCellInNode(Accel%root, Grid, Coords, OverlapTolerance)
     end if
 
   end function FindOverlappingCell
 
-  recursive function FindOverlappingCellInNode(Grid, Node, OverlapTolerance, Coords) result(Cell)
+  recursive function FindOverlappingCellInNode(Node, Grid, Coords, OverlapTolerance) result(Cell)
 
-    type(ovk_grid), intent(in) :: Grid
     type(t_node), intent(in) :: Node
-    real(rk), intent(in) :: OverlapTolerance
+    type(ovk_grid), intent(in) :: Grid
     real(rk), dimension(Grid%nd), intent(in) :: Coords
+    real(rk), intent(in) :: OverlapTolerance
     integer, dimension(Grid%nd) :: Cell
 
     integer(lk) :: l, m
@@ -674,9 +661,9 @@ contains
     if (.not. LeafNode) then
 
       if (Coords(Node%split_dir) <= Node%split) then
-        Cell = FindOverlappingCellInNode(Grid, Node%left_child, OverlapTolerance, Coords)
+        Cell = FindOverlappingCellInNode(Node%left_child, Grid, Coords, OverlapTolerance)
       else
-        Cell = FindOverlappingCellInNode(Grid, Node%right_child, OverlapTolerance, Coords)
+        Cell = FindOverlappingCellInNode(Node%right_child, Grid, Coords, OverlapTolerance)
       end if
 
     else
@@ -719,42 +706,46 @@ contains
     real(rk) :: AvgLeafDepth
     integer(lk), dimension(10) :: Histogram
 
-    Logger = Accel%logger
+    Logger = Accel%grid%logger
 
-    call LeafStats(Accel%root, NumLeaves, TotalLeafDepth)
-
-    AvgLeafDepth = real(TotalLeafDepth,kind=rk)/real(NumLeaves,kind=rk)
-
-    call BinStats(Accel%root, NumBins, NumNonEmptyBins, MinBinEntries, MaxBinEntries, &
-      TotalBinEntries)
-
-    PercentFilled = 100._rk * real(NumNonEmptyBins,kind=rk)/real(NumBins,kind=rk)
-    AvgEntriesPerBin = real(TotalBinEntries,kind=rk)/real(NumNonEmptyBins,kind=rk)
+    if (associated(Accel%root)) then
+      call LeafStats(Accel%root, NumLeaves, TotalLeafDepth)
+      call BinStats(Accel%root, NumBins, NumNonEmptyBins, MinBinEntries, MaxBinEntries, &
+        TotalBinEntries)
+    else
+      NumLeaves = 0_lk
+      NumBins = 0_lk
+    end if
 
     write (Logger%status_file, '(2a)') "* Number of leaf nodes: ", trim(LargeIntToString(NumLeaves))
-    write (Logger%status_file, '(a,f10.4)') "* Average leaf node depth: ", AvgLeafDepth
+    if (NumLeaves > 0_lk) then
+      AvgLeafDepth = real(TotalLeafDepth,kind=rk)/real(NumLeaves,kind=rk)
+      write (Logger%status_file, '(a,f10.4)') "* Average leaf node depth: ", AvgLeafDepth
+    end if
     write (Logger%status_file, '(2a)') "* Number of bins: ", trim(LargeIntToString(NumBins))
-    write (Logger%status_file, '(3a,f8.4,a)') "* Number of non-empty bins: ", &
-      trim(LargeIntToString(NumNonEmptyBins)), " (", PercentFilled, "%)"
-    write (Logger%status_file, '(a,f10.4)') "* Average cells per non-empty bin: ", AvgEntriesPerBin
-    write (Logger%status_file, '(2a)') "* Smallest number of cells per bin: ", &
-      trim(IntToString(MinBinEntries))
-    write (Logger%status_file, '(2a)') "* Largest number of cells per bin: ", &
-      trim(IntToString(MaxBinEntries))
-
-    call BinEntryHistogram(Accel%root, MinBinEntries, MaxBinEntries, 10, Histogram)
-
-    write (Logger%status_file, '(a)') "* Bin cell count histogram:"
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(1))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(2))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(3))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(4))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(5))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(6))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(7))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(8))), "  "
-    write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(9))), "  "
-    write (Logger%status_file, '(a)') trim(LargeIntToString(Histogram(10)))
+    if (NumBins > 0_lk) then
+      PercentFilled = 100._rk * real(NumNonEmptyBins,kind=rk)/real(NumBins,kind=rk)
+      AvgEntriesPerBin = real(TotalBinEntries,kind=rk)/real(NumNonEmptyBins,kind=rk)
+      call BinEntryHistogram(Accel%root, MinBinEntries, MaxBinEntries, 10, Histogram)
+      write (Logger%status_file, '(3a,f8.4,a)') "* Number of non-empty bins: ", &
+        trim(LargeIntToString(NumNonEmptyBins)), " (", PercentFilled, "%)"
+      write (Logger%status_file, '(a,f10.4)') "* Average cells per non-empty bin: ", AvgEntriesPerBin
+      write (Logger%status_file, '(2a)') "* Smallest number of cells per bin: ", &
+        trim(IntToString(MinBinEntries))
+      write (Logger%status_file, '(2a)') "* Largest number of cells per bin: ", &
+        trim(IntToString(MaxBinEntries))
+      write (Logger%status_file, '(a)') "* Bin cell count histogram:"
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(1))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(2))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(3))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(4))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(5))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(6))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(7))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(8))), "  "
+      write (Logger%status_file, '(2a)', advance='no') trim(LargeIntToString(Histogram(9))), "  "
+      write (Logger%status_file, '(a)') trim(LargeIntToString(Histogram(10)))
+    end if
 
   end subroutine PrintStats
 
