@@ -17,8 +17,10 @@ module ovkAssemblyOptions
   public :: ovkSetAssemblyOptionOverlappable
   public :: ovkGetAssemblyOptionOverlapTolerance
   public :: ovkSetAssemblyOptionOverlapTolerance
-  public :: ovkGetAssemblyOptionOverlapAccelQualityAdjust
-  public :: ovkSetAssemblyOptionOverlapAccelQualityAdjust
+  public :: ovkGetAssemblyOptionOverlapAccelDepthAdjust
+  public :: ovkSetAssemblyOptionOverlapAccelDepthAdjust
+  public :: ovkGetAssemblyOptionOverlapAccelResolutionAdjust
+  public :: ovkSetAssemblyOptionOverlapAccelResolutionAdjust
   public :: ovkGetAssemblyOptionInferBoundaries
   public :: ovkSetAssemblyOptionInferBoundaries
   public :: ovkGetAssemblyOptionCutBoundaryHoles
@@ -42,7 +44,8 @@ module ovkAssemblyOptions
     integer :: ngrids
     logical, dimension(:,:), allocatable :: overlappable
     real(rk), dimension(:,:), allocatable :: overlap_tolerance
-    real(rk), dimension(:), allocatable :: overlap_accel_quality_adjust
+    real(rk), dimension(:), allocatable :: overlap_accel_depth_adjust
+    real(rk), dimension(:), allocatable :: overlap_accel_resolution_adjust
     logical, dimension(:), allocatable :: infer_boundaries
     logical, dimension(:,:), allocatable :: cut_boundary_holes
     integer, dimension(:,:), allocatable :: occludes
@@ -85,8 +88,11 @@ contains
     allocate(Options%overlap_tolerance(NumGrids,NumGrids))
     Options%overlap_tolerance = 1.e-12_rk
 
-    allocate(Options%overlap_accel_quality_adjust(NumGrids))
-    Options%overlap_accel_quality_adjust = 0._rk
+    allocate(Options%overlap_accel_depth_adjust(NumGrids))
+    Options%overlap_accel_depth_adjust = 0._rk
+
+    allocate(Options%overlap_accel_resolution_adjust(NumGrids))
+    Options%overlap_accel_resolution_adjust = 0._rk
 
     allocate(Options%infer_boundaries(NumGrids))
     Options%infer_boundaries = .false.
@@ -203,23 +209,23 @@ contains
 
   end subroutine ovkSetAssemblyOptionOverlapTolerance
 
-  subroutine ovkGetAssemblyOptionOverlapAccelQualityAdjust(Options, GridID, &
-    OverlapAccelQualityAdjust)
+  subroutine ovkGetAssemblyOptionOverlapAccelDepthAdjust(Options, GridID, &
+    OverlapAccelDepthAdjust)
 
     type(ovk_assembly_options), intent(in) :: Options
     integer, intent(in) :: GridID
-    real(rk), intent(out) :: OverlapAccelQualityAdjust
+    real(rk), intent(out) :: OverlapAccelDepthAdjust
 
-    OverlapAccelQualityAdjust = Options%overlap_accel_quality_adjust(GridID)
+    OverlapAccelDepthAdjust = Options%overlap_accel_depth_adjust(GridID)
 
-  end subroutine ovkGetAssemblyOptionOverlapAccelQualityAdjust
+  end subroutine ovkGetAssemblyOptionOverlapAccelDepthAdjust
 
-  subroutine ovkSetAssemblyOptionOverlapAccelQualityAdjust(Options, GridID, &
-    OverlapAccelQualityAdjust)
+  subroutine ovkSetAssemblyOptionOverlapAccelDepthAdjust(Options, GridID, &
+    OverlapAccelDepthAdjust)
 
     type(ovk_assembly_options), intent(inout) :: Options
     integer, intent(in) :: GridID
-    real(rk), intent(in) :: OverlapAccelQualityAdjust
+    real(rk), intent(in) :: OverlapAccelDepthAdjust
 
     integer :: m
     integer :: ms, me
@@ -227,10 +233,39 @@ contains
     call GridIDRange(Options%ngrids, GridID, ms, me)
 
     do m = ms, me
-      Options%overlap_accel_quality_adjust(m) = OverlapAccelQualityAdjust
+      Options%overlap_accel_depth_adjust(m) = OverlapAccelDepthAdjust
     end do
 
-  end subroutine ovkSetAssemblyOptionOverlapAccelQualityAdjust
+  end subroutine ovkSetAssemblyOptionOverlapAccelDepthAdjust
+
+  subroutine ovkGetAssemblyOptionOverlapAccelResolutionAdjust(Options, GridID, &
+    OverlapAccelResolutionAdjust)
+
+    type(ovk_assembly_options), intent(in) :: Options
+    integer, intent(in) :: GridID
+    real(rk), intent(out) :: OverlapAccelResolutionAdjust
+
+    OverlapAccelResolutionAdjust = Options%overlap_accel_resolution_adjust(GridID)
+
+  end subroutine ovkGetAssemblyOptionOverlapAccelResolutionAdjust
+
+  subroutine ovkSetAssemblyOptionOverlapAccelResolutionAdjust(Options, GridID, &
+    OverlapAccelResolutionAdjust)
+
+    type(ovk_assembly_options), intent(inout) :: Options
+    integer, intent(in) :: GridID
+    real(rk), intent(in) :: OverlapAccelResolutionAdjust
+
+    integer :: m
+    integer :: ms, me
+
+    call GridIDRange(Options%ngrids, GridID, ms, me)
+
+    do m = ms, me
+      Options%overlap_accel_resolution_adjust(m) = OverlapAccelResolutionAdjust
+    end do
+
+  end subroutine ovkSetAssemblyOptionOverlapAccelResolutionAdjust
 
   subroutine ovkGetAssemblyOptionInferBoundaries(Options, GridID, InferBoundaries)
 

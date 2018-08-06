@@ -30,7 +30,8 @@ module ovkAssembly
     integer, dimension(:), pointer :: index_to_id
     logical, dimension(:,:), pointer :: overlappable
     real(rk), dimension(:,:), pointer :: overlap_tolerance
-    real(rk), dimension(:), pointer :: overlap_accel_quality_adjust
+    real(rk), dimension(:), pointer :: overlap_accel_depth_adjust
+    real(rk), dimension(:), pointer :: overlap_accel_resolution_adjust
     logical, dimension(:), pointer :: infer_boundaries
     logical, dimension(:,:), pointer :: cut_boundary_holes
     integer, dimension(:,:), pointer :: occludes
@@ -127,7 +128,8 @@ contains
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:,:), pointer :: Overlappable
     real(rk), dimension(:,:), pointer :: OverlapTolerance
-    real(rk), dimension(:), pointer :: OverlapAccelQualityAdjust
+    real(rk), dimension(:), pointer :: OverlapAccelDepthAdjust
+    real(rk), dimension(:), pointer :: OverlapAccelResolutionAdjust
     logical, dimension(:), pointer :: InferBoundaries
     logical, dimension(:,:), pointer :: CutBoundaryHoles
     integer, dimension(:,:), pointer :: Occludes
@@ -187,10 +189,12 @@ contains
 
     allocate(ReducedDomainInfo%overlappable(NumGrids,NumGrids))
     allocate(ReducedDomainInfo%overlap_tolerance(NumGrids,NumGrids))
-    allocate(ReducedDomainInfo%overlap_accel_quality_adjust(NumGrids))
+    allocate(ReducedDomainInfo%overlap_accel_depth_adjust(NumGrids))
+    allocate(ReducedDomainInfo%overlap_accel_resolution_adjust(NumGrids))
     Overlappable => ReducedDomainInfo%overlappable
     OverlapTolerance => ReducedDomainInfo%overlap_tolerance
-    OverlapAccelQualityAdjust => ReducedDomainInfo%overlap_accel_quality_adjust
+    OverlapAccelDepthAdjust => ReducedDomainInfo%overlap_accel_depth_adjust
+    OverlapAccelResolutionAdjust => ReducedDomainInfo%overlap_accel_resolution_adjust
 
     do n = 1, NumGrids
       q = IndexToID(n)
@@ -208,11 +212,13 @@ contains
           OverlapTolerance(m,n) = 0._rk
         end if
       end do
-      ! Quality adjust only used if overlappable
+      ! Overlap accel adjustments only used if overlappable
       if (any(Overlappable(:,n))) then
-        OverlapAccelQualityAdjust(n) = AssemblyOptions%overlap_accel_quality_adjust(q)
+        OverlapAccelDepthAdjust(n) = AssemblyOptions%overlap_accel_depth_adjust(q)
+        OverlapAccelResolutionAdjust(n) = AssemblyOptions%overlap_accel_resolution_adjust(q)
       else
-        OverlapAccelQualityAdjust(n) = 0._rk
+        OverlapAccelDepthAdjust(n) = 0._rk
+        OverlapAccelResolutionAdjust(n) = 0._rk
       end if
     end do
 
@@ -306,7 +312,8 @@ contains
     integer, dimension(:), pointer :: IndexToID
     logical, dimension(:,:), pointer :: Overlappable
     real(rk), dimension(:,:), pointer :: OverlapTolerance
-    real(rk), dimension(:), pointer :: OverlapAccelQualityAdjust
+    real(rk), dimension(:), pointer :: OverlapAccelDepthAdjust
+    real(rk), dimension(:), pointer :: OverlapAccelResolutionAdjust
     type(ovk_grid), pointer :: Grid_m, Grid_n
     type(ovk_bbox), dimension(:,:), allocatable :: Bounds
     type(ovk_bbox) :: AccelBounds
@@ -329,7 +336,8 @@ contains
     IndexToID => ReducedDomainInfo%index_to_id
     Overlappable => ReducedDomainInfo%overlappable
     OverlapTolerance => ReducedDomainInfo%overlap_tolerance
-    OverlapAccelQualityAdjust => ReducedDomainInfo%overlap_accel_quality_adjust
+    OverlapAccelDepthAdjust => ReducedDomainInfo%overlap_accel_depth_adjust
+    OverlapAccelResolutionAdjust => ReducedDomainInfo%overlap_accel_resolution_adjust
 
     do n = 1, NumGrids
       Grid_n => Domain%grid(IndexToID(n))
@@ -370,10 +378,10 @@ contains
           end if
         end do
         ! All chosen empirically; no real justification
-        NumCellsLeaf = max(int(2._rk**(12._rk-OverlapAccelQualityAdjust(m)),kind=lk),1_lk)
+        NumCellsLeaf = max(int(2._rk**(12._rk-OverlapAccelDepthAdjust(m)),kind=lk),1_lk)
         MinOccupiedVolumeFraction = 0.5_rk
         MaxCellVolumeDeviation = 0.5_rk
-        BinScale = 0.5_rk**(1._rk+OverlapAccelQualityAdjust(m))
+        BinScale = 2._rk**(-1._rk-OverlapAccelResolutionAdjust(m))
         call PopulateOverlapAccel(OverlapAccel, AccelBounds, MaxOverlapTolerance, NumCellsLeaf, &
           MinOccupiedVolumeFraction, MaxCellVolumeDeviation, BinScale)
         if (Logger%log_status) then
@@ -1472,7 +1480,8 @@ contains
     deallocate(ReducedDomainInfo%index_to_id)
     deallocate(ReducedDomainInfo%overlappable)
     deallocate(ReducedDomainInfo%overlap_tolerance)
-    deallocate(ReducedDomainInfo%overlap_accel_quality_adjust)
+    deallocate(ReducedDomainInfo%overlap_accel_depth_adjust)
+    deallocate(ReducedDomainInfo%overlap_accel_resolution_adjust)
     deallocate(ReducedDomainInfo%infer_boundaries)
     deallocate(ReducedDomainInfo%cut_boundary_holes)
     deallocate(ReducedDomainInfo%occludes)

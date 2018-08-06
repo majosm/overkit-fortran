@@ -48,8 +48,10 @@ module Overkit
   public :: ovkSetAssemblyOptionOverlappable
   public :: ovkGetAssemblyOptionOverlapTolerance
   public :: ovkSetAssemblyOptionOverlapTolerance
-  public :: ovkGetAssemblyOptionOverlapAccelQualityAdjust
-  public :: ovkSetAssemblyOptionOverlapAccelQualityAdjust
+  public :: ovkGetAssemblyOptionOverlapAccelDepthAdjust
+  public :: ovkSetAssemblyOptionOverlapAccelDepthAdjust
+  public :: ovkGetAssemblyOptionOverlapAccelResolutionAdjust
+  public :: ovkSetAssemblyOptionOverlapAccelResolutionAdjust
   public :: ovkGetAssemblyOptionInferBoundaries
   public :: ovkSetAssemblyOptionInferBoundaries
   public :: ovkGetAssemblyOptionCutBoundaryHoles
