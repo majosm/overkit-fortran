@@ -319,8 +319,8 @@ contains
     type(ovk_bbox) :: AccelBounds
     integer(lk) :: NumCellsLeaf
     real(rk) :: MaxOverlapTolerance
-    real(rk) :: MinOccupiedVolumeFraction
-    real(rk) :: MaxCellVolumeDeviation
+    real(rk) :: MaxNodeUnoccupiedVolume
+    real(rk) :: MaxNodeCellVolumeVariation
     real(rk) :: BinScale
     type(t_overlap_accel) :: OverlapAccel
     type(ovk_overlap), pointer :: Overlap
@@ -379,11 +379,11 @@ contains
         end do
         ! All chosen empirically; no real justification
         NumCellsLeaf = max(int(2._rk**(12._rk-OverlapAccelDepthAdjust(m)),kind=lk),1_lk)
-        MinOccupiedVolumeFraction = 0.5_rk
-        MaxCellVolumeDeviation = 0.5_rk
+        MaxNodeUnoccupiedVolume = 0.5_rk
+        MaxNodeCellVolumeVariation = 0.5_rk
         BinScale = 2._rk**(-1._rk-OverlapAccelResolutionAdjust(m))
         call PopulateOverlapAccel(OverlapAccel, AccelBounds, MaxOverlapTolerance, NumCellsLeaf, &
-          MinOccupiedVolumeFraction, MaxCellVolumeDeviation, BinScale)
+          MaxNodeUnoccupiedVolume, MaxNodeCellVolumeVariation, BinScale)
         if (Logger%log_status) then
           write (Logger%status_file, '(4a)') "* Finished generating overlap search ", &
             "accelerator on grid ", trim(IntToString(Grid_m%id)), "."
