@@ -96,7 +96,6 @@ contains
     integer :: NumDims
     type(ovk_grid), pointer :: Grid
     type(t_logger) :: Logger
-    type(ovk_bbox) :: GridBounds
     type(ovk_field_logical) :: GridCellOverlapMask
     type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper
     real(rk), dimension(MAX_ND) :: AccelLower, AccelUpper
@@ -115,15 +114,6 @@ contains
     Grid => Accel%grid
     Logger = Grid%logger
 
-    if (OVK_DEBUG) then
-      GridBounds = ovkBBScale(Grid%bounds, 1._rk + 2._rk*MaxOverlapTolerance)
-      if (.not. ovkBBOverlaps(Bounds, GridBounds)) then
-        write (ERROR_UNIT, '(2a)') "ERROR: Overlap search accelerator bounds must overlap with ", &
-          "grid bounds."
-        stop 1
-      end if
-    end if
-
     if (associated(Accel%root)) then
       call DestroyOverlapAccelNode(Accel%root)
       deallocate(Accel%root)
@@ -138,8 +128,8 @@ contains
       GridCellUpper(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
     end do
 
-    AccelLower = Bounds%e
-    AccelUpper = Bounds%b
+    AccelLower = huge(0._rk)
+    AccelUpper = -huge(0._rk)
 
 !$OMP PARALLEL DO &
 !$OMP&  DEFAULT(PRIVATE) &
@@ -249,6 +239,7 @@ contains
     integer :: SplitDir
     real(rk) :: Split
     integer(lk), dimension(:), allocatable :: LeftCellIndices, RightCellIndices
+    real(rk), dimension(CellCart%nd) :: BinSize
     integer, dimension(CellCart%nd) :: NumBins
     type(ovk_cart) :: BinCart
     type(ovk_field_large_int) :: BinCellsStart, BinCellsEnd
@@ -346,27 +337,26 @@ contains
 
     else
 
-      if (NumCells > 1_lk) then
-        MeanCellBoundsSize = 0._rk
+      MeanCellBoundsSize = 0._rk
 ! This isn't working with OpenMP for some reason
 ! !$OMP PARALLEL DO &
 ! !$OMP&  DEFAULT(PRIVATE) &
 ! !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLowers, AllCellUppers) &
 ! !$OMP&  REDUCTION(+:MeanCellBoundsSize)
-        do l = 1_lk, NumCells
-          Cell = OverlappingCells(CellIndices(l),:)
-          do d = 1, CellCart%nd
-            CellBoundsSize(d) = max(AllCellUppers(d)%values(Cell(1),Cell(2),Cell(3)) - &
-              AllCellLowers(d)%values(Cell(1),Cell(2),Cell(3)), 0._rk)
-          end do
-          MeanCellBoundsSize = MeanCellBoundsSize + CellBoundsSize
+      do l = 1_lk, NumCells
+        Cell = OverlappingCells(CellIndices(l),:)
+        do d = 1, CellCart%nd
+          CellBoundsSize(d) = max(AllCellUppers(d)%values(Cell(1),Cell(2),Cell(3)) - &
+            AllCellLowers(d)%values(Cell(1),Cell(2),Cell(3)), 0._rk)
         end do
+        MeanCellBoundsSize = MeanCellBoundsSize + CellBoundsSize
+      end do
 ! !$OMP END PARALLEL DO
-        MeanCellBoundsSize = MeanCellBoundsSize/real(max(NumCells,1_lk),kind=rk)
-        NumBins = max(int(ceiling(NodeBoundsSize/(BinScale * MeanCellBoundsSize))),1)
-      else
-        NumBins = 1
-      end if
+      MeanCellBoundsSize = MeanCellBoundsSize/real(max(NumCells,1_lk),kind=rk)
+
+      BinSize = BinScale * MeanCellBoundsSize
+
+      NumBins = merge(max(int(ceiling(NodeBoundsSize/BinSize)),1), 1, NumCells > 1_lk)
 
       BinCart = ovk_cart_(CellCart%nd, NumBins)
 
