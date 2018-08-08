@@ -315,7 +315,7 @@ contains
     real(rk), dimension(:), pointer :: OverlapAccelDepthAdjust
     real(rk), dimension(:), pointer :: OverlapAccelResolutionAdjust
     type(ovk_grid), pointer :: Grid_m, Grid_n
-    type(ovk_bbox), dimension(:,:), allocatable :: Bounds
+    type(ovk_bbox), dimension(:), allocatable :: OverlapBounds
     type(ovk_bbox) :: AccelBounds
     integer(lk) :: NumCellsLeaf
     real(rk) :: MaxOverlapTolerance
@@ -349,17 +349,7 @@ contains
       end do
     end do
 
-    allocate(Bounds(NumGrids,NumGrids))
-
-    do n = 1, NumGrids
-      do m = 1, NumGrids
-        if (Overlappable(m,n)) then
-          Bounds(m,n) = ovkBBIntersect(Domain%grid(m)%bounds, Domain%grid(n)%bounds)
-        else
-          Bounds(m,n) = ovk_bbox_(NumDims)
-        end if
-      end do
-    end do
+    allocate(OverlapBounds(NumGrids))
 
     do m = 1, NumGrids
       Grid_m => Domain%grid(IndexToID(m))
@@ -373,8 +363,12 @@ contains
         MaxOverlapTolerance = 0._rk
         do n = 1, NumGrids
           if (Overlappable(m,n)) then
-            AccelBounds = ovkBBUnion(AccelBounds, Bounds(m,n))
+            Grid_n => Domain%grid(IndexToID(n))
+            OverlapBounds(n) = ovkBBIntersect(Grid_m%bounds, Grid_n%bounds)
+            AccelBounds = ovkBBUnion(AccelBounds, OverlapBounds(n))
             MaxOverlapTolerance = max(MaxOverlapTolerance, OverlapTolerance(m,n))
+          else
+            OverlapBounds(n) = ovk_bbox_(NumDims)
           end if
         end do
         ! All chosen empirically; no real justification
@@ -392,7 +386,7 @@ contains
           Grid_n => Domain%grid(IndexToID(n))
           if (Overlappable(m,n)) then
             Overlap => Domain%overlap(Grid_m%id, Grid_n%id)
-            call DetectOverlap(Overlap, OverlapAccel, Bounds(m,n), OverlapTolerance(m,n))
+            call DetectOverlap(Overlap, OverlapAccel, OverlapBounds(n), OverlapTolerance(m,n))
             if (Logger%log_status) then
               if (Overlap%noverlap > 0_lk) then
                 write (Logger%status_file, '(7a)') "* Detected ", trim(LargeIntToString( &
