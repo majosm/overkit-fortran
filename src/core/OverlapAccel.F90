@@ -98,7 +98,7 @@ contains
     type(t_logger) :: Logger
     type(ovk_bbox) :: GridBounds
     type(ovk_field_logical) :: GridCellOverlapMask
-    type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper, GridCellCenter
+    type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper
     real(rk), dimension(MAX_ND) :: AccelLower, AccelUpper
     integer, dimension(MAX_ND) :: Cell
     type(ovk_bbox) :: GridCellBounds
@@ -133,11 +133,9 @@ contains
 
     allocate(GridCellLower(NumDims))
     allocate(GridCellUpper(NumDims))
-    allocate(GridCellCenter(NumDims))
     do d = 1, NumDims
       GridCellLower(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
       GridCellUpper(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
-      GridCellCenter(d) = ovk_field_real_(Grid%cell_cart, 0._rk)
     end do
 
     AccelLower = Bounds%e
@@ -161,7 +159,6 @@ contains
               do d = 1, NumDims
                 GridCellLower(d)%values(i,j,k) = GridCellBounds%b(d)
                 GridCellUpper(d)%values(i,j,k) = GridCellBounds%e(d)
-                GridCellCenter(d)%values(i,j,k) = 0.5_rk*(GridCellBounds%b(d)+GridCellBounds%e(d))
               end do
               AccelLower = min(AccelLower, GridCellBounds%b)
               AccelUpper = max(AccelUpper, GridCellBounds%e)
@@ -205,9 +202,8 @@ contains
 
       allocate(Accel%root)
       call GenerateOverlapAccelNode(Accel%root, Grid%cell_cart, Accel%bounds, BoundsVolume, &
-        GridCellLower, GridCellUpper, GridCellCenter, Grid%cell_volumes, OverlappingCells, &
-        CellIndices, 0, MaxDepth, NumCellsLeaf, MaxNodeUnoccupiedVolume, &
-        MaxNodeCellVolumeVariation, BinScale)
+        GridCellLower, GridCellUpper, Grid%cell_volumes, OverlappingCells, CellIndices, 0, &
+        MaxDepth, NumCellsLeaf, MaxNodeUnoccupiedVolume, MaxNodeCellVolumeVariation, BinScale)
 
     end if
 
@@ -218,15 +214,14 @@ contains
   end subroutine PopulateOverlapAccel
 
   recursive subroutine GenerateOverlapAccelNode(Node, CellCart, Bounds, BoundsVolume, &
-    AllCellLowers, AllCellUppers, AllCellCenters, AllCellVolumes, OverlappingCells, CellIndices, &
-    Depth, MaxDepth, NumCellsLeaf, MaxUnoccupiedVolume, MaxCellVolumeVariation, BinScale)
+    AllCellLowers, AllCellUppers, AllCellVolumes, OverlappingCells, CellIndices, Depth, MaxDepth, &
+    NumCellsLeaf, MaxUnoccupiedVolume, MaxCellVolumeVariation, BinScale)
 
     type(t_node), intent(out) :: Node
     type(ovk_cart), intent(in) :: CellCart
     type(ovk_bbox), intent(in) :: Bounds
     real(rk), intent(in) :: BoundsVolume
     type(ovk_field_real), dimension(CellCart%nd), intent(in) :: AllCellLowers, AllCellUppers
-    type(ovk_field_real), dimension(CellCart%nd), intent(in) :: AllCellCenters
     type(ovk_field_real), intent(in) :: AllCellVolumes
     integer, dimension(:,:), intent(in) :: OverlappingCells
     integer(lk), dimension(:), intent(in) :: CellIndices
@@ -330,10 +325,8 @@ contains
 
     if (.not. LeafNode) then
 
-      SplitDir = maxloc(NodeBoundsSize,dim=1)
-
-      Split = FindSplit(CellCart, NodeBounds, AllCellCenters, OverlappingCells, CellIndices, &
-        SplitDir)
+      call FindSplit(CellCart, NodeBounds, AllCellLowers, AllCellUppers, OverlappingCells, &
+        CellIndices, SplitDir, Split)
 
       Node%split_dir = SplitDir
       Node%split = Split
@@ -345,13 +338,11 @@ contains
         SplitDir, Split, LeftCellIndices, RightCellIndices)
 
       call GenerateOverlapAccelNode(Node%left_child, CellCart, Bounds, BoundsVolume, &
-        AllCellLowers, AllCellUppers, AllCellCenters, AllCellVolumes, OverlappingCells, &
-        LeftCellIndices, Depth+1, MaxDepth, NumCellsLeaf, MaxUnoccupiedVolume, &
-        MaxCellVolumeVariation, BinScale)
+        AllCellLowers, AllCellUppers, AllCellVolumes, OverlappingCells, LeftCellIndices, Depth+1, &
+        MaxDepth, NumCellsLeaf, MaxUnoccupiedVolume, MaxCellVolumeVariation, BinScale)
       call GenerateOverlapAccelNode(Node%right_child, CellCart, Bounds, BoundsVolume, &
-        AllCellLowers, AllCellUppers, AllCellCenters, AllCellVolumes, OverlappingCells, &
-        RightCellIndices, Depth+1, MaxDepth, NumCellsLeaf, MaxUnoccupiedVolume, &
-        MaxCellVolumeVariation, BinScale)
+        AllCellLowers, AllCellUppers, AllCellVolumes, OverlappingCells, RightCellIndices, Depth+1, &
+        MaxDepth, NumCellsLeaf, MaxUnoccupiedVolume, MaxCellVolumeVariation, BinScale)
 
     else
 
@@ -407,129 +398,40 @@ contains
 
   end subroutine GenerateOverlapAccelNode
 
-  function FindSplit(CellCart, Bounds, AllCellCenters, OverlappingCells, CellIndices, SplitDir) &
-    result(Split)
+  subroutine FindSplit(CellCart, Bounds, AllCellLowers, AllCellUppers, OverlappingCells, &
+    CellIndices, SplitDir, Split)
 
     type(ovk_cart), intent(in) :: CellCart
     type(ovk_bbox), intent(in) :: Bounds
-    type(ovk_field_real), dimension(CellCart%nd), intent(in) :: AllCellCenters
+    type(ovk_field_real), dimension(CellCart%nd), intent(in) :: AllCellLowers, AllCellUppers
     integer, dimension(:,:), intent(in) :: OverlappingCells
     integer(lk), dimension(:), intent(in) :: CellIndices
-    integer, intent(in) :: SplitDir
-    real(rk) :: Split
+    integer, intent(out) :: SplitDir
+    real(rk), intent(out) :: Split
 
     integer(lk) :: l
     integer(lk) :: NumCells
-    integer, dimension(:,:), allocatable :: ContainedCells
-    real(rk) :: SplitLower, SplitUpper
+    real(rk), dimension(CellCart%nd) :: BoundsSize
+    integer, dimension(MAX_ND) :: Cell
+    real(rk) :: MeanCenter
 
     NumCells = size(CellIndices,kind=lk)
 
-    allocate(ContainedCells(NumCells,MAX_ND))
+    BoundsSize = ovkBBSize(Bounds)
 
+    SplitDir = maxloc(BoundsSize,dim=1)
+
+    MeanCenter = 0._rk
     do l = 1_lk, NumCells
-      ContainedCells(l,:) = OverlappingCells(CellIndices(l),:)
+      Cell = OverlappingCells(CellIndices(l),:)
+      MeanCenter = MeanCenter + 0.5_rk*(AllCellLowers(SplitDir)%values(Cell(1),Cell(2),Cell(3)) + &
+        AllCellUppers(SplitDir)%values(Cell(1),Cell(2),Cell(3)))
     end do
+    MeanCenter = MeanCenter/max(real(NumCells,kind=rk), 1._rk)
 
-    call BracketSplit(AllCellCenters(SplitDir), Bounds%b(SplitDir), Bounds%e(SplitDir), &
-      NumCells, ContainedCells, 0_lk, 0_lk, max(NumCells/100_lk,1_lk), SplitLower, SplitUpper)
+    Split = MeanCenter
 
-    Split = 0.5_rk * (SplitLower + SplitUpper)
-
-  end function FindSplit
-
-  recursive subroutine BracketSplit(AllCellCenters, ContainedLower, ContainedUpper, &
-    NumContainedCells, ContainedCells, NumCellsBelow, NumCellsAbove, Tolerance, &
-    SplitLower, SplitUpper)
-
-    type(ovk_field_real), intent(in) :: AllCellCenters
-    real(rk), intent(in) :: ContainedLower, ContainedUpper
-    integer(lk), intent(in) :: NumContainedCells
-    integer, dimension(:,:), intent(in) :: ContainedCells
-    integer(lk), intent(in) :: NumCellsBelow, NumCellsAbove
-    integer(lk), intent(in) :: Tolerance
-    real(rk), intent(out) :: SplitLower, SplitUpper
-
-    integer, parameter :: NumBins = 1000
-
-    integer(lk) :: l
-    real(rk) :: BinSize
-    integer(lk), dimension(NumBins) :: NumCellsPerBin
-    integer, dimension(MAX_ND) :: Cell
-    real(rk) :: Coord
-    integer :: iBin
-    integer(lk) :: NumCells
-    integer :: iSplitBin
-    integer(lk) :: NumCellsBelowSplitBin
-    integer(lk) :: NumCellsInSplitBin
-    integer(lk) :: NumCellsAboveSplitBin
-    integer, dimension(:,:), allocatable :: SplitBinCells
-    integer(lk) :: iNextSplitBinCell
-    real(rk) :: SplitBinLower, SplitBinUpper
-
-    BinSize = (ContainedUpper-ContainedLower)/real(NumBins,kind=rk)
-
-    NumCellsPerBin = 0_lk
-    do l = 1_lk, NumContainedCells
-      Cell = ContainedCells(l,:)
-      Coord = AllCellCenters%values(Cell(1),Cell(2),Cell(3))
-      iBin = min(max(int(ovkCartesianGridCell(ContainedLower, BinSize, Coord)), 1), NumBins)
-      NumCellsPerBin(iBin) = NumCellsPerBin(iBin) + 1_lk
-    end do
-
-    NumCells = NumCellsBelow + NumContainedCells + NumCellsAbove
-
-    iSplitBin = 1
-    NumCellsBelowSplitBin = NumCellsBelow
-    do while (NumCellsBelowSplitBin + NumCellsPerBin(iSplitBin) < NumCells/2_lk)
-      NumCellsBelowSplitBin = NumCellsBelowSplitBin + NumCellsPerBin(iSplitBin)
-      iSplitBin = iSplitBin + 1
-    end do
-    NumCellsInSplitBin = NumCellsPerBin(iSplitBin)
-    NumCellsAboveSplitBin = NumCells - NumCellsBelowSplitBin - NumCellsInSplitBin
-
-    if (NumCellsBelowSplitBin + NumCellsInSplitBin == NumCells/2_lk) then
-
-      SplitLower = ContainedLower + BinSize*real(iSplitBin,kind=rk)
-      SplitUpper = SplitLower
-
-    else if (NumCellsInSplitBin <= Tolerance) then
-
-      SplitLower = ContainedLower + BinSize*real(iSplitBin-1,kind=rk)
-      SplitUpper = ContainedLower + BinSize*real(iSplitBin,kind=rk)
-
-    else
-
-      allocate(SplitBinCells(NumCellsInSplitBin,MAX_ND))
-
-      SplitBinLower = ContainedUpper
-      SplitBinUpper = ContainedLower
-
-      iNextSplitBinCell = 1_lk
-      do l = 1_lk, NumContainedCells
-        Cell = ContainedCells(l,:)
-        Coord = AllCellCenters%values(Cell(1),Cell(2),Cell(3))
-        iBin = min(max(int(ovkCartesianGridCell(ContainedLower, BinSize, Coord)), 1), NumBins)
-        if (iBin == iSplitBin) then
-          SplitBinCells(iNextSplitBinCell,:) = Cell
-          SplitBinLower = min(SplitBinLower, Coord)
-          SplitBinUpper = max(SplitBinUpper, Coord)
-          iNextSplitBinCell = iNextSplitBinCell + 1_lk
-        end if
-      end do
-
-      if (SplitBinUpper-SplitBinLower < 1.e-12_rk*max(abs(SplitBinLower),abs(SplitBinUpper))) then
-        SplitLower = SplitBinLower
-        SplitUpper = SplitBinUpper
-      else
-        call BracketSplit(AllCellCenters, SplitBinLower, SplitBinUpper, NumCellsInSplitBin, &
-          SplitBinCells, NumCellsBelowSplitBin, NumCellsAboveSplitBin, Tolerance, SplitLower, &
-          SplitUpper)
-      end if
-
-    end if
-
-  end subroutine BracketSplit
+  end subroutine FindSplit
 
   subroutine DivideCells(CellCart, AllCellLowers, AllCellUppers, OverlappingCells, CellIndices, &
     SplitDir, Split, LeftCellIndices, RightCellIndices)
