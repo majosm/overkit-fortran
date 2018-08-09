@@ -60,7 +60,7 @@ contains
 
     if (Logger%log_status) then
       call system_clock(ClockInitial, ClockRate)
-      write (Logger%status_file, '(a)') "Overset grid assembly started..."
+      write (Logger%status_file, '(a)') "Assembly started..."
     end if
 
     if (OVK_DEBUG) then
@@ -109,7 +109,7 @@ contains
 
     if (Logger%log_status) then
       call system_clock(ClockFinal, ClockRate)
-      write (Logger%status_file, '(a,f0.3,a)') "Overset grid assembly finished (time: ", &
+      write (Logger%status_file, '(a,f0.3,a)') "Assembly finished (time: ", &
         real(ClockFinal-ClockInitial,kind=rk)/real(ClockRate,kind=rk), " seconds)."
     end if
 
