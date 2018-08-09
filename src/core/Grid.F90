@@ -1124,11 +1124,6 @@ contains
     Cell(:Grid%nd) = Cell_
     Cell(Grid%nd+1:) = 1
 
-    if (.not. Grid%cell_mask%values(Cell(1),Cell(2),Cell(3))) then
-      CellBounds = ovk_bbox_(Grid%nd)
-      return
-    end if
-
     call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
 
     CellBounds = ovkBBFromPoints(VertexCoords)
