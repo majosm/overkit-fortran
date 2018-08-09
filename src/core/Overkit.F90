@@ -12,7 +12,7 @@ module Overkit
   use ovkDomain
   use ovkField
   use ovkFieldOps
-  use ovkGeometry
+  use ovkGeometryOps
   use ovkGlobal
   use ovkGrid
   use ovkHashGrid
@@ -163,7 +163,7 @@ module Overkit
   public :: ovkCountMask
   public :: OVK_INNER_EDGE, OVK_OUTER_EDGE
 
-  ! ovkGeometry
+  ! ovkGeometryOps
   public :: ovkOverlapsRectangle
   public :: ovkOverlapsCuboid
   public :: ovkOverlapsOrientedRectangle

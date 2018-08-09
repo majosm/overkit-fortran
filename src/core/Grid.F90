@@ -7,7 +7,7 @@ module ovkGrid
   use ovkCart
   use ovkField
   use ovkFieldOps
-  use ovkGeometry
+  use ovkGeometryOps
   use ovkGlobal
   use ovkLogger
   implicit none

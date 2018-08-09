@@ -20,7 +20,7 @@ if(TESTS)
       DonorStencilTest.pf
       FieldOpsTest.pf
       FieldTest.pf
-      GeometryTest.pf
+      GeometryOpsTest.pf
       GlobalTest.pf
       GridTest.pf
       HashGridTest.pf

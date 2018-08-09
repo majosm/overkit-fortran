@@ -6,13 +6,13 @@ module ovkOverlap
   use ovkArray
   use ovkBoundingBox
   use ovkCart
-  use ovkOverlapAccel
   use ovkField
   use ovkFieldOps
-  use ovkGeometry
+  use ovkGeometryOps
   use ovkGlobal
   use ovkGrid
   use ovkLogger
+  use ovkOverlapAccel
   implicit none
 
   private

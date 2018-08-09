@@ -16,7 +16,7 @@ set(OVERKIT_SOURCES
   DonorStencil.F90
   Field.F90
   FieldOps.F90
-  Geometry.F90
+  GeometryOps.F90
   Global.F90
   Grid.F90
   HashGrid.F90

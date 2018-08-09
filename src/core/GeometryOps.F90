@@ -1,7 +1,7 @@
 ! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 ! License: MIT (http://opensource.org/licenses/MIT)
 
-module ovkGeometry
+module ovkGeometryOps
 
   use ovkGlobal
 #ifdef f2003
@@ -1140,4 +1140,4 @@ contains
 
 #endif
 
-end module ovkGeometry
+end module ovkGeometryOps

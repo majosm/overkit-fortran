@@ -6,7 +6,7 @@ module ovkDonorStencil
   use ovkCart
   use ovkField
   use ovkFieldOps
-  use ovkGeometry
+  use ovkGeometryOps
   use ovkGlobal
   use ovkGrid
   use ovkLogger

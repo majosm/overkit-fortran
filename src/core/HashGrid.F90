@@ -6,7 +6,7 @@ module ovkHashGrid
   use ovkBoundingBox
   use ovkCart
   use ovkField
-  use ovkGeometry
+  use ovkGeometryOps
   use ovkGlobal
   implicit none
 

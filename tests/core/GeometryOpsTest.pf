@@ -1,7 +1,7 @@
 ! Copyright (c) 2017 Matthew J. Smith and Overkit contributors
 ! License: MIT (http://opensource.org/licenses/MIT)
 
-module GeometryTest
+module GeometryOpsTest
 
   use pFUnit_mod
   use Overkit
@@ -9,15 +9,15 @@ module GeometryTest
   implicit none
 
   @TestCase
-  type, extends(TestCase) :: t_geometry_test
-  end type t_geometry_test
+  type, extends(TestCase) :: t_geometry_ops_test
+  end type t_geometry_ops_test
 
 contains
 
   @Test
   subroutine OverlapsRectangle(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
 
@@ -50,7 +50,7 @@ contains
   @Test
   subroutine OverlapsCuboid(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
 
@@ -96,7 +96,7 @@ contains
   @Test
   subroutine OverlapsOrientedRectangle(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
 
@@ -129,7 +129,7 @@ contains
   @Test
   subroutine OverlapsOrientedCuboid(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
 
@@ -175,7 +175,7 @@ contains
   @Test
   subroutine OverlapsQuad(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
 
@@ -208,7 +208,7 @@ contains
   @Test
   subroutine OverlapsHexahedron(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
 
@@ -254,7 +254,7 @@ contains
   @Test
   subroutine RectangleSize(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
 
@@ -268,7 +268,7 @@ contains
   @Test
   subroutine CuboidSize(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
 
@@ -283,7 +283,7 @@ contains
   @Test
   subroutine OrientedRectangleSize(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
 
@@ -297,7 +297,7 @@ contains
   @Test
   subroutine OrientedCuboidSize(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
 
@@ -312,7 +312,7 @@ contains
   @Test
   subroutine QuadSize(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
 
@@ -326,7 +326,7 @@ contains
   @Test
   subroutine HexahedronSize(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
 
@@ -341,7 +341,7 @@ contains
   @Test
   subroutine RectangleIsoLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
     real(rk), dimension(2) :: Coords
@@ -374,7 +374,7 @@ contains
   @Test
   subroutine RectangleIsoCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, l
     real(rk), dimension(2,16) :: Vertices
@@ -428,7 +428,7 @@ contains
   @Test
   subroutine CuboidIsoLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
     real(rk), dimension(3) :: Coords
@@ -478,7 +478,7 @@ contains
   @Test
   subroutine CuboidIsoCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, k, l
     real(rk), dimension(3,64) :: Vertices
@@ -566,7 +566,7 @@ contains
   @Test
   subroutine OrientedRectangleIsoLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
     real(rk), dimension(2) :: Coords
@@ -599,7 +599,7 @@ contains
   @Test
   subroutine OrientedRectangleIsoCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, l
     real(rk), dimension(2,16) :: Vertices
@@ -654,7 +654,7 @@ contains
   @Test
   subroutine OrientedCuboidIsoLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
     real(rk), dimension(3) :: Coords
@@ -704,7 +704,7 @@ contains
   @Test
   subroutine OrientedCuboidIsoCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, k, l
     real(rk), dimension(3,64) :: Vertices
@@ -793,7 +793,7 @@ contains
   @Test
   subroutine QuadIsoLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
     real(rk), dimension(2) :: Coords
@@ -826,7 +826,7 @@ contains
   @Test
   subroutine QuadIsoCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, l
     real(rk), dimension(2,16) :: Vertices
@@ -880,7 +880,7 @@ contains
   @Test
   subroutine HexahedronIsoLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
     real(rk), dimension(3) :: Coords
@@ -930,7 +930,7 @@ contains
   @Test
   subroutine HexahedronIsoCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, k, l
     real(rk), dimension(3,64) :: Vertices
@@ -1018,7 +1018,7 @@ contains
   @Test
   subroutine RectangleIsoInverseLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
     real(rk), dimension(2) :: LocalCoords
@@ -1051,7 +1051,7 @@ contains
   @Test
   subroutine RectangleIsoInverseCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, l
     real(rk), dimension(2,16) :: Vertices
@@ -1105,7 +1105,7 @@ contains
   @Test
   subroutine CuboidIsoInverseLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
     real(rk), dimension(3) :: LocalCoords
@@ -1155,7 +1155,7 @@ contains
   @Test
   subroutine CuboidIsoInverseCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, k, l
     real(rk), dimension(3,64) :: Vertices
@@ -1243,7 +1243,7 @@ contains
   @Test
   subroutine OrientedRectangleIsoInverseLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
     real(rk), dimension(2) :: LocalCoords
@@ -1276,7 +1276,7 @@ contains
   @Test
   subroutine OrientedRectangleIsoInverseCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, l
     real(rk), dimension(2,16) :: Vertices
@@ -1331,7 +1331,7 @@ contains
   @Test
   subroutine OrientedCuboidIsoInverseLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
     real(rk), dimension(3) :: LocalCoords
@@ -1381,7 +1381,7 @@ contains
   @Test
   subroutine OrientedCuboidIsoInverseCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, k, l
     real(rk), dimension(3,64) :: Vertices
@@ -1470,7 +1470,7 @@ contains
   @Test
   subroutine QuadIsoInverseLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2,4) :: Vertices
     real(rk), dimension(2) :: LocalCoords
@@ -1515,7 +1515,7 @@ contains
   @Test
   subroutine QuadIsoInverseCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, l
     real(rk), dimension(2,16) :: Vertices
@@ -1585,7 +1585,7 @@ contains
   @Test
   subroutine HexahedronIsoInverseLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(3,8) :: Vertices
     real(rk), dimension(3) :: LocalCoords
@@ -1651,7 +1651,7 @@ contains
   @Test
   subroutine HexahedronIsoInverseCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer :: i, j, k, l
     real(rk), dimension(3,64) :: Vertices
@@ -1745,7 +1745,7 @@ contains
   @Test
   subroutine CartesianGridCell(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     integer(lk) :: Cell1
     integer(lk), dimension(2) :: Cell2
@@ -1781,7 +1781,7 @@ contains
   @Test
   subroutine InterpBasisLinear(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(2) :: Basis
     real(rk), dimension(2) :: BasisDeriv
@@ -1815,7 +1815,7 @@ contains
   @Test
   subroutine InterpBasisCubic(this)
 
-    class(t_geometry_test), intent(inout) :: this
+    class(t_geometry_ops_test), intent(inout) :: this
 
     real(rk), dimension(4) :: Basis
     real(rk), dimension(4) :: BasisDeriv
@@ -1858,4 +1858,4 @@ contains
 
   end subroutine InterpBasisCubic
 
-end module GeometryTest
+end module GeometryOpsTest

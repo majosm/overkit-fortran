@@ -3,16 +3,14 @@
 
 module ovkConnectivity
 
-  use ovkBoundingBox
   use ovkCart
   use ovkDonorStencil
-  use ovkOverlap
   use ovkField
   use ovkFieldOps
-  use ovkGeometry
   use ovkGlobal
   use ovkGrid
   use ovkLogger
+  use ovkOverlap
   implicit none
 
   private
