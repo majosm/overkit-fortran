@@ -13,6 +13,7 @@ files="$files $(find src -name \*.h)"
 files="$files $(find src -name \*.cpp)"
 files="$files $(find src -name \*.hpp)"
 files="$files $(find tests -name \*.pf)"
+files="$files $(find tests -name \*.F90)"
 
 name="Matthew J. Smith and Overkit contributors"
 
