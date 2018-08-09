@@ -65,7 +65,7 @@ program Inlet
 
   ! Initialize grid data structure for box grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBox, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBox, GeometryType=OVK_GEOMETRY_CARTESIAN)
   call ovkEditGrid(Domain, 1, Grid)
 
   ! Generate coordinates for box grid
@@ -171,8 +171,7 @@ program Inlet
 
   ! Initialize grid data structure for inlet grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 3, NumPoints=NumPointsInletInner, &
-    GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+  call ovkCreateGrid(Domain, 3, NumPoints=NumPointsInletInner, GeometryType=OVK_GEOMETRY_CARTESIAN)
   call ovkEditGrid(Domain, 3, Grid)
 
   ! Generate coordinates for inlet grid

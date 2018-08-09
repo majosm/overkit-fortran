@@ -38,11 +38,11 @@ module ovkGrid
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell
   public :: ovkPeriodicExtend
-  public :: OVK_GRID_GEOMETRY_CARTESIAN
-  public :: OVK_GRID_GEOMETRY_RECTILINEAR
-  public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
-  public :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR
-  public :: OVK_GRID_GEOMETRY_CURVILINEAR
+  public :: OVK_GEOMETRY_CARTESIAN
+  public :: OVK_GEOMETRY_RECTILINEAR
+  public :: OVK_GEOMETRY_ORIENTED_CARTESIAN
+  public :: OVK_GEOMETRY_ORIENTED_RECTILINEAR
+  public :: OVK_GEOMETRY_CURVILINEAR
   public :: OVK_STATE_GRID
   public :: OVK_STATE_INTERIOR
   public :: OVK_STATE_BOUNDARY
@@ -110,11 +110,11 @@ module ovkGrid
     type(ovk_field_real) :: cell_volumes
   end type ovk_grid
 
-  integer, parameter :: OVK_GRID_GEOMETRY_CARTESIAN = 1
-  integer, parameter :: OVK_GRID_GEOMETRY_RECTILINEAR = 2
-  integer, parameter :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN = 3
-  integer, parameter :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR = 4
-  integer, parameter :: OVK_GRID_GEOMETRY_CURVILINEAR = 5
+  integer, parameter :: OVK_GEOMETRY_CARTESIAN = 1
+  integer, parameter :: OVK_GEOMETRY_RECTILINEAR = 2
+  integer, parameter :: OVK_GEOMETRY_ORIENTED_CARTESIAN = 3
+  integer, parameter :: OVK_GEOMETRY_ORIENTED_RECTILINEAR = 4
+  integer, parameter :: OVK_GEOMETRY_CURVILINEAR = 5
 
   ! User-modifiable states
   integer, parameter :: NUM_USER_STATES = 6
@@ -178,7 +178,7 @@ contains
     Grid%cart = ovk_cart_()
     Grid%cell_cart = ovk_cart_()
     Grid%periodic_length = 0._rk
-    Grid%geometry_type = OVK_GRID_GEOMETRY_CURVILINEAR
+    Grid%geometry_type = OVK_GEOMETRY_CURVILINEAR
     nullify(Grid%coords)
     Grid%coords_edit_ref_count = 0
     nullify(Grid%state)
@@ -222,7 +222,7 @@ contains
     if (present(GeometryType)) then
       GeometryType_ = GeometryType
     else
-      GeometryType_ = OVK_GRID_GEOMETRY_CURVILINEAR
+      GeometryType_ = OVK_GEOMETRY_CURVILINEAR
     end if
 
     Grid%id = ID
@@ -911,14 +911,14 @@ contains
           Cell = [i,j,k]
           call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
           select case (Grid%geometry_type)
-          case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+          case (OVK_GEOMETRY_CARTESIAN,OVK_GEOMETRY_RECTILINEAR)
             select case (Grid%nd)
             case (2)
               Grid%cell_volumes%values(i,j,k) = ovkRectangleSize(VertexCoords)
             case (3)
               Grid%cell_volumes%values(i,j,k) = ovkCuboidSize(VertexCoords)
             end select
-          case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
+          case (OVK_GEOMETRY_ORIENTED_CARTESIAN,OVK_GEOMETRY_ORIENTED_RECTILINEAR)
             select case (Grid%nd)
             case (2)
               Grid%cell_volumes%values(i,j,k) = ovkOrientedRectangleSize(VertexCoords)
@@ -1165,14 +1165,14 @@ contains
     end if
 
     select case (Grid%geometry_type)
-    case (OVK_GRID_GEOMETRY_CARTESIAN,OVK_GRID_GEOMETRY_RECTILINEAR)
+    case (OVK_GEOMETRY_CARTESIAN,OVK_GEOMETRY_RECTILINEAR)
       select case (Grid%nd)
       case (2)
         Overlaps = ovkOverlapsRectangle(VertexCoords, Coords)
       case (3)
         Overlaps = ovkOverlapsCuboid(VertexCoords, Coords)
       end select
-    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN,OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR)
+    case (OVK_GEOMETRY_ORIENTED_CARTESIAN,OVK_GEOMETRY_ORIENTED_RECTILINEAR)
       select case (Grid%nd)
       case (2)
         Overlaps = ovkOverlapsOrientedRectangle(VertexCoords, Coords)
@@ -1207,9 +1207,9 @@ contains
     Cell(Grid%nd+1:) = 1
 
     select case (Grid%geometry_type)
-    case (OVK_GRID_GEOMETRY_CARTESIAN)
+    case (OVK_GEOMETRY_CARTESIAN)
       CoordsInCell = CoordsInGridCellLinear(Grid, Cell, Coords)
-    case (OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+    case (OVK_GEOMETRY_ORIENTED_CARTESIAN)
       CoordsInCell = CoordsInGridCellLinearOriented(Grid, Cell, Coords)
     case default
       CoordsInCell = CoordsInGridCellCubic(Grid, Cell, Coords, Success_)

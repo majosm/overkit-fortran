@@ -34,7 +34,7 @@ contains
     @AssertTrue(ovk_cart_() == Grid%cart)
     @AssertTrue(ovk_cart_() == Grid%cell_cart)
     @AssertEqual(0._rk, Grid%periodic_length)
-    @AssertEqual(OVK_GRID_GEOMETRY_CURVILINEAR, Grid%geometry_type)
+    @AssertEqual(OVK_GEOMETRY_CURVILINEAR, Grid%geometry_type)
     @AssertFalse(associated(Grid%coords))
     @AssertEqual(0, Grid%coords_edit_ref_count)
     @AssertFalse(associated(Grid%state))
@@ -61,7 +61,7 @@ contains
     Cart = ovk_cart_(2, [8,9], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 9._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     CellCart = ovkCartPointToCell(Cart)
 
@@ -73,7 +73,7 @@ contains
     @AssertTrue(Cart == Grid%cart)
     @AssertTrue(CellCart == Grid%cell_cart)
     @AssertEqual([0._rk, 9._rk, 0._rk], Grid%periodic_length)
-    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, Grid%geometry_type)
+    @AssertEqual(OVK_GEOMETRY_CARTESIAN, Grid%geometry_type)
 
     @AssertTrue(associated(Grid%coords))
     @AssertEqual(2, size(Grid%coords))
@@ -134,7 +134,7 @@ contains
     Cart = ovk_cart_(3, [8,9,10], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 0._rk, 10._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     CellCart = ovkCartPointToCell(Cart)
 
@@ -146,7 +146,7 @@ contains
     @AssertTrue(Cart == Grid%cart)
     @AssertTrue(CellCart == Grid%cell_cart)
     @AssertEqual([0._rk, 0._rk, 10._rk], Grid%periodic_length)
-    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, Grid%geometry_type)
+    @AssertEqual(OVK_GEOMETRY_CARTESIAN, Grid%geometry_type)
 
     @AssertTrue(associated(Grid%coords))
     @AssertEqual(3, size(Grid%coords))
@@ -239,7 +239,7 @@ contains
     Cart = ovk_cart_(2, [8,9], [.true.,.false.], OVK_OVERLAP_PERIODIC)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkGetGridID(Grid, ID)
     @AssertEqual(1, ID)
@@ -263,10 +263,10 @@ contains
     @AssertEqual([2._rk, 0._rk], PeriodicLength)
 
     call ovkGetGridGeometryType(Grid, GeometryType)
-    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+    @AssertEqual(OVK_GEOMETRY_CARTESIAN, GeometryType)
 
     call ovkGetGridGeometryType(Grid, GeometryType)
-    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+    @AssertEqual(OVK_GEOMETRY_CARTESIAN, GeometryType)
 
     call DestroyGrid(Grid)
 
@@ -947,7 +947,7 @@ contains
 
     Cart = ovk_cart_(2, [11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1016,7 +1016,7 @@ contains
 
     Cart = ovk_cart_(3, [11,11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1088,7 +1088,7 @@ contains
 
     Cart = ovk_cart_(2, [11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_ORIENTED_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1157,7 +1157,7 @@ contains
 
     Cart = ovk_cart_(3, [11,11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_ORIENTED_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1229,7 +1229,7 @@ contains
 
     Cart = ovk_cart_(2, [11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_RECTILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1299,7 +1299,7 @@ contains
 
     Cart = ovk_cart_(3, [11,11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_RECTILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1376,7 +1376,7 @@ contains
 
     Cart = ovk_cart_(2, [11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CURVILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1446,7 +1446,7 @@ contains
 
     Cart = ovk_cart_(3, [11,11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CURVILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1522,7 +1522,7 @@ contains
 
     Cart = ovk_cart_(2, [11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1570,7 +1570,7 @@ contains
 
     Cart = ovk_cart_(3, [11,11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1625,7 +1625,7 @@ contains
 
     Cart = ovk_cart_(2, [11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_ORIENTED_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1673,7 +1673,7 @@ contains
 
     Cart = ovk_cart_(3, [11,11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_ORIENTED_CARTESIAN)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1730,7 +1730,7 @@ contains
     Cart = ovk_cart_(2, [11,11], [.true.,.false.], OVK_OVERLAP_PERIODIC)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+      GeometryType=OVK_GEOMETRY_RECTILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1789,7 +1789,7 @@ contains
     Cart = ovk_cart_(3, [11,11,11], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk, 0._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_RECTILINEAR)
+      GeometryType=OVK_GEOMETRY_RECTILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1854,7 +1854,7 @@ contains
 
     Cart = ovk_cart_(2, [11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CURVILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)
@@ -1908,7 +1908,7 @@ contains
 
     Cart = ovk_cart_(3, [11,11,11])
 
-    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GRID_GEOMETRY_CURVILINEAR)
+    call CreateGrid(Grid, t_logger_(), 1, Cart, GeometryType=OVK_GEOMETRY_CURVILINEAR)
 
     call ovkEditGridCoords(Grid, 1, X)
     call ovkEditGridCoords(Grid, 2, Y)

@@ -186,7 +186,7 @@ contains
     @AssertEqual([0._rk, 0._rk], PeriodicLength)
 
     call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
-    @AssertEqual(OVK_GRID_GEOMETRY_CURVILINEAR, GeometryType)
+    @AssertEqual(OVK_GEOMETRY_CURVILINEAR, GeometryType)
 
     call ovkDestroyGrid(Domain, 2)
 
@@ -196,7 +196,7 @@ contains
     ! With optional arguments
     call ovkCreateGrid(Domain, 2, [5,6], Periodic=[.false.,.true.], &
       PeriodicStorage=OVK_OVERLAP_PERIODIC, PeriodicLength=[0._rk, 1._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     @AssertTrue(ovkGridExists(Domain%grid(2)))
     @AssertTrue(ovkHasGrid(Domain, 2))
@@ -220,7 +220,7 @@ contains
     @AssertEqual([0._rk, 1._rk], PeriodicLength)
 
     call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
-    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+    @AssertEqual(OVK_GEOMETRY_CARTESIAN, GeometryType)
 
     call ovkDestroyGrid(Domain, 2)
 
@@ -272,7 +272,7 @@ contains
     @AssertEqual([0._rk, 0._rk, 0._rk], PeriodicLength)
 
     call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
-    @AssertEqual(OVK_GRID_GEOMETRY_CURVILINEAR, GeometryType)
+    @AssertEqual(OVK_GEOMETRY_CURVILINEAR, GeometryType)
 
     call ovkDestroyGrid(Domain, 2)
 
@@ -282,7 +282,7 @@ contains
     ! With optional arguments
     call ovkCreateGrid(Domain, 2, [5,6,7], Periodic=[.false.,.false.,.true.], &
       PeriodicStorage=OVK_OVERLAP_PERIODIC, PeriodicLength=[0._rk, 0._rk, 1._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     @AssertTrue(ovkGridExists(Domain%grid(2)))
     @AssertTrue(ovkHasGrid(Domain, 2))
@@ -306,7 +306,7 @@ contains
     @AssertEqual([0._rk, 0._rk, 1._rk], PeriodicLength)
 
     call ovkGetGridGeometryType(Domain%grid(2), GeometryType)
-    @AssertEqual(OVK_GRID_GEOMETRY_CARTESIAN, GeometryType)
+    @AssertEqual(OVK_GEOMETRY_CARTESIAN, GeometryType)
 
     call ovkDestroyGrid(Domain, 2)
 

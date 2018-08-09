@@ -31,7 +31,7 @@ contains
 
     Grid1Cart = ovk_cart_(2, [5,6], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[0._rk, 6._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid1, 1, X)
     call ovkEditGridCoords(Grid1, 2, Y)
@@ -45,7 +45,7 @@ contains
     call ovkReleaseGridCoords(Grid1, Y)
 
     Grid2Cart = ovk_cart_(2, [6,6])
-    call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+    call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     if (present(Overlap)) then
 
@@ -95,7 +95,7 @@ contains
 
     Grid1Cart = ovk_cart_(3, [5,5,6], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[0._rk, 0._rk, 6._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid1, 1, X)
     call ovkEditGridCoords(Grid1, 2, Y)
@@ -114,7 +114,7 @@ contains
     call ovkReleaseGridCoords(Grid1, Z)
 
     Grid2Cart = ovk_cart_(3, [6,6,6])
-    call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+    call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     if (present(Overlap)) then
 
@@ -166,11 +166,11 @@ contains
 
     Grid1Cart = ovk_cart_(2, [7,7], [.true.,.false.], OVK_OVERLAP_PERIODIC)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[6._rk, 0._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     Grid2Cart = ovk_cart_(2, [7,7], [.true.,.false.], OVK_OVERLAP_PERIODIC)
     call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, PeriodicLength=[6._rk, 0._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid2, 2, Y)
     do j = 1, 7
@@ -227,11 +227,11 @@ contains
 
     Grid1Cart = ovk_cart_(3, [7,7,7], [.true.,.true.,.false.], OVK_OVERLAP_PERIODIC)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[6._rk, 6._rk, 0._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     Grid2Cart = ovk_cart_(3, [7,7,7], [.true.,.true.,.false.], OVK_OVERLAP_PERIODIC)
     call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, PeriodicLength=[6._rk, 6._rk, 0._rk], &
-      GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+      GeometryType=OVK_GEOMETRY_CARTESIAN)
 
     call ovkEditGridCoords(Grid2, 3, Z)
     do k = 1, 7

@@ -108,7 +108,7 @@ program Bump
   ! Set geometry type as a hint for potential performance improvements
   call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, Periodic=Periodic, &
     PeriodicStorage=OVK_OVERLAP_PERIODIC, PeriodicLength=PeriodicLength, &
-    GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+    GeometryType=OVK_GEOMETRY_CARTESIAN)
   call ovkEditGrid(Domain, 1, Grid)
 
   do d = 1, NumDims

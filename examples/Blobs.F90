@@ -72,8 +72,7 @@ program Blobs
 
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, &
-    GeometryType=OVK_GRID_GEOMETRY_CARTESIAN)
+  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_CARTESIAN)
   call ovkEditGrid(Domain, 1, Grid)
 
   ! Generate coordinates for background grid

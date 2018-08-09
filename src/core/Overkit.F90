@@ -247,11 +247,11 @@ module Overkit
   public :: ovkOverlapsGridCell
   public :: ovkCoordsInGridCell
   public :: ovkPeriodicExtend
-  public :: OVK_GRID_GEOMETRY_CARTESIAN
-  public :: OVK_GRID_GEOMETRY_RECTILINEAR
-  public :: OVK_GRID_GEOMETRY_ORIENTED_CARTESIAN
-  public :: OVK_GRID_GEOMETRY_ORIENTED_RECTILINEAR
-  public :: OVK_GRID_GEOMETRY_CURVILINEAR
+  public :: OVK_GEOMETRY_CARTESIAN
+  public :: OVK_GEOMETRY_RECTILINEAR
+  public :: OVK_GEOMETRY_ORIENTED_CARTESIAN
+  public :: OVK_GEOMETRY_ORIENTED_RECTILINEAR
+  public :: OVK_GEOMETRY_CURVILINEAR
   public :: OVK_STATE_GRID
   public :: OVK_STATE_INTERIOR
   public :: OVK_STATE_BOUNDARY
