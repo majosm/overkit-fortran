@@ -131,7 +131,7 @@ contains
 
     ! Initialize grid data structure for background grid
     ! Set geometry type as a hint for potential performance improvements
-    call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_CARTESIAN)
+    call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
     call ovkEditGrid(Domain, 1, Grid)
 
     ! Fill in coordinates
@@ -541,7 +541,7 @@ contains
 
     ! Initialize grid data structure for background grid
     ! Set geometry type as a hint for potential performance improvements
-    call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_CARTESIAN)
+    call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
     call ovkEditGrid(Domain, 1, Grid)
 
     ! Fill in coordinates
