@@ -33,7 +33,7 @@ module ovkGlobal
   public :: lk
   public :: bk
   public :: INPUT_UNIT, OUTPUT_UNIT, ERROR_UNIT
-  public :: MAX_ND
+  public :: MAX_DIMS
   public :: PATH_LENGTH
   public :: STRING_LENGTH
   public :: IntToString
@@ -100,7 +100,7 @@ module ovkGlobal
   integer, parameter :: lk = ovk_lk
   integer, parameter :: bk = ovk_bk
 
-  integer, parameter :: MAX_ND = 3
+  integer, parameter :: MAX_DIMS = 3
 
   integer, parameter :: PATH_LENGTH = 256
 

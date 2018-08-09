@@ -16,7 +16,7 @@ module ovsGlobal
   public :: bk
   public :: INPUT_UNIT, OUTPUT_UNIT, ERROR_UNIT
   public :: DEBUG
-  public :: MAX_ND
+  public :: MAX_DIMS
   public :: PATH_LENGTH
   public :: Pi
 
@@ -36,7 +36,7 @@ module ovsGlobal
   logical, parameter :: DEBUG = .false.
 #endif
 
-  integer, parameter :: MAX_ND = 3
+  integer, parameter :: MAX_DIMS = 3
 
   integer, parameter :: PATH_LENGTH = 256
 

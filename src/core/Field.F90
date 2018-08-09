@@ -580,7 +580,7 @@ contains
 
     integer :: i, j, k
     type(ovk_cart) :: ExtendedCart
-    integer, dimension(MAX_ND) :: Point, AdjustedPoint
+    integer, dimension(MAX_DIMS) :: Point, AdjustedPoint
 
     ExtendedCart = Field%cart
 
@@ -623,7 +623,7 @@ contains
 
     integer :: i, j, k
     type(ovk_cart) :: ExtendedCart
-    integer, dimension(MAX_ND) :: Point, AdjustedPoint
+    integer, dimension(MAX_DIMS) :: Point, AdjustedPoint
 
     ExtendedCart = Field%cart
 
@@ -666,7 +666,7 @@ contains
 
     integer :: i, j, k
     type(ovk_cart) :: ExtendedCart
-    integer, dimension(MAX_ND) :: Point, AdjustedPoint
+    integer, dimension(MAX_DIMS) :: Point, AdjustedPoint
 
     ExtendedCart = Field%cart
 
@@ -709,7 +709,7 @@ contains
 
     integer :: i, j, k
     type(ovk_cart) :: ExtendedCart
-    integer, dimension(MAX_ND) :: Point, AdjustedPoint
+    integer, dimension(MAX_DIMS) :: Point, AdjustedPoint
 
     ExtendedCart = Field%cart
 
@@ -1093,14 +1093,14 @@ contains
     integer, dimension(Field%cart%nd), intent(in), optional :: StartIndex, EndIndex
     integer, intent(in), optional :: NumDigits
 
-    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer, dimension(MAX_DIMS) :: StartIndex_, EndIndex_
     integer :: NumDigits_
     integer :: i, j
     integer :: IDir, JDir, KDir
     integer :: IStart, IEnd, JStart, JEnd
     integer :: KSlice
     character(len=16) :: FormatString
-    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_DIMS) :: Point
 
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex
@@ -1114,7 +1114,7 @@ contains
       EndIndex_(Field%cart%nd+1:) = 1
     else
       EndIndex_ = Field%cart%ie
-      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+      EndIndex_(MAX_DIMS) = Field%cart%is(MAX_DIMS)
     end if
 
     if (present(NumDigits)) then
@@ -1159,14 +1159,14 @@ contains
     integer, dimension(Field%cart%nd), intent(in), optional :: StartIndex, EndIndex
     integer, intent(in), optional :: NumDigits
 
-    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer, dimension(MAX_DIMS) :: StartIndex_, EndIndex_
     integer :: NumDigits_
     integer :: i, j
     integer :: IDir, JDir, KDir
     integer :: IStart, IEnd, JStart, JEnd
     integer :: KSlice
     character(len=16) :: FormatString
-    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_DIMS) :: Point
 
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex
@@ -1180,7 +1180,7 @@ contains
       EndIndex_(Field%cart%nd+1:) = 1
     else
       EndIndex_ = Field%cart%ie
-      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+      EndIndex_(MAX_DIMS) = Field%cart%is(MAX_DIMS)
     end if
 
     if (present(NumDigits)) then
@@ -1228,7 +1228,7 @@ contains
     integer, intent(in), optional :: NumFractionalDigits
     integer, intent(in), optional :: NumExponentDigits
 
-    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer, dimension(MAX_DIMS) :: StartIndex_, EndIndex_
     integer :: NumDigits_
     integer :: NumFractionalDigits_
     integer :: NumExponentDigits_
@@ -1239,7 +1239,7 @@ contains
     character(len=16) :: FormatString
     character(len=256) :: TestString
     integer :: ElementLength
-    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_DIMS) :: Point
 
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex
@@ -1253,7 +1253,7 @@ contains
       EndIndex_(Field%cart%nd+1:) = 1
     else
       EndIndex_ = Field%cart%ie
-      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+      EndIndex_(MAX_DIMS) = Field%cart%is(MAX_DIMS)
     end if
 
     if (present(NumDigits)) then
@@ -1317,12 +1317,12 @@ contains
     integer, intent(in) :: OutputUnit
     integer, dimension(Field%cart%nd), intent(in), optional :: StartIndex, EndIndex
 
-    integer, dimension(MAX_ND) :: StartIndex_, EndIndex_
+    integer, dimension(MAX_DIMS) :: StartIndex_, EndIndex_
     integer :: i, j
     integer :: IDir, JDir, KDir
     integer :: IStart, IEnd, JStart, JEnd
     integer :: KSlice
-    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_DIMS) :: Point
 
     if (present(StartIndex)) then
       StartIndex_(:Field%cart%nd) = StartIndex
@@ -1336,7 +1336,7 @@ contains
       EndIndex_(Field%cart%nd+1:) = 1
     else
       EndIndex_ = Field%cart%ie
-      EndIndex_(MAX_ND) = Field%cart%is(MAX_ND)
+      EndIndex_(MAX_DIMS) = Field%cart%is(MAX_DIMS)
     end if
 
     call FindSlice(StartIndex_, EndIndex_, IDir, JDir, KDir, IStart, IEnd, JStart, JEnd, KSlice)
@@ -1368,14 +1368,14 @@ contains
 
   subroutine FindSlice(StartIndex, EndIndex, IDir, JDir, KDir, IStart, IEnd, JStart, JEnd, KSlice)
 
-    integer, dimension(MAX_ND), intent(in) :: StartIndex, EndIndex
+    integer, dimension(MAX_DIMS), intent(in) :: StartIndex, EndIndex
     integer, intent(out) :: IDir, JDir, KDir
     integer, intent(out) :: IStart, IEnd, JStart, JEnd
     integer, intent(out) :: KSlice
 
     integer :: d
 
-    do d = 1, MAX_ND
+    do d = 1, MAX_DIMS
       if (EndIndex(d) == StartIndex(d)) then
         exit
       end if
@@ -1383,14 +1383,14 @@ contains
     KDir = d
 
     if (OVK_DEBUG) then
-      if (KDir > MAX_ND) then
+      if (KDir > MAX_DIMS) then
         write (ERROR_UNIT, '(a)') "ERROR: Range to print must be two-dimensional."
         stop 1
       end if
     end if
 
-    IDir = modulo(KDir,MAX_ND)+1
-    JDir = modulo(KDir+1,MAX_ND)+1
+    IDir = modulo(KDir,MAX_DIMS)+1
+    JDir = modulo(KDir+1,MAX_DIMS)+1
 
     IStart = StartIndex(IDir)
     IEnd = EndIndex(IDir)

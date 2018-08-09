@@ -29,7 +29,7 @@ module ovkBoundingBox
   type ovk_bbox
     type(t_noconstruct) :: noconstruct
     integer :: nd
-    real(rk), dimension(MAX_ND) :: b, e
+    real(rk), dimension(MAX_DIMS) :: b, e
   end type ovk_bbox
 
   ! Trailing _ added for compatibility with compilers that don't support F2003 constructors

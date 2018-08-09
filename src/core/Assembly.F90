@@ -1233,7 +1233,7 @@ contains
     logical :: BetterDonor
     type(ovk_field_logical) :: OrphanMask
     type(ovk_field_int), pointer :: State
-    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_DIMS) :: Point
     integer :: NumWarnings
     integer(lk) :: NumOrphans
 
@@ -1508,7 +1508,7 @@ contains
     NumDims = Domain%nd
     NumGrids = Domain%ngrids
 
-    allocate(NumPointsAll(MAX_ND,NumGrids))
+    allocate(NumPointsAll(MAX_DIMS,NumGrids))
     do n = 1, NumGrids
       Grid => Domain%grid(n)
       NumPointsAll(:,n) = ovkCartSize(Grid%cart)

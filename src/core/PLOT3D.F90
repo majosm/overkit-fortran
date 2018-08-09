@@ -295,7 +295,7 @@ contains
 
     GridFile%with_iblank = WithIBlankInt /= 0
 
-    allocate(GridFile%npoints(MAX_ND,GridFile%ngrids))
+    allocate(GridFile%npoints(MAX_DIMS,GridFile%ngrids))
     do m = 1, GridFile%ngrids
       call P3DInternalGetGridSize(NullTerminate(GridFile%path), GridFile%endian, &
         GridFile%p3d_format, GridFile%nd, m-1, GridFile%npoints(:,m), Error_)
@@ -354,7 +354,7 @@ contains
     GridFile%ngrids = NumGrids
     GridFile%nd = NumDims
 
-    allocate(GridFile%npoints(MAX_ND,NumGrids))
+    allocate(GridFile%npoints(MAX_DIMS,NumGrids))
     GridFile%npoints(:NumDims,:) = NumPointsAll(:NumDims,:)
     GridFile%npoints(NumDims+1:,:) = 1
 

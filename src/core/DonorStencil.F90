@@ -33,7 +33,7 @@ module ovkDonorStencil
 
   type t_cubic
     type(ovk_field_logical) :: shift_mask
-    type(ovk_field_int), dimension(MAX_ND) :: shift_amounts
+    type(ovk_field_int), dimension(MAX_DIMS) :: shift_amounts
   end type t_cubic
 
 contains
@@ -83,7 +83,7 @@ contains
     type(ovk_grid), pointer :: Grid
     integer :: NumDims
     type(t_cubic), pointer :: Cubic
-    integer, dimension(MAX_ND) :: StencilCellLower, StencilCellUpper
+    integer, dimension(MAX_DIMS) :: StencilCellLower, StencilCellUpper
     logical, dimension(:,:,:), allocatable :: StencilCellMask
 
     Grid => DonorStencil%grid
@@ -188,9 +188,9 @@ contains
     integer :: d
     integer(lk) :: l
     integer :: NumDims
-    integer, dimension(MAX_ND) :: ReferenceCell
+    integer, dimension(MAX_DIMS) :: ReferenceCell
     real(rk), dimension(DonorGrid%nd) :: ReferenceCellCoords
-    integer, dimension(MAX_ND) :: NearestPoint
+    integer, dimension(MAX_DIMS) :: NearestPoint
 
     NumDims = DonorGrid%nd
 
@@ -227,7 +227,7 @@ contains
     integer :: d
     integer(lk) :: l
     integer :: NumDims
-    integer, dimension(MAX_ND) :: ReferenceCell
+    integer, dimension(MAX_DIMS) :: ReferenceCell
     real(rk), dimension(DonorGrid%nd) :: ReferenceCellCoords
 
     NumDims = DonorGrid%nd
@@ -263,9 +263,9 @@ contains
     integer(lk) :: l
     integer :: NumDims
     type(t_cubic), pointer :: Cubic
-    integer, dimension(MAX_ND) :: ReferenceCell
+    integer, dimension(MAX_DIMS) :: ReferenceCell
     real(rk), dimension(DonorGrid%nd) :: ReferenceCellCoords
-    integer, dimension(MAX_ND) :: StencilShift
+    integer, dimension(MAX_DIMS) :: StencilShift
     logical :: Success
     integer :: NumWarnings
     character(len=STRING_LENGTH) :: DonorCellString
@@ -335,11 +335,11 @@ contains
     ShiftMask, ShiftAmounts)
 
     type(ovk_grid), intent(in) :: Grid
-    integer, dimension(MAX_ND), intent(in) :: StencilCellLower, StencilCellUpper
+    integer, dimension(MAX_DIMS), intent(in) :: StencilCellLower, StencilCellUpper
     logical, dimension(StencilCellLower(1):StencilCellUpper(1),StencilCellLower(2): &
       StencilCellUpper(2),StencilCellLower(3):StencilCellUpper(3)), intent(in) :: StencilCellMask
     type(ovk_field_logical), intent(out) :: ShiftMask
-    type(ovk_field_int), dimension(MAX_ND), intent(out) :: ShiftAmounts
+    type(ovk_field_int), dimension(MAX_DIMS), intent(out) :: ShiftAmounts
 
     integer :: d, i, j, k, m, n, o
     integer :: NumDims
@@ -347,15 +347,15 @@ contains
     integer :: MaxStencilCellOffset
     type(ovk_field_int) :: CellEdgeDists
     type(ovk_field_int), dimension(:), allocatable :: CellEdgeDistGradients
-    integer, dimension(MAX_ND) :: ReferenceCell
-    integer, dimension(MAX_ND) :: CellStart, CellEnd
+    integer, dimension(MAX_DIMS) :: ReferenceCell
+    integer, dimension(MAX_DIMS) :: CellStart, CellEnd
     logical :: AwayFromEdge
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
     logical :: CellExists
     type(ovk_field_logical) :: FitsMask
-    integer, dimension(MAX_ND) :: MinShiftedReferenceCell, MaxShiftedReferenceCell
-    integer, dimension(MAX_ND) :: Shift
-    integer, dimension(MAX_ND) :: ShiftedReferenceCell
+    integer, dimension(MAX_DIMS) :: MinShiftedReferenceCell, MaxShiftedReferenceCell
+    integer, dimension(MAX_DIMS) :: Shift
+    integer, dimension(MAX_DIMS) :: ShiftedReferenceCell
     logical, dimension(-StencilCellUpper(1):-StencilCellLower(1),-StencilCellUpper(2): &
       -StencilCellLower(2),-StencilCellUpper(3):-StencilCellLower(3)) :: ShiftAllowed
     real(rk), dimension(Grid%nd) :: Gradient
@@ -364,7 +364,7 @@ contains
     real(rk), dimension(Grid%nd) :: DisplacementDir
     real(rk) :: DirectionQuality, DistanceQuality
     real(rk) :: ShiftQuality
-    integer, dimension(MAX_ND) :: BestShift
+    integer, dimension(MAX_DIMS) :: BestShift
     real(rk) :: BestShiftQuality
 
     NumDims = Grid%nd
@@ -436,7 +436,7 @@ contains
     FitsMask = ovk_field_logical_(CellCart)
     FitsMask%values = Grid%cell_mask%values .and. .not. ShiftMask%values
 
-    do d = 1, MAX_ND
+    do d = 1, MAX_DIMS
       ShiftAmounts(d) = ovk_field_int_(CellCart, 0)
     end do
 
@@ -508,7 +508,7 @@ contains
                 end do
               end do
             end do
-            do d = 1, MAX_ND
+            do d = 1, MAX_DIMS
               ShiftAmounts(d)%values(i,j,k) = BestShift(d)
             end do
           end if
@@ -568,8 +568,8 @@ contains
     type(ovk_field_int), dimension(:), intent(out) :: CellEdgeDistGradients
 
     integer :: d, i, j, k
-    integer, dimension(MAX_ND) :: PrevOffset, NextOffset
-    integer, dimension(MAX_ND) :: PrevCell, NextCell
+    integer, dimension(MAX_DIMS) :: PrevOffset, NextOffset
+    integer, dimension(MAX_DIMS) :: PrevCell, NextCell
     integer :: PrevDistance, NextDistance
 
     do d = 1, Grid%nd

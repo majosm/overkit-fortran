@@ -32,7 +32,7 @@ program Inlet
   type(ovk_cart) :: Cart
   type(ovk_connectivity), pointer :: Connectivity
   integer, dimension(:,:), pointer :: ReceiverPoints
-  integer, dimension(MAX_ND) :: Point
+  integer, dimension(MAX_DIMS) :: Point
   type(ovk_field_logical) :: Mask
   type(ovk_field_int) :: IBlank
 

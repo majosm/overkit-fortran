@@ -92,10 +92,10 @@ module ovkGrid
     type(t_logger) :: logger
     integer :: id
     integer :: nd
-    integer, dimension(MAX_ND) :: npoints
+    integer, dimension(MAX_DIMS) :: npoints
     type(ovk_cart) :: cart
     type(ovk_cart) :: cell_cart
-    real(rk), dimension(MAX_ND) :: periodic_length
+    real(rk), dimension(MAX_DIMS) :: periodic_length
     integer :: geometry_type
     type(ovk_field_real), dimension(:), pointer :: coords
     integer :: coords_edit_ref_count
@@ -205,9 +205,9 @@ contains
     integer, intent(in), optional :: GeometryType
 
     integer :: d, i, j, k
-    real(rk), dimension(MAX_ND) :: PeriodicLength_
+    real(rk), dimension(MAX_DIMS) :: PeriodicLength_
     integer :: GeometryType_
-    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_DIMS) :: Point
     type(ovk_cart) :: CellEdgeDistCart
 
     Grid%logger = Logger
@@ -793,7 +793,7 @@ contains
 
     integer :: i, j, d, l
     integer :: idir, jdir
-    integer, dimension(MAX_ND) :: Point, AdjustedPoint
+    integer, dimension(MAX_DIMS) :: Point, AdjustedPoint
     real(rk), dimension(Grid%nd) :: PeriodicCoords
 
     Grid%bounds = ovk_bbox_(Grid%nd)
@@ -807,8 +807,8 @@ contains
       any(Grid%cart%periodic .and. Grid%periodic_length > 0._rk)) then
       do d = 1, Grid%nd
         if (Grid%cart%periodic(d)) then
-          idir = modulo((d+1)-1,MAX_ND) + 1
-          jdir = modulo((d+2)-1,MAX_ND) + 1
+          idir = modulo((d+1)-1,MAX_DIMS) + 1
+          jdir = modulo((d+2)-1,MAX_DIMS) + 1
           do j = Grid%cart%is(jdir), Grid%cart%ie(jdir)
             do i = Grid%cart%is(idir), Grid%cart%ie(idir)
               Point(d) = Grid%cart%ie(d)+1
@@ -837,8 +837,8 @@ contains
     type(ovk_grid), intent(inout) :: Grid
 
     integer :: i, j, k, m, n, o
-    integer, dimension(MAX_ND) :: VertexLower, VertexUpper
-    integer, dimension(MAX_ND) :: Vertex
+    integer, dimension(MAX_DIMS) :: VertexLower, VertexUpper
+    integer, dimension(MAX_DIMS) :: Vertex
     logical :: AwayFromEdge
 
     call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_ALL, Grid%mask)
@@ -894,11 +894,11 @@ contains
     type(ovk_grid), intent(inout) :: Grid
 
     integer :: i, j, k, m, n, o
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
     real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
-    integer, dimension(MAX_ND) :: Point
-    integer, dimension(MAX_ND) :: NeighborCellLower, NeighborCellUpper
-    integer, dimension(MAX_ND) :: Neighbor
+    integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: NeighborCellLower, NeighborCellUpper
+    integer, dimension(MAX_DIMS) :: Neighbor
     integer :: NumCells
     logical :: AwayFromEdge
 
@@ -1013,10 +1013,10 @@ contains
     real(rk), dimension(Grid%nd,2**Grid%nd), intent(out) :: VertexCoords
 
     integer :: i, j, k, l, m
-    integer, dimension(MAX_ND) :: VertexLower, VertexUpper
+    integer, dimension(MAX_DIMS) :: VertexLower, VertexUpper
     logical :: AwayFromEdge
-    integer, dimension(MAX_ND) :: Vertex
-    integer, dimension(MAX_ND) :: AdjustedVertex
+    integer, dimension(MAX_DIMS) :: Vertex
+    integer, dimension(MAX_DIMS) :: AdjustedVertex
     real(rk), dimension(Grid%nd) :: PrincipalCoords
 
     VertexLower(:Grid%nd) = Cell
@@ -1068,10 +1068,10 @@ contains
     real(rk), dimension(Grid%nd,4**Grid%nd), intent(out) :: VertexCoords
 
     integer :: i, j, k, l, m
-    integer, dimension(MAX_ND) :: VertexLower, VertexUpper
+    integer, dimension(MAX_DIMS) :: VertexLower, VertexUpper
     logical :: AwayFromEdge
-    integer, dimension(MAX_ND) :: Vertex
-    integer, dimension(MAX_ND) :: AdjustedVertex
+    integer, dimension(MAX_DIMS) :: Vertex
+    integer, dimension(MAX_DIMS) :: AdjustedVertex
     real(rk), dimension(Grid%nd) :: PrincipalCoords
 
     VertexLower(:Grid%nd) = Cell-1
@@ -1122,7 +1122,7 @@ contains
     integer, dimension(Grid%nd), intent(in) :: Cell_
     type(ovk_bbox) :: CellBounds
 
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
     real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
 
     Cell(:Grid%nd) = Cell_
@@ -1143,7 +1143,7 @@ contains
     logical :: Overlaps
 
     integer :: i
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
     real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
     real(rk), dimension(Grid%nd) :: Centroid
 
@@ -1199,7 +1199,7 @@ contains
     real(rk), dimension(Grid%nd) :: CoordsInCell
 
     logical :: Success_
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
 
     Success_ = .true.
 
@@ -1270,8 +1270,8 @@ contains
     real(rk), dimension(Grid%nd) :: CoordsInCell
 
     integer :: d
-    integer, dimension(MAX_ND) :: StencilShift
-    integer, dimension(MAX_ND) :: ShiftedCell
+    integer, dimension(MAX_DIMS) :: StencilShift
+    integer, dimension(MAX_DIMS) :: ShiftedCell
     real(rk), dimension(Grid%nd,4**Grid%nd) :: VertexCoords
 
     StencilShift = 0

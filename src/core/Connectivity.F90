@@ -88,10 +88,10 @@ contains
     Connectivity%max_donor_size = 1
     Connectivity%nconnections = 0_lk
 
-    allocate(Connectivity%donor_extents(MAX_ND,2,0))
+    allocate(Connectivity%donor_extents(MAX_DIMS,2,0))
     allocate(Connectivity%donor_coords(NumDims,0))
     allocate(Connectivity%donor_interp_coefs(1,NumDims,0))
-    allocate(Connectivity%receiver_points(MAX_ND,0))
+    allocate(Connectivity%receiver_points(MAX_DIMS,0))
 
     call SetExists(Connectivity%existence_flag, .true.)
 
@@ -216,10 +216,10 @@ contains
     Connectivity%max_donor_size = MaxDonorSize
     Connectivity%nconnections = NumConnections
 
-    allocate(Connectivity%donor_extents(MAX_ND,2,NumConnections))
+    allocate(Connectivity%donor_extents(MAX_DIMS,2,NumConnections))
     allocate(Connectivity%donor_coords(Connectivity%nd,NumConnections))
     allocate(Connectivity%donor_interp_coefs(MaxDonorSize,Connectivity%nd,NumConnections))
-    allocate(Connectivity%receiver_points(MAX_ND,NumConnections))
+    allocate(Connectivity%receiver_points(MAX_DIMS,NumConnections))
 
     Connectivity%donor_extents(Connectivity%nd+1:,:,:) = 1
     Connectivity%donor_interp_coefs = 0._rk
@@ -237,7 +237,7 @@ contains
     integer :: i, j, k
     integer(lk) :: l, p
     integer(lk) :: NumConnections
-    integer, dimension(MAX_ND) :: DonorSize
+    integer, dimension(MAX_DIMS) :: DonorSize
     integer(lk), dimension(:), allocatable :: OverlapIndices
 
     NumConnections = ovkCountMask(ReceiverMask)

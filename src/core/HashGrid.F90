@@ -24,7 +24,7 @@ module ovkHashGrid
     type(t_noconstruct) :: noconstruct
     type(ovk_cart) :: cart
     type(ovk_bbox) :: bounds
-    real(rk), dimension(MAX_ND) :: bin_size
+    real(rk), dimension(MAX_DIMS) :: bin_size
     integer(lk), dimension(:), allocatable :: bin_start
     integer(lk), dimension(:), allocatable :: bin_contents
   end type t_hash_grid

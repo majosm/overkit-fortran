@@ -28,8 +28,8 @@ module ovkCart
   type ovk_cart
     type(t_noconstruct) :: noconstruct
     integer :: nd
-    integer, dimension(MAX_ND) :: is, ie
-    logical, dimension(MAX_ND) :: periodic
+    integer, dimension(MAX_DIMS) :: is, ie
+    logical, dimension(MAX_DIMS) :: periodic
     integer :: periodic_storage
   end type ovk_cart
 

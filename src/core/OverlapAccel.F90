@@ -98,8 +98,8 @@ contains
     type(t_logger) :: Logger
     type(ovk_field_logical) :: GridCellOverlapMask
     type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper
-    real(rk), dimension(MAX_ND) :: AccelLower, AccelUpper
-    integer, dimension(MAX_ND) :: Cell
+    real(rk), dimension(MAX_DIMS) :: AccelLower, AccelUpper
+    integer, dimension(MAX_DIMS) :: Cell
     type(ovk_bbox) :: GridCellBounds
     integer(lk) :: NumOverlappingCells, iNextOverlappingCell
     integer, dimension(:,:), allocatable :: OverlappingCells
@@ -165,7 +165,7 @@ contains
 
     if (NumOverlappingCells > 0_lk) then
 
-      allocate(OverlappingCells(NumOverlappingCells,MAX_ND))
+      allocate(OverlappingCells(NumOverlappingCells,MAX_DIMS))
       allocate(CellIndices(NumOverlappingCells))
 
       iNextOverlappingCell = 1_lk
@@ -225,9 +225,9 @@ contains
     integer :: i, j, k, d
     integer(lk) :: l
     integer(lk) :: NumCells
-    integer, dimension(MAX_ND) :: Cell
-    real(rk), dimension(MAX_ND) :: CellLower, CellUpper
-    real(rk), dimension(MAX_ND) :: NodeBoundsLower, NodeBoundsUpper
+    integer, dimension(MAX_DIMS) :: Cell
+    real(rk), dimension(MAX_DIMS) :: CellLower, CellUpper
+    real(rk), dimension(MAX_DIMS) :: NodeBoundsLower, NodeBoundsUpper
     type(ovk_bbox) :: NodeBounds
     real(rk), dimension(CellCart%nd) :: NodeBoundsSize
     real(rk) :: NodeBoundsVolume
@@ -402,7 +402,7 @@ contains
     integer(lk) :: l
     integer(lk) :: NumCells
     real(rk), dimension(CellCart%nd) :: BoundsSize
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
     real(rk) :: MeanCenter
 
     NumCells = size(CellIndices,kind=lk)
@@ -437,7 +437,7 @@ contains
 
     integer(lk) :: l
     integer(lk) :: NumCells
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
     integer(lk) :: NumLeftCells, NumRightCells
     integer(lk) :: NextLeftCell, NextRightCell
 
@@ -493,9 +493,9 @@ contains
     real(rk), dimension(CellCart%nd) :: BinSize
     type(ovk_field_large_int) :: NumCellsInBin
     integer(lk) :: NumBinCells
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
     real(rk), dimension(CellCart%nd) :: CellLower, CellUpper
-    integer, dimension(MAX_ND) :: LowerBin, UpperBin
+    integer, dimension(MAX_DIMS) :: LowerBin, UpperBin
     type(ovk_field_large_int) :: NextCellInBin
     integer(lk) :: BinCellsIndex
 

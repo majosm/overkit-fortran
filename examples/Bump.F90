@@ -21,23 +21,23 @@ program Bump
   integer :: NumDims
   character(len=32) :: InterpScheme
   integer :: ConnectionType
-  integer, dimension(MAX_ND) :: NumPointsBackground
-  integer, dimension(MAX_ND) :: NumPointsBump
-  real(rk), dimension(MAX_ND) :: Length
-  logical, dimension(MAX_ND) :: Periodic
-  real(rk), dimension(MAX_ND) :: PeriodicLength
+  integer, dimension(MAX_DIMS) :: NumPointsBackground
+  integer, dimension(MAX_DIMS) :: NumPointsBump
+  real(rk), dimension(MAX_DIMS) :: Length
+  logical, dimension(MAX_DIMS) :: Periodic
+  real(rk), dimension(MAX_DIMS) :: PeriodicLength
   type(ovk_domain) :: Domain
   type(ovk_grid), pointer :: Grid
   type(t_field_real_ptr), dimension(:), allocatable :: Coords
   type(ovk_field_int), pointer :: State
-  integer, dimension(MAX_ND) :: Point
+  integer, dimension(MAX_DIMS) :: Point
   real(rk) :: U
   real(rk) :: R
   real(rk) :: BumpHeight
   real(rk) :: MinHeight, MaxHeight
   real(rk) :: Shift
   type(ovk_assembly_options) :: AssemblyOptions
-  integer, dimension(MAX_ND,2) :: NumPointsAll
+  integer, dimension(MAX_DIMS,2) :: NumPointsAll
   type(ovk_plot3d_grid_file) :: GridFile
   type(ovk_cart) :: Cart
   type(ovk_connectivity), pointer :: Connectivity

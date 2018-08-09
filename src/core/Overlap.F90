@@ -125,7 +125,7 @@ contains
     allocate(Overlap%mask)
     Overlap%mask = ovk_field_logical_(OverlappedGrid%cart, .false.)
 
-    allocate(Overlap%cells(MAX_ND,0))
+    allocate(Overlap%cells(MAX_DIMS,0))
     allocate(Overlap%coords(NumDims,0))
 
     call SetExists(Overlap%existence_flag, .true.)
@@ -167,7 +167,7 @@ contains
 
     Overlap%noverlap = ovkCountMask(Overlap%mask)
 
-    allocate(Overlap%cells(MAX_ND,Overlap%noverlap))
+    allocate(Overlap%cells(MAX_DIMS,Overlap%noverlap))
 
     Overlap%cells(Overlap%nd+1:,:) = 1
 
@@ -254,8 +254,8 @@ contains
     type(ovk_bbox) :: Bounds
     type(ovk_field_large_int) :: OverlappingCells
     real(rk), dimension(Overlap%nd) :: OverlappedCoords
-    integer, dimension(MAX_ND) :: Cell
-    integer, dimension(MAX_ND) :: Point
+    integer, dimension(MAX_DIMS) :: Cell
+    integer, dimension(MAX_DIMS) :: Point
     real(rk), dimension(Overlap%nd) :: CoordsInCell
     logical :: Success
     integer :: NumWarnings
@@ -375,7 +375,7 @@ contains
 
     OldOverlappedMask = Overlap%mask
 
-    allocate(OldCells(MAX_ND,Overlap%noverlap))
+    allocate(OldCells(MAX_DIMS,Overlap%noverlap))
     OldCells = Overlap%cells
 
     allocate(OldCoords(Overlap%nd,Overlap%noverlap))
@@ -426,10 +426,10 @@ contains
     type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     type(ovk_cart) :: PrincipalCart
     type(ovk_field_large_int) :: OverlapIndices
-    integer, dimension(MAX_ND) :: CellLower
-    integer, dimension(MAX_ND) :: CellUpper
+    integer, dimension(MAX_DIMS) :: CellLower
+    integer, dimension(MAX_DIMS) :: CellUpper
     logical :: AwayFromEdge
-    integer, dimension(MAX_ND) :: Vertex
+    integer, dimension(MAX_DIMS) :: Vertex
 
     OverlappingGrid => Overlap%overlapping_grid
     OverlappedGrid => Overlap%overlapped_grid
@@ -508,10 +508,10 @@ contains
     integer(lk) :: l
     type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     type(ovk_field_large_int) :: OverlapIndices
-    integer, dimension(MAX_ND) :: CellLower
-    integer, dimension(MAX_ND) :: CellUpper
+    integer, dimension(MAX_DIMS) :: CellLower
+    integer, dimension(MAX_DIMS) :: CellUpper
     logical :: AwayFromEdge
-    integer, dimension(MAX_ND) :: Vertex
+    integer, dimension(MAX_DIMS) :: Vertex
 
     OverlappingGrid => Overlap%overlapping_grid
     OverlappedGrid => Overlap%overlapped_grid
@@ -688,7 +688,7 @@ contains
     type(ovk_array_int), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
 
     CollectedData = ovk_array_int_(Overlap%noverlap)
 
@@ -706,7 +706,7 @@ contains
     type(ovk_array_large_int), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
 
     CollectedData = ovk_array_large_int_(Overlap%noverlap)
 
@@ -724,7 +724,7 @@ contains
     type(ovk_array_real), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
 
     CollectedData = ovk_array_real_(Overlap%noverlap)
 
@@ -742,7 +742,7 @@ contains
     type(ovk_array_logical), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Cell
+    integer, dimension(MAX_DIMS) :: Cell
 
     CollectedData = ovk_array_logical_(Overlap%noverlap)
 
@@ -760,8 +760,8 @@ contains
     type(ovk_array_int), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     integer, dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_int_(Overlap%noverlap)
@@ -787,8 +787,8 @@ contains
     type(ovk_array_large_int), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     integer(lk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_large_int_(Overlap%noverlap)
@@ -814,8 +814,8 @@ contains
     type(ovk_array_real), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     real(rk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_real_(Overlap%noverlap)
@@ -841,8 +841,8 @@ contains
     type(ovk_array_int), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     integer, dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_int_(Overlap%noverlap)
@@ -868,8 +868,8 @@ contains
     type(ovk_array_large_int), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     integer(lk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_large_int_(Overlap%noverlap)
@@ -895,8 +895,8 @@ contains
     type(ovk_array_real), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     real(rk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_real_(Overlap%noverlap)
@@ -923,9 +923,9 @@ contains
 
     integer :: i, j, k
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
-    real(rk), dimension(MAX_ND,0:1) :: InterpBasis
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
+    real(rk), dimension(MAX_DIMS,0:1) :: InterpBasis
     real(rk), dimension(0:1,0:1,0:1) :: VertexData
     real(rk) :: Weight
 
@@ -966,8 +966,8 @@ contains
     type(ovk_array_logical), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_logical_(Overlap%noverlap)
@@ -993,8 +993,8 @@ contains
     type(ovk_array_logical), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_logical_(Overlap%noverlap)
@@ -1020,8 +1020,8 @@ contains
     type(ovk_array_logical), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_logical_(Overlap%noverlap)
@@ -1047,8 +1047,8 @@ contains
     type(ovk_array_logical), intent(out) :: CollectedData
 
     integer(lk) :: l
-    integer, dimension(MAX_ND) :: Lower, Upper
-    integer, dimension(MAX_ND) :: VertexStart, VertexEnd
+    integer, dimension(MAX_DIMS) :: Lower, Upper
+    integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
     logical(bk), dimension(0:1,0:1,0:1) :: VertexData
 
     CollectedData = ovk_array_logical_(Overlap%noverlap)

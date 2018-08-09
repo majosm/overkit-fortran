@@ -45,12 +45,12 @@ contains
     type(ovk_cart) :: Cart
     type(ovk_cart) :: EdgeCart
     logical :: EdgeValue
-    integer, dimension(MAX_ND) :: Point
-    integer, dimension(MAX_ND) :: MirrorPoint
+    integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: MirrorPoint
     logical :: Value
-    integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
+    integer, dimension(MAX_DIMS) :: NeighborLower, NeighborUpper
     logical :: AwayFromCartEdge
-    integer, dimension(MAX_ND) :: Neighbor
+    integer, dimension(MAX_DIMS) :: Neighbor
     logical :: NeighborValue
 
     Cart = Mask%cart
@@ -181,10 +181,10 @@ contains
     integer :: EdgeType
     integer :: EdgeBoundaryValue
     type(ovk_field_logical) :: EdgeMask
-    integer, dimension(MAX_ND) :: Point
-    integer, dimension(MAX_ND) :: FillLower, FillUpper
+    integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: FillLower, FillUpper
     logical :: AwayFromEdge
-    integer, dimension(MAX_ND) :: FillPoint
+    integer, dimension(MAX_DIMS) :: FillPoint
 
     if (Amount == 0) return
 
@@ -262,10 +262,10 @@ contains
 
     integer :: i, j, k, m, n, o
     type(ovk_cart) :: Cart
-    integer, dimension(MAX_ND) :: Point
-    integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
+    integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: NeighborLower, NeighborUpper
     logical :: AwayFromEdge
-    integer, dimension(MAX_ND) :: Neighbor
+    integer, dimension(MAX_DIMS) :: Neighbor
     integer :: Label, NeighborLabel
     integer, dimension(:), allocatable :: ReducedComponentLabel
 
@@ -567,8 +567,8 @@ contains
     type(ovk_cart) :: PrincipalCart
     type(ovk_cart) :: ExtendedCart
     type(ovk_field_int) :: ExtendedDistances
-    integer, dimension(MAX_ND) :: Point
-    integer, dimension(MAX_ND) :: NeighborLower, NeighborUpper
+    integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: NeighborLower, NeighborUpper
     integer :: NumIters
     integer :: MinDistance
 

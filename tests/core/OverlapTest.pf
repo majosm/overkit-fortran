@@ -66,7 +66,7 @@ contains
     @AssertTrue(OverlappedGrid%cart == Overlap%mask%cart)
     @AssertFalse(logical(any(Overlap%mask%values)))
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,0], shape(Overlap%cells))
     @AssertTrue(associated(Overlap%coords))
     @AssertEqual([2,0], shape(Overlap%coords))
 
@@ -105,7 +105,7 @@ contains
     @AssertTrue(OverlappedGrid%cart == Overlap%mask%cart)
     @AssertFalse(logical(any(Overlap%mask%values)))
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,0], shape(Overlap%cells))
     @AssertTrue(associated(Overlap%coords))
     @AssertEqual([3,0], shape(Overlap%coords))
 
@@ -169,7 +169,7 @@ contains
     @AssertTrue(OverlappedMask == Overlap%mask)
     @AssertEqual(15_lk, Overlap%noverlap)
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,15], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,15], shape(Overlap%cells))
     @AssertTrue(associated(Overlap%coords))
     @AssertEqual([2,15], shape(Overlap%coords))
 
@@ -180,7 +180,7 @@ contains
     @AssertTrue(OverlappedMask == Overlap%mask)
     @AssertEqual(0_lk, Overlap%noverlap)
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,0], shape(Overlap%cells))
     @AssertTrue(associated(Overlap%coords))
     @AssertEqual([2,0], shape(Overlap%coords))
 
@@ -213,7 +213,7 @@ contains
     @AssertTrue(OverlappedMask == Overlap%mask)
     @AssertEqual(105_lk, Overlap%noverlap)
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,105], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,105], shape(Overlap%cells))
     @AssertTrue(associated(Overlap%coords))
     @AssertEqual([3,105], shape(Overlap%coords))
 
@@ -224,7 +224,7 @@ contains
     @AssertTrue(OverlappedMask == Overlap%mask)
     @AssertEqual(0_lk, Overlap%noverlap)
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,0], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,0], shape(Overlap%cells))
     @AssertTrue(associated(Overlap%coords))
     @AssertEqual([3,0], shape(Overlap%coords))
 
@@ -300,7 +300,7 @@ contains
     type(t_overlap_accel) :: OverlapAccel
     type(ovk_overlap) :: Overlap
     logical(bk), dimension(6,6) :: ExpectedMaskValues
-    integer, dimension(MAX_ND,20) :: ExpectedCells
+    integer, dimension(MAX_DIMS,20) :: ExpectedCells
     real(rk), dimension(2,20) :: ExpectedCoords
 
     call SetupStaggered2D(OverlappingGrid, OverlappedGrid)
@@ -337,7 +337,7 @@ contains
     end do
 
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,20], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,20], shape(Overlap%cells))
     @AssertEqual(ExpectedCells, Overlap%cells)
 
     @AssertTrue(associated(Overlap%coords))
@@ -364,7 +364,7 @@ contains
     type(t_overlap_accel) :: OverlapAccel
     type(ovk_overlap) :: Overlap
     logical(bk), dimension(6,6,6) :: ExpectedMaskValues
-    integer, dimension(MAX_ND,88) :: ExpectedCells
+    integer, dimension(MAX_DIMS,88) :: ExpectedCells
     real(rk), dimension(3,88) :: ExpectedCoords
 
     call SetupStaggered3D(OverlappingGrid, OverlappedGrid)
@@ -403,7 +403,7 @@ contains
     end do
 
     @AssertTrue(associated(Overlap%cells))
-    @AssertEqual([MAX_ND,88], shape(Overlap%cells))
+    @AssertEqual([MAX_DIMS,88], shape(Overlap%cells))
     @AssertEqual(ExpectedCells, Overlap%cells)
 
     @AssertTrue(associated(Overlap%coords))
@@ -427,7 +427,7 @@ contains
     type(ovk_overlap) :: Overlap
     type(ovk_field_int), pointer :: State
     logical(bk), dimension(6,6) :: ExpectedMaskValues
-    integer, dimension(MAX_ND,7) :: ExpectedCells
+    integer, dimension(MAX_DIMS,7) :: ExpectedCells
     real(rk), dimension(2,7) :: ExpectedCoords
 
     call SetupStaggered2D(OverlappingGrid, OverlappedGrid, Overlap)

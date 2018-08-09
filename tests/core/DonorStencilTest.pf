@@ -139,7 +139,7 @@ contains
 
     type(ovk_grid), target :: Grid
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND) :: NumPoints
+    integer, dimension(MAX_DIMS) :: NumPoints
 
     call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(2, [6,7]))
 
@@ -181,7 +181,7 @@ contains
 
     type(ovk_grid), target :: Grid
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND) :: NumPoints
+    integer, dimension(MAX_DIMS) :: NumPoints
 
     call CreateGrid(Grid, t_logger_(), 1, ovk_cart_(3, [6,7,8]))
 
@@ -221,7 +221,7 @@ contains
     type(ovk_grid), target :: DonorGrid, ReceiverGrid
     type(ovk_overlap) :: Overlap
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer, dimension(MAX_DIMS,1) :: ReceiverPoints
     integer(lk), dimension(1) :: OverlapIndices
     integer, dimension(2,2,1) :: DonorExtents
     real(rk), dimension(2,1) :: DonorCoords
@@ -257,7 +257,7 @@ contains
     type(ovk_grid), target :: DonorGrid, ReceiverGrid
     type(ovk_overlap) :: Overlap
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer, dimension(MAX_DIMS,1) :: ReceiverPoints
     integer(lk), dimension(1) :: OverlapIndices
     integer, dimension(3,2,1) :: DonorExtents
     real(rk), dimension(3,1) :: DonorCoords
@@ -294,7 +294,7 @@ contains
     type(ovk_grid), target :: DonorGrid, ReceiverGrid
     type(ovk_overlap) :: Overlap
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer, dimension(MAX_DIMS,1) :: ReceiverPoints
     integer(lk), dimension(1) :: OverlapIndices
     integer, dimension(2,2,1) :: DonorExtents
     real(rk), dimension(2,1) :: DonorCoords
@@ -330,7 +330,7 @@ contains
     type(ovk_grid), target :: DonorGrid, ReceiverGrid
     type(ovk_overlap) :: Overlap
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND,1) :: ReceiverPoints
+    integer, dimension(MAX_DIMS,1) :: ReceiverPoints
     integer(lk), dimension(1) :: OverlapIndices
     integer, dimension(3,2,1) :: DonorExtents
     real(rk), dimension(3,1) :: DonorCoords
@@ -368,7 +368,7 @@ contains
     type(ovk_overlap) :: Overlap
     type(ovk_field_int), pointer :: State
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND,5) :: ReceiverPoints
+    integer, dimension(MAX_DIMS,5) :: ReceiverPoints
     integer(lk), dimension(5) :: OverlapIndices
     integer, dimension(2,2,5) :: DonorExtents
     real(rk), dimension(2,5) :: DonorCoords
@@ -457,7 +457,7 @@ contains
     type(ovk_overlap) :: Overlap
     type(ovk_field_int), pointer :: State
     type(t_donor_stencil) :: DonorStencil
-    integer, dimension(MAX_ND,6) :: ReceiverPoints
+    integer, dimension(MAX_DIMS,6) :: ReceiverPoints
     integer(lk), dimension(6) :: OverlapIndices
     integer, dimension(3,2,6) :: DonorExtents
     real(rk), dimension(3,6) :: DonorCoords
