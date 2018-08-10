@@ -459,8 +459,8 @@ contains
         if (EndEdit) then
           if (.not. EditingState(Grid)) then
             call UpdateBounds(Grid)
-            call UpdateVolumes(Grid)
           end if
+          call UpdateVolumes(Grid)
           Grid%edits%coords = .true.
         end if
       else
