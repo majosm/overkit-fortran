@@ -375,7 +375,7 @@ contains
         end do
         ! All chosen empirically; no real justification
         NumCellsLeaf = max(int(2._rk**(12._rk-OverlapAccelDepthAdjust(m)),kind=lk),1_lk)
-        MaxNodeUnoccupiedVolume = 0.5_rk
+        MaxNodeUnoccupiedVolume = 0.1_rk
         MaxNodeCellVolumeVariation = 0.5_rk
         BinScale = 2._rk**(-1._rk-OverlapAccelResolutionAdjust(m))
         call PopulateOverlapAccel(OverlapAccel, AccelBounds, MaxOverlapTolerance, NumCellsLeaf, &
