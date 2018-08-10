@@ -305,7 +305,7 @@ contains
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
 
-    integer :: m, n
+    integer :: i, j, k, m, n
     type(t_logger) :: Logger
     integer :: NumDims
     integer :: NumGrids
@@ -324,6 +324,8 @@ contains
     real(rk) :: BinScale
     type(t_overlap_accel) :: OverlapAccel
     type(ovk_overlap), pointer :: Overlap
+    type(ovk_field_logical) :: OverlappedMask
+    type(ovk_field_int), pointer :: State
 
     Logger = Domain%logger
 
@@ -397,6 +399,31 @@ contains
           end if
         end do
         call DestroyOverlapAccel(OverlapAccel)
+      end if
+    end do
+
+    do n = 1, NumGrids
+      if (any(Overlappable(:,n))) then
+        Grid_n => Domain%grid(IndexToID(n))
+        OverlappedMask = ovk_field_logical_(Grid_n%cart, .false.)
+        do m = 1, NumGrids
+          if (Overlappable(m,n)) then
+            Grid_m => Domain%grid(IndexToID(m))
+            Overlap => Domain%overlap(Grid_m%id, Grid_n%id)
+            OverlappedMask%values = OverlappedMask%values .or. Overlap%mask%values
+          end if
+        end do
+        call ovkEditGridState(Grid_n, State)
+        do k = Grid_n%cart%is(3), Grid_n%cart%ie(3)
+          do j = Grid_n%cart%is(2), Grid_n%cart%ie(2)
+            do i = Grid_n%cart%is(1), Grid_n%cart%ie(1)
+              if (OverlappedMask%values(i,j,k)) then
+                State%values(i,j,k) = ior(State%values(i,j,k),OVK_STATE_OVERLAPPED)
+              end if
+            end do
+          end do
+        end do
+        call ovkReleaseGridState(Grid_n, State)
       end if
     end do
 

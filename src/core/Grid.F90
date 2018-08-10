@@ -49,12 +49,13 @@ module ovkGrid
   public :: OVK_STATE_EXTERIOR
   public :: OVK_STATE_DOMAIN_BOUNDARY
   public :: OVK_STATE_INTERNAL_BOUNDARY
+  public :: OVK_STATE_OVERLAPPED
   public :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY
   public :: OVK_STATE_BOUNDARY_HOLE
+  public :: OVK_STATE_OCCLUDED
   public :: OVK_STATE_FRINGE
   public :: OVK_STATE_OUTER_FRINGE
   public :: OVK_STATE_INNER_FRINGE
-  public :: OVK_STATE_OCCLUDED
   public :: OVK_STATE_OVERLAP_MINIMIZED
   public :: OVK_STATE_RECEIVER
   public :: OVK_STATE_ORPHAN
@@ -130,20 +131,21 @@ module ovkGrid
   integer, parameter :: OVK_STATE_INTERNAL_BOUNDARY = ishft(FIRST_USER_STATE,5)
 
   ! Assembly states
-  integer, parameter :: NUM_ASSEMBLY_STATES = 9
+  integer, parameter :: NUM_ASSEMBLY_STATES = 10
   integer, parameter :: ASSEMBLY_STATE_OFFSET = NUM_USER_STATES
   integer, parameter :: ASSEMBLY_STATES = ishft(ishft(1,NUM_ASSEMBLY_STATES)-1, ASSEMBLY_STATE_OFFSET)
   integer, parameter :: FIRST_ASSEMBLY_STATE = ishft(1,ASSEMBLY_STATE_OFFSET)
 
-  integer, parameter :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY = ishft(FIRST_ASSEMBLY_STATE,0)
-  integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(FIRST_ASSEMBLY_STATE,1)
-  integer, parameter :: OVK_STATE_FRINGE = ishft(FIRST_ASSEMBLY_STATE,2)
-  integer, parameter :: OVK_STATE_OUTER_FRINGE = ishft(FIRST_ASSEMBLY_STATE,3)
-  integer, parameter :: OVK_STATE_INNER_FRINGE = ishft(FIRST_ASSEMBLY_STATE,4)
-  integer, parameter :: OVK_STATE_OCCLUDED = ishft(FIRST_ASSEMBLY_STATE,5)
-  integer, parameter :: OVK_STATE_OVERLAP_MINIMIZED = ishft(FIRST_ASSEMBLY_STATE,6)
-  integer, parameter :: OVK_STATE_RECEIVER = ishft(FIRST_ASSEMBLY_STATE,7)
-  integer, parameter :: OVK_STATE_ORPHAN = ishft(FIRST_ASSEMBLY_STATE,8)
+  integer, parameter :: OVK_STATE_OVERLAPPED = ishft(FIRST_ASSEMBLY_STATE,0)
+  integer, parameter :: OVK_STATE_INFERRED_DOMAIN_BOUNDARY = ishft(FIRST_ASSEMBLY_STATE,1)
+  integer, parameter :: OVK_STATE_BOUNDARY_HOLE = ishft(FIRST_ASSEMBLY_STATE,2)
+  integer, parameter :: OVK_STATE_OCCLUDED = ishft(FIRST_ASSEMBLY_STATE,3)
+  integer, parameter :: OVK_STATE_FRINGE = ishft(FIRST_ASSEMBLY_STATE,4)
+  integer, parameter :: OVK_STATE_OUTER_FRINGE = ishft(FIRST_ASSEMBLY_STATE,5)
+  integer, parameter :: OVK_STATE_INNER_FRINGE = ishft(FIRST_ASSEMBLY_STATE,6)
+  integer, parameter :: OVK_STATE_OVERLAP_MINIMIZED = ishft(FIRST_ASSEMBLY_STATE,7)
+  integer, parameter :: OVK_STATE_RECEIVER = ishft(FIRST_ASSEMBLY_STATE,8)
+  integer, parameter :: OVK_STATE_ORPHAN = ishft(FIRST_ASSEMBLY_STATE,9)
 
   ! Debug states
   integer, parameter :: NUM_DEBUG_STATES = 5
