@@ -117,7 +117,7 @@ module ovkGlobal
   ! Reliable check for whether an object exists
   ! Works even when object hasn't been initialized, due to special properties of allocatable
   type t_existence_flag
-    integer, allocatable :: value
+    integer, dimension(:), allocatable :: value
   end type t_existence_flag
 
 contains
@@ -220,7 +220,7 @@ contains
 
     if (Value .neqv. OldValue) then
       if (.not. OldValue) then
-        allocate(ExistenceFlag%value)
+        allocate(ExistenceFlag%value(1))
       else
         deallocate(ExistenceFlag%value)
       end if

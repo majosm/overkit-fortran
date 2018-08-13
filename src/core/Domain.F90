@@ -500,6 +500,7 @@ contains
     integer, intent(in) :: OverlappingGridID, OverlappedGridID
 
     logical :: Success
+    type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
 
     if (ValidID(Domain, OverlappingGridID) .and. ValidID(Domain, OverlappedGridID)) then
 
@@ -511,8 +512,11 @@ contains
 
       if (Success) then
 
+        OverlappingGrid => Domain%grid(OverlappingGridID)
+        OverlappedGrid => Domain%grid(OverlappedGridID)
+
         call CreateOverlap(Domain%overlap(OverlappingGridID,OverlappedGridID), Domain%logger, &
-          Domain%grid(OverlappingGridID), Domain%grid(OverlappedGridID))
+          OverlappingGrid, OverlappedGrid)
 
       else
 
@@ -713,6 +717,7 @@ contains
     integer, intent(in) :: DonorGridID, ReceiverGridID
 
     logical :: Success
+    type(ovk_grid), pointer :: DonorGrid, ReceiverGrid
 
     if (ValidID(Domain, DonorGridID) .and. ValidID(Domain, ReceiverGridID)) then
 
@@ -724,8 +729,11 @@ contains
 
       if (Success) then
 
+        DonorGrid => Domain%grid(DonorGridID)
+        ReceiverGrid => Domain%grid(ReceiverGridID)
+
         call CreateConnectivity(Domain%connectivity(DonorGridID,ReceiverGridID), Domain%logger, &
-          Domain%grid(DonorGridID), Domain%grid(ReceiverGridID))
+          DonorGrid, ReceiverGrid)
 
       else
 
