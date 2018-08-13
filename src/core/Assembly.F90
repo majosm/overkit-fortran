@@ -95,7 +95,7 @@ contains
 
     deallocate(PairwiseOcclusionMasks)
 
-    call LocateReceivers(Domain, ReducedDomainInfo)
+    call FinalizeReceivers(Domain, ReducedDomainInfo)
 
     allocate(DonorGridIDs(ReducedDomainInfo%ngrids))
 
@@ -1176,7 +1176,7 @@ contains
 
   end subroutine ApplyOverlapMinimization
 
-  subroutine LocateReceivers(Domain, ReducedDomainInfo)
+  subroutine FinalizeReceivers(Domain, ReducedDomainInfo)
 
     type(ovk_domain), intent(inout) :: Domain
     type(t_reduced_domain_info), intent(in) :: ReducedDomainInfo
@@ -1196,7 +1196,7 @@ contains
     Logger = Domain%logger
 
     if (Logger%log_status) then
-      write (Logger%status_file, '(a)') "Locating receiver points..."
+      write (Logger%status_file, '(a)') "Finalizing receiver points..."
     end if
 
     NumDims = Domain%nd
@@ -1228,10 +1228,10 @@ contains
     end do
 
     if (Logger%log_status) then
-      write (Logger%status_file, '(a)') "Finished locating receiver points."
+      write (Logger%status_file, '(a)') "Finished finalizing receiver points."
     end if
 
-  end subroutine LocateReceivers
+  end subroutine FinalizeReceivers
 
   subroutine ChooseDonors(Domain, ReducedDomainInfo, OverlapVolumes, DonorGridIDs)
 
