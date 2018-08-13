@@ -21,7 +21,7 @@ module ovkGlobal
   public :: OVK_NONE, OVK_ANY, OVK_NOT_ALL, OVK_ALL
   public :: OVK_NO_ERROR, OVK_IO_ERROR
   public :: OVK_MIRROR
-  public :: OVK_NO_OVERLAP_PERIODIC, OVK_OVERLAP_PERIODIC
+  public :: OVK_PERIODIC_STORAGE_UNIQUE, OVK_PERIODIC_STORAGE_DUPLICATED
   public :: OVK_LITTLE_ENDIAN, OVK_BIG_ENDIAN
   public :: OVK_P3D_STANDARD, OVK_P3D_EXTENDED
   public :: OVK_ALL_GRIDS
@@ -70,8 +70,8 @@ module ovkGlobal
 
   integer, parameter :: OVK_MIRROR = 2
 
-  integer, parameter :: OVK_NO_OVERLAP_PERIODIC = 1
-  integer, parameter :: OVK_OVERLAP_PERIODIC = 2
+  integer, parameter :: OVK_PERIODIC_STORAGE_UNIQUE = 1
+  integer, parameter :: OVK_PERIODIC_STORAGE_DUPLICATED = 2
 
   integer, parameter :: OVK_LITTLE_ENDIAN = 1
   integer, parameter :: OVK_BIG_ENDIAN = 2

@@ -585,7 +585,7 @@ contains
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
-      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+      if (ExtendedCart%periodic_storage == OVK_PERIODIC_STORAGE_DUPLICATED) then
         if (ExtendedCart%periodic(1)) then
           Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
         end if
@@ -628,7 +628,7 @@ contains
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
-      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+      if (ExtendedCart%periodic_storage == OVK_PERIODIC_STORAGE_DUPLICATED) then
         if (ExtendedCart%periodic(1)) then
           Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
         end if
@@ -671,7 +671,7 @@ contains
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
-      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+      if (ExtendedCart%periodic_storage == OVK_PERIODIC_STORAGE_DUPLICATED) then
         if (ExtendedCart%periodic(1)) then
           Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
         end if
@@ -714,7 +714,7 @@ contains
     ExtendedCart = Field%cart
 
     if (ovkCartIsCompatible(ExtendedCart, PrincipalCart)) then
-      if (ExtendedCart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+      if (ExtendedCart%periodic_storage == OVK_PERIODIC_STORAGE_DUPLICATED) then
         if (ExtendedCart%periodic(1)) then
           Field%values(ExtendedCart%ie(1),:,:) = Field%values(ExtendedCart%is(1),:,:)
         end if

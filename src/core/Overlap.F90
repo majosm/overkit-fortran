@@ -450,7 +450,7 @@ contains
       end do
     end do
 
-    PrincipalCart = ovkCartConvertPeriodicStorage(OverlappingGrid%cart, OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovkCartConvertPeriodicStorage(OverlappingGrid%cart, OVK_PERIODIC_STORAGE_UNIQUE)
 
 !$OMP PARALLEL DO &
 !$OMP&  DEFAULT(PRIVATE) &

@@ -29,7 +29,7 @@ contains
     type(ovk_field_real), pointer :: X, Y
     type(ovk_field_logical) :: OverlappedMask
 
-    Grid1Cart = ovk_cart_(2, [5,6], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Grid1Cart = ovk_cart_(2, [5,6], [.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[0._rk, 6._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
 
@@ -93,7 +93,7 @@ contains
     type(ovk_field_real), pointer :: X, Y, Z
     type(ovk_field_logical) :: OverlappedMask
 
-    Grid1Cart = ovk_cart_(3, [5,5,6], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Grid1Cart = ovk_cart_(3, [5,5,6], [.false.,.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[0._rk, 0._rk, 6._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
 
@@ -164,11 +164,11 @@ contains
     type(ovk_field_real), pointer :: Y
     type(ovk_field_logical) :: OverlappedMask
 
-    Grid1Cart = ovk_cart_(2, [7,7], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Grid1Cart = ovk_cart_(2, [7,7], [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[6._rk, 0._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
 
-    Grid2Cart = ovk_cart_(2, [7,7], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Grid2Cart = ovk_cart_(2, [7,7], [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
     call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, PeriodicLength=[6._rk, 0._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
 
@@ -225,11 +225,11 @@ contains
     type(ovk_field_real), pointer :: Z
     type(ovk_field_logical) :: OverlappedMask
 
-    Grid1Cart = ovk_cart_(3, [7,7,7], [.true.,.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Grid1Cart = ovk_cart_(3, [7,7,7], [.true.,.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
     call CreateGrid(Grid1, t_logger_(), 1, Grid1Cart, PeriodicLength=[6._rk, 6._rk, 0._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
 
-    Grid2Cart = ovk_cart_(3, [7,7,7], [.true.,.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Grid2Cart = ovk_cart_(3, [7,7,7], [.true.,.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
     call CreateGrid(Grid2, t_logger_(), 2, Grid2Cart, PeriodicLength=[6._rk, 6._rk, 0._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
 

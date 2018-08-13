@@ -27,7 +27,7 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([0,0,1], Cart%ie)
     @AssertFalse(any(Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
   end subroutine DefaultInitialize
 
@@ -45,7 +45,7 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([0,0,1], Cart%ie)
     @AssertFalse(any(Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Num points
     Cart = ovk_cart_(2, [2,3])
@@ -54,7 +54,7 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([2,3,1], Cart%ie)
     @AssertFalse(any(Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Empty, periodicity
     Cart = ovk_cart_(2, [.true.,.false.])
@@ -63,16 +63,16 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([0,0,1], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Empty, periodicity, periodic storage
-    Cart = ovk_cart_(2, [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     @AssertEqual(2, Cart%nd)
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([0,0,1], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart%periodic_storage)
 
     ! Num points, periodicity
     Cart = ovk_cart_(2, [2,3], [.true.,.false.])
@@ -81,16 +81,16 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([2,3,1], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Num points, periodicity, periodic storage
-    Cart = ovk_cart_(2, [2,3], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [2,3], [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     @AssertEqual(2, Cart%nd)
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([2,3,1], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart%periodic_storage)
 
     ! Start, end
     Cart = ovk_cart_(2, [2,1], [3,4])
@@ -99,7 +99,7 @@ contains
     @AssertEqual([2,1,1], Cart%is)
     @AssertEqual([3,4,1], Cart%ie)
     @AssertFalse(any(Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Start, end, periodicity
     Cart = ovk_cart_(2, [2,1], [3,4], [.true.,.false.])
@@ -108,16 +108,16 @@ contains
     @AssertEqual([2,1,1], Cart%is)
     @AssertEqual([3,4,1], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Start, end, periodicity, periodic storage
-    Cart = ovk_cart_(2, [2,1], [3,4], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [2,1], [3,4], [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     @AssertEqual(2, Cart%nd)
     @AssertEqual([2,1,1], Cart%is)
     @AssertEqual([3,4,1], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart%periodic_storage)
 
   end subroutine Create2D
 
@@ -135,7 +135,7 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([0,0,0], Cart%ie)
     @AssertFalse(any(Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Num points
     Cart = ovk_cart_(3, [2,3,4])
@@ -144,7 +144,7 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([2,3,4], Cart%ie)
     @AssertFalse(any(Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Empty, periodicity
     Cart = ovk_cart_(3, [.true.,.false.,.false.])
@@ -153,16 +153,16 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([0,0,0], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Empty, periodicity, periodic storage
-    Cart = ovk_cart_(3, [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(3, [.true.,.false.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     @AssertEqual(3, Cart%nd)
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([0,0,0], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart%periodic_storage)
 
     ! Num points, periodicity
     Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.])
@@ -171,16 +171,16 @@ contains
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([2,3,4], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Num points, periodicity, periodic storage
-    Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(3, [2,3,4], [.true.,.false.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     @AssertEqual(3, Cart%nd)
     @AssertEqual([1,1,1], Cart%is)
     @AssertEqual([2,3,4], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart%periodic_storage)
 
     ! Start, end
     Cart = ovk_cart_(3, [3,2,1], [4,5,6])
@@ -189,7 +189,7 @@ contains
     @AssertEqual([3,2,1], Cart%is)
     @AssertEqual([4,5,6], Cart%ie)
     @AssertFalse(any(Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Start, end, periodicity
     Cart = ovk_cart_(3, [3,2,1], [4,5,6], [.true.,.false.,.false.])
@@ -198,16 +198,16 @@ contains
     @AssertEqual([3,2,1], Cart%is)
     @AssertEqual([4,5,6], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart%periodic_storage)
 
     ! Start, end, periodic, periodic storage
-    Cart = ovk_cart_(3, [3,2,1], [4,5,6], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(3, [3,2,1], [4,5,6], [.true.,.false.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     @AssertEqual(3, Cart%nd)
     @AssertEqual([3,2,1], Cart%is)
     @AssertEqual([4,5,6], Cart%ie)
     @AssertTrue(all([.true.,.false.,.false.] .eqv. Cart%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart%periodic_storage)
 
   end subroutine Create3D
 
@@ -244,7 +244,7 @@ contains
     @AssertTrue(Cart1 /= Cart2)
 
     ! Different periodic storage
-    Cart2 = ovk_cart_(2, [1,2], [3,4], [.false.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart2 = ovk_cart_(2, [1,2], [3,4], [.false.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(Cart1 /= Cart2)
 
   end subroutine Equality
@@ -560,7 +560,7 @@ contains
   end subroutine PeriodicAdjustNonPeriodic3D
 
   @Test
-  subroutine PeriodicAdjustNoOverlapPeriodic2D(this)
+  subroutine PeriodicAdjustPeriodicUnique2D(this)
 
     class(t_cart_test), intent(inout) :: this
 
@@ -602,10 +602,10 @@ contains
     Point = ovkCartPeriodicAdjust(ovkCartY, [3,6])
     @AssertEqual([3,2], Point)
 
-  end subroutine PeriodicAdjustNoOverlapPeriodic2D
+  end subroutine PeriodicAdjustPeriodicUnique2D
 
   @Test
-  subroutine PeriodicAdjustNoOverlapPeriodic3D(this)
+  subroutine PeriodicAdjustPeriodicUnique3D(this)
 
     class(t_cart_test), intent(inout) :: this
 
@@ -664,18 +664,18 @@ contains
     Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,6])
     @AssertEqual([3,3,2], Point)
 
-  end subroutine PeriodicAdjustNoOverlapPeriodic3D
+  end subroutine PeriodicAdjustPeriodicUnique3D
 
   @Test
-  subroutine PeriodicAdjustOverlapPeriodic2D(this)
+  subroutine PeriodicAdjustPeriodicDuplicated2D(this)
 
     class(t_cart_test), intent(inout) :: this
 
     type(ovk_cart) :: ovkCartX, ovkCartY
     integer, dimension(2) :: Point
 
-    ovkCartX = ovk_cart_(2, [1,1], [5,5], [.true.,.false.], OVK_OVERLAP_PERIODIC)
-    ovkCartY = ovk_cart_(2, [1,1], [5,5], [.false.,.true.], OVK_OVERLAP_PERIODIC)
+    ovkCartX = ovk_cart_(2, [1,1], [5,5], [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    ovkCartY = ovk_cart_(2, [1,1], [5,5], [.false.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     ! Lower x boundary
     Point = ovkCartPeriodicAdjust(ovkCartX, [1,3])
@@ -709,19 +709,22 @@ contains
     Point = ovkCartPeriodicAdjust(ovkCartY, [3,6])
     @AssertEqual([3,2], Point)
 
-  end subroutine PeriodicAdjustOverlapPeriodic2D
+  end subroutine PeriodicAdjustPeriodicDuplicated2D
 
   @Test
-  subroutine PeriodicAdjustOverlapPeriodic3D(this)
+  subroutine PeriodicAdjustPeriodicDuplicated3D(this)
 
     class(t_cart_test), intent(inout) :: this
 
     type(ovk_cart) :: ovkCartX, ovkCartY, ovkCartZ
     integer, dimension(3) :: Point
 
-    ovkCartX = ovk_cart_(3, [1,1,1], [5,5,5], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
-    ovkCartY = ovk_cart_(3, [1,1,1], [5,5,5], [.false.,.true.,.false.], OVK_OVERLAP_PERIODIC)
-    ovkCartZ = ovk_cart_(3, [1,1,1], [5,5,5], [.false.,.false.,.true.], OVK_OVERLAP_PERIODIC)
+    ovkCartX = ovk_cart_(3, [1,1,1], [5,5,5], [.true.,.false.,.false.], &
+      OVK_PERIODIC_STORAGE_DUPLICATED)
+    ovkCartY = ovk_cart_(3, [1,1,1], [5,5,5], [.false.,.true.,.false.], &
+      OVK_PERIODIC_STORAGE_DUPLICATED)
+    ovkCartZ = ovk_cart_(3, [1,1,1], [5,5,5], [.false.,.false.,.true.], &
+      OVK_PERIODIC_STORAGE_DUPLICATED)
 
     ! Lower x boundary
     Point = ovkCartPeriodicAdjust(ovkCartX, [1,3,3])
@@ -771,7 +774,7 @@ contains
     Point = ovkCartPeriodicAdjust(ovkCartZ, [3,3,6])
     @AssertEqual([3,3,2], Point)
 
-  end subroutine PeriodicAdjustOverlapPeriodic3D
+  end subroutine PeriodicAdjustPeriodicDuplicated3D
 
   @Test
   subroutine Contains2D(this)
@@ -874,49 +877,49 @@ contains
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart1))
 
-    ! No overlap -> no overlap, compatible
+    ! Unique -> unique, compatible
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
     Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> no overlap, incompatible
+    ! Unique -> unique, incompatible
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
     Cart2 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.])
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> overlap, compatible
+    ! Unique -> duplicated, compatible
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
-    Cart2 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    Cart2 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> overlap, compatible
+    ! Unique -> duplicated, compatible
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
-    Cart2 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    Cart2 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> overlap, incompatible
+    ! Unique -> duplicated, incompatible
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
-    Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> no overlap, compatible
-    Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> unique, compatible
+    Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> no overlap, incompatible
-    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> unique, incompatible
+    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> overlap, compatible
-    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> duplicated, compatible
+    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> overlap, incompatible
-    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> duplicated, incompatible
+    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
   end subroutine Compatible2D
@@ -932,49 +935,49 @@ contains
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart1))
 
-    ! No overlap -> no overlap, compatible
+    ! Unique -> unique, compatible
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
     Cart2 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> no overlap, incompatible
+    ! Unique -> unique, incompatible
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
     Cart2 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.])
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> overlap, compatible
+    ! Unique -> duplicated, compatible
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
-    Cart2 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    Cart2 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> overlap, compatible
+    ! Unique -> duplicated, compatible
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
-    Cart2 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    Cart2 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! No overlap -> overlap, incompatible
+    ! Unique -> duplicated, incompatible
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
-    Cart2 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    Cart2 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> no overlap, compatible
-    Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> unique, compatible
+    Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Cart2 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> no overlap, incompatible
-    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> unique, incompatible
+    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Cart2 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> overlap, compatible
-    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> duplicated, compatible
+    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(ovkCartIsCompatible(Cart1, Cart2))
 
-    ! Overlap -> overlap, incompatible
-    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> duplicated, incompatible
+    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertFalse(ovkCartIsCompatible(Cart1, Cart2))
 
   end subroutine Compatible3D
@@ -986,32 +989,32 @@ contains
 
     type(ovk_cart) :: Cart1, Cart2
 
-    ! No overlap -> no overlap
+    ! Unique -> unique
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_UNIQUE)
     @AssertTrue(Cart1 == Cart2)
 
-    ! No overlap -> overlap
+    ! Unique -> duplicated
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertEqual(2, Cart2%nd)
     @AssertEqual([1,2,1], Cart2%is)
     @AssertEqual([4,5,1], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart2%periodic_storage)
 
-    ! Overlap -> no overlap
-    Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+    ! Duplicated -> unique
+    Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_UNIQUE)
     @AssertEqual(2, Cart2%nd)
     @AssertEqual([1,2,1], Cart2%is)
     @AssertEqual([3,4,1], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
-    ! Overlap -> overlap
-    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> duplicated
+    Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(Cart1 == Cart2)
 
   end subroutine ConvertPeriodicStorage2D
@@ -1023,32 +1026,32 @@ contains
 
     type(ovk_cart) :: Cart1, Cart2
 
-    ! No overlap -> no overlap
+    ! Unique -> unique
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_UNIQUE)
     @AssertTrue(Cart1 == Cart2)
 
-    ! No overlap -> overlap
+    ! Unique -> duplicated
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertEqual(3, Cart2%nd)
     @AssertEqual([1,2,3], Cart2%is)
     @AssertEqual([5,6,7], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, Cart2%periodic_storage)
 
-    ! Overlap -> no overlap
-    Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_NO_OVERLAP_PERIODIC)
+    ! Duplicated -> unique
+    Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_UNIQUE)
     @AssertEqual(3, Cart2%nd)
     @AssertEqual([1,2,3], Cart2%is)
     @AssertEqual([4,5,6], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
-    ! Overlap -> overlap
-    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
-    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_OVERLAP_PERIODIC)
+    ! Duplicated -> duplicated
+    Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart2 = ovkCartConvertPeriodicStorage(Cart1, OVK_PERIODIC_STORAGE_DUPLICATED)
     @AssertTrue(Cart1 == Cart2)
 
   end subroutine ConvertPeriodicStorage3D
@@ -1067,25 +1070,25 @@ contains
     @AssertEqual([1,2,1], Cart2%is)
     @AssertEqual([2,3,1], Cart2%ie)
     @AssertTrue(all([.false.,.false.,.false.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
-    ! Periodic, no overlap
+    ! Periodic, unique
     Cart1 = ovk_cart_(2, [1,2], [3,4], [.true.,.true.])
     Cart2 = ovkCartPointToCell(Cart1)
     @AssertEqual(2, Cart2%nd)
     @AssertEqual([1,2,1], Cart2%is)
     @AssertEqual([3,4,1], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
-    ! Periodic, overlap
-    Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Periodic, duplicated
+    Cart1 = ovk_cart_(2, [1,2], [4,5], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Cart2 = ovkCartPointToCell(Cart1)
     @AssertEqual(2, Cart2%nd)
     @AssertEqual([1,2,1], Cart2%is)
     @AssertEqual([3,4,1], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.false.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
   end subroutine PointToCell2D
 
@@ -1103,25 +1106,25 @@ contains
     @AssertEqual([1,2,3], Cart2%is)
     @AssertEqual([3,4,5], Cart2%ie)
     @AssertTrue(all([.false.,.false.,.false.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
-    ! Periodic, no overlap
+    ! Periodic, unique
     Cart1 = ovk_cart_(3, [1,2,3], [4,5,6], [.true.,.true.,.true.])
     Cart2 = ovkCartPointToCell(Cart1)
     @AssertEqual(3, Cart2%nd)
     @AssertEqual([1,2,3], Cart2%is)
     @AssertEqual([4,5,6], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
-    ! Periodic, overlap
-    Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Periodic, duplicated
+    Cart1 = ovk_cart_(3, [1,2,3], [5,6,7], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Cart2 = ovkCartPointToCell(Cart1)
     @AssertEqual(3, Cart2%nd)
     @AssertEqual([1,2,3], Cart2%is)
     @AssertEqual([4,5,6], Cart2%ie)
     @AssertTrue(all([.true.,.true.,.true.] .eqv. Cart2%periodic))
-    @AssertEqual(OVK_NO_OVERLAP_PERIODIC, Cart2%periodic_storage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_UNIQUE, Cart2%periodic_storage)
 
   end subroutine PointToCell3D
 

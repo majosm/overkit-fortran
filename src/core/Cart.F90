@@ -75,7 +75,7 @@ contains
     Cart%ie(:NumDims) = 0
     Cart%ie(NumDims+1:) = 1
     Cart%periodic = .false.
-    Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Cart%periodic_storage = OVK_PERIODIC_STORAGE_UNIQUE
 
   end function ovk_cart_Assigned_Empty
 
@@ -91,7 +91,7 @@ contains
     Cart%ie(NumDims+1:) = 1
     Cart%periodic(:NumDims) = Periodic
     Cart%periodic(NumDims+1:) = .false.
-    Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Cart%periodic_storage = OVK_PERIODIC_STORAGE_UNIQUE
 
   end function ovk_cart_Assigned_EmptyPeriodic
 
@@ -124,7 +124,7 @@ contains
     Cart%ie(:NumDims) = NumPoints
     Cart%ie(NumDims+1:) = 1
     Cart%periodic = .false.
-    Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Cart%periodic_storage = OVK_PERIODIC_STORAGE_UNIQUE
 
   end function ovk_cart_Assigned_NumPoints
 
@@ -141,7 +141,7 @@ contains
     Cart%ie(NumDims+1:) = 1
     Cart%periodic(:NumDims) = Periodic
     Cart%periodic(NumDims+1:) = .false.
-    Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Cart%periodic_storage = OVK_PERIODIC_STORAGE_UNIQUE
 
   end function ovk_cart_Assigned_NumPointsPeriodic
 
@@ -176,7 +176,7 @@ contains
     Cart%ie(:NumDims) = EndIndex
     Cart%ie(NumDims+1:) = 1
     Cart%periodic = .false.
-    Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Cart%periodic_storage = OVK_PERIODIC_STORAGE_UNIQUE
 
   end function ovk_cart_Assigned_StartEnd
 
@@ -195,7 +195,7 @@ contains
     Cart%ie(NumDims+1:) = 1
     Cart%periodic(:NumDims) = Periodic
     Cart%periodic(NumDims+1:) = .false.
-    Cart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    Cart%periodic_storage = OVK_PERIODIC_STORAGE_UNIQUE
 
   end function ovk_cart_Assigned_StartEndPeriodic
 
@@ -317,7 +317,7 @@ contains
 
     NumPeriod = Cart%ie(:Cart%nd) - Cart%is(:Cart%nd) + 1
     NumPeriod = merge(NumPeriod-1, NumPeriod, Cart%periodic(:Cart%nd) .and. &
-        Cart%periodic_storage == OVK_OVERLAP_PERIODIC)
+        Cart%periodic_storage == OVK_PERIODIC_STORAGE_DUPLICATED)
 
     AdjustedPoint = merge(modulo(Point-1, NumPeriod)+1, Point, Cart%periodic(:Cart%nd))
 
@@ -366,7 +366,7 @@ contains
     ConvertedCart%periodic_storage = PeriodicStorage
 
     if (ConvertedCart%periodic_storage /= Cart%periodic_storage) then
-      if (Cart%periodic_storage == OVK_OVERLAP_PERIODIC) then
+      if (Cart%periodic_storage == OVK_PERIODIC_STORAGE_DUPLICATED) then
         ConvertedCart%ie = merge(ConvertedCart%ie-1, ConvertedCart%ie, ConvertedCart%periodic)
       else
         ConvertedCart%ie = merge(ConvertedCart%ie+1, ConvertedCart%ie, ConvertedCart%periodic)
@@ -382,13 +382,13 @@ contains
 
     CellCart = Cart
 
-    if (Cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC) then
+    if (Cart%periodic_storage == OVK_PERIODIC_STORAGE_UNIQUE) then
       CellCart%ie(:Cart%nd) = merge(Cart%ie(:Cart%nd), Cart%ie(:Cart%nd)-1, Cart%periodic(:Cart%nd))
     else
       CellCart%ie(:Cart%nd) = Cart%ie(:Cart%nd)-1
     end if
 
-    CellCart%periodic_storage = OVK_NO_OVERLAP_PERIODIC
+    CellCart%periodic_storage = OVK_PERIODIC_STORAGE_UNIQUE
 
   end function ovkCartPointToCell
 

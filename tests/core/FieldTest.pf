@@ -699,10 +699,10 @@ contains
     integer, dimension(3,3) :: ExpectedValues1
     integer, dimension(0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_int_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &
@@ -752,10 +752,10 @@ contains
     integer, dimension(3,3,3) :: ExpectedValues1
     integer, dimension(0:3,0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_int_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &
@@ -848,10 +848,10 @@ contains
     integer(lk), dimension(3,3) :: ExpectedValues1
     integer(lk), dimension(0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_large_int_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &
@@ -901,10 +901,10 @@ contains
     integer(lk), dimension(3,3,3) :: ExpectedValues1
     integer(lk), dimension(0:3,0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_large_int_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &
@@ -997,10 +997,10 @@ contains
     real(rk), dimension(3,3) :: ExpectedValues1
     real(rk), dimension(0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_real_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &
@@ -1050,10 +1050,10 @@ contains
     real(rk), dimension(3,3,3) :: ExpectedValues1
     real(rk), dimension(0:3,0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_real_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &
@@ -1146,10 +1146,10 @@ contains
     logical, dimension(3,3) :: ExpectedValues1
     logical, dimension(0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(2, [2,2], [.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(2, [3,3], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_logical_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &
@@ -1199,10 +1199,10 @@ contains
     logical, dimension(3,3,3) :: ExpectedValues1
     logical, dimension(0:3,0:3,0:3) :: ExpectedValues2
 
-    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovk_cart_(3, [2,2,2], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
-    ! Overlap periodic fill
-    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic fill
+    ExtendedCart = ovk_cart_(3, [3,3,3], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Field = ovk_field_logical_(ExtendedCart)
 
     Field%values(:2,:2,1) = reshape([ &

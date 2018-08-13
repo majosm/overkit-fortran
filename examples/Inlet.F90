@@ -106,7 +106,7 @@ program Inlet
 
   ! Initialize grid data structure for inlet grid
   call ovkCreateGrid(Domain, 2, NumPoints=NumPointsInletOuter, Periodic=[.false.,.true.,.false.], &
-    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+    PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
 
   call ovkEditGrid(Domain, 2, Grid)
 

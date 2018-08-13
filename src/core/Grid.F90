@@ -264,7 +264,8 @@ contains
     Grid%bounds = ovk_bbox_(Grid%nd)
     do d = 1, Grid%nd
       Grid%bounds%b(d) = real(Grid%cart%is(d)-1,kind=rk)
-      if (Grid%cart%periodic(d) .and. Grid%cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC) then
+      if (Grid%cart%periodic(d) .and. Grid%cart%periodic_storage == OVK_PERIODIC_STORAGE_UNIQUE) &
+        then
         Grid%bounds%e(d) = real(Grid%cart%ie(d),kind=rk)
       else
         Grid%bounds%e(d) = real(Grid%cart%ie(d)-1,kind=rk)
@@ -805,7 +806,7 @@ contains
     end do
 
     ! Add contribution from periodic points
-    if (Grid%cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC .and. &
+    if (Grid%cart%periodic_storage == OVK_PERIODIC_STORAGE_UNIQUE .and. &
       any(Grid%cart%periodic .and. Grid%periodic_length > 0._rk)) then
       do d = 1, Grid%nd
         if (Grid%cart%periodic(d)) then
@@ -1315,7 +1316,7 @@ contains
     real(rk), dimension(Cart%nd) :: PositiveAdjustment, NegativeAdjustment
 
     PeriodStart = Cart%is(:Cart%nd)
-    if (Cart%periodic_storage == OVK_NO_OVERLAP_PERIODIC) then
+    if (Cart%periodic_storage == OVK_PERIODIC_STORAGE_UNIQUE) then
       PeriodEnd = Cart%ie(:Cart%nd)
     else
       PeriodEnd = Cart%ie(:Cart%nd)-1

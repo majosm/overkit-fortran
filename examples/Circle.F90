@@ -147,7 +147,7 @@ contains
     ! Initialize grid data structure for cylinder grid
     ! Periodic in the angular direction, with the last set of points being equal to the first
     call ovkCreateGrid(Domain, 2, NumPoints=NumPointsCylinder, Periodic=[.false.,.true.], &
-      PeriodicStorage=OVK_OVERLAP_PERIODIC)
+      PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
     call ovkEditGrid(Domain, 2, Grid)
 
     ! Fill in coordinates
@@ -568,7 +568,7 @@ contains
     ! Initialize grid data structure for cylinder grid
     ! Periodic in the angular direction, with the last set of points being equal to the first
     call ovkCreateGrid(Domain, 2, NumPoints=NumPointsCylinder, Periodic=[.false.,.true.], &
-      PeriodicStorage=OVK_OVERLAP_PERIODIC)
+      PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
     call ovkEditGrid(Domain, 2, Grid)
 
     ! Fill in coordinates

@@ -101,7 +101,7 @@ program Blobs
   ! Initialize grid data structure for blob #1
   ! Periodic in the angular direction, with the last set of points being equal to the first
   call ovkCreateGrid(Domain, 2, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
-    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+    PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
   call ovkEditGrid(Domain, 2, Grid)
 
   ! Generate coordinates for blob #1
@@ -132,7 +132,7 @@ program Blobs
   ! Initialize grid data structures for blob #2
   ! Periodic in the angular direction, with the last set of points being equal to the first
   call ovkCreateGrid(Domain, 3, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
-    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+    PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
   call ovkEditGrid(Domain, 3, Grid)
 
   ! Generate coordinates for blob #2
@@ -163,7 +163,7 @@ program Blobs
   ! Initialize grid data structures for blob #3
   ! Periodic in the angular direction, with the last set of points being equal to the first
   call ovkCreateGrid(Domain, 4, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
-    PeriodicStorage=OVK_OVERLAP_PERIODIC)
+    PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
   call ovkEditGrid(Domain, 4, Grid)
 
   ! Generate coordinates for blob #3

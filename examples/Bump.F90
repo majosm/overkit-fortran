@@ -107,7 +107,7 @@ program Bump
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
   call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, Periodic=Periodic, &
-    PeriodicStorage=OVK_OVERLAP_PERIODIC, PeriodicLength=PeriodicLength, &
+    PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED, PeriodicLength=PeriodicLength, &
     GeometryType=OVK_GEOMETRY_UNIFORM)
   call ovkEditGrid(Domain, 1, Grid)
 

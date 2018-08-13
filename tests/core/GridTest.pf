@@ -58,7 +58,7 @@ contains
     type(ovk_cart) :: CellCart
     real(rk), dimension(8,9) :: ExpectedXValues, ExpectedYValues
 
-    Cart = ovk_cart_(2, [8,9], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [8,9], [.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 9._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
@@ -131,7 +131,7 @@ contains
     type(ovk_cart) :: CellCart
     real(rk), dimension(8,9,10) :: ExpectedXValues, ExpectedYValues, ExpectedZValues
 
-    Cart = ovk_cart_(3, [8,9,10], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(3, [8,9,10], [.false.,.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 0._rk, 10._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
@@ -236,7 +236,7 @@ contains
     real(rk), dimension(2) :: PeriodicLength
     integer :: GeometryType
 
-    Cart = ovk_cart_(2, [8,9], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [8,9], [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk], &
       GeometryType=OVK_GEOMETRY_UNIFORM)
@@ -257,7 +257,7 @@ contains
     @AssertTrue(all([.true.,.false.] .eqv. Periodic))
 
     call ovkGetGridPeriodicStorage(Grid, PeriodicStorage)
-    @AssertEqual(OVK_OVERLAP_PERIODIC, PeriodicStorage)
+    @AssertEqual(OVK_PERIODIC_STORAGE_DUPLICATED, PeriodicStorage)
 
     call ovkGetGridPeriodicLength(Grid, PeriodicLength)
     @AssertEqual([2._rk, 0._rk], PeriodicLength)
@@ -649,7 +649,7 @@ contains
 
     call DestroyGrid(Grid)
 
-    Cart = ovk_cart_(2, [8,7], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [8,7], [.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 7._rk])
 
@@ -712,7 +712,7 @@ contains
 
     call DestroyGrid(Grid)
 
-    Cart = ovk_cart_(3, [8,8,7], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(3, [8,8,7], [.false.,.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[0._rk, 0._rk, 7._rk])
 
@@ -778,7 +778,7 @@ contains
     call DestroyGrid(Grid)
 
     ! Periodic
-    Cart = ovk_cart_(2, [8,7], [.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [8,7], [.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart)
 
@@ -839,7 +839,7 @@ contains
     call DestroyGrid(Grid)
 
     ! Periodic
-    Cart = ovk_cart_(3, [8,8,7], [.false.,.false.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(3, [8,8,7], [.false.,.false.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart)
 
@@ -1727,7 +1727,7 @@ contains
     real(rk), dimension(2) :: CellCoords
     logical :: Success
 
-    Cart = ovk_cart_(2, [11,11], [.true.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(2, [11,11], [.true.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk], &
       GeometryType=OVK_GEOMETRY_RECTILINEAR)
@@ -1786,7 +1786,7 @@ contains
     real(rk), dimension(3) :: CellCoords
     logical :: Success
 
-    Cart = ovk_cart_(3, [11,11,11], [.true.,.false.,.false.], OVK_OVERLAP_PERIODIC)
+    Cart = ovk_cart_(3, [11,11,11], [.true.,.false.,.false.], OVK_PERIODIC_STORAGE_DUPLICATED)
 
     call CreateGrid(Grid, t_logger_(), 1, Cart, PeriodicLength=[2._rk, 0._rk, 0._rk], &
       GeometryType=OVK_GEOMETRY_RECTILINEAR)
@@ -1983,8 +1983,8 @@ contains
     Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,5], [3._rk, 5._rk])
     @AssertEqual([3._rk, 5._rk], Coords)
 
-    ! No-overlap periodic
-    Cart = ovk_cart_(2, [4,4], [.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    ! Unique periodic
+    Cart = ovk_cart_(2, [4,4], [.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
     PeriodicLength = 4._rk
 
     ! Lower x boundary
@@ -2019,8 +2019,8 @@ contains
     Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,6], [3._rk, 2._rk])
     @AssertEqual([3._rk, 6._rk], Coords)
 
-    ! Overlap periodic
-    Cart = ovk_cart_(2, [5,5], [.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic
+    Cart = ovk_cart_(2, [5,5], [.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     PeriodicLength = 4._rk
 
     ! Lower x boundary
@@ -2094,8 +2094,8 @@ contains
     Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,5], [3._rk, 3._rk, 5._rk])
     @AssertEqual([3._rk, 3._rk, 5._rk], Coords)
 
-    ! No-overlap periodic
-    Cart = ovk_cart_(3, [4,4,4], [.true.,.true.,.true.], OVK_NO_OVERLAP_PERIODIC)
+    ! Unique periodic
+    Cart = ovk_cart_(3, [4,4,4], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_UNIQUE)
     PeriodicLength = 4._rk
 
     ! Lower x boundary
@@ -2146,8 +2146,8 @@ contains
     Coords = ovkPeriodicExtend(Cart, PeriodicLength, [3,3,6], [3._rk, 3._rk, 2._rk])
     @AssertEqual([3._rk, 3._rk, 6._rk], Coords)
 
-    ! Overlap periodic
-    Cart = ovk_cart_(3, [5,5,5], [.true.,.true.,.true.], OVK_OVERLAP_PERIODIC)
+    ! Duplicated periodic
+    Cart = ovk_cart_(3, [5,5,5], [.true.,.true.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     PeriodicLength = 4._rk
 
     ! Lower x boundary

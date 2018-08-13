@@ -204,7 +204,7 @@ contains
 
     call ovkDetectEdge(Mask, EdgeType, EdgeBoundaryValue, .true., EdgeMask)
 
-    PrincipalCart = ovkCartConvertPeriodicStorage(Mask%cart, OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovkCartConvertPeriodicStorage(Mask%cart, OVK_PERIODIC_STORAGE_UNIQUE)
     EdgeCart = EdgeMask%cart
 
 !$OMP PARALLEL DO &
@@ -588,7 +588,7 @@ contains
 
     call ovkDetectEdge(NonMask, OVK_OUTER_EDGE, NonMaskBoundaryValue, .true., EdgeMask)
 
-    PrincipalCart = ovkCartConvertPeriodicStorage(Mask%cart, OVK_NO_OVERLAP_PERIODIC)
+    PrincipalCart = ovkCartConvertPeriodicStorage(Mask%cart, OVK_PERIODIC_STORAGE_UNIQUE)
 
     ExtendedCart = ovk_cart_(NumDims)
     ExtendedCart%is(:NumDims) = PrincipalCart%is(:NumDims)-1

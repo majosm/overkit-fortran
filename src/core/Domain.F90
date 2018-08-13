@@ -252,7 +252,7 @@ contains
     if (present(PeriodicStorage)) then
       PeriodicStorage_ = PeriodicStorage
     else
-      PeriodicStorage_ = OVK_NO_OVERLAP_PERIODIC
+      PeriodicStorage_ = OVK_PERIODIC_STORAGE_UNIQUE
     end if
 
     if (ValidID(Domain, GridID)) then
