@@ -555,7 +555,7 @@ contains
     @AssertEqual(0, Cell)
 
     ! Boundaries
-    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk], 1.e-12_rk)
+    Cell = FindOverlappingCell(Accel, [0._rk, 0._rk, 0._rk], 1.e-12_rk)
     @AssertEqual([1,1,1], Cell)
     Cell = FindOverlappingCell(Accel, [4._rk, 4._rk, 9._rk], 1.e-12_rk)
     @AssertEqual([4,4,9], Cell)

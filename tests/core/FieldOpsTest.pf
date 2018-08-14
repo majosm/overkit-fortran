@@ -449,7 +449,7 @@ contains
     @AssertTrue(all(ExpectedValues .eqv. Mask%values))
 
     ! Periodic boundary, duplicated
-    Cart = ovk_cart_(3, [8,8,8], [.false.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
+    Cart = ovk_cart_(3, [8,8,8], [.false.,.false.,.true.], OVK_PERIODIC_STORAGE_DUPLICATED)
     Mask = ovk_field_logical_(Cart, .false.)
     Mask%values(4:5,4:5,1) = .true.
     Mask%values(4:5,4:5,8) = .true.
