@@ -52,8 +52,7 @@ program Inlet
   call GetCommandLineOptionValue(Options(1), NumPoints, 81)
 
   ! Initialize the domain
-  call ovkCreateDomain(Domain, NumDims=3, NumGrids=3, StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+  call ovkCreateDomain(Domain, 3, 3, StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   !==========
   ! Box grid
@@ -65,7 +64,7 @@ program Inlet
 
   ! Initialize grid data structure for box grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBox, GeometryType=OVK_GEOMETRY_UNIFORM)
+  call ovkCreateGrid(Domain, 1, NumPointsBox, GeometryType=OVK_GEOMETRY_UNIFORM)
   call ovkEditGrid(Domain, 1, Grid)
 
   ! Generate coordinates for box grid
@@ -105,7 +104,7 @@ program Inlet
   kBoundary = NumPointsInletOuter(3)/2+1
 
   ! Initialize grid data structure for inlet grid
-  call ovkCreateGrid(Domain, 2, NumPoints=NumPointsInletOuter, Periodic=[.false.,.true.,.false.], &
+  call ovkCreateGrid(Domain, 2, NumPointsInletOuter, Periodic=[.false.,.true.,.false.], &
     PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
 
   call ovkEditGrid(Domain, 2, Grid)
@@ -171,7 +170,7 @@ program Inlet
 
   ! Initialize grid data structure for inlet grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 3, NumPoints=NumPointsInletInner, GeometryType=OVK_GEOMETRY_UNIFORM)
+  call ovkCreateGrid(Domain, 3, NumPointsInletInner, GeometryType=OVK_GEOMETRY_UNIFORM)
   call ovkEditGrid(Domain, 3, Grid)
 
   ! Generate coordinates for inlet grid
@@ -258,8 +257,8 @@ program Inlet
   NumPointsAll(:,3) = NumPointsInletInner
 
   ! Write a PLOT3D grid file
-  call ovkCreateP3D(GridFile, "inlet.xyz", NumDims=3, NumGrids=3, NumPointsAll=NumPointsAll, &
-    WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
+  call ovkCreateP3D(GridFile, "inlet.xyz", 3, 3, NumPointsAll, WithIBlank=.true., &
+    StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   do n = 1, 3
 

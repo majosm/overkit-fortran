@@ -61,8 +61,7 @@ program Blobs
   end if
 
   ! Initialize the domain
-  call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, StatusLogFile=OUTPUT_UNIT, &
-    ErrorLogFile=ERROR_UNIT)
+  call ovkCreateDomain(Domain, 2, 4, StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   !=================
   ! Background grid
@@ -72,7 +71,7 @@ program Blobs
 
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
+  call ovkCreateGrid(Domain, 1, NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
   call ovkEditGrid(Domain, 1, Grid)
 
   ! Generate coordinates for background grid
@@ -100,7 +99,7 @@ program Blobs
 
   ! Initialize grid data structure for blob #1
   ! Periodic in the angular direction, with the last set of points being equal to the first
-  call ovkCreateGrid(Domain, 2, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+  call ovkCreateGrid(Domain, 2, NumPointsBlob, Periodic=[.false.,.true.], &
     PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
   call ovkEditGrid(Domain, 2, Grid)
 
@@ -131,7 +130,7 @@ program Blobs
 
   ! Initialize grid data structures for blob #2
   ! Periodic in the angular direction, with the last set of points being equal to the first
-  call ovkCreateGrid(Domain, 3, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+  call ovkCreateGrid(Domain, 3, NumPointsBlob, Periodic=[.false.,.true.], &
     PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
   call ovkEditGrid(Domain, 3, Grid)
 
@@ -162,7 +161,7 @@ program Blobs
 
   ! Initialize grid data structures for blob #3
   ! Periodic in the angular direction, with the last set of points being equal to the first
-  call ovkCreateGrid(Domain, 4, NumPoints=NumPointsBlob, Periodic=[.false.,.true.], &
+  call ovkCreateGrid(Domain, 4, NumPointsBlob, Periodic=[.false.,.true.], &
     PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
   call ovkEditGrid(Domain, 4, Grid)
 
@@ -232,8 +231,8 @@ program Blobs
   NumPointsAll(:,4) = NumPointsBlob
 
   ! Write a PLOT3D grid file
-  call ovkCreateP3D(GridFile, "blobs.xyz", NumDims=2, NumGrids=4, NumPointsAll=NumPointsAll, &
-    WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
+  call ovkCreateP3D(GridFile, "blobs.xyz", 2, 4, NumPointsAll, WithIBlank=.true., &
+    StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   do n = 1, 4
 

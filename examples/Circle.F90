@@ -122,8 +122,7 @@ contains
     !========================
 
     ! Initialize the domain
-    call ovkCreateDomain(Domain, NumDims=2, NumGrids=2, StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+    call ovkCreateDomain(Domain, 2, 2, StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
     !===============
     ! Grid creation
@@ -131,7 +130,7 @@ contains
 
     ! Initialize grid data structure for background grid
     ! Set geometry type as a hint for potential performance improvements
-    call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
+    call ovkCreateGrid(Domain, 1, NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
     call ovkEditGrid(Domain, 1, Grid)
 
     ! Fill in coordinates
@@ -146,7 +145,7 @@ contains
 
     ! Initialize grid data structure for cylinder grid
     ! Periodic in the angular direction, with the last set of points being equal to the first
-    call ovkCreateGrid(Domain, 2, NumPoints=NumPointsCylinder, Periodic=[.false.,.true.], &
+    call ovkCreateGrid(Domain, 2, NumPointsCylinder, Periodic=[.false.,.true.], &
       PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
     call ovkEditGrid(Domain, 2, Grid)
 
@@ -207,9 +206,8 @@ contains
     NumPointsAll(:,2) = NumPointsCylinder
 
     ! Write a PLOT3D grid file
-    call ovkCreateP3D(GridFile, "circle_cylinder.xyz", NumDims=2, NumGrids=2, &
-      NumPointsAll=NumPointsAll, WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+    call ovkCreateP3D(GridFile, "circle_cylinder.xyz", 2, 2, NumPointsAll, WithIBlank=.true., &
+      StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
     do n = 1, 2
 
@@ -346,15 +344,14 @@ contains
     !========================
 
     ! Initialize the domain
-    call ovkCreateDomain(Domain, NumDims=2, NumGrids=4, StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+    call ovkCreateDomain(Domain, 2, 4, StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
     !===============
     ! Grid creation
     !===============
 
     ! Initialize grid data structure for east block grid
-    call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 1, NumPointsBlock)
     call ovkEditGrid(Domain, 1, Grid)
 
     ! Fill in coordinates
@@ -375,7 +372,7 @@ contains
     call ovkReleaseGrid(Domain, Grid)
 
     ! Initialize grid data structure for north block grid
-    call ovkCreateGrid(Domain, 2, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 2, NumPointsBlock)
     call ovkEditGrid(Domain, 2, Grid)
 
     ! Fill in coordinates
@@ -396,7 +393,7 @@ contains
     call ovkReleaseGrid(Domain, Grid)
 
     ! Initialize grid data structure for west block grid
-    call ovkCreateGrid(Domain, 3, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 3, NumPointsBlock)
     call ovkEditGrid(Domain, 3, Grid)
 
     ! Fill in coordinates
@@ -417,7 +414,7 @@ contains
     call ovkReleaseGrid(Domain, Grid)
 
     ! Initialize grid data structure for south block grid
-    call ovkCreateGrid(Domain, 4, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 4, NumPointsBlock)
     call ovkEditGrid(Domain, 4, Grid)
 
     ! Fill in coordinates
@@ -463,9 +460,8 @@ contains
     NumPointsAll(:,4) = NumPointsBlock
 
     ! Write a PLOT3D grid file
-    call ovkCreateP3D(GridFile, "circle_block.xyz", NumDims=2, NumGrids=4, &
-      NumPointsAll=NumPointsAll, WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+    call ovkCreateP3D(GridFile, "circle_block.xyz", 2, 4, NumPointsAll, WithIBlank=.true., &
+      StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
     do n = 1, 4
 
@@ -532,8 +528,7 @@ contains
 
     ! Initialize the domain
     ! Combined domain with both cylinder (1-2) and block (3-6) grids
-    call ovkCreateDomain(Domain, NumDims=2, NumGrids=6, StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+    call ovkCreateDomain(Domain, 2, 6, StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
     !===============
     ! Grid creation
@@ -541,7 +536,7 @@ contains
 
     ! Initialize grid data structure for background grid
     ! Set geometry type as a hint for potential performance improvements
-    call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
+    call ovkCreateGrid(Domain, 1, NumPointsBackground, GeometryType=OVK_GEOMETRY_UNIFORM)
     call ovkEditGrid(Domain, 1, Grid)
 
     ! Fill in coordinates
@@ -567,7 +562,7 @@ contains
 
     ! Initialize grid data structure for cylinder grid
     ! Periodic in the angular direction, with the last set of points being equal to the first
-    call ovkCreateGrid(Domain, 2, NumPoints=NumPointsCylinder, Periodic=[.false.,.true.], &
+    call ovkCreateGrid(Domain, 2, NumPointsCylinder, Periodic=[.false.,.true.], &
       PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED)
     call ovkEditGrid(Domain, 2, Grid)
 
@@ -582,7 +577,7 @@ contains
     call ovkReleaseGrid(Domain, Grid)
 
     ! Initialize grid data structure for east block grid
-    call ovkCreateGrid(Domain, 3, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 3, NumPointsBlock)
     call ovkEditGrid(Domain, 3, Grid)
 
     ! Fill in coordinates
@@ -596,7 +591,7 @@ contains
     call ovkReleaseGrid(Domain, Grid)
 
     ! Initialize grid data structure for north block grid
-    call ovkCreateGrid(Domain, 4, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 4, NumPointsBlock)
     call ovkEditGrid(Domain, 4, Grid)
 
     ! Fill in coordinates
@@ -610,7 +605,7 @@ contains
     call ovkReleaseGrid(Domain, Grid)
 
     ! Initialize grid data structure for west block grid
-    call ovkCreateGrid(Domain, 5, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 5, NumPointsBlock)
     call ovkEditGrid(Domain, 5, Grid)
 
     ! Fill in coordinates
@@ -624,7 +619,7 @@ contains
     call ovkReleaseGrid(Domain, Grid)
 
     ! Initialize grid data structure for south block grid
-    call ovkCreateGrid(Domain, 6, NumPoints=NumPointsBlock)
+    call ovkCreateGrid(Domain, 6, NumPointsBlock)
     call ovkEditGrid(Domain, 6, Grid)
 
     ! Fill in coordinates
@@ -682,9 +677,8 @@ contains
     NumPointsAll(:,6) = NumPointsBlock
 
     ! Write a PLOT3D grid file
-    call ovkCreateP3D(GridFile, "circle_remap.xyz", NumDims=2, NumGrids=6, &
-      NumPointsAll=NumPointsAll, WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+    call ovkCreateP3D(GridFile, "circle_remap.xyz", 2, 6, NumPointsAll, WithIBlank=.true., &
+      StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
     do n = 1, 6
 

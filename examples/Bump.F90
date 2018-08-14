@@ -84,8 +84,7 @@ program Bump
   allocate(Coords(NumDims))
 
   ! Initialize the problem
-  call ovkCreateDomain(Domain, NumDims=NumDims, NumGrids=2, StatusLogFile=OUTPUT_UNIT, &
-      ErrorLogFile=ERROR_UNIT)
+  call ovkCreateDomain(Domain, NumDims, 2, StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   !=================
   ! Background grid
@@ -106,7 +105,7 @@ program Bump
 
   ! Initialize grid data structure for background grid
   ! Set geometry type as a hint for potential performance improvements
-  call ovkCreateGrid(Domain, 1, NumPoints=NumPointsBackground, Periodic=Periodic, &
+  call ovkCreateGrid(Domain, 1, NumPointsBackground, Periodic=Periodic, &
     PeriodicStorage=OVK_PERIODIC_STORAGE_DUPLICATED, PeriodicLength=PeriodicLength, &
     GeometryType=OVK_GEOMETRY_UNIFORM)
   call ovkEditGrid(Domain, 1, Grid)
@@ -155,7 +154,7 @@ program Bump
   NumPointsBump(NumDims+1:) = 1
 
   ! Initialize grid data structure for bump grid
-  call ovkCreateGrid(Domain, 2, NumPoints=NumPointsBump)
+  call ovkCreateGrid(Domain, 2, NumPointsBump)
   call ovkEditGrid(Domain, 2, Grid)
 
   do d = 1, NumDims
@@ -243,8 +242,8 @@ program Bump
   NumPointsAll(:,2) = NumPointsBump
 
   ! Write a PLOT3D grid file with IBlank to visualize the result
-  call ovkCreateP3D(GridFile, "bump.xyz", NumDims=NumDims, NumGrids=2, NumPointsAll=NumPointsAll, &
-    WithIBlank=.true., StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
+  call ovkCreateP3D(GridFile, "bump.xyz", NumDims, 2, NumPointsAll, WithIBlank=.true., &
+    StatusLogFile=OUTPUT_UNIT, ErrorLogFile=ERROR_UNIT)
 
   do n = 1, 2
 
