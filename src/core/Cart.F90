@@ -279,14 +279,18 @@ contains
     integer, dimension(Cart%nd), intent(in) :: Tuple
     integer(lk) :: Ind
 
-    integer :: i
+    integer :: d
     integer(lk), dimension(Cart%nd) :: N
-    integer(lk), dimension(Cart%nd) :: Stride
+    integer(lk) :: Stride
 
     N = Cart%ie(:Cart%nd) - Cart%is(:Cart%nd) + 1
-    Stride = [(product(N(:i)),i=0,Cart%nd-1)]
 
-    Ind = 1 + sum(Stride * (Tuple - Cart%is(:Cart%nd)))
+    Stride = 1_lk
+    Ind = 1_lk + Stride*(Tuple(1) - Cart%is(1))
+    do d = 2, Cart%nd
+      Stride = Stride*N(d-1)
+      Ind = Ind + Stride*(Tuple(d) - Cart%is(d))
+    end do
 
   end function ovkCartTupleToIndex
 
@@ -296,14 +300,25 @@ contains
     integer(lk), intent(in) :: Ind
     integer, dimension(Cart%nd) :: Tuple
 
-    integer :: i
+    integer :: d
     integer(lk), dimension(Cart%nd) :: N
-    integer(lk), dimension(Cart%nd) :: Stride
+    integer(lk), dimension(Cart%nd) :: Strides
+    integer(lk) :: ReducedInd
+    integer :: Offset
 
     N = Cart%ie(:Cart%nd) - Cart%is(:Cart%nd) + 1
-    Stride = [(product(N(:i)),i=0,Cart%nd-1)]
 
-    Tuple = Cart%is(:Cart%nd) + int(modulo((Ind-1)/Stride, N))
+    Strides(1) = 1
+    do d = 2, Cart%nd
+      Strides(d) = Strides(d-1)*N(d-1)
+    end do
+
+    ReducedInd = Ind-1
+    do d = Cart%nd, 1, -1
+      Offset = int(ReducedInd/Strides(d))
+      Tuple(d) = Cart%is(d) + Offset
+      ReducedInd = ReducedInd - Offset*Strides(d)
+    end do
 
   end function ovkCartIndexToTuple
 
