@@ -93,12 +93,14 @@ contains
     real(rk), intent(in) :: BinScale
 
     integer :: d, i, j, k
+    integer(lk) :: l
     integer :: NumDims
     type(ovk_grid), pointer :: Grid
     type(t_logger) :: Logger
     type(ovk_field_logical) :: GridCellOverlapMask
     type(ovk_field_real), dimension(:), allocatable :: GridCellLower, GridCellUpper
     real(rk), dimension(MAX_DIMS) :: AccelLower, AccelUpper
+    integer(lk) :: NumCells
     integer, dimension(MAX_DIMS) :: Cell
     type(ovk_bbox) :: GridCellBounds
     integer(lk) :: NumOverlappingCells, iNextOverlappingCell
@@ -131,31 +133,31 @@ contains
     AccelLower = huge(0._rk)
     AccelUpper = -huge(0._rk)
 
+    NumCells = ovkCartCount(Grid%cell_cart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(NumDims, Bounds, MaxOverlapTolerance) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(d, l, Cell, GridCellBounds) &
+!$OMP&  FIRSTPRIVATE(NumDims, NumCells, Bounds, MaxOverlapTolerance) &
 !$OMP&  SHARED(Grid, GridCellOverlapMask, GridCellLower, GridCellUpper) &
 !$OMP&  REDUCTION(min:AccelLower) &
 !$OMP&  REDUCTION(max:AccelUpper)
-    do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
-      do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
-        do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
-          Cell = [i,j,k]
-          if (Grid%cell_mask%values(Cell(1),Cell(2),Cell(3))) then
-            GridCellBounds = ovkGridCellBounds(Grid, Cell)
-            GridCellBounds = ovkBBScale(GridCellBounds, 1._rk + 2._rk*MaxOverlapTolerance)
-            GridCellOverlapMask%values(i,j,k) = ovkBBOverlaps(Bounds, GridCellBounds)
-            if (GridCellOverlapMask%values(i,j,k)) then
-              do d = 1, NumDims
-                GridCellLower(d)%values(i,j,k) = GridCellBounds%b(d)
-                GridCellUpper(d)%values(i,j,k) = GridCellBounds%e(d)
-              end do
-              AccelLower = min(AccelLower, GridCellBounds%b)
-              AccelUpper = max(AccelUpper, GridCellBounds%e)
-            end if
-          end if
-        end do
-      end do
+    do l = 1_lk, NumCells
+      Cell(:NumDims) = ovkCartIndexToTuple(Grid%cell_cart, l)
+      Cell(NumDims+1:) = 1
+      if (Grid%cell_mask%values(Cell(1),Cell(2),Cell(3))) then
+        GridCellBounds = ovkGridCellBounds(Grid, Cell)
+        GridCellBounds = ovkBBScale(GridCellBounds, 1._rk + 2._rk*MaxOverlapTolerance)
+        GridCellOverlapMask%values(Cell(1),Cell(2),Cell(3)) = ovkBBOverlaps(Bounds, GridCellBounds)
+        if (GridCellOverlapMask%values(Cell(1),Cell(2),Cell(3))) then
+          do d = 1, NumDims
+            GridCellLower(d)%values(Cell(1),Cell(2),Cell(3)) = GridCellBounds%b(d)
+            GridCellUpper(d)%values(Cell(1),Cell(2),Cell(3)) = GridCellBounds%e(d)
+          end do
+          AccelLower = min(AccelLower, GridCellBounds%b)
+          AccelUpper = max(AccelUpper, GridCellBounds%e)
+        end if
+      end if
     end do
 !$OMP END PARALLEL DO
 
@@ -261,7 +263,8 @@ contains
     NodeBoundsUpper = Bounds%b
 
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(d, l, Cell, CellLower, CellUpper) &
 !$OMP&  FIRSTPRIVATE(NumDims, NumCells) &
 !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLowers, AllCellUppers) &
 !$OMP&  REDUCTION(min:NodeBoundsLower) &
@@ -291,7 +294,8 @@ contains
 
       MeanCellVolume = 0._rk
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(l, Cell, CellVolume) &
 !$OMP&  FIRSTPRIVATE(NumCells) &
 !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellVolumes) &
 !$OMP&  REDUCTION(+:MeanCellVolume)
@@ -306,7 +310,8 @@ contains
       CellVolumeVariation = 0._rk
       OccupiedVolume = 0._rk
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(l, Cell, CellVolume) &
 !$OMP&  FIRSTPRIVATE(NumCells, MeanCellVolume) &
 !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellVolumes) &
 !$OMP&  REDUCTION(+:CellVolumeVariation) &
@@ -354,7 +359,8 @@ contains
 
       MeanCellBoundsSize = 0._rk
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(d, l, Cell, CellBoundsSize) &
 !$OMP&  FIRSTPRIVATE(NumDims, NumCells) &
 !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLowers, AllCellUppers) &
 !$OMP&  REDUCTION(+:MeanCellBoundsSize)

@@ -839,54 +839,59 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    integer :: i, j, k, m, n, o
+    integer :: m, n, o
+    integer(lk) :: l
+    integer(lk) :: NumCells
+    integer, dimension(MAX_DIMS) :: Cell
     integer, dimension(MAX_DIMS) :: VertexLower, VertexUpper
     integer, dimension(MAX_DIMS) :: Vertex
     logical :: AwayFromEdge
 
     call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_ALL, Grid%mask)
 
+    NumCells = ovkCartCount(Grid%cell_cart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(m, n, o, l, Cell, VertexLower, VertexUpper, AwayFromEdge, Vertex) &
+!$OMP&  FIRSTPRIVATE(NumCells) &
 !$OMP&  SHARED(Grid)
-    do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
-      do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
-        do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
-          VertexLower = [i,j,k]
-          VertexUpper(:Grid%nd) = VertexLower(:Grid%nd) + 1
-          VertexUpper(Grid%nd+1:) = 1
-          AwayFromEdge = ovkCartContains(Grid%cart, VertexUpper)
-          if (AwayFromEdge) then
-            Grid%cell_mask%values(i,j,k) = .true.
-            L1: &
-            do o = VertexLower(3), VertexUpper(3)
-              do n = VertexLower(2), VertexUpper(2)
-                do m = VertexLower(1), VertexUpper(1)
-                  if (.not. Grid%mask%values(m,n,o)) then
-                    Grid%cell_mask%values(i,j,k) = .false.
-                    exit L1
-                  end if
-                end do
-              end do
-            end do L1
-          else
-            Grid%cell_mask%values(i,j,k) = .true.
-            L2: &
-            do o = VertexLower(3), VertexUpper(3)
-              do n = VertexLower(2), VertexUpper(2)
-                do m = VertexLower(1), VertexUpper(1)
-                  Vertex = [m,n,o]
-                  Vertex(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
-                  if (.not. Grid%mask%values(Vertex(1),Vertex(2),Vertex(3))) then
-                    Grid%cell_mask%values(i,j,k) = .false.
-                    exit L2
-                  end if
-                end do
-              end do
-            end do L2
-          end if
-        end do
-      end do
+    do l = 1_lk, NumCells
+      Cell(:Grid%nd) = ovkCartIndexToTuple(Grid%cell_cart, l)
+      Cell(Grid%nd+1:) = 1
+      VertexLower = Cell
+      VertexUpper(:Grid%nd) = Cell(:Grid%nd) + 1
+      VertexUpper(Grid%nd+1:) = 1
+      AwayFromEdge = ovkCartContains(Grid%cart, VertexUpper)
+      if (AwayFromEdge) then
+        Grid%cell_mask%values(Cell(1),Cell(2),Cell(3)) = .true.
+        L1: &
+        do o = VertexLower(3), VertexUpper(3)
+          do n = VertexLower(2), VertexUpper(2)
+            do m = VertexLower(1), VertexUpper(1)
+              if (.not. Grid%mask%values(m,n,o)) then
+                Grid%cell_mask%values(Cell(1),Cell(2),Cell(3)) = .false.
+                exit L1
+              end if
+            end do
+          end do
+        end do L1
+      else
+        Grid%cell_mask%values(Cell(1),Cell(2),Cell(3)) = .true.
+        L2: &
+        do o = VertexLower(3), VertexUpper(3)
+          do n = VertexLower(2), VertexUpper(2)
+            do m = VertexLower(1), VertexUpper(1)
+              Vertex = [m,n,o]
+              Vertex(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cart, Vertex)
+              if (.not. Grid%mask%values(Vertex(1),Vertex(2),Vertex(3))) then
+                Grid%cell_mask%values(Cell(1),Cell(2),Cell(3)) = .false.
+                exit L2
+              end if
+            end do
+          end do
+        end do L2
+      end if
     end do
 !$OMP END PARALLEL DO
 
@@ -896,95 +901,101 @@ contains
 
     type(ovk_grid), intent(inout) :: Grid
 
-    integer :: i, j, k, m, n, o
+    integer :: m, n, o
+    integer(lk) :: l
+    integer(lk) :: NumPoints
+    integer(lk) :: NumCells
     integer, dimension(MAX_DIMS) :: Cell
     real(rk), dimension(Grid%nd,2**Grid%nd) :: VertexCoords
     integer, dimension(MAX_DIMS) :: Point
     integer, dimension(MAX_DIMS) :: NeighborCellLower, NeighborCellUpper
     integer, dimension(MAX_DIMS) :: Neighbor
-    integer :: NumCells
+    integer :: NumNeighbors
     logical :: AwayFromEdge
 
+    NumPoints = ovkCartCount(Grid%cart)
+    NumCells = ovkCartCount(Grid%cell_cart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(l, Cell, VertexCoords) &
+!$OMP&  FIRSTPRIVATE(NumCells) &
 !$OMP&  SHARED(Grid)
-    do k = Grid%cell_cart%is(3), Grid%cell_cart%ie(3)
-      do j = Grid%cell_cart%is(2), Grid%cell_cart%ie(2)
-        do i = Grid%cell_cart%is(1), Grid%cell_cart%ie(1)
-          Cell = [i,j,k]
-          call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
-          select case (Grid%geometry_type)
-          case (OVK_GEOMETRY_UNIFORM,OVK_GEOMETRY_RECTILINEAR)
-            select case (Grid%nd)
-            case (2)
-              Grid%cell_volumes%values(i,j,k) = ovkRectangleSize(VertexCoords)
-            case (3)
-              Grid%cell_volumes%values(i,j,k) = ovkCuboidSize(VertexCoords)
-            end select
-          case (OVK_GEOMETRY_ORIENTED_UNIFORM,OVK_GEOMETRY_ORIENTED_RECTILINEAR)
-            select case (Grid%nd)
-            case (2)
-              Grid%cell_volumes%values(i,j,k) = ovkOrientedRectangleSize(VertexCoords)
-            case (3)
-              Grid%cell_volumes%values(i,j,k) = ovkOrientedCuboidSize(VertexCoords)
-            end select
-          case default
-            select case (Grid%nd)
-            case (2)
-              Grid%cell_volumes%values(i,j,k) = ovkQuadSize(VertexCoords)
-            case (3)
-              Grid%cell_volumes%values(i,j,k) = ovkHexahedronSize(VertexCoords)
-            end select
-          end select
-        end do
-      end do
+    do l = 1_lk, NumCells
+      Cell(:Grid%nd) = ovkCartIndexToTuple(Grid%cell_cart, l)
+      Cell(Grid%nd+1:) = 1
+      call GetCellVertexCoordsLinear(Grid, Cell, VertexCoords)
+      select case (Grid%geometry_type)
+      case (OVK_GEOMETRY_UNIFORM,OVK_GEOMETRY_RECTILINEAR)
+        select case (Grid%nd)
+        case (2)
+          Grid%cell_volumes%values(Cell(1),Cell(2),Cell(3)) = ovkRectangleSize(VertexCoords)
+        case (3)
+          Grid%cell_volumes%values(Cell(1),Cell(2),Cell(3)) = ovkCuboidSize(VertexCoords)
+        end select
+      case (OVK_GEOMETRY_ORIENTED_UNIFORM,OVK_GEOMETRY_ORIENTED_RECTILINEAR)
+        select case (Grid%nd)
+        case (2)
+          Grid%cell_volumes%values(Cell(1),Cell(2),Cell(3)) = ovkOrientedRectangleSize(VertexCoords)
+        case (3)
+          Grid%cell_volumes%values(Cell(1),Cell(2),Cell(3)) = ovkOrientedCuboidSize(VertexCoords)
+        end select
+      case default
+        select case (Grid%nd)
+        case (2)
+          Grid%cell_volumes%values(Cell(1),Cell(2),Cell(3)) = ovkQuadSize(VertexCoords)
+        case (3)
+          Grid%cell_volumes%values(Cell(1),Cell(2),Cell(3)) = ovkHexahedronSize(VertexCoords)
+        end select
+      end select
     end do
 !$OMP END PARALLEL DO
 
     ! Compute the volume at each point by averaging the volumes of neighboring cells
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(m, n, o, l, Point, NeighborCellLower, NeighborCellUpper, NumNeighbors) &
+!$OMP&  PRIVATE(AwayFromEdge, Neighbor) &
+!$OMP&  FIRSTPRIVATE(NumPoints) &
 !$OMP&  SHARED(Grid)
-    do k = Grid%cart%is(3), Grid%cart%ie(3)
-      do j = Grid%cart%is(2), Grid%cart%ie(2)
-        do i = Grid%cart%is(1), Grid%cart%ie(1)
-          Point = [i,j,k]
-          NeighborCellLower(:Grid%nd) = Point(:Grid%nd)-1
-          NeighborCellLower(Grid%nd+1:) = 1
-          NeighborCellUpper(:Grid%nd) = Point(:Grid%nd)
-          NeighborCellUpper(Grid%nd+1:) = 1
-          Grid%volumes%values(i,j,k) = 0._rk
-          NumCells = 0
-          AwayFromEdge = ovkCartContains(Grid%cell_cart, NeighborCellLower) .and. &
-            ovkCartContains(Grid%cell_cart, NeighborCellUpper)
-          if (AwayFromEdge) then
-            do o = NeighborCellLower(3), NeighborCellUpper(3)
-              do n = NeighborCellLower(2), NeighborCellUpper(2)
-                do m = NeighborCellLower(1), NeighborCellUpper(1)
-                  Grid%volumes%values(i,j,k) = Grid%volumes%values(i,j,k) + &
-                    Grid%cell_volumes%values(m,n,o)
-                  NumCells = NumCells + 1
-                end do
-              end do
+    do l = 1_lk, NumPoints
+      Point(:Grid%nd) = ovkCartIndexToTuple(Grid%cart, l)
+      Point(Grid%nd+1:) = 1
+      NeighborCellLower(:Grid%nd) = Point(:Grid%nd)-1
+      NeighborCellLower(Grid%nd+1:) = 1
+      NeighborCellUpper(:Grid%nd) = Point(:Grid%nd)
+      NeighborCellUpper(Grid%nd+1:) = 1
+      Grid%volumes%values(Point(1),Point(2),Point(3)) = 0._rk
+      NumNeighbors = 0
+      AwayFromEdge = ovkCartContains(Grid%cell_cart, NeighborCellLower) .and. &
+        ovkCartContains(Grid%cell_cart, NeighborCellUpper)
+      if (AwayFromEdge) then
+        do o = NeighborCellLower(3), NeighborCellUpper(3)
+          do n = NeighborCellLower(2), NeighborCellUpper(2)
+            do m = NeighborCellLower(1), NeighborCellUpper(1)
+              Grid%volumes%values(Point(1),Point(2),Point(3)) = Grid%volumes%values(Point(1),&
+                Point(2),Point(3)) + Grid%cell_volumes%values(m,n,o)
+              NumNeighbors = NumNeighbors + 1
             end do
-          else
-            do o = NeighborCellLower(3), NeighborCellUpper(3)
-              do n = NeighborCellLower(2), NeighborCellUpper(2)
-                do m = NeighborCellLower(1), NeighborCellUpper(1)
-                  Neighbor = [m,n,o]
-                  Neighbor(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cell_cart, Neighbor)
-                  if (ovkCartContains(Grid%cell_cart, Neighbor)) then
-                    Grid%volumes%values(i,j,k) = Grid%volumes%values(i,j,k) + &
-                      Grid%cell_volumes%values(Neighbor(1),Neighbor(2),Neighbor(3))
-                    NumCells = NumCells + 1
-                  end if
-                end do
-              end do
-            end do
-          end if
-          Grid%volumes%values(i,j,k) = Grid%volumes%values(i,j,k)/real(max(NumCells,1),kind=rk)
+          end do
         end do
-      end do
+      else
+        do o = NeighborCellLower(3), NeighborCellUpper(3)
+          do n = NeighborCellLower(2), NeighborCellUpper(2)
+            do m = NeighborCellLower(1), NeighborCellUpper(1)
+              Neighbor = [m,n,o]
+              Neighbor(:Grid%nd) = ovkCartPeriodicAdjust(Grid%cell_cart, Neighbor)
+              if (ovkCartContains(Grid%cell_cart, Neighbor)) then
+                Grid%volumes%values(Point(1),Point(2),Point(3)) = Grid%volumes%values(Point(1), &
+                  Point(2),Point(3)) + Grid%cell_volumes%values(Neighbor(1),Neighbor(2),Neighbor(3))
+                NumNeighbors = NumNeighbors + 1
+              end if
+            end do
+          end do
+        end do
+      end if
+      Grid%volumes%values(Point(1),Point(2),Point(3)) = Grid%volumes%values(Point(1),Point(2), &
+        Point(3))/real(max(NumNeighbors,1),kind=rk)
     end do
 !$OMP END PARALLEL DO
 

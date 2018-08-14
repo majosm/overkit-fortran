@@ -253,9 +253,10 @@ contains
     type(ovk_field_logical) :: OverlappedMask
     type(ovk_bbox) :: Bounds
     type(ovk_field_large_int) :: OverlappingCells
+    integer(lk) :: NumPoints
     real(rk), dimension(Overlap%nd) :: OverlappedCoords
-    integer, dimension(MAX_DIMS) :: Cell
     integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: Cell
     real(rk), dimension(Overlap%nd) :: CoordsInCell
     logical :: Success
     integer :: NumWarnings
@@ -277,28 +278,30 @@ contains
 
       OverlappingCells = ovk_field_large_int_(OverlappedGrid%cart)
 
+      NumPoints = ovkCartCount(OverlappedGrid%cart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(NumDims, Bounds, OverlapTolerance) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(d, l, Point, OverlappedCoords, Cell) &
+!$OMP&  FIRSTPRIVATE(NumDims, NumPoints, Bounds, OverlapTolerance) &
 !$OMP&  SHARED(OverlappingGrid, OverlappedGrid, OverlapAccel, Overlap, OverlappedMask, OverlappingCells)
-      do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
-        do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
-          do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
-            if (OverlappedGrid%mask%values(i,j,k)) then
-              do d = 1, NumDims
-                OverlappedCoords(d) = OverlappedGrid%coords(d)%values(i,j,k)
-              end do
-              if (ovkBBContainsPoint(Bounds, OverlappedCoords)) then
-                Cell(:NumDims) = FindOverlappingCell(OverlapAccel, OverlappedCoords, OverlapTolerance)
-                Cell(NumDims+1:) = 1
-                if (ovkCartContains(OverlappingGrid%cell_cart, Cell)) then
-                  OverlappedMask%values(i,j,k) = .true.
-                  OverlappingCells%values(i,j,k) = ovkCartTupleToIndex(OverlappingGrid%cart, Cell)
-                end if
-              end if
-            end if
+      do l = 1_lk, NumPoints
+        Point(:NumDims) = ovkCartIndexToTuple(OverlappedGrid%cart, l)
+        Point(NumDims+1:) = 1
+        if (OverlappedGrid%mask%values(Point(1),Point(2),Point(3))) then
+          do d = 1, NumDims
+            OverlappedCoords(d) = OverlappedGrid%coords(d)%values(Point(1),Point(2),Point(3))
           end do
-        end do
+          if (ovkBBContainsPoint(Bounds, OverlappedCoords)) then
+            Cell(:NumDims) = FindOverlappingCell(OverlapAccel, OverlappedCoords, OverlapTolerance)
+            Cell(NumDims+1:) = 1
+            if (ovkCartContains(OverlappingGrid%cell_cart, Cell)) then
+              OverlappedMask%values(Point(1),Point(2),Point(3)) = .true.
+              OverlappingCells%values(Point(1),Point(2),Point(3)) = ovkCartTupleToIndex( &
+                OverlappingGrid%cart, Cell)
+            end if
+          end if
+        end if
       end do
 !$OMP END PARALLEL DO
 
@@ -424,10 +427,12 @@ contains
     integer :: i, j, k, m, n, o
     integer(lk) :: l
     type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
-    type(ovk_cart) :: PrincipalCart
     type(ovk_field_large_int) :: OverlapIndices
-    integer, dimension(MAX_DIMS) :: CellLower
-    integer, dimension(MAX_DIMS) :: CellUpper
+    type(ovk_cart) :: PrincipalCart
+    integer(lk) :: NumPoints
+    integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: VertexLower
+    integer, dimension(MAX_DIMS) :: VertexUpper
     logical :: AwayFromEdge
     integer, dimension(MAX_DIMS) :: Vertex
 
@@ -452,45 +457,45 @@ contains
 
     PrincipalCart = ovkCartConvertPeriodicStorage(OverlappingGrid%cart, OVK_PERIODIC_STORAGE_UNIQUE)
 
+    NumPoints = ovkCartCount(OverlappedGrid%cart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(PrincipalCart) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(m, n, o, l, Point, VertexLower, VertexUpper, AwayFromEdge, Vertex) &
+!$OMP&  FIRSTPRIVATE(NumPoints, PrincipalCart) &
 !$OMP&  SHARED(OverlappingGrid, OverlappedGrid, Overlap, OverlappedSubset, OverlapIndices, OverlappingMask)
-    do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
-      do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
-        do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
-          if (Overlap%mask%values(i,j,k)) then
-            if (OverlappedSubset%values(i,j,k)) then
-              l = OverlapIndices%values(i,j,k)
-              CellLower = Overlap%cells(:,l)
-              CellUpper(:Overlap%nd) = CellLower(:Overlap%nd)+1
-              CellUpper(Overlap%nd+1:) = 1
-              AwayFromEdge = ovkCartContains(PrincipalCart, CellLower) .and. &
-                ovkCartContains(PrincipalCart, CellUpper)
-              if (AwayFromEdge) then
-                do o = CellLower(3), CellUpper(3)
-                  do n = CellLower(2), CellUpper(2)
-                    do m = CellLower(1), CellUpper(1)
-                      Vertex = [m,n,o]
-                      OverlappingMask%values(Vertex(1),Vertex(2),Vertex(3)) = .true.
-                    end do
-                  end do
+    do l = 1_lk, NumPoints
+      Point(:Overlap%nd) = ovkCartIndexToTuple(OverlappedGrid%cart, l)
+      Point(Overlap%nd+1:) = 1
+      if (Overlap%mask%values(Point(1),Point(2),Point(3))) then
+        if (OverlappedSubset%values(Point(1),Point(2),Point(3))) then
+          VertexLower = Overlap%cells(:,OverlapIndices%values(Point(1),Point(2),Point(3)))
+          VertexUpper(:Overlap%nd) = VertexLower(:Overlap%nd)+1
+          VertexUpper(Overlap%nd+1:) = 1
+          AwayFromEdge = ovkCartContains(PrincipalCart, VertexLower) .and. &
+            ovkCartContains(PrincipalCart, VertexUpper)
+          if (AwayFromEdge) then
+            do o = VertexLower(3), VertexUpper(3)
+              do n = VertexLower(2), VertexUpper(2)
+                do m = VertexLower(1), VertexUpper(1)
+                  Vertex = [m,n,o]
+                  OverlappingMask%values(Vertex(1),Vertex(2),Vertex(3)) = .true.
                 end do
-              else
-                do o = CellLower(3), CellUpper(3)
-                  do n = CellLower(2), CellUpper(2)
-                    do m = CellLower(1), CellUpper(1)
-                      Vertex = [m,n,o]
-                      Vertex(:Overlap%nd) = ovkCartPeriodicAdjust(PrincipalCart, Vertex)
-                      OverlappingMask%values(Vertex(1),Vertex(2),Vertex(3)) = .true.
-                    end do
-                  end do
+              end do
+            end do
+          else
+            do o = VertexLower(3), VertexUpper(3)
+              do n = VertexLower(2), VertexUpper(2)
+                do m = VertexLower(1), VertexUpper(1)
+                  Vertex = [m,n,o]
+                  Vertex(:Overlap%nd) = ovkCartPeriodicAdjust(PrincipalCart, Vertex)
+                  OverlappingMask%values(Vertex(1),Vertex(2),Vertex(3)) = .true.
                 end do
-              end if
-            end if
+              end do
+            end do
           end if
-        end do
-      end do
+        end if
+      end if
     end do
 !$OMP END PARALLEL DO
 
@@ -508,8 +513,10 @@ contains
     integer(lk) :: l
     type(ovk_grid), pointer :: OverlappingGrid, OverlappedGrid
     type(ovk_field_large_int) :: OverlapIndices
-    integer, dimension(MAX_DIMS) :: CellLower
-    integer, dimension(MAX_DIMS) :: CellUpper
+    integer(lk) :: NumPoints
+    integer, dimension(MAX_DIMS) :: Point
+    integer, dimension(MAX_DIMS) :: VertexLower
+    integer, dimension(MAX_DIMS) :: VertexUpper
     logical :: AwayFromEdge
     integer, dimension(MAX_DIMS) :: Vertex
 
@@ -532,50 +539,51 @@ contains
       end do
     end do
 
+    NumPoints = ovkCartCount(OverlappedGrid%cart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(m, n, o, l, Point, VertexLower, VertexUpper, AwayFromEdge, Vertex) &
+!$OMP&  FIRSTPRIVATE(NumPoints) &
 !$OMP&  SHARED(OverlappingGrid, OverlappedGrid, Overlap, OverlappingSubset, OverlapIndices, OverlappedMask)
-    do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
-      do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
-        do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)
-          if (Overlap%mask%values(i,j,k)) then
-            l = OverlapIndices%values(i,j,k)
-            CellLower = Overlap%cells(:,l)
-            CellUpper(:Overlap%nd) = CellLower(:Overlap%nd)+1
-            CellUpper(Overlap%nd+1:) = 1
-            AwayFromEdge = ovkCartContains(OverlappingGrid%cart, CellLower) .and. &
-              ovkCartContains(OverlappingGrid%cart, CellUpper)
-            if (AwayFromEdge) then
-              L1: &
-              do o = CellLower(3), CellUpper(3)
-                do n = CellLower(2), CellUpper(2)
-                  do m = CellLower(1), CellUpper(1)
-                    Vertex = [m,n,o]
-                    if (OverlappingSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
-                      OverlappedMask%values(i,j,k) = .true.
-                      exit L1
-                    end if
-                  end do
-                end do
-              end do L1
-            else
-              L2: &
-              do o = CellLower(3), CellUpper(3)
-                do n = CellLower(2), CellUpper(2)
-                  do m = CellLower(1), CellUpper(1)
-                    Vertex = [m,n,o]
-                    Vertex(:Overlap%nd) = ovkCartPeriodicAdjust(OverlappingGrid%cart, Vertex)
-                    if (OverlappingSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
-                      OverlappedMask%values(i,j,k) = .true.
-                      exit L2
-                    end if
-                  end do
-                end do
-              end do L2
-            end if
-          end if
-        end do
-      end do
+    do l = 1_lk, NumPoints
+      Point(:Overlap%nd) = ovkCartIndexToTuple(OverlappedGrid%cart, l)
+      Point(Overlap%nd+1:) = 1
+      if (Overlap%mask%values(Point(1),Point(2),Point(3))) then
+        VertexLower = Overlap%cells(:,OverlapIndices%values(Point(1),Point(2),Point(3)))
+        VertexUpper(:Overlap%nd) = VertexLower(:Overlap%nd)+1
+        VertexUpper(Overlap%nd+1:) = 1
+        AwayFromEdge = ovkCartContains(OverlappingGrid%cart, VertexLower) .and. &
+          ovkCartContains(OverlappingGrid%cart, VertexUpper)
+        if (AwayFromEdge) then
+          L1: &
+          do o = VertexLower(3), VertexUpper(3)
+            do n = VertexLower(2), VertexUpper(2)
+              do m = VertexLower(1), VertexUpper(1)
+                Vertex = [m,n,o]
+                if (OverlappingSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
+                  OverlappedMask%values(Point(1),Point(2),Point(3)) = .true.
+                  exit L1
+                end if
+              end do
+            end do
+          end do L1
+        else
+          L2: &
+          do o = VertexLower(3), VertexUpper(3)
+            do n = VertexLower(2), VertexUpper(2)
+              do m = VertexLower(1), VertexUpper(1)
+                Vertex = [m,n,o]
+                Vertex(:Overlap%nd) = ovkCartPeriodicAdjust(OverlappingGrid%cart, Vertex)
+                if (OverlappingSubset%values(Vertex(1),Vertex(2),Vertex(3))) then
+                  OverlappedMask%values(Point(1),Point(2),Point(3)) = .true.
+                  exit L2
+                end if
+              end do
+            end do
+          end do L2
+        end if
+      end if
     end do
 !$OMP END PARALLEL DO
 

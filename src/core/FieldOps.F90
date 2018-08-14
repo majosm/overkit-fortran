@@ -41,10 +41,12 @@ contains
     logical, intent(in) :: IncludeBoundary
     type(ovk_field_logical), intent(out) :: EdgeMask
 
-    integer :: i, j, k, m, n, o
+    integer :: m, n, o
+    integer(lk) :: l
     type(ovk_cart) :: Cart
     type(ovk_cart) :: EdgeCart
     logical :: EdgeValue
+    integer(lk) :: NumPoints
     integer, dimension(MAX_DIMS) :: Point
     integer, dimension(MAX_DIMS) :: MirrorPoint
     logical :: Value
@@ -68,79 +70,80 @@ contains
     ! Points on inner edge will have Mask == .true., points on outer edge will have Mask == .false.
     EdgeValue = EdgeType == OVK_INNER_EDGE
 
+    NumPoints = ovkCartCount(EdgeCart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(Cart, EdgeCart, EdgeValue, BoundaryValue) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(l, m, n, o, Point, Value, MirrorPoint, NeighborLower, NeighborUpper) &
+!$OMP&  PRIVATE(AwayFromCartEdge, Neighbor, NeighborValue) &
+!$OMP&  FIRSTPRIVATE(NumPoints, Cart, EdgeCart, EdgeValue, BoundaryValue) &
 !$OMP&  SHARED(Mask, EdgeMask)
-    do k = EdgeCart%is(3), EdgeCart%ie(3)
-      do j = EdgeCart%is(2), EdgeCart%ie(2)
-        do i = EdgeCart%is(1), EdgeCart%ie(1)
-          Point = [i,j,k]
-          if (ovkCartContains(Cart, Point)) then
-            Value = Mask%values(i,j,k)
-          else
-            select case (BoundaryValue)
-            case (OVK_TRUE)
-              Value = .true.
-            case (OVK_FALSE)
-              Value = .false.
-            case (OVK_MIRROR)
-              MirrorPoint = Point + max(Cart%is-Point,0) + min(Cart%ie-Point,0)
-              Value = Mask%values(MirrorPoint(1),MirrorPoint(2),MirrorPoint(3))
-            end select
-          end if
-          if (Value .eqv. EdgeValue) then
-            NeighborLower(:Cart%nd) = Point(:Cart%nd)-1
-            NeighborLower(Cart%nd+1:) = Point(Cart%nd+1:)
-            NeighborUpper(:Cart%nd) = Point(:Cart%nd)+1
-            NeighborUpper(Cart%nd+1:) = Point(Cart%nd+1:)
-            AwayFromCartEdge = ovkCartContains(Cart, NeighborLower) .and. &
-              ovkCartContains(Cart, NeighborUpper)
-            if (AwayFromCartEdge) then
-              L1: &
-              do o = NeighborLower(3), NeighborUpper(3)
-                do n = NeighborLower(2), NeighborUpper(2)
-                  do m = NeighborLower(1), NeighborUpper(1)
-                    Neighbor = [m,n,o]
-                    NeighborValue = Mask%values(Neighbor(1),Neighbor(2),Neighbor(3))
-                    if (NeighborValue .neqv. Value) then
-                      EdgeMask%values(i,j,k) = .true.
-                      exit L1
-                    end if
-                  end do
-                end do
-              end do L1
-            else
-              L2: &
-              do o = NeighborLower(3), NeighborUpper(3)
-                do n = NeighborLower(2), NeighborUpper(2)
-                  do m = NeighborLower(1), NeighborUpper(1)
-                    Neighbor = [m,n,o]
-                    Neighbor(:Cart%nd) = ovkCartPeriodicAdjust(Cart, Neighbor)
-                    if (ovkCartContains(Cart, Neighbor)) then
-                      NeighborValue = Mask%values(Neighbor(1),Neighbor(2),Neighbor(3))
-                    else
-                      select case (BoundaryValue)
-                      case (OVK_TRUE)
-                        NeighborValue = .true.
-                      case (OVK_FALSE)
-                        NeighborValue = .false.
-                      case (OVK_MIRROR)
-                        MirrorPoint = Neighbor + max(Cart%is-Neighbor,0) + min(Cart%ie-Neighbor,0)
-                        NeighborValue = Mask%values(MirrorPoint(1),MirrorPoint(2),MirrorPoint(3))
-                      end select
-                    end if
-                    if (NeighborValue .neqv. Value) then
-                      EdgeMask%values(i,j,k) = .true.
-                      exit L2
-                    end if
-                  end do
-                end do
-              end do L2
-            end if
-          end if
-        end do
-      end do
+    do l = 1_lk, NumPoints
+      Point(:Cart%nd) = ovkCartIndexToTuple(EdgeCart, l)
+      Point(Cart%nd+1:) = 1
+      if (ovkCartContains(Cart, Point)) then
+        Value = Mask%values(Point(1),Point(2),Point(3))
+      else
+        select case (BoundaryValue)
+        case (OVK_TRUE)
+          Value = .true.
+        case (OVK_FALSE)
+          Value = .false.
+        case (OVK_MIRROR)
+          MirrorPoint = Point + max(Cart%is-Point,0) + min(Cart%ie-Point,0)
+          Value = Mask%values(MirrorPoint(1),MirrorPoint(2),MirrorPoint(3))
+        end select
+      end if
+      if (Value .eqv. EdgeValue) then
+        NeighborLower(:Cart%nd) = Point(:Cart%nd)-1
+        NeighborLower(Cart%nd+1:) = Point(Cart%nd+1:)
+        NeighborUpper(:Cart%nd) = Point(:Cart%nd)+1
+        NeighborUpper(Cart%nd+1:) = Point(Cart%nd+1:)
+        AwayFromCartEdge = ovkCartContains(Cart, NeighborLower) .and. &
+          ovkCartContains(Cart, NeighborUpper)
+        if (AwayFromCartEdge) then
+          L1: &
+          do o = NeighborLower(3), NeighborUpper(3)
+            do n = NeighborLower(2), NeighborUpper(2)
+              do m = NeighborLower(1), NeighborUpper(1)
+                Neighbor = [m,n,o]
+                NeighborValue = Mask%values(Neighbor(1),Neighbor(2),Neighbor(3))
+                if (NeighborValue .neqv. Value) then
+                  EdgeMask%values(Point(1),Point(2),Point(3)) = .true.
+                  exit L1
+                end if
+              end do
+            end do
+          end do L1
+        else
+          L2: &
+          do o = NeighborLower(3), NeighborUpper(3)
+            do n = NeighborLower(2), NeighborUpper(2)
+              do m = NeighborLower(1), NeighborUpper(1)
+                Neighbor = [m,n,o]
+                Neighbor(:Cart%nd) = ovkCartPeriodicAdjust(Cart, Neighbor)
+                if (ovkCartContains(Cart, Neighbor)) then
+                  NeighborValue = Mask%values(Neighbor(1),Neighbor(2),Neighbor(3))
+                else
+                  select case (BoundaryValue)
+                  case (OVK_TRUE)
+                    NeighborValue = .true.
+                  case (OVK_FALSE)
+                    NeighborValue = .false.
+                  case (OVK_MIRROR)
+                    MirrorPoint = Neighbor + max(Cart%is-Neighbor,0) + min(Cart%ie-Neighbor,0)
+                    NeighborValue = Mask%values(MirrorPoint(1),MirrorPoint(2),MirrorPoint(3))
+                  end select
+                end if
+                if (NeighborValue .neqv. Value) then
+                  EdgeMask%values(Point(1),Point(2),Point(3)) = .true.
+                  exit L2
+                end if
+              end do
+            end do
+          end do L2
+        end if
+      end if
     end do
 !$OMP END PARALLEL DO
 
@@ -172,10 +175,12 @@ contains
     integer, intent(in) :: Amount
     integer, intent(in) :: BoundaryValue
 
-    integer :: i, j, k, m, n, o
+    integer :: m, n, o
+    integer(lk) :: l
     integer :: NumDims
     type(ovk_cart) :: PrincipalCart
     type(ovk_cart) :: EdgeCart
+    integer(lk) :: NumPoints
     integer :: FillDistance
     logical :: FillValue
     integer :: EdgeType
@@ -207,46 +212,46 @@ contains
     PrincipalCart = ovkCartConvertPeriodicStorage(Mask%cart, OVK_PERIODIC_STORAGE_UNIQUE)
     EdgeCart = EdgeMask%cart
 
+    NumPoints = ovkCartCount(EdgeCart)
+
 !$OMP PARALLEL DO &
-!$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(NumDims, PrincipalCart, EdgeCart, FillDistance, FillValue) &
+!$OMP&  DEFAULT(NONE) &
+!$OMP&  PRIVATE(m, n, o, l, Point, FillLower, FillUpper, AwayFromEdge, FillPoint) &
+!$OMP&  FIRSTPRIVATE(NumDims, NumPoints, PrincipalCart, EdgeCart, FillDistance, FillValue) &
 !$OMP&  SHARED(Mask, EdgeMask)
-    do k = EdgeCart%is(3), EdgeCart%ie(3)
-      do j = EdgeCart%is(2), EdgeCart%ie(2)
-        do i = EdgeCart%is(1), EdgeCart%ie(1)
-          if (EdgeMask%values(i,j,k)) then
-            Point = [i,j,k]
-            FillLower(:NumDims) = Point(:NumDims)-FillDistance
-            FillLower(NumDims+1:) = Point(NumDims+1:)
-            FillUpper(:NumDims) = Point(:NumDims)+FillDistance
-            FillUpper(NumDims+1:) = Point(NumDims+1:)
-            AwayFromEdge = ovkCartContains(PrincipalCart, FillLower) .and. &
-              ovkCartContains(PrincipalCart, FillUpper)
-            if (AwayFromEdge) then
-              do o = FillLower(3), FillUpper(3)
-                do n = FillLower(2), FillUpper(2)
-                  do m = FillLower(1), FillUpper(1)
-                    FillPoint = [m,n,o]
-                    Mask%values(FillPoint(1),FillPoint(2),FillPoint(3)) = FillValue
-                  end do
-                end do
+    do l = 1_lk, NumPoints
+      Point(:NumDims) = ovkCartIndexToTuple(EdgeCart, l)
+      Point(NumDims+1:) = 1
+      if (EdgeMask%values(Point(1),Point(2),Point(3))) then
+        FillLower(:NumDims) = Point(:NumDims)-FillDistance
+        FillLower(NumDims+1:) = Point(NumDims+1:)
+        FillUpper(:NumDims) = Point(:NumDims)+FillDistance
+        FillUpper(NumDims+1:) = Point(NumDims+1:)
+        AwayFromEdge = ovkCartContains(PrincipalCart, FillLower) .and. &
+          ovkCartContains(PrincipalCart, FillUpper)
+        if (AwayFromEdge) then
+          do o = FillLower(3), FillUpper(3)
+            do n = FillLower(2), FillUpper(2)
+              do m = FillLower(1), FillUpper(1)
+                FillPoint = [m,n,o]
+                Mask%values(FillPoint(1),FillPoint(2),FillPoint(3)) = FillValue
               end do
-            else
-              do o = FillLower(3), FillUpper(3)
-                do n = FillLower(2), FillUpper(2)
-                  do m = FillLower(1), FillUpper(1)
-                    FillPoint = [m,n,o]
-                    FillPoint(:NumDims) = ovkCartPeriodicAdjust(PrincipalCart, FillPoint)
-                    if (ovkCartContains(PrincipalCart, FillPoint)) then
-                      Mask%values(FillPoint(1),FillPoint(2),FillPoint(3)) = FillValue
-                    end if
-                  end do
-                end do
+            end do
+          end do
+        else
+          do o = FillLower(3), FillUpper(3)
+            do n = FillLower(2), FillUpper(2)
+              do m = FillLower(1), FillUpper(1)
+                FillPoint = [m,n,o]
+                FillPoint(:NumDims) = ovkCartPeriodicAdjust(PrincipalCart, FillPoint)
+                if (ovkCartContains(PrincipalCart, FillPoint)) then
+                  Mask%values(FillPoint(1),FillPoint(2),FillPoint(3)) = FillValue
+                end if
               end do
-            end if
-          end if
-        end do
-      end do
+            end do
+          end do
+        end if
+      end if
     end do
 !$OMP END PARALLEL DO
 
