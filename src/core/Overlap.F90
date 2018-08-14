@@ -279,8 +279,8 @@ contains
 
 !$OMP PARALLEL DO &
 !$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(Bounds, OverlapTolerance) &
-!$OMP&  SHARED(OverlappingGrid, OverlappedGrid, OverlapAccel, Overlap, OverlappingCells)
+!$OMP&  FIRSTPRIVATE(NumDims, Bounds, OverlapTolerance) &
+!$OMP&  SHARED(OverlappingGrid, OverlappedGrid, OverlapAccel, Overlap, OverlappedMask, OverlappingCells)
       do k = OverlappedGrid%cart%is(3), OverlappedGrid%cart%ie(3)
         do j = OverlappedGrid%cart%is(2), OverlappedGrid%cart%ie(2)
           do i = OverlappedGrid%cart%is(1), OverlappedGrid%cart%ie(1)

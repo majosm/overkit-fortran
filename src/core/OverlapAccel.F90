@@ -133,7 +133,7 @@ contains
 
 !$OMP PARALLEL DO &
 !$OMP&  DEFAULT(PRIVATE) &
-!$OMP&  FIRSTPRIVATE(Bounds, MaxOverlapTolerance) &
+!$OMP&  FIRSTPRIVATE(NumDims, Bounds, MaxOverlapTolerance) &
 !$OMP&  SHARED(Grid, GridCellOverlapMask, GridCellLower, GridCellUpper) &
 !$OMP&  REDUCTION(min:AccelLower) &
 !$OMP&  REDUCTION(max:AccelUpper)
@@ -224,6 +224,7 @@ contains
 
     integer :: i, j, k, d
     integer(lk) :: l
+    integer :: NumDims
     integer(lk) :: NumCells
     integer, dimension(MAX_DIMS) :: Cell
     real(rk), dimension(MAX_DIMS) :: CellLower, CellUpper
@@ -233,7 +234,7 @@ contains
     real(rk) :: NodeBoundsVolume
     real(rk) :: CellVolume, MeanCellVolume, CellVolumeVariation
     real(rk), dimension(CellCart%nd) :: CellBoundsSize, MeanCellBoundsSize
-    real(rk) :: UnoccupiedVolume
+    real(rk) :: OccupiedVolume, UnoccupiedVolume
     logical :: OccupiedEnough, UniformEnough, NotTooBig
     logical :: LeafNode
     integer :: SplitDir
@@ -253,31 +254,32 @@ contains
     nullify(Node%left_child)
     nullify(Node%right_child)
 
+    NumDims = CellCart%nd
     NumCells = size(CellIndices,kind=lk)
 
     NodeBoundsLower = Bounds%e
     NodeBoundsUpper = Bounds%b
 
-! This isn't working with OpenMP for some reason
-! !$OMP PARALLEL DO &
-! !$OMP&  DEFAULT(PRIVATE) &
-! !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLowers, AllCellUppers) &
-! !$OMP&  REDUCTION(min:NodeBoundsLower) &
-! !$OMP&  REDUCTION(max:NodeBoundsUpper)
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(NumDims, NumCells) &
+!$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLowers, AllCellUppers) &
+!$OMP&  REDUCTION(min:NodeBoundsLower) &
+!$OMP&  REDUCTION(max:NodeBoundsUpper)
     do l = 1_lk, NumCells
       Cell = OverlappingCells(CellIndices(l),:)
-      do d = 1, CellCart%nd
+      do d = 1, NumDims
         CellLower(d) = AllCellLowers(d)%values(Cell(1),Cell(2),Cell(3))
         CellUpper(d) = AllCellUppers(d)%values(Cell(1),Cell(2),Cell(3))
       end do
-      CellLower(CellCart%nd+1:) = 0._rk
-      CellUpper(CellCart%nd+1:) = 0._rk
+      CellLower(NumDims+1:) = 0._rk
+      CellUpper(NumDims+1:) = 0._rk
       NodeBoundsLower = min(NodeBoundsLower, CellLower)
       NodeBoundsUpper = max(NodeBoundsUpper, CellUpper)
     end do
-! !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
-    NodeBounds = ovk_bbox_(CellCart%nd, NodeBoundsLower, NodeBoundsUpper)
+    NodeBounds = ovk_bbox_(NumDims, NodeBoundsLower, NodeBoundsUpper)
     NodeBoundsSize = ovkBBSize(NodeBounds)
     NodeBoundsVolume = product(NodeBoundsSize)
 
@@ -288,22 +290,35 @@ contains
     else
 
       MeanCellVolume = 0._rk
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(NumCells) &
+!$OMP&  SHARED(CellIndices, OverlappingCells, AllCellVolumes) &
+!$OMP&  REDUCTION(+:MeanCellVolume)
       do l = 1_lk, NumCells
         Cell = OverlappingCells(CellIndices(l),:)
         CellVolume = AllCellVolumes%values(Cell(1),Cell(2),Cell(3))
         MeanCellVolume = MeanCellVolume + CellVolume
       end do
+!$OMP END PARALLEL DO
       MeanCellVolume = MeanCellVolume/real(NumCells,kind=rk)
 
       CellVolumeVariation = 0._rk
-      UnoccupiedVolume = NodeBoundsVolume
+      OccupiedVolume = 0._rk
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(NumCells, MeanCellVolume) &
+!$OMP&  SHARED(CellIndices, OverlappingCells, AllCellVolumes) &
+!$OMP&  REDUCTION(+:CellVolumeVariation) &
+!$OMP&  REDUCTION(+:OccupiedVolume)
       do l = 1_lk, NumCells
         Cell = OverlappingCells(CellIndices(l),:)
         CellVolume = AllCellVolumes%values(Cell(1),Cell(2),Cell(3))
         CellVolumeVariation = CellVolumeVariation + (CellVolume - MeanCellVolume)**2
-        UnoccupiedVolume = UnoccupiedVolume - CellVolume
+        OccupiedVolume = OccupiedVolume + CellVolume
       end do
-      UnoccupiedVolume = max(UnoccupiedVolume,0._rk)
+!$OMP END PARALLEL DO
+      UnoccupiedVolume = max(NodeBoundsVolume-OccupiedVolume,0._rk)
       CellVolumeVariation = sqrt(CellVolumeVariation/real(NumCells-1_lk,kind=rk))/MeanCellVolume
 
       OccupiedEnough = UnoccupiedVolume < MaxUnoccupiedVolume*BoundsVolume
@@ -338,27 +353,27 @@ contains
     else
 
       MeanCellBoundsSize = 0._rk
-! This isn't working with OpenMP for some reason
-! !$OMP PARALLEL DO &
-! !$OMP&  DEFAULT(PRIVATE) &
-! !$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLowers, AllCellUppers) &
-! !$OMP&  REDUCTION(+:MeanCellBoundsSize)
+!$OMP PARALLEL DO &
+!$OMP&  DEFAULT(PRIVATE) &
+!$OMP&  FIRSTPRIVATE(NumDims, NumCells) &
+!$OMP&  SHARED(CellIndices, OverlappingCells, AllCellLowers, AllCellUppers) &
+!$OMP&  REDUCTION(+:MeanCellBoundsSize)
       do l = 1_lk, NumCells
         Cell = OverlappingCells(CellIndices(l),:)
-        do d = 1, CellCart%nd
+        do d = 1, NumDims
           CellBoundsSize(d) = max(AllCellUppers(d)%values(Cell(1),Cell(2),Cell(3)) - &
             AllCellLowers(d)%values(Cell(1),Cell(2),Cell(3)), 0._rk)
         end do
         MeanCellBoundsSize = MeanCellBoundsSize + CellBoundsSize
       end do
-! !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
       MeanCellBoundsSize = MeanCellBoundsSize/real(max(NumCells,1_lk),kind=rk)
 
       BinSize = BinScale * MeanCellBoundsSize
 
       NumBins = merge(max(int(ceiling(NodeBoundsSize/BinSize)),1), 1, NumCells > 1_lk)
 
-      BinCart = ovk_cart_(CellCart%nd, NumBins)
+      BinCart = ovk_cart_(NumDims, NumBins)
 
       call DistributeCellsToBins(BinCart, NodeBounds, CellCart, AllCellLowers, AllCellUppers, &
         OverlappingCells, CellIndices, BinCellsStart, BinCellsEnd, BinCells)
