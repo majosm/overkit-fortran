@@ -274,7 +274,7 @@ program Inlet
     IBlank = ovk_field_int_(Cart, 1)
 
     ! IBlank == 0 => Hole
-    call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
+    call ovkFilterGridState(Grid, OVK_STATE_EXTERIOR, OVK_ALL, Mask)
     IBlank%values = merge(0, IBlank%values, Mask%values)
 
     ! IBlank == -N => Receives from grid N

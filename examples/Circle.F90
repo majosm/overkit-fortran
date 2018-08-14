@@ -196,8 +196,8 @@ contains
 
     ! Update background IBlank with holes (used later if generating remap)
     call ovkGetGrid(Domain, 1, Grid)
-    call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_ALL, Mask)
-    IBlankBackground = merge(IBlankBackground, 0, Mask%values(:,:,1))
+    call ovkFilterGridState(Grid, OVK_STATE_EXTERIOR, OVK_ALL, Mask)
+    IBlankBackground = merge(0, IBlankBackground, Mask%values(:,:,1))
 
     !========
     ! Output
@@ -223,7 +223,7 @@ contains
       IBlank = ovk_field_int_(Cart, 1)
 
       ! IBlank == 0 => Hole
-      call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
+      call ovkFilterGridState(Grid, OVK_STATE_EXTERIOR, OVK_ALL, Mask)
       IBlank%values = merge(0, IBlank%values, Mask%values)
 
       ! IBlank == -N => Receives from grid N
@@ -479,7 +479,7 @@ contains
       IBlank = ovk_field_int_(Cart, 1)
 
       ! IBlank == 0 => Hole
-      call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
+      call ovkFilterGridState(Grid, OVK_STATE_EXTERIOR, OVK_ALL, Mask)
       IBlank%values = merge(0, IBlank%values, Mask%values)
 
       ! IBlank == -N => Receives from grid N
@@ -698,7 +698,7 @@ contains
       IBlank = ovk_field_int_(Cart, 1)
 
       ! IBlank == 0 => Hole
-      call ovkFilterGridState(Grid, OVK_STATE_GRID, OVK_NONE, Mask)
+      call ovkFilterGridState(Grid, OVK_STATE_EXTERIOR, OVK_ALL, Mask)
       IBlank%values = merge(0, IBlank%values, Mask%values)
 
       ! IBlank == -N => Receives from grid N
