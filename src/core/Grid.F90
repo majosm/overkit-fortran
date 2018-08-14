@@ -39,8 +39,8 @@ module ovkGrid
   public :: ovkCoordsInGridCell
   public :: ovkPeriodicExtend
   public :: OVK_GEOMETRY_UNIFORM
-  public :: OVK_GEOMETRY_RECTILINEAR
   public :: OVK_GEOMETRY_ORIENTED_UNIFORM
+  public :: OVK_GEOMETRY_RECTILINEAR
   public :: OVK_GEOMETRY_ORIENTED_RECTILINEAR
   public :: OVK_GEOMETRY_CURVILINEAR
   public :: OVK_STATE_GRID
@@ -112,8 +112,8 @@ module ovkGrid
   end type ovk_grid
 
   integer, parameter :: OVK_GEOMETRY_UNIFORM = 1
-  integer, parameter :: OVK_GEOMETRY_RECTILINEAR = 2
-  integer, parameter :: OVK_GEOMETRY_ORIENTED_UNIFORM = 3
+  integer, parameter :: OVK_GEOMETRY_ORIENTED_UNIFORM = 2
+  integer, parameter :: OVK_GEOMETRY_RECTILINEAR = 3
   integer, parameter :: OVK_GEOMETRY_ORIENTED_RECTILINEAR = 4
   integer, parameter :: OVK_GEOMETRY_CURVILINEAR = 5
 

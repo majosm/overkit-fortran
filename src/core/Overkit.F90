@@ -248,8 +248,8 @@ module Overkit
   public :: ovkCoordsInGridCell
   public :: ovkPeriodicExtend
   public :: OVK_GEOMETRY_UNIFORM
-  public :: OVK_GEOMETRY_RECTILINEAR
   public :: OVK_GEOMETRY_ORIENTED_UNIFORM
+  public :: OVK_GEOMETRY_RECTILINEAR
   public :: OVK_GEOMETRY_ORIENTED_RECTILINEAR
   public :: OVK_GEOMETRY_CURVILINEAR
   public :: OVK_STATE_GRID
