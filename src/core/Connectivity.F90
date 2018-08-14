@@ -244,6 +244,7 @@ contains
 
     if (NumConnections > 0_lk) then
 
+      DonorSize = 1
       call GetDonorStencilSize(DonorStencil, DonorSize)
 
       call ovkResetConnectivity(Connectivity, NumConnections, maxval(DonorSize))
