@@ -31,6 +31,7 @@ program Bump
   type(t_field_real_ptr), dimension(:), allocatable :: Coords
   type(ovk_field_int), pointer :: State
   integer, dimension(MAX_DIMS) :: Point
+  type(ovk_field_real), pointer :: Coord
   real(rk) :: U
   real(rk) :: R
   real(rk) :: BumpHeight
@@ -120,11 +121,13 @@ program Bump
       do i = 1, NumPointsBackground(1)
         Point = [i,j,k]
         do d = 1, NumDims-1
+          Coord => Coords(d)%ptr
           U = real(Point(d)-1,kind=rk)/real(NumPointsBackground(d)-1,kind=rk)
-          Coords(d)%ptr%values(i,j,k) = Length(d) * (U-0.5_rk)
+          Coord%values(i,j,k) = Length(d) * (U-0.5_rk)
         end do
+        Coord => Coords(NumDims)%ptr
         U = real(Point(NumDims)-1,kind=rk)/real(NumPointsBackground(NumDims)-1,kind=rk)
-        Coords(NumDims)%ptr%values(i,j,k) = Length(NumDims) * U
+        Coord%values(i,j,k) = Length(NumDims) * U
       end do
     end do
   end do
