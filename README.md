@@ -71,8 +71,8 @@ _Note:_ It may be helpful to look at some of the examples' sources while reading
 
 In an overset mesh, each component grid has **_fringes_** along its non-boundary edges. A
 fringe is made up of one or more layers of **_receiver_** points, which are points that receive
-data from other grids. For each receiver there is a corresponding **_donor_** on the sending grid
-which consists of the set of points that makes up the interpolation stencil and each point's
+data from other grids. Each receiver has a corresponding **_donor_** on the sending grid which
+consists of the set of points that makes up the interpolation stencil and each point's
 associated interpolation weight. Overkit calls the combination of a donor and a receiver a
 **_connection_**. Most of the time, a pair of grids in an overset mesh will communicate in both
 directions, so an interface between them will have two adjacent fringes (one on each grid).
@@ -122,10 +122,10 @@ For each connection (donor/receiver pair), the following data is stored:
 2. _Donor interpolation coefficients:_ the interpolation weights for each point in the interpolation
    stencil, stored in tensor product format (i.e., an array of one-dimensional stencils, with the
    first index indicating the point in the stencil and the second index indicating the dimension)
-3. _Donor coordinates:_ the mapped coordinates of the receiver point into the donor stencil (the
+3. _Donor coordinates:_ the mapped coordinates of the receiver point inside the donor stencil (the
    coordinate range depends on the interpolation scheme; e.g., for linear interpolation the
    coordinates range from 0 to 1, with (0,0) representing the lower left vertex and (1,1)
-   representing the upper right vertex). _Note:_ These are typically only needed if generating
+   representing the upper right vertex). _Note:_ These are typically only needed when generating
    interpolation coefficients separately from Overkit
 4. _Receiver point:_ the point on the receiver grid to which the interpolated data will be sent.
 
@@ -322,9 +322,9 @@ option value for multiple grids at once.
 ### Overlap detection
 
 Overkit first needs to determine how the component grids are situated with respect to each other.
-This consists of looking at every grid point and determining within which cell(s) on other grids the
-point resides (if any). Naively, overlap detection has quadratic computational complexity in the
-number of grid points (because it involves testing each point against each cell for all pairs of
+This consists of looking at every grid point and determining within which cell(s) on the other grids
+the point resides (if any). Naively, overlap detection has quadratic computational complexity in the
+number of grid points (because it involves testing each point against each cell among all pairs of
 grids), but this can be improved to linear complexity through the use of spatial partitioning data
 structures.
 
@@ -356,9 +356,9 @@ will need to be removed. (For example, in a two-grid airfoil configuration with 
 grid and a second grid that wraps around the airfoil geometry, points on the background grid will
 lie inside the non-domain region defined by inner edge of the second grid.)
 
-Overkit handles this by projecting a representation of other grids' boundaries onto the grid being
-cut, detecting which side is outside of the domain, then flooding this side and removing the
-detected points from the domain.
+Overkit handles this by (1) projecting a representation of other grids' boundaries onto the grid
+being cut, (2) detecting which side is outside of the domain, then (3) flooding this side and
+removing the detected points from the domain.
 
 Relevant options:
 
@@ -370,10 +370,10 @@ Relevant options:
 ### Receiver selection
 
 Next we need to determine which points should be receiving data. Overkit divides the points detected
-in this step into two categories, _outer fringe_ points and _occluded_ points. Outer fringe points
-are points near non-boundary grid edges. Occluded points are overlapped points for which one of the
-overlapping grids has been determined to be a better representation of that part of the domain than
-the present one.
+in this step into two categories, _**outer fringe**_ points and _**occluded**_ points. Outer fringe
+points are points near non-boundary grid edges. Occluded points are overlapped points for which one
+of the overlapping grids has been determined to be a better representation of that part of the
+domain than the present one.
 
 Relevant options:
 
@@ -395,11 +395,12 @@ Relevant options:
 
 For overset meshes we typically don't need to keep all of the receiver points detected in the
 previous step. Instead we can cut out most of the occluded points and leave only the few layers
-nearest to the unoccluded part of the grid. Overkit calls these remaining points the _inner fringe_.
+nearest to the unoccluded part of the grid. Overkit calls these remaining points the _**inner
+fringe**_.
 
 The `EdgePadding` option described in the previous section reduces the size of a grid's
-occluded region, which has the effect of increasing the amount of overlap remaining after overlap
-minimization. This can be useful in certain situations such as that of the explicit solver
+occluded region, which has the side effect of increasing the amount of overlap remaining after
+overlap minimization. This can be useful in certain situations such as that of the explicit solver
 described above.
 
 Relevant options:
