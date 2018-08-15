@@ -929,7 +929,7 @@ contains
     type(ovk_field_real), intent(in) :: OverlappingGridData
     type(ovk_array_real), intent(out) :: CollectedData
 
-    integer :: i, j, k
+    integer :: i, j, k, d
     integer(lk) :: l
     integer, dimension(MAX_DIMS) :: Lower, Upper
     integer, dimension(MAX_DIMS) :: VertexStart, VertexEnd
@@ -947,13 +947,12 @@ contains
       VertexStart = Overlap%cells(:,l) + Lower
       VertexEnd = Overlap%cells(:,l) + Upper
       call ovkGetFieldPatch(OverlappingGridData, VertexStart, VertexEnd, VertexData)
-      InterpBasis(1,:) = ovkInterpBasisLinear(Overlap%coords(1,l))
-      InterpBasis(2,:) = ovkInterpBasisLinear(Overlap%coords(2,l))
-      if (Overlap%nd == 3) then
-        InterpBasis(3,:) = ovkInterpBasisLinear(Overlap%coords(3,l))
-      else
-        InterpBasis(3,:) = ovkInterpBasisLinear(0._rk)
-      end if
+      do d = 1, Overlap%nd
+        InterpBasis(d,:) = ovkInterpBasisLinear(Overlap%coords(d,l))
+      end do
+      do d = Overlap%nd+1, MAX_DIMS
+        InterpBasis(d,:) = ovkInterpBasisLinear(0._rk)
+      end do
       CollectedData%values(l) = 0._rk
       do k = Lower(3), Upper(3)
         do j = Lower(2), Upper(2)
