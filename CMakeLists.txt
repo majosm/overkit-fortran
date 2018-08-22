@@ -88,6 +88,15 @@ endif()
 # OpenMP
 if(OPENMP)
   find_package(OpenMP REQUIRED)
+  if(NOT DEFINED OpenMP_Fortran_FLAGS)
+    message(STATUS "OpenMP Fortran flags not defined; using C flags")
+    set(OpenMP_Fortran_FLAGS "${OpenMP_C_FLAGS}")
+  endif()
+  # Need to specify -fopenmp/-qopenmp/etc. at link time too, but FindOpenMP doesn't
+  # create a flag for it for some reason
+  if(NOT OpenMP_Fortran_LIB_NAMES AND NOT OpenMP_C_LIB_NAMES)
+    set(OpenMP_EXE_LINKER_FLAGS "${OpenMP_C_FLAGS}")
+  endif()
 endif()
 
 #======================
@@ -96,17 +105,6 @@ endif()
 
 set(EXTRA_Fortran_FLAGS "")
 set(EXTRA_C_FLAGS "")
-
-# OpenMP flags
-if(OPENMP)
-  if(DEFINED OpenMP_Fortran_FLAGS)
-    set(EXTRA_Fortran_FLAGS "${EXTRA_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
-  else()
-    message(STATUS "OpenMP Fortran flags not defined; using C flags")
-    set(EXTRA_Fortran_FLAGS "${EXTRA_Fortran_FLAGS} ${OpenMP_C_FLAGS}")
-  endif()
-set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} ${OpenMP_C_FLAGS}")
-endif()
 
 # GNU defaults to heap-allocating local arrays that have a size given by a function parameter.
 # These are used all over the place, but only for small arrays, so they should be

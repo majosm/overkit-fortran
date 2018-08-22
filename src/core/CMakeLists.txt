@@ -30,11 +30,6 @@ set(OVERKIT_SOURCES
 
 add_library(overkit ${OVERKIT_SOURCES})
 
-# OpenMP
-if(OPENMP)
-  target_link_libraries(overkit PUBLIC ${OpenMP_Fortran_LIB_NAMES} ${OpenMP_C_LIB_NAMES})
-endif()
-
 #================
 # Compiler flags
 #================
@@ -48,6 +43,16 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}/mod")
 set_property(TARGET overkit APPEND PROPERTY COMPILE_DEFINITIONS
   $<$<OR:$<CONFIG:Debug>,$<CONFIG:Coverage>>:OVERKIT_DEBUG>
 )
+
+# OpenMP
+if(OPENMP)
+  target_compile_options(overkit PUBLIC
+    $<$<COMPILE_LANGUAGE:Fortran>:${OpenMP_Fortran_FLAGS}>
+    $<$<COMPILE_LANGUAGE:C>:${OpenMP_C_FLAGS}>
+  )
+  target_link_libraries(overkit PUBLIC ${OpenMP_EXE_LINKER_FLAGS}
+    ${OpenMP_Fortran_LIB_NAMES} ${OpenMP_C_LIB_NAMES})
+endif()
 
 #==============
 # Installation
