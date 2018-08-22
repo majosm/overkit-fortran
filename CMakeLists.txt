@@ -27,7 +27,7 @@ endif()
 project(Overkit Fortran C)
 set(Overkit_VERSION_MAJOR 1)
 set(Overkit_VERSION_MINOR 0)
-set(Overkit_VERSION_PATCH 0)
+set(Overkit_VERSION_PATCH 1)
 set(Overkit_VERSION ${Overkit_VERSION_MAJOR}.${Overkit_VERSION_MINOR}.${Overkit_VERSION_PATCH})
 
 # Module stuff
