@@ -577,11 +577,12 @@ contains
             end do
           end do L2
 
+          if (.not. EditingCoords(Grid)) then
+            call UpdateBounds(Grid)
+          end if
+
           if (ModifiedMask) then
             call UpdateMasks(Grid)
-            if (.not. EditingCoords(Grid)) then
-              call UpdateBounds(Grid)
-            end if
             Grid%edits%mask = .true.
           end if
 
