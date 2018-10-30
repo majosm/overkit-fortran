@@ -97,6 +97,7 @@ program Bump
 
   Length(:NumDims-1) = 2._rk
   Length(NumDims) = 1._rk
+  Length(NumDims+1:) = 0._rk
 
   Periodic(:NumDims-1) = .true.
   Periodic(NumDims:) = .false.
