@@ -29,3 +29,8 @@ target_link_libraries(overkit-support overkit)
 set_property(TARGET overkit-support APPEND PROPERTY COMPILE_DEFINITIONS
   $<$<OR:$<CONFIG:Debug>,$<CONFIG:Coverage>>:OVERKIT_DEBUG>
 )
+
+# Needed for linking into shared lib
+if(BUILD_SHARED_LIBS)
+  set_property(TARGET overkit-support PROPERTY POSITION_INDEPENDENT_CODE TRUE)
+endif()
