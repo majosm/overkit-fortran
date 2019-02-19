@@ -668,6 +668,15 @@ contains
         BinStart = Node%hash_grid%bin_start(l)
         BinEnd = Node%hash_grid%bin_start(l+1_lk)-1_lk
 
+        ! Try to find overlap without tolerance first
+        do m = BinStart, BinEnd
+          CandidateCell = ovkCartIndexToTuple(Grid%cell_cart, Node%hash_grid%bin_contents(m))
+          if (ovkOverlapsGridCell(Grid, CandidateCell, Coords, 0._rk)) then
+            Cell = CandidateCell
+            return
+          end if
+        end do
+
         do m = BinStart, BinEnd
           CandidateCell = ovkCartIndexToTuple(Grid%cell_cart, Node%hash_grid%bin_contents(m))
           if (ovkOverlapsGridCell(Grid, CandidateCell, Coords, OverlapTolerance)) then
