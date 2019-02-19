@@ -327,7 +327,7 @@ contains
               CoordsInCell = ovkCoordsInGridCell(OverlappingGrid, Overlap%cells(:,l), &
                 OverlappedCoords, Success=Success)
               if (Success) then
-                Overlap%coords(:,l) = CoordsInCell
+                Overlap%coords(:,l) = min(max(CoordsInCell, 0._rk), 1._rk)
               else
                 Overlap%coords(:,l) = 0.5_rk
                 if (Logger%log_errors) then

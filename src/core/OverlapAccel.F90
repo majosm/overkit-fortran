@@ -640,11 +640,17 @@ contains
     real(rk), intent(in) :: OverlapTolerance
     integer, dimension(Grid%nd) :: Cell
 
+    integer :: d
     integer(lk) :: l, m
     integer, dimension(Grid%nd) :: Bin
     integer(lk) :: BinStart, BinEnd
     logical :: LeafNode
     integer, dimension(Grid%nd) :: CandidateCell
+    real(rk) :: BestDisplacement
+    real(rk) :: Displacement
+    logical :: Success
+    real(rk), dimension(Grid%nd) :: CellCoords
+    real(rk), dimension(Grid%nd) :: ClampOffset
 
     Cell = Grid%cell_cart%is(:Grid%nd) - 1
 
@@ -677,11 +683,28 @@ contains
           end if
         end do
 
+        ! If that fails, try to project onto edge of nearest cell
+        BestDisplacement = huge(0._rk)
         do m = BinStart, BinEnd
           CandidateCell = ovkCartIndexToTuple(Grid%cell_cart, Node%hash_grid%bin_contents(m))
           if (ovkOverlapsGridCell(Grid, CandidateCell, Coords, OverlapTolerance)) then
-            Cell = CandidateCell
-            return
+            CellCoords = ovkCoordsInGridCell(Grid, CandidateCell, Coords, Success=Success)
+            if (Success) then
+              do d = 1, Grid%nd
+                if (CellCoords(d) > 1._rk) then
+                  ClampOffset(d) = 1._rk-CellCoords(d)
+                else if (CellCoords(d) < 0._rk) then
+                  ClampOffset(d) = -CellCoords(d)
+                else
+                  ClampOffset(d) = 0._rk
+                end if
+              end do
+              Displacement = sum(ClampOffset**2)
+              if (Displacement < BestDisplacement) then
+                Cell = CandidateCell
+                BestDisplacement = Displacement
+              end if
+            end if
           end if
         end do
 
