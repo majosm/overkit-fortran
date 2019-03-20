@@ -792,14 +792,13 @@ contains
 
     Distances = ovk_field_int_(Mask%cart)
 
-    Distances%values = ExtendedDistances%values(Mask%cart%is(1):Mask%cart%ie(1), &
-      Mask%cart%is(2):Mask%cart%ie(2),Mask%cart%is(3):Mask%cart%ie(3))
-
     do k = Mask%cart%is(3), Mask%cart%ie(3)
       do j = Mask%cart%is(2), Mask%cart%ie(2)
         do i = Mask%cart%is(1), Mask%cart%ie(1)
           if (Mask%values(i,j,k)) then
-            Distances%values(i,j,k) = -Distances%values(i,j,k)
+            Distances%values(i,j,k) = -ExtendedDistances%values(i,j,k)
+          else
+            Distances%values(i,j,k) = ExtendedDistances%values(i,j,k)
           end if
         end do
       end do
