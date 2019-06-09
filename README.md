@@ -507,6 +507,22 @@ Overkit also provides commands to write the grids and states to a file (PLOT3D f
 opened in visualization tools such as TecPlot and ParaView. See the examples' source code
 for details.
 
+# Citing
+
+[![DOI](https://zenodo.org/badge/82192918.svg)](https://zenodo.org/badge/latestdoi/82192918)
+
+```tex
+@misc{overkitfortran,
+  author = {Smith, M.},
+  title = {Overkit},
+  year = {2019},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/majosm/overkit-fortran}},
+  doi = {<get from Zenodo link above>}
+}
+```
+
 # Acknowledgements
 
 Overkit is one of several software projects produced by the University of Illinois Center for
