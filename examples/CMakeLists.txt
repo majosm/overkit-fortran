@@ -8,8 +8,8 @@
 if(EXAMPLES)
 
 # Link to overkit and overkit-support
-include_directories("${CMAKE_BINARY_DIR}/src/core/mod")
-include_directories("${CMAKE_BINARY_DIR}/src/support/mod")
+include_directories("${PROJECT_BINARY_DIR}/src/core/mod")
+include_directories("${PROJECT_BINARY_DIR}/src/support/mod")
 link_libraries(overkit-support overkit)
 
 add_executable(Blobs Blobs.F90)

@@ -22,7 +22,7 @@ set_property(TARGET overkit-support PROPERTY Fortran_MODULE_DIRECTORY
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/mod")
 
 # Link to overkit
-include_directories("${CMAKE_BINARY_DIR}/src/core/mod")
+include_directories("${PROJECT_BINARY_DIR}/src/core/mod")
 target_link_libraries(overkit-support overkit)
 
 # Define OVERKIT_DEBUG flag in debug & coverage build types

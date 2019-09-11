@@ -28,7 +28,7 @@ if(TESTS)
         COMMAND python "${PFUNIT_PARSER}" "${TEST_PATH}" "${PROCESSED_TEST_PATH}"
         # Strip out #line directives (they seem to mess up gfortran's error output)
         COMMAND "${CMAKE_COMMAND}" -DFILE="${PROCESSED_TEST_PATH}"
-          -P "${CMAKE_SOURCE_DIR}/config/scripts/strip-line.cmake"
+          -P "${PROJECT_SOURCE_DIR}/config/scripts/strip-line.cmake"
         DEPENDS "${TEST_PATH}"
       )
       # Append the test to the test suites file
@@ -40,8 +40,8 @@ if(TESTS)
     include_directories("${PFUNIT_INCLUDE_DIR}" "${PFUNIT_MODULE_DIR}")
 
     # Find Overkit module file
-    include_directories("${CMAKE_BINARY_DIR}/src/core/mod")
-    include_directories("${CMAKE_BINARY_DIR}/src/support/mod")
+    include_directories("${PROJECT_BINARY_DIR}/src/core/mod")
+    include_directories("${PROJECT_BINARY_DIR}/src/support/mod")
 
     # Find testSuites.inc file
     include_directories("${CMAKE_CURRENT_BINARY_DIR}")
@@ -51,7 +51,7 @@ if(TESTS)
 
     add_test(NAME support-unit-tests
       COMMAND "${CMAKE_COMMAND}" -DTEST_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/runtests-support
-        -P "${CMAKE_SOURCE_DIR}/config/scripts/pfunit-passfail.cmake")
+        -P "${PROJECT_SOURCE_DIR}/config/scripts/pfunit-passfail.cmake")
 
   endif()
 

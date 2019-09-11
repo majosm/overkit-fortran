@@ -31,7 +31,7 @@ set(Overkit_VERSION_PATCH 4)
 set(Overkit_VERSION ${Overkit_VERSION_MAJOR}.${Overkit_VERSION_MINOR}.${Overkit_VERSION_PATCH})
 
 # Module stuff
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/config/modules")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/config/modules")
 set(Fortran_ENABLED TRUE)
 set(C_ENABLED TRUE)
 set(CXX_ENABLED FALSE)
@@ -44,13 +44,13 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Forbid in-source builds
-if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   message(FATAL_ERROR "In-source builds are not allowed. Please run CMake from a separate directory (you may need to remove CMakeFiles and CMakeCache.txt).")
 endif()
 
 # Adds "make distclean" command to delete contents of build directory (safer than rm -rf *)
-add_custom_target(distclean COMMAND "${CMAKE_COMMAND}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
-  -P "${CMAKE_SOURCE_DIR}/config/scripts/distclean.cmake")
+add_custom_target(distclean COMMAND "${CMAKE_COMMAND}" -DBINARY_DIR="${PROJECT_BINARY_DIR}"
+  -P "${PROJECT_SOURCE_DIR}/config/scripts/distclean.cmake")
 
 #=========================
 # Build types and options
@@ -167,20 +167,20 @@ add_custom_target(test-v COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
 # Coverage report
 add_custom_target(coverage
-  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
-    -DCOVERAGE_DIR="src/core" -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
-  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
-    -DCOVERAGE_DIR="src/support" -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
-  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
-    -DCOVERAGE_DIR="src/utils" -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
-  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${CMAKE_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
-    -P "${CMAKE_SOURCE_DIR}/config/scripts/gen-coverage-report.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${PROJECT_SOURCE_DIR}" -DBINARY_DIR="${PROJECT_BINARY_DIR}"
+    -DCOVERAGE_DIR="src/core" -P "${PROJECT_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${PROJECT_SOURCE_DIR}" -DBINARY_DIR="${PROJECT_BINARY_DIR}"
+    -DCOVERAGE_DIR="src/support" -P "${PROJECT_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${PROJECT_SOURCE_DIR}" -DBINARY_DIR="${PROJECT_BINARY_DIR}"
+    -DCOVERAGE_DIR="src/utils" -P "${PROJECT_SOURCE_DIR}/config/scripts/gen-coverage-data.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DSOURCE_DIR="${PROJECT_SOURCE_DIR}" -DBINARY_DIR="${PROJECT_BINARY_DIR}"
+    -P "${PROJECT_SOURCE_DIR}/config/scripts/gen-coverage-report.cmake"
 )
 
 # Reset coverage data
 add_custom_target(coverageclean
-  COMMAND "${CMAKE_COMMAND}" -DBINARY_DIR="${CMAKE_BINARY_DIR}"
-    -P "${CMAKE_SOURCE_DIR}/config/scripts/coverageclean.cmake"
+  COMMAND "${CMAKE_COMMAND}" -DBINARY_DIR="${PROJECT_BINARY_DIR}"
+    -P "${PROJECT_SOURCE_DIR}/config/scripts/coverageclean.cmake"
 )
 
 #=====================
@@ -211,25 +211,25 @@ add_subdirectory(tests)
 
 include(CMakePackageConfigHelpers)
 
-write_basic_package_version_file("${CMAKE_BINARY_DIR}/OverkitConfigVersion.cmake"
+write_basic_package_version_file("${PROJECT_BINARY_DIR}/OverkitConfigVersion.cmake"
   VERSION ${Overkit_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 if(CMAKE_MAJOR_VERSION GREATER 3)
-  export(EXPORT OverkitTargets FILE "${CMAKE_BINARY_DIR}/OverkitTargets.cmake")
+  export(EXPORT OverkitTargets FILE "${PROJECT_BINARY_DIR}/OverkitTargets.cmake")
 else()
-  export(TARGETS overkit FILE "${CMAKE_BINARY_DIR}/OverkitTargets.cmake")
+  export(TARGETS overkit FILE "${PROJECT_BINARY_DIR}/OverkitTargets.cmake")
 endif()
 
 configure_file(config/OverkitConfig.cmake
-  "${CMAKE_BINARY_DIR}/OverkitConfig.cmake"
+  "${PROJECT_BINARY_DIR}/OverkitConfig.cmake"
   COPYONLY
 )
 
 install(
   FILES
-    "${CMAKE_BINARY_DIR}/OverkitConfig.cmake"
-    "${CMAKE_BINARY_DIR}/OverkitConfigVersion.cmake"
+    "${PROJECT_BINARY_DIR}/OverkitConfig.cmake"
+    "${PROJECT_BINARY_DIR}/OverkitConfigVersion.cmake"
   DESTINATION lib/Overkit/CMake
 )
 
