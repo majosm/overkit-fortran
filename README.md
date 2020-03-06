@@ -1,3 +1,5 @@
+_(Looking for the newer parallel C++ version? It's [here](https://github.com/majosm/overkit).)_
+
 # Overkit
 
 Overset meshes are a method for representing complex geometry in computational fluid dynamics
