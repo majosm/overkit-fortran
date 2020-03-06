@@ -24,11 +24,11 @@ endif()
 # Project setup
 #===============
 
-project(Overkit Fortran C)
-set(Overkit_VERSION_MAJOR 1)
-set(Overkit_VERSION_MINOR 0)
-set(Overkit_VERSION_PATCH 6)
-set(Overkit_VERSION ${Overkit_VERSION_MAJOR}.${Overkit_VERSION_MINOR}.${Overkit_VERSION_PATCH})
+project(OverkitFortran Fortran C)
+set(OverkitFortran_VERSION_MAJOR 1)
+set(OverkitFortran_VERSION_MINOR 0)
+set(OverkitFortran_VERSION_PATCH 6)
+set(OverkitFortran_VERSION ${OverkitFortran_VERSION_MAJOR}.${OverkitFortran_VERSION_MINOR}.${OverkitFortran_VERSION_PATCH})
 
 # Module stuff
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/config/modules")
@@ -211,30 +211,30 @@ add_subdirectory(tests)
 
 include(CMakePackageConfigHelpers)
 
-write_basic_package_version_file("${PROJECT_BINARY_DIR}/OverkitConfigVersion.cmake"
-  VERSION ${Overkit_VERSION}
+write_basic_package_version_file("${PROJECT_BINARY_DIR}/OverkitFortranConfigVersion.cmake"
+  VERSION ${OverkitFortran_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 if(CMAKE_MAJOR_VERSION GREATER 3)
-  export(EXPORT OverkitTargets FILE "${PROJECT_BINARY_DIR}/OverkitTargets.cmake")
+  export(EXPORT OverkitFortranTargets FILE "${PROJECT_BINARY_DIR}/OverkitFortranTargets.cmake")
 else()
-  export(TARGETS overkit FILE "${PROJECT_BINARY_DIR}/OverkitTargets.cmake")
+  export(TARGETS overkit-fortran FILE "${PROJECT_BINARY_DIR}/OverkitFortranTargets.cmake")
 endif()
 
 configure_file(config/OverkitConfig.cmake
-  "${PROJECT_BINARY_DIR}/OverkitConfig.cmake"
+  "${PROJECT_BINARY_DIR}/OverkitFortranConfig.cmake"
   COPYONLY
 )
 
 install(
   FILES
-    "${PROJECT_BINARY_DIR}/OverkitConfig.cmake"
-    "${PROJECT_BINARY_DIR}/OverkitConfigVersion.cmake"
-  DESTINATION lib/Overkit/CMake
+    "${PROJECT_BINARY_DIR}/OverkitFortranConfig.cmake"
+    "${PROJECT_BINARY_DIR}/OverkitFortranConfigVersion.cmake"
+  DESTINATION lib/OverkitFortran/CMake
 )
 
-install(EXPORT OverkitTargets
-  DESTINATION lib/Overkit/CMake
+install(EXPORT OverkitFortranTargets
+  DESTINATION lib/OverkitFortran/CMake
 )
 
 #=============================

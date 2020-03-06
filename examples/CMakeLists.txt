@@ -7,10 +7,10 @@
 
 if(EXAMPLES)
 
-# Link to overkit and overkit-support
+# Link to overkit-fortran and overkit-support
 include_directories("${PROJECT_BINARY_DIR}/src/core/mod")
 include_directories("${PROJECT_BINARY_DIR}/src/support/mod")
-link_libraries(overkit-support overkit)
+link_libraries(overkit-support overkit-fortran)
 
 add_executable(Blobs Blobs.F90)
 add_executable(Bump Bump.F90)

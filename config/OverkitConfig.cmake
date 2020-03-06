@@ -1,1 +1,1 @@
-include("${CMAKE_CURRENT_LIST_DIR}/OverkitTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/OverkitFortranTargets.cmake")

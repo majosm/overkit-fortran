@@ -28,34 +28,34 @@ set(OVERKIT_SOURCES
   PLOT3DInternal.c
 )
 
-add_library(overkit ${OVERKIT_SOURCES})
+add_library(overkit-fortran ${OVERKIT_SOURCES})
 
 #================
 # Compiler flags
 #================
 
 # Place compiled modules in a subdirectory
-set_property(TARGET overkit PROPERTY Fortran_MODULE_DIRECTORY
+set_property(TARGET overkit-fortran PROPERTY Fortran_MODULE_DIRECTORY
   "${CMAKE_CURRENT_BINARY_DIR}/mod")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/mod")
 
 # Define OVERKIT_DEBUG flag in debug & coverage build types
-set_property(TARGET overkit APPEND PROPERTY COMPILE_DEFINITIONS
+set_property(TARGET overkit-fortran APPEND PROPERTY COMPILE_DEFINITIONS
   $<$<OR:$<CONFIG:Debug>,$<CONFIG:Coverage>>:OVERKIT_DEBUG>
 )
 
 # Needed for linking into shared lib
 if(BUILD_SHARED_LIBS)
-  set_property(TARGET overkit PROPERTY POSITION_INDEPENDENT_CODE TRUE)
+  set_property(TARGET overkit-fortran PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
 # OpenMP
 if(OPENMP)
-  target_compile_options(overkit PUBLIC
+  target_compile_options(overkit-fortran PUBLIC
     $<$<COMPILE_LANGUAGE:Fortran>:${OpenMP_Fortran_FLAGS}>
     $<$<COMPILE_LANGUAGE:C>:${OpenMP_C_FLAGS}>
   )
-  target_link_libraries(overkit PUBLIC ${OpenMP_EXE_LINKER_FLAGS}
+  target_link_libraries(overkit-fortran PUBLIC ${OpenMP_EXE_LINKER_FLAGS}
     ${OpenMP_Fortran_LIB_NAMES} ${OpenMP_C_LIB_NAMES})
 endif()
 
@@ -64,14 +64,14 @@ endif()
 #==============
 
 # Version information
-set_property(TARGET overkit PROPERTY VERSION ${Overkit_VERSION})
-set_property(TARGET overkit PROPERTY SOVERSION ${Overkit_VERSION_MAJOR})
-set_property(TARGET overkit PROPERTY INTERFACE_Overkit_VERSION_MAJOR ${Overkit_VERSION_MAJOR})
-set_property(TARGET overkit APPEND PROPERTY COMPATIBLE_INTERFACE_STRING Overkit_VERSION_MAJOR)
+set_property(TARGET overkit-fortran PROPERTY VERSION ${OverkitFortran_VERSION})
+set_property(TARGET overkit-fortran PROPERTY SOVERSION ${OverkitFortran_VERSION_MAJOR})
+set_property(TARGET overkit-fortran PROPERTY INTERFACE_OverkitFortran_VERSION_MAJOR ${OverkitFortran_VERSION_MAJOR})
+set_property(TARGET overkit-fortran APPEND PROPERTY COMPATIBLE_INTERFACE_STRING OverkitFortran_VERSION_MAJOR)
 
 # Install library
-install(TARGETS overkit
-  EXPORT OverkitTargets
+install(TARGETS overkit-fortran
+  EXPORT OverkitFortranTargets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   INCLUDES DESTINATION include

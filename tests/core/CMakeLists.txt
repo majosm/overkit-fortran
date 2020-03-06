@@ -66,7 +66,7 @@ if(TESTS)
     include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
     add_executable(runtests-core "${PFUNIT_DRIVER}" ${PROCESSED_TEST_SOURCES} ${EXTRA_SOURCES})
-    target_link_libraries(runtests-core overkit overkit-support "${PFUNIT_LIBRARY}")
+    target_link_libraries(runtests-core overkit-fortran overkit-support "${PFUNIT_LIBRARY}")
 
     add_test(NAME core-unit-tests
       COMMAND "${CMAKE_COMMAND}" -DTEST_EXECUTABLE=${CMAKE_CURRENT_BINARY_DIR}/runtests-core
