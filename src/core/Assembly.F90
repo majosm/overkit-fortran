@@ -804,6 +804,7 @@ contains
     type(ovk_field_logical) :: OverlappedMask_m, OverlappedMask_n
     integer(lk) :: PointCount
     type(ovk_field_logical), dimension(:,:), allocatable :: PaddingMasks
+    type(ovk_field_logical) :: BoundaryHoleMask
     type(ovk_field_logical) :: BaseOcclusionMask
     type(ovk_field_logical) :: OcclusionMask
     type(ovk_field_logical) :: OuterFringeMask
@@ -890,14 +891,15 @@ contains
     do n = 1, NumGrids
       if (any(Occludes(:,n) /= OVK_OCCLUDES_NONE)) then
         Grid_n => Domain%grid(IndexToID(n))
-        BaseOcclusionMask = ovk_field_logical_(Grid_n%cart, .false.)
+        call ovkFilterGridState(Grid_n, OVK_STATE_BOUNDARY_HOLE, OVK_ALL, BoundaryHoleMask)
+        BaseOcclusionMask = BoundaryHoleMask
         do m = 1, NumGrids
           if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
             BaseOcclusionMask%values = BaseOcclusionMask%values .or. &
               PairwiseOcclusionMasks(m,n)%values
           end if
         end do
-        OcclusionMask = ovk_field_logical_(Grid_n%cart, .false.)
+        OcclusionMask = BoundaryHoleMask
         do m = 1, NumGrids
           if (Occludes(m,n) /= OVK_OCCLUDES_NONE) then
             Grid_m => Domain%grid(IndexToID(m))
